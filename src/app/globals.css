@@ -2930,12 +2930,21 @@ img[src=""] {
 }
 
 /* ─────────── Admin Sidebar layout ───────────
-   The admin sidebar is fixed (w-56) and overlaps in-flow siblings rendered by the
-   root layout (Navbar, ad banners, site Footer). While it is open on desktop, push
-   in-flow body content right so nothing sits half-hidden underneath it. */
+   AdminShell sets --_sidebar-w on .admin-main-content.
+   • Mobile (<lg): sidebar is off-screen → main takes full width, no offset.
+   • Desktop (lg+): main shifts right by --_sidebar-w with a smooth transition. */
+
+.admin-main-content {
+  width: 100%;
+  max-width: 100%;
+  transition: margin-left 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+              width 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
 @media (min-width: 1024px) {
-  html[data-admin-sidebar="open"] > body {
-    padding-left: 14rem;
+  .admin-main-content {
+    margin-left: var(--_sidebar-w, 0px);
+    width: calc(100% - var(--_sidebar-w, 0px));
   }
 }
 

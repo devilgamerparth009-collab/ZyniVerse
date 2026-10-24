@@ -48,8 +48,17 @@ export default function NotificationBell() {
   async function fetchUnreadCount() {
     try {
       const res = await fetch("/api/notifications/unread");
-      const data = await res.json();
-      setUnreadCount(data.count ?? 0);
+      if (!res.ok) return;
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) return;
+      const text = await res.text();
+      if (!text) return;
+      try {
+        const data = JSON.parse(text);
+        setUnreadCount(data.count ?? 0);
+      } catch {
+        return;
+      }
     } catch (e) { logError(e); }
   }
 
@@ -76,8 +85,17 @@ export default function NotificationBell() {
     setOpen(true);
     try {
       const res = await fetch("/api/notifications?limit=10");
-      const data = await res.json();
-      setNotifications(data.notifications ?? []);
+      if (!res.ok) return;
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) return;
+      const text = await res.text();
+      if (!text) return;
+      try {
+        const data = JSON.parse(text);
+        setNotifications(data.notifications ?? []);
+      } catch {
+        return;
+      }
     } catch (e) { logError(e); }
   }
 

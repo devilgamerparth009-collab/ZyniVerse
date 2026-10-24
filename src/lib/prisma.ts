@@ -56,7 +56,7 @@ function pooledDatabaseUrl(raw: string | undefined): string | undefined {
         url.searchParams.set("pool_timeout", "60");
       }
     } else if (serverless) {
-      // Two hard rules for the serverless runtime.
+      // Two hard rules for the serverless/runtime.
       //
       // 1. A pool checkout must never outlive the platform's function
       //    timeout (10s on Vercel Hobby). When the deadline hits, the
@@ -70,11 +70,15 @@ function pooledDatabaseUrl(raw: string | undefined): string | undefined {
       //    and Vercel runs many instances at once, so a large per-instance
       //    limit multiplies into global pool pressure. Cap it.
       const limit = Number(url.searchParams.get("connection_limit") ?? "") || 5;
-      url.searchParams.set("connection_limit", String(Math.min(limit, 3)));
+      if (process.env.NODE_ENV !== "production") {
+        url.searchParams.set("connection_limit", String(Math.min(limit, 5)));
+      } else {
+        url.searchParams.set("connection_limit", String(Math.min(limit, 3)));
+      }
       const timeout = Number(url.searchParams.get("pool_timeout") ?? "") || 20;
-      url.searchParams.set("pool_timeout", String(Math.min(timeout, 5)));
+      url.searchParams.set("pool_timeout", String(process.env.NODE_ENV !== "production" ? Math.min(timeout, 10) : Math.min(timeout, 5)));
       const connect = Number(url.searchParams.get("connect_timeout") ?? "") || 10;
-      url.searchParams.set("connect_timeout", String(Math.min(connect, 5)));
+      url.searchParams.set("connect_timeout", String(process.env.NODE_ENV !== "production" ? Math.min(connect, 10) : Math.min(connect, 5)));
     } else if (!url.searchParams.has("connection_limit")) {
       url.searchParams.set("connection_limit", "3");
     }

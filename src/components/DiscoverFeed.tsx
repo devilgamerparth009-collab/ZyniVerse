@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import Loader from "@/components/Loader";
 import type { FeedCard } from "@/lib/feed";
@@ -163,9 +164,13 @@ function FeedCardItem({ card, index }: { card: FeedCard; index: number }) {
 }
 
 export default function DiscoverFeed() {
+  const searchParams = useSearchParams();
   const [cards, setCards] = useState<FeedCard[]>([]);
-  const [filter, setFilter] = useState<FeedCard["type"] | "ALL">("ALL");
-  const [search, setSearch] = useState("");
+  const initialType = (searchParams.get("type") || "").toUpperCase() as FeedCard["type"] | "ALL";
+  const [filter, setFilter] = useState<FeedCard["type"] | "ALL">(
+    TYPE_OPTIONS.some((o) => o.key === initialType) ? initialType : "ALL"
+  );
+  const [search, setSearch] = useState(searchParams.get("q") || "");
   const [page, setPage] = useState(1);
   const [hasNext, setHasNext] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -298,7 +303,7 @@ export default function DiscoverFeed() {
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.1, ease: CARD_EASE }}
-        className="neon-rgb-border glass-panel sticky top-20 z-30 p-3 lg:top-16"
+        className="neon-rgb-border glass-panel relative z-20 p-3"
       >
         {/* Filter panel header */}
         <div className="mb-2 flex items-center gap-2 px-2">
@@ -351,21 +356,23 @@ export default function DiscoverFeed() {
         </div>
 
         {/* Type pills */}
-        <div className="mt-3 flex flex-wrap gap-2">
-          {TYPE_OPTIONS.map((o) => (
-            <button
-              key={o.key}
-              onClick={() => setFilter(o.key)}
-              className={`rounded-full border px-4 py-1.5 text-xs font-semibold uppercase tracking-wider transition-all ${
-                filter === o.key
-                  ? "border-[var(--color-cyan)] bg-[var(--color-cyan)]/10 text-[var(--color-cyan)] shadow-[0_0_14px_rgba(0,255,224,0.2)]"
-                  : "border-[var(--color-line)] text-[var(--color-mute)] hover:border-[var(--color-cyan)]/60 hover:text-[var(--color-cyan)]"
-              }`}
-            >
-              <span className="mr-1">{o.emoji}</span>
-              {o.label}
-            </button>
-          ))}
+        <div className="mt-3 -mx-1 overflow-x-auto px-1 scrollbar-hide">
+          <div className="flex flex-nowrap items-center gap-2">
+            {TYPE_OPTIONS.map((o) => (
+              <button
+                key={o.key}
+                onClick={() => setFilter(o.key)}
+                className={`shrink-0 rounded-full border px-4 py-1.5 text-xs font-semibold uppercase tracking-wider transition-all ${
+                  filter === o.key
+                    ? "border-[var(--color-cyan)] bg-[var(--color-cyan)]/10 text-[var(--color-cyan)] shadow-[0_0_14px_rgba(0,255,224,0.2)]"
+                    : "border-[var(--color-line)] text-[var(--color-mute)] hover:border-[var(--color-cyan)]/60 hover:text-[var(--color-cyan)]"
+                }`}
+              >
+                <span className="mr-1">{o.emoji}</span>
+                {o.label}
+              </button>
+            ))}
+          </div>
         </div>
       </motion.div>
 

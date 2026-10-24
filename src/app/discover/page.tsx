@@ -123,26 +123,51 @@ export default function DiscoverPage() {
             {/* Content type chips */}
             <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
               {HERO_TAGS.map((tag) => (
-                <span
+                <a
                   key={tag.label}
+                  href={`#discover-feed`}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    const map: Record<string, string> = {
+                      NEWS: "NEWS",
+                      MEMES: "MEME",
+                      REELS: "REEL",
+                      MOMENTS: "MOMENT",
+                      "FAN ART": "FANART",
+                      COSPLAY: "COSPLAY",
+                      BLOGS: "BLOG",
+                    };
+                    const target = map[tag.label];
+                    const url = target ? `/discover?type=${target}` : "/discover";
+                    window.location.href = url;
+                  }}
                   className="inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:brightness-125"
                   style={{ color: tag.color, borderColor: `${tag.color}55`, background: `${tag.color}14` }}
                 >
                   <span className="h-1.5 w-1.5 rounded-full" style={{ background: tag.color, boxShadow: `0 0 8px ${tag.color}` }} />
                   {tag.emoji} {tag.label}
-                </span>
+                </a>
               ))}
             </div>
 
             {/* Scroll hint */}
-            <div className="mt-6 flex flex-col items-center gap-1">
+            <button
+              type="button"
+              onClick={() => {
+                const el = document.getElementById("discover-feed");
+                if (el) {
+                  el.scrollIntoView({ behavior: "smooth", block: "start" });
+                }
+              }}
+              className="mt-6 flex flex-col items-center gap-1 transition-opacity hover:opacity-80"
+            >
               <span className="font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--color-mute)]">
                 Scroll to explore
               </span>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="animate-bounce text-[var(--color-cyan)]">
                 <path d="M12 5v14m0 0l-6-6m6 6l6-6" />
               </svg>
-            </div>
+            </button>
           </div>
         </div>
 
@@ -161,7 +186,9 @@ export default function DiscoverPage() {
         </div>
       </section>
 
-      <DiscoverFeed />
+      <div id="discover-feed">
+        <DiscoverFeed />
+      </div>
     </main>
   );
 }

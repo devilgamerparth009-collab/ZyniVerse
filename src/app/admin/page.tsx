@@ -280,21 +280,24 @@ export default function AdminOverviewPage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl">
-      <section className="mb-8">
+    <div className="w-full">
+      <section className="mb-10">
         <RevealLabel
-          className="mb-4 inline-flex items-center gap-2 rounded-full border border-[var(--color-magenta)]/40 bg-[var(--color-magenta)]/10 px-3 py-1 font-mono text-xs uppercase tracking-[0.2em] text-[var(--color-magenta)] shadow-[0_0_16px_rgba(255,64,146,0.25)]"
-          spacing="0.2em"
-          fromSpacing="0.4em"
+          className="mb-4 inline-flex items-center gap-2 rounded-full border border-[var(--color-magenta)]/40 bg-[var(--color-magenta)]/10 px-3 py-1 font-mono text-xs uppercase tracking-[0.25em] text-[var(--color-magenta)] shadow-[0_0_20px_rgba(255,64,146,0.25)]"
+          spacing="0.25em"
+          fromSpacing="0.45em"
         >
           ✦ Admin Overview
         </RevealLabel>
-        <div className="neon-rgb-border inline-block rounded-2xl px-5 py-3">
-          <h1 className="bg-gradient-to-r from-[var(--color-cyan)] via-white to-[var(--color-magenta)] bg-clip-text font-display text-3xl font-bold text-transparent sm:text-4xl">
-            Command Center
-          </h1>
+        <div className="relative inline-block">
+          <div className="neon-rgb-border inline-block rounded-2xl px-6 py-4">
+            <h1 className="bg-gradient-to-r from-[var(--color-cyan)] via-white to-[var(--color-magenta)] bg-clip-text font-display text-4xl font-bold text-transparent sm:text-5xl lg:text-6xl">
+              Command Center
+            </h1>
+          </div>
+          <div className="absolute -inset-4 blur-3xl bg-gradient-to-r from-[var(--color-cyan)]/10 via-transparent to-[var(--color-magenta)]/10 -z-10" />
         </div>
-        <p className="mt-4 max-w-2xl text-sm text-[var(--color-mute)]">
+        <p className="mt-5 max-w-2xl text-sm text-[var(--color-mute)]">
           Live snapshot of your platform — users, traffic, sessions and community feedback in real time.
         </p>
       </section>

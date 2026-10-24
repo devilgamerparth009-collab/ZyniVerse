@@ -11,7 +11,7 @@ import {
 } from "@/lib/anime-birthdays";
 import NativeBannerAd from "@/components/NativeBannerAd";
 
-export const revalidate = 43200;
+export const revalidate = 86400; // 24 hours (was 12 hours)
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "https://zyverse.in";
 
