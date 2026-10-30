@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getOSTs, getArtist, getCoverImage } from "@/lib/ost";
 
-export const revalidate = 86400;
+export const revalidate = 259200;
 
 // Empty array => no build-time prerender, but on-demand ISR at runtime
 // (Next.js only enables it for a dynamic segment when this function exists).

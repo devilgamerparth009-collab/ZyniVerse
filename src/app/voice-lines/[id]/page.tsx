@@ -4,7 +4,7 @@ import VoiceLineCard from "@/components/VoiceLineCard";
 import QuoteDetailPanel from "@/components/QuoteDetailPanel";
 import Link from "next/link";
 
-export const revalidate = 86400;
+export const revalidate = 259200;
 
 // Empty array => no build-time prerender, but on-demand ISR at runtime
 // (Next.js only enables it for a dynamic segment when this function exists).

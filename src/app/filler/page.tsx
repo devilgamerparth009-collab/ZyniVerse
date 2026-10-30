@@ -36,7 +36,7 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true },
 };
 
-export const revalidate = 86400; // 24 hours - reduced ISR writes
+export const revalidate = 259200; // 24 hours - reduced ISR writes
 
 export default async function FillerListingPage() {
   const [popular, all] = await Promise.allSettled([

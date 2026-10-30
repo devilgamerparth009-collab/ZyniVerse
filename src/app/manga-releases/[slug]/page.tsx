@@ -11,7 +11,7 @@ import {
 import { LiveCountdown } from "@/components/manga-release/LiveCountdown";
 import NativeBannerAd from "@/components/NativeBannerAd";
 
-export const revalidate = 86400;
+export const revalidate = 259200;
 export const dynamicParams = false;
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "https://zyverse.in";

@@ -7,7 +7,7 @@ const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "https://zyverse.in";
 // Empty `generateStaticParams` => no build-time prerender, but Next.js only
 // enables on-demand ISR for a dynamic segment when it exists. Without it the
 // route renders dynamically on every request.
-export const revalidate = 86400;
+export const revalidate = 259200;
 
 export function generateStaticParams() {
   return [];

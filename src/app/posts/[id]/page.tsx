@@ -7,7 +7,7 @@ import { logError } from "@/lib/logger";
 import { posterCategoryOf } from "@/lib/post-types";
 import { PostShareRow } from "./share-row";
 
-export const revalidate = 43200;
+export const revalidate = 172800;
 
 // Next.js only enables on-demand ISR for a dynamic segment when
 // `generateStaticParams` exists. Empty array => no build-time prerender, but

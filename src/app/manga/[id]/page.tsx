@@ -5,7 +5,7 @@ import { getMangaDetailFull, AniListUnavailableError } from "@/lib/anilist";
 import MangaDetailClient from "./manga-client";
 import AnimeUnavailableCard from "@/components/AnimeUnavailableCard";
 
-export const revalidate = 86400;
+export const revalidate = 259200;
 
 // Return an EMPTY array: no paths are prerendered at build time (so no
 // build-time AniList queries), but Next.js only enables on-demand ISR for a

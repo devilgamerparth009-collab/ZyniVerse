@@ -7,7 +7,7 @@ import { logError } from "@/lib/logger";
 import { POSTER_CATEGORIES, posterCategoryOf, type PosterCategory } from "@/lib/post-types";
 import NewPostComposer from "@/components/NewPostComposer";
 
-export const revalidate = 43200; // 12 hours (was 6 hours)
+export const revalidate = 172800; // 12 hours (was 6 hours)
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "https://zyverse.in";
 

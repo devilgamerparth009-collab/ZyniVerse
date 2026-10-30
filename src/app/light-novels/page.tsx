@@ -5,7 +5,7 @@ import LightNovelBrowseClient from "./client";
 // ISR: server-render the first Trending tab (covers land in the HTML, like
 // /manga). An AniList hiccup degrades to an empty grid which the client
 // immediately refetches.
-export const revalidate = 43200; // 12 hours (was 6 hours)
+export const revalidate = 172800; // 12 hours (was 6 hours)
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "https://zyverse.in";
 

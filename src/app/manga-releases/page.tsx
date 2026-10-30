@@ -10,7 +10,7 @@ import {
 import { LiveCountdown } from "@/components/manga-release/LiveCountdown";
 import NativeBannerAd from "@/components/NativeBannerAd";
 
-export const revalidate = 43200; // 12 hours (was 6 hours)
+export const revalidate = 172800; // 12 hours (was 6 hours)
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "https://zyverse.in";
 

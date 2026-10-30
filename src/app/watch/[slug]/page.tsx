@@ -13,7 +13,7 @@ import Link from "next/link";
 // `generateStaticParams` exists. Returning an empty array means no build-time
 // prerender (so no build-time AniList rate limiting), but every hit after the
 // first is served from the CDN instead of a billed Node render.
-export const revalidate = 86400;
+export const revalidate = 259200;
 
 export function generateStaticParams() {
   return [];

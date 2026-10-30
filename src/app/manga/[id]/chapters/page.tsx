@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import { redirect } from "next/navigation";
 import MangaChaptersClient from "./client";
 
-export const revalidate = 86400;
+export const revalidate = 259200;
 
 // Empty array => no build-time prerender, but on-demand ISR at runtime
 // (Next.js only enables it for a dynamic segment when this function exists).
