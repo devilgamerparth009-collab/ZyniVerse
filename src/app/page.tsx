@@ -4,6 +4,7 @@ import Image from "next/image";
 import {
   getHomepageData, getAiringSchedule,
 } from "@/lib/anilist";
+import { withHomepageFallback } from "@/lib/homepage-fallback";
 import { logError } from "@/lib/logger";
 
 // ISR, not per-request rendering. This was `force-dynamic` because a build-time
@@ -14,7 +15,12 @@ import { logError } from "@/lib/logger";
 // AniList calls fall back to the Prisma-backed cache when the live fetch fails.
 // The guard below is non-fatal too, so a bad prerender can never break a
 // deploy — ISR simply regenerates the page in the background.
-export const revalidate = 172800; // 6 hours (was 3 hours)
+//
+// One hour, not 48: when the build is rate-limited the page is still served
+// with the `homepage-fallback` snapshot, but a short window means ISR replaces
+// it with live data on the next request instead of leaving stale rails up for
+// two days (that is exactly how the empty hero shipped on 2026-11-05).
+export const revalidate = 3600; // 1 hour
 
 export const metadata: Metadata = {
   title: "ZyniVerse — Anime Watch Order, Filler Guides & Episode Schedule",
@@ -140,30 +146,34 @@ export default async function Home() {
 
   // The homepage is statically prerendered, so whatever AniList returns during
   // `next build` is what gets baked into the HTML and served from the CDN.
-  // When the four rails all come back empty the old code stored `[]` silently,
-  // shipping a blank hero to every visitor with no error anywhere. Surface it
-  // instead of letting it ship.
-  const homepageData =
-    homepage.status === "fulfilled"
-      ? homepage.value
-      : { trending: [], popular: [], upcoming: [], topRated: [] };
+  // AniList rate-limits builds (30 req/min per IP), and when that happens all
+  // four rails come back empty — previously shipping a blank hero to every
+  // visitor with no error anywhere. Fill any empty rail from the committed
+  // snapshot so the page never prerenders without content.
+  const homepageData = withHomepageFallback(
+    homepage.status === "fulfilled" ? homepage.value : null,
+  );
 
   const isBuild = process.env.NEXT_PHASE === "phase-production-build";
-  const hasAnyAnime =
-    homepageData.trending.length > 0 ||
-    homepageData.popular.length > 0 ||
-    homepageData.upcoming.length > 0 ||
-    homepageData.topRated.length > 0;
+  const homepageFetch = homepage.status === "fulfilled" ? homepage.value : null;
+  const liveHasAnyAnime = Boolean(
+    homepageFetch &&
+      (homepageFetch.trending.length > 0 ||
+        homepageFetch.popular.length > 0 ||
+        homepageFetch.upcoming.length > 0 ||
+        homepageFetch.topRated.length > 0),
+  );
 
-  if (isBuild && !hasAnyAnime) {
-    // Non-fatal on purpose. Failing the deploy is not obviously better than
-    // serving the static shell for one revalidate window, and this route is now
-    // ISR: the next request after the window regenerates it in the background.
+  if (isBuild && !liveHasAnyAnime) {
+    // Non-fatal: the page still ships with the committed snapshot below and ISR
+    // refreshes it from the live AniList API within an hour. Keep the log so a
+    // rate-limited build is visible in the Vercel build output.
     logError(
       new Error(
-        "Homepage prerender produced no AniList data. AniList rate-limits at 30 req/min " +
+        "Homepage prerender produced no live AniList data. AniList rate-limits at 30 req/min " +
           "per IP and a build prerenders hundreds of pages from one IP, so the live fetch " +
-          "may have been rate-limited and the shared Prisma cache had nothing to fall back on.",
+          "was most likely rate-limited and the shared Prisma cache had nothing to fall back on. " +
+          "Serving the committed homepage-fallback snapshot.",
       ),
     );
   }
