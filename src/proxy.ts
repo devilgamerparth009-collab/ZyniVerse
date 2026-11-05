@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextFetchEvent, NextRequest } from "next/server";
 import { detectBot } from "@/lib/bot-detect";
+import { BOT_COOKIE, BOT_COOKIE_MAX_AGE } from "@/lib/bot-cookie";
 
 // ---------------------------------------------------------------------------
 // Proxy runs on the Node.js runtime in Next.js 16 (middleware was renamed to
@@ -14,8 +15,9 @@ import { detectBot } from "@/lib/bot-detect";
 // the page itself is served from the ISR cache and costs zero Function
 // invocations. So the matcher below is deliberately narrow.
 //
-// This file therefore does exactly two things: crawler hit reporting and
-// refusing crawlers at the analytics ingest endpoints.
+// This file therefore does exactly three things: crawler hit reporting,
+// refusing crawlers at the analytics ingest endpoints, and flagging crawler
+// responses with a cookie so ad components can skip them.
 //
 // REMOVED — the old `PUBLIC_CDN_PATHS` + `Cache-Control` block:
 // It never had any effect. Next.js owns the `Cache-Control` header of the
@@ -104,7 +106,33 @@ export function proxy(request: NextRequest, event: NextFetchEvent) {
     return new NextResponse(null, { status: 404 });
   }
 
-  return NextResponse.next();
+  // -------------------------------------------------------------------------
+  // Bot guard for ads.
+  //
+  // Only known crawler UAs get the cookie; real visitors never do, so their
+  // responses remain cacheable and their ad rendering is untouched. A stale
+  // cookie is cleared as soon as a request looks human again.
+  // -------------------------------------------------------------------------
+  const response = NextResponse.next();
+  const hadBotCookie = Boolean(request.cookies.get(BOT_COOKIE));
+
+  if (isBot) {
+    if (!hadBotCookie) {
+      response.cookies.set({
+        name: BOT_COOKIE,
+        value: "1",
+        path: "/",
+        maxAge: BOT_COOKIE_MAX_AGE,
+        sameSite: "lax",
+        httpOnly: false,
+        secure: process.env.NODE_ENV === "production",
+      });
+    }
+  } else if (hadBotCookie) {
+    response.cookies.delete(BOT_COOKIE);
+  }
+
+  return response;
 }
 
 export const config = {
@@ -138,6 +166,8 @@ export const config = {
     "/anime/:path*",
     "/character/:path*",
     "/manga/:path*",
+    "/alternatives/:path*",
+    "/search",
     "/news/:path*",
     "/blog/:path*",
     "/wiki/:path*",

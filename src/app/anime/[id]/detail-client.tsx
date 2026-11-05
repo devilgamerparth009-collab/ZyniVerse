@@ -727,6 +727,9 @@ export default function AnimeDetailClient({
 
             {/* ── Right Column (Sidebar) ── */}
             <aside className="space-y-6">
+              {/* Ad — top of the sidebar so it is actually seen */}
+              <AdBanner placement="anime-detail" type="sidebar" />
+
               {/* Episode Tracker */}
               {anime.episodes && (
                 <EpisodeTracker
@@ -750,9 +753,6 @@ export default function AnimeDetailClient({
 
               {/* Episode Discussions */}
               <EpisodeDiscussion mediaId={anime.id} />
-
-              {/* Ad Placement */}
-              <AdBanner placement="anime-detail" type="sidebar" />
 
               {/* Theme Songs */}
               <ThemeSongsSection mediaId={anime.id} />

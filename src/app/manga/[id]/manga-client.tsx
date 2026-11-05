@@ -383,6 +383,11 @@ export default function MangaDetailsPage({ initialManga }: { initialManga: Media
             )}
           </section>
 
+          {/* In-content ad — 2.9K visitors/month on this template */}
+          <div className="flex justify-center">
+            <AdBanner placement="manga-detail-inline" type="sidebar" />
+          </div>
+
           {/* Chapter list */}
           {entry && showChapters && chapters.length > 0 && (
             <section>
@@ -544,6 +549,10 @@ export default function MangaDetailsPage({ initialManga }: { initialManga: Media
 
         {/* Sidebar */}
         <aside className="space-y-6">
+          {/* Ad — kept at the top of the sidebar so the highest-traffic
+              template actually gets the impressions */}
+          <AdBanner placement="manga-detail" type="sidebar" />
+
           {/* Progress (when added to list) */}
           {entry && (
             <MangaProgress
@@ -570,9 +579,6 @@ export default function MangaDetailsPage({ initialManga }: { initialManga: Media
 
           {/* Manga Stats (MangaDex + MAL) */}
           <MangaStatsCard mediaId={manga.id} />
-
-          {/* Ad */}
-          <AdBanner placement="manga-detail" type="sidebar" />
 
           {/* Score Distribution */}
           <ScoreDistributionChart scoreDistribution={scoreDist} />

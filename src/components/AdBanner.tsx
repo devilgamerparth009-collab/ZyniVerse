@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useId } from "react";
 import { useSession } from "next-auth/react";
 import { getAdsForLocation, shouldShowAds, adsEnabled, type AdPlacement } from "@/lib/ads";
+import { hasBotCookie } from "@/lib/bot-cookie";
 
 interface AdBannerProps {
   placement: string;
@@ -142,6 +143,9 @@ export default function AdBanner({
 }: AdBannerProps) {
   const { data: session } = useSession();
   const [liveAds, setLiveAds] = useState<AdPlacement[] | undefined>(undefined);
+  // null = bot check not resolved yet. Until it is, no ad script is injected
+  // (the slot keeps its reserved height so there is no layout shift).
+  const [isBot, setIsBot] = useState<boolean | null>(null);
   // Per-slot impression dedupe lives in a ref, not state: nothing in the render
   // branch depends on it, and a ref avoids a synchronous setState inside the
   // impression effect below (react-hooks/set-state-in-effect).
@@ -157,17 +161,28 @@ export default function AdBanner({
 
   const showAds = adsEnabled() && shouldShowAds(user);
 
+  // Read the Proxy's bot flag once, on the client only. Doing it in an effect
+  // keeps the server and first client render identical (no hydration drift).
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsBot(hasBotCookie());
+  }, []);
+
   // candidateAd is pure data — pulled above the early returns so every hook in
   // this component runs unconditionally (rules-of-hooks). When ads are hidden
-  // (dev / premium) probing the ad network is pointless, so "" short-circuits
-  // useAdNetworkAvailable to "reachable" without firing a request.
+  // (dev / premium / bot) probing the ad network is pointless, so "" short-
+  // circuits useAdNetworkAvailable to "reachable" without firing a request.
   const candidateAd =
     getAdsForLocation(placement, liveAds)[0] ?? getAdsForLocation(placement)[0];
-  const networkAvailable = useAdNetworkAvailable(showAds ? (candidateAd?.code ?? "") : "");
+  const networkAvailable = useAdNetworkAvailable(
+    showAds && isBot === false ? (candidateAd?.code ?? "") : ""
+  );
 
   // Load the live (DB-backed) ad config once. Falls back to static defaults.
   useEffect(() => {
     if (!adsEnabled()) return;
+    // Wait for the bot check; bot traffic must never fetch the ad config.
+    if (isBot !== false) return;
     let cancelled = false;
     fetch("/api/ads/config")
       .then((r) => (r.ok ? r.json() : Promise.reject()))
@@ -189,12 +204,12 @@ export default function AdBanner({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [isBot]);
 
   // Track impressions — at most once per page-visit per slot, so ad stats
   // stay meaningful without firing a POST + DB write on every intersection.
   useEffect(() => {
-    if (!showAds || impressionSentRef.current) return;
+    if (isBot !== false || !showAds || impressionSentRef.current) return;
     const dedupeKey = `zy_ad_imp_${placement}_${window.location.pathname}`;
     try {
       if (sessionStorage.getItem(dedupeKey) === "1") {
@@ -224,10 +239,15 @@ export default function AdBanner({
     );
     if (containerRef.current) observer.observe(containerRef.current);
     return () => observer.disconnect();
-  }, [showAds, placement]);
+  }, [showAds, placement, isBot]);
 
   // ── Dev: never render ad containers (they inject external scripts) ─────
   if (!adsEnabled()) {
+    return null;
+  }
+
+  // ── Bots: no ad markup and no ad requests at all ──────────────────────
+  if (isBot === true) {
     return null;
   }
 
@@ -263,8 +283,9 @@ export default function AdBanner({
   const isNative = candidateAd?.renderMode === "native-async";
   const slotH = isNative ? 340 : (candidateAd?.dimensions?.height ?? 90) + 16;
 
-  // ── No ad configured / network blocked: keep the reserved slot (no CLS) ─
-  if (!ad || networkAvailable === false) {
+  // ── No ad configured / network blocked / bot check pending: keep the
+  // reserved slot (no CLS) and inject nothing until we know it is a human ─
+  if (!ad || networkAvailable === false || isBot === null) {
     return (
       <div
         ref={containerRef}

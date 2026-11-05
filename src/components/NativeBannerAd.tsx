@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { shouldShowAds, adsEnabled } from "@/lib/ads";
+import { hasBotCookie } from "@/lib/bot-cookie";
 
 /**
  * Adsterra Native Banner Ad.
@@ -13,6 +14,9 @@ export default function NativeBannerAd({ className = "" }: { className?: string 
   const { data: session, status } = useSession();
   const containerRef = useRef<HTMLDivElement>(null);
   const injectedRef = useRef(false);
+  // null = bot check pending. No ad script is injected until we know the
+  // visitor is human, so crawler traffic never produces invalid impressions.
+  const [isBot, setIsBot] = useState<boolean | null>(null);
 
   const user = session?.user
     ? { premium: (session.user as { premium?: boolean }).premium === true }
@@ -21,8 +25,15 @@ export default function NativeBannerAd({ className = "" }: { className?: string 
   const showAds = adsEnabled() && shouldShowAds(user);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsBot(hasBotCookie());
+  }, []);
+
+  useEffect(() => {
     // Never inject ad scripts while developing locally.
     if (!adsEnabled()) return;
+    // Wait until the Proxy bot check has resolved.
+    if (isBot !== false) return;
     // Wait until session is resolved
     if (status === "loading") return;
     if (!showAds) return;
@@ -41,10 +52,11 @@ export default function NativeBannerAd({ className = "" }: { className?: string 
     script.src =
       "https://formssternlystately.com/188115be46209eff2403f0d29b32d940/invoke.js";
     containerRef.current.appendChild(script);
-  }, [showAds, status]);
+  }, [showAds, status, isBot]);
 
-  // Don't render anything while developing locally or for premium users
+  // Don't render anything while developing locally, for premium users or bots
   if (process.env.NODE_ENV !== "production") return null;
+  if (isBot === true) return null;
   if (status !== "loading" && !showAds) return null;
 
   return (

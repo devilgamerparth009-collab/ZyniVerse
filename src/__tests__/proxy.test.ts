@@ -87,3 +87,31 @@ describe("proxy — crawler reporting", () => {
     expect(waitUntil).not.toHaveBeenCalled();
   });
 });
+
+describe("proxy — bot cookie for ad slots", () => {
+  it("flags a known crawler with zyni_bot=1", () => {
+    const { event } = makeEvent();
+    const res = proxy(makeRequest("https://zyverse.in/anime/1", GOOGLEBOT), event);
+    const setCookie = res.headers.get("set-cookie") ?? "";
+    expect(setCookie).toContain("zyni_bot=1");
+  });
+
+  it("never sets the cookie for a real visitor", () => {
+    const { event } = makeEvent();
+    const res = proxy(makeRequest("https://zyverse.in/anime/1", HUMAN), event);
+    expect(res.headers.get("set-cookie")).toBeNull();
+  });
+
+  it("clears a stale bot cookie once the request looks human", () => {
+    const { event } = makeEvent();
+    const request = new NextRequest(
+      new Request("https://zyverse.in/anime/1", {
+        headers: { "user-agent": HUMAN, cookie: "zyni_bot=1" },
+      })
+    );
+    const res = proxy(request, event);
+    const setCookie = res.headers.get("set-cookie") ?? "";
+    expect(setCookie).toContain("zyni_bot=");
+    expect(setCookie.toLowerCase()).toContain("expires=thu, 01 jan 1970");
+  });
+});

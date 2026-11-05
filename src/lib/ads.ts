@@ -85,7 +85,11 @@ export const PLACEMENTS: AdPlacement[] = [
 
 /** Maps a page placement key to its canonical ad location. */
 export function canonicalLocation(pageType: string): string {
-  const sidebarPages = ["search", "wiki", "manga", "manga-detail", "anime-detail"];
+  const sidebarPages = [
+    "search", "wiki", "manga", "manga-detail", "anime-detail",
+    // In-content 300×250 slots on the highest-traffic templates.
+    "manga-detail-inline", "character-inline", "alternatives-inline", "forum-anime-inline",
+  ];
   const bannerPages  = ["homepage", "filler", "global-footer", "forum", "recommendations", "banner"];
   if (sidebarPages.includes(pageType)) return "sidebar";
   if (bannerPages.includes(pageType))  return "banner";

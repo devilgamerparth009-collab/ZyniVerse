@@ -6,6 +6,7 @@ import {
   ALTERNATIVE_SITES,
   getShutDownSite,
 } from "@/lib/data/dead-site-alternatives";
+import AdBanner from "@/components/AdBanner";
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "https://zyverse.in";
 
@@ -101,6 +102,11 @@ export default async function ShutDownAlternativePage({ params }: Props) {
       <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-5">
         <h2 className="font-display text-sm font-bold text-amber-300">⚠️ {site.siteName} Status Update</h2>
         <p className="mt-2 text-sm text-[var(--color-mute)] leading-relaxed">{site.currentStatus}</p>
+      </div>
+
+      {/* In-content ad — SEO landing pages carry high commercial intent */}
+      <div className="mt-8 flex justify-center">
+        <AdBanner placement="alternatives-inline" type="sidebar" />
       </div>
 
       <section className="mt-10">

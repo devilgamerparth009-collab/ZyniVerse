@@ -10,6 +10,7 @@ import type { CharacterFull } from "@/lib/anilist";
 import ClaimCharacterButton from "@/components/ClaimCharacterButton";
 import TraitTagButton from "@/components/TraitTagButton";
 import CharacterChat from "@/components/CharacterChat";
+import AdBanner from "@/components/AdBanner";
 import { amazonSearchUrl } from "@/lib/affiliate-config";
 
 function stripHtml(str: string | null | undefined = "") { return str ? str.replace(/<[^>]*>/g, "") : ""; }
@@ -120,6 +121,11 @@ export default function CharacterDetailClient({ initialChar }: { initialChar: Ch
             </div>
           </div>
         </div>
+      </div>
+
+      {/* In-content ad — 428 visitors/month on this template */}
+      <div className="mx-auto flex max-w-7xl justify-center px-4 pt-6 sm:px-6">
+        <AdBanner placement="character-inline" type="sidebar" />
       </div>
 
       {/* ── Tab Bar ── */}

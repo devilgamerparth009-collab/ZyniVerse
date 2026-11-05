@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import ForumThreadCard from "@/components/ForumThreadCard";
 import ForumSidebar from "@/components/ForumSidebar";
+import AdBanner from "@/components/AdBanner";
 
 interface ForumThread {
   id: string;
@@ -57,6 +58,11 @@ export default function ForumAnimeClient({ animeId }: { animeId: number }) {
             ))}
           </div>
         )}
+
+        {/* In-content ad */}
+        <div className="mt-6 flex justify-center">
+          <AdBanner placement="forum-anime-inline" type="sidebar" />
+        </div>
 
         {totalPages > 1 && (
           <div className="flex items-center justify-center gap-2 mt-6">

@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { shouldShowAds, adsEnabled } from "@/lib/ads";
+import { hasBotCookie } from "@/lib/bot-cookie";
 
 /**
  * Adsterra Social Bar — a floating sticky widget that appears on all pages.
@@ -12,6 +13,8 @@ import { shouldShowAds, adsEnabled } from "@/lib/ads";
 export default function SocialBarAd() {
   const { data: session } = useSession();
   const injectedRef = useRef(false);
+  // null = bot check pending; never inject the floating widget for crawlers.
+  const [isBot, setIsBot] = useState<boolean | null>(null);
 
   const user = session?.user
     ? { premium: Boolean((session.user as Record<string, unknown>).premium) }
@@ -20,8 +23,15 @@ export default function SocialBarAd() {
   const showAds = adsEnabled() && shouldShowAds(user);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsBot(hasBotCookie());
+  }, []);
+
+  useEffect(() => {
     // Never inject ad scripts while developing locally.
     if (!adsEnabled()) return;
+    // Wait until the Proxy bot check has resolved.
+    if (isBot !== false) return;
     // Wait until we know the premium status (session loaded)
     if (session === undefined) return; // still loading
     if (!showAds) return;             // premium user
@@ -59,7 +69,7 @@ export default function SocialBarAd() {
       if (timer) clearTimeout(timer);
       window.removeEventListener("load", onLoad);
     };
-  }, [showAds, session]);
+  }, [showAds, session, isBot]);
 
   // This component renders nothing visible itself
   return null;
