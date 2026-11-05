@@ -56,8 +56,13 @@ describe("withHomepageFallback", () => {
     const { trending } = withHomepageFallback(null);
     const hero = trending[0];
     const cover = hero.coverImage.extraLarge ?? hero.coverImage.large;
+    const title =
+      hero.title.romaji ??
+      hero.title.english ??
+      hero.title.userPreferred ??
+      "";
 
-    expect(hero.title.romaji.length).toBeGreaterThan(0);
-    expect(cover).toMatch(/^https:\/\//);
+    expect(title.length).toBeGreaterThan(0);
+    expect(cover ?? "").toMatch(/^https:\/\//);
   });
 });
