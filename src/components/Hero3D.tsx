@@ -44,6 +44,16 @@ export default function Hero3D({ items, stats }: { items: Media[]; stats?: HeroS
   const prev = items[(active - 1 + total) % total];
   const next = items[(active + 1) % total];
 
+  // Split the title so the trailing words get the glow treatment. Keep the
+  // whole title intact for one-word shows (e.g. "ONE PIECE") instead of
+  // rendering an empty second span — the old fallback printed "✦ Spotlight"
+  // next to every short title, which read as if the hero had no data.
+  const titleWords = hero ? bestTitle(hero.title).split(" ").filter(Boolean) : [];
+  const titleSplitAt =
+    titleWords.length > 1 ? Math.min(3, titleWords.length - 1) : 0;
+  const titleLead = titleWords.slice(0, titleSplitAt).join(" ");
+  const titleTail = titleWords.slice(titleSplitAt).join(" ");
+
   return (
     <section className="relative h-[90vh] min-h-[400px] sm:min-h-[600px] flex items-center overflow-hidden border-b border-[var(--color-line)]">
       {/* Background layers */}
@@ -86,9 +96,9 @@ export default function Hero3D({ items, stats }: { items: Media[]; stats?: HeroS
               transition={{ duration: 0.4 }}
             >
               <h1 className="mt-4 font-display text-3xl font-bold leading-[1.1] break-words sm:text-5xl lg:text-7xl">
-                {hero && bestTitle(hero.title).split(" ").slice(0, 3).join(" ")}{" "}
+                {titleLead}{" "}
                 <span className="glow-text text-[var(--color-magenta)] break-words">
-                  {hero ? bestTitle(hero.title).split(" ").slice(3).join(" ") || "✦ Spotlight" : "✦ Spotlight"}
+                  {hero ? titleTail : "✦ Spotlight"}
                 </span>
               </h1>
 
