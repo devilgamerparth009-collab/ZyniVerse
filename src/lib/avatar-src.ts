@@ -3,11 +3,15 @@ const AVATAR_PROXY_HOSTS = [
   "supabase.co",
   "githubusercontent.com",
   "discordapp.com",
+  "discord.com",
   "ui-avatars.com",
   "gravatar.com",
   "anilist.co",
+  "anili.st",
+  "myanimelist.net",
   "wikimedia.org",
   "wikipedia.org",
+  "placewaifu.com",
 ];
 
 export function isAllowedAvatarHost(hostname: string): boolean {
