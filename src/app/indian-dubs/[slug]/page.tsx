@@ -2,6 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { INDIAN_DUB_GUIDES } from "@/lib/indian-dub-guides";
+import {
+  DUB_PAGE_SLUGS,
+  getDubPage,
+  type DubPage,
+} from "@/lib/dub-page-index";
+import DubEntryGuide from "./entry-guide";
 import { getMediaBatch, type MediaBasic } from "@/lib/anilist";
 import NativeBannerAd from "@/components/NativeBannerAd";
 import IndianDubCountdown from "@/components/indian-dubs/IndianDubCountdown";
@@ -29,13 +35,70 @@ const STATUS_STYLES: Record<string, { label: string; cls: string; dot: string }>
 };
 
 export function generateStaticParams() {
-  return INDIAN_DUB_GUIDES.map((g) => ({ slug: g.slug }));
+  return DUB_PAGE_SLUGS.map((slug) => ({ slug }));
+}
+
+function entryMetadata(page: Extract<DubPage, { kind: "entry" }>) {
+  const { entry, name, slug } = page;
+  const languages = [
+    entry.hasHindi ? "Hindi" : null,
+    entry.hasTamil ? "Tamil" : null,
+    entry.hasTelugu ? "Telugu" : null,
+  ].filter(Boolean) as string[];
+  const primary = languages[0] ?? "Indian";
+  const langList =
+    languages.length > 1
+      ? `${languages.slice(0, -1).join(", ")} and ${languages.at(-1)}`
+      : primary;
+  const platform = entry.hindiDubPlatform;
+  const episodes = entry.totalEpisodes ? `${entry.totalEpisodes} episodes` : "episode list";
+  const year = entry.hindiDubStartYear ? ` since ${entry.hindiDubStartYear}` : "";
+  const description = `Is ${name} available in ${langList}? ${
+    entry.hasHindi
+      ? `Yes — the ${name} ${primary} dub is listed${platform ? ` on ${platform}` : ""}${year}, ${episodes}.`
+      : `No Hindi dub is listed for ${name}; the Indian-language dub we track is ${langList}.`
+  } Find where to watch in India, episode count and FAQ.`.slice(0, 160);
+  const url = `${BASE_URL}/indian-dubs/${slug}`;
+
+  return {
+    title: `${name} ${primary} Dub — Episodes, Platform & Where to Watch`,
+    description,
+    keywords: [
+      `${name} hindi dub`,
+      `${name} in hindi`,
+      `${name} ${primary.toLowerCase()} dub`,
+      `${name} episodes dubbed`,
+      `${name} where to watch india`,
+      platform ? `${platform.toLowerCase()} ${name}` : "",
+      "hindi dubbed anime",
+      "indian anime dubs",
+    ].filter(Boolean),
+    alternates: { canonical: url },
+    openGraph: {
+      title: `${name} ${primary} Dub — Episodes, Platform & Where to Watch`,
+      description,
+      url,
+      images: entry.image ? [entry.image] : undefined,
+      type: "article" as const,
+    },
+    twitter: {
+      card: "summary_large_image" as const,
+      title: `${name} ${primary} Dub`,
+      description,
+      images: entry.image ? [entry.image] : undefined,
+    },
+    robots: { index: true, follow: true },
+  };
 }
 
 export async function generateMetadata({ params }: GuideParams): Promise<Metadata> {
   const { slug } = await params;
-  const guide = INDIAN_DUB_GUIDES.find((g) => g.slug === slug);
-  if (!guide) return { title: "Hindi, Tamil & Telugu Dubbed Anime" };
+  const page = getDubPage(slug);
+  if (!page) return { title: "Hindi, Tamil & Telugu Dubbed Anime" };
+
+  if (page.kind === "entry") return entryMetadata(page);
+
+  const guide = page.guide;
 
   const url = `${BASE_URL}/indian-dubs/${guide.slug}`;
   const langs = guide.languages.join(", ");
@@ -79,8 +142,12 @@ export async function generateMetadata({ params }: GuideParams): Promise<Metadat
 
 export default async function IndianDubGuidePage({ params }: GuideParams) {
   const { slug } = await params;
-  const guide = INDIAN_DUB_GUIDES.find((g) => g.slug === slug);
-  if (!guide) notFound();
+  const page = getDubPage(slug);
+  if (!page) notFound();
+
+  if (page.kind === "entry") return <DubEntryGuide page={page} />;
+
+  const guide = page.guide;
 
   let poster: string | null = null;
   let mediaScore: number | null = null;

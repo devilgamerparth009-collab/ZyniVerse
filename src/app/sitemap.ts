@@ -1,11 +1,10 @@
 import type { MetadataRoute } from "next";
 import { prisma } from "@/lib/prisma";
 import { logError } from "@/lib/logger";
-import { getPopular, getTrending, type Media } from "@/lib/anilist";
 import { getFillerData } from "@/lib/filler";
 import { SHUT_DOWN_SITES } from "@/lib/data/dead-site-alternatives";
-import { POPULAR_ANIME_FALLBACK_IDS } from "@/lib/data/popular-anime-ids";
-import { INDIAN_DUB_GUIDES } from "@/lib/indian-dub-guides";
+import { WATCH_GUIDE_IDS } from "@/lib/data/watch-guide-ids";
+import { DUB_PAGE_SLUGS } from "@/lib/dub-page-index";
 import { TOONS_DATABASE } from "@/lib/toons-data";
 import { NEWS_DESK } from "@/lib/news-desk";
 
@@ -235,36 +234,24 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // Dynamic: Popular anime "where to watch in India" guides (unique content)
   //
-  // Two things silently emptied this section before:
-  //   1. `getPopular(100)` — AniList caps `perPage` at 50 and clamps silently,
-  //      so 100 was never actually 100.
-  //   2. Any AniList hiccup (rate limits are common at build time) threw here,
-  //      and the catch left the section empty for the whole 24h revalidate
-  //      window. The live sitemap had zero `/watch/` URLs because of it.
-  // Now: ask for 50 twice across two orderings (trending skews seasonal), and
-  // fall back to a baked, verified id list if AniList is unavailable.
-  let watchGuidePages: MetadataRoute.Sitemap = [];
-  try {
-    const [popular, trending] = await Promise.all([
-      getPopular(50).catch((): Media[] => []),
-      getTrending(50).catch((): Media[] => []),
-    ]);
-
-    const starts = new Map<number, Media["startDate"]>();
-    for (const m of [...popular, ...trending]) {
-      if (typeof m?.id === "number") starts.set(m.id, m.startDate);
-    }
-    if (starts.size === 0) {
-      for (const id of POPULAR_ANIME_FALLBACK_IDS) starts.set(id, undefined);
-    }
-
-    watchGuidePages = [...starts.entries()].map(([id, startDate]) => ({
+  // These were previously built from a live `getPopular(50) + getTrending(50)`
+  // call. Two problems: only ~100 guides were ever discoverable (AniList clamps
+  // perPage at 50), and any AniList hiccup during sitemap generation — rate
+  // limits are common — threw and left the whole `/watch/` cluster out of the
+  // sitemap for the full 24h revalidate window. The live sitemap had zero
+  // `/watch/` URLs because of it.
+  //
+  // Now the id list is baked (`WATCH_GUIDE_IDS`, 500 verified POPULARITY_DESC
+  // ids captured 2026-11-05). AniList ids are permanent and never recycled, so
+  // discovery is deterministic and needs no network call.
+  const watchGuidePages: MetadataRoute.Sitemap = WATCH_GUIDE_IDS.map(
+    ({ id, year }) => ({
       url: `${BASE_URL}/watch/${id}`,
-      lastModified: stableLastModified(startDate),
+      lastModified: stableLastModified(year ? { year } : undefined),
       changeFrequency: "weekly" as const,
       priority: 0.7,
-    }));
-  } catch (e) { logError(e); }
+    }),
+  );
 
   // Character pages are intentionally NOT submitted: their content is a thin
   // AniList mirror and their metadata is now `noindex` (see
@@ -306,9 +293,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const newsPages: MetadataRoute.Sitemap = [];
 
   // Indian dub guides (static, high SEO value — unique editorial content)
-  const indianDubGuidePages: MetadataRoute.Sitemap = INDIAN_DUB_GUIDES.map((g) => ({
-    url: `${BASE_URL}/indian-dubs/${g.slug}`,
-    
+  // Indian dub guides — the 41 hand-written editorial guides plus every title
+  // in the verified dub database (~99 pages). Both render under
+  // /indian-dubs/[slug]; see `src/lib/dub-page-index.ts` for the merge rules.
+  const indianDubGuidePages: MetadataRoute.Sitemap = DUB_PAGE_SLUGS.map((slug) => ({
+    url: `${BASE_URL}/indian-dubs/${slug}`,
     changeFrequency: "weekly" as const,
     priority: 0.8,
   }));

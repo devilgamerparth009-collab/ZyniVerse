@@ -5,6 +5,7 @@ import { getAnimeDetailFull, bestTitle } from "@/lib/anilist";
 import { getStreamingSources } from "@/lib/streaming";
 import { getFillerForAnime } from "@/lib/filler";
 import { getWatchOrderSlugForAnilistId } from "@/lib/watch-order-index";
+import { getDubPageSlugForTitle } from "@/lib/dub-page-index";
 import { PageTransition } from "@/components/PageTransition";
 import NativeBannerAd from "@/components/NativeBannerAd";
 import Link from "next/link";
@@ -78,6 +79,7 @@ export default async function WatchGuidePage({ params }: Props) {
   // a slug key, not a numeric AniList media id.
   const fillerShow = await getFillerForAnime(mediaId).catch(() => null);
   const watchOrderSlug = getWatchOrderSlugForAnilistId(mediaId);
+  const dubGuideSlug = getDubPageSlugForTitle(title);
 
   return (
     <PageTransition>
@@ -195,6 +197,17 @@ export default async function WatchGuidePage({ params }: Props) {
               <h3 className="text-sm font-bold">Similar Anime</h3>
               <p className="text-xs text-[var(--color-mute)]">Get recommendations</p>
             </Link>
+            {dubGuideSlug && (
+              <Link
+                href={`/indian-dubs/${dubGuideSlug}`}
+                className="rounded-xl neon-rgb-border bg-[var(--color-surface1)] p-4 transition-all hover:border-[var(--color-cyan)]"
+              >
+                <h3 className="text-sm font-bold">Hindi Dub Guide</h3>
+                <p className="text-xs text-[var(--color-mute)]">
+                  Dubbed episodes, schedule and platform
+                </p>
+              </Link>
+            )}
           </div>
         </section>
 

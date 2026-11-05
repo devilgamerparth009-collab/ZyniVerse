@@ -2,8 +2,10 @@ import { cache } from "react";
 import {
   getAnimeDetailFull,
   AniListUnavailableError,
+  bestTitle,
   type MediaAnimeFull,
 } from "@/lib/anilist";
+import { getDubPageSlugForMalId, getDubPageSlugForTitle } from "@/lib/dub-page-index";
 import { notFound, redirect } from "next/navigation";
 import AnimeDetailClient from "./detail-client";
 import AnimeUnavailableCard from "@/components/AnimeUnavailableCard";
@@ -222,6 +224,14 @@ export default async function AnimeDetailsPage({
 
   const jsonLd = buildAnimeJsonLd(anime);
   const reviewLd = editorial ? buildEditorialJsonLd(anime, editorial) : null;
+
+  // Internal links to the two India-specific guides. Without these the
+  // /watch/{id} pages were orphans — reachable only through the sitemap, with
+  // zero inbound internal links from the 7k+ anime detail pages.
+  const dubPageSlug =
+    getDubPageSlugForMalId(anime.idMal) ??
+    getDubPageSlugForTitle(bestTitle(anime.title));
+
   return (
     <>
       {jsonLd.map((json, i) => (
@@ -243,6 +253,7 @@ export default async function AnimeDetailsPage({
         anime={anime}
         editorial={editorial}
         reels={animeReels}
+        dubGuideHref={dubPageSlug ? `/indian-dubs/${dubPageSlug}` : null}
       />
     </>
   );

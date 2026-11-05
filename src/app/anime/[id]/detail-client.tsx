@@ -75,10 +75,12 @@ export default function AnimeDetailClient({
   anime,
   editorial,
   reels = [],
+  dubGuideHref = null,
 }: {
   anime: MediaAnimeFull;
   editorial?: AnimeEditorial | null;
   reels: AnimeReelLink[];
+  dubGuideHref?: string | null;
 }) {
   const [trailerOpen, setTrailerOpen] = useState(false);
   const [momentMakerOpen, setMomentMakerOpen] = useState(false);
@@ -790,6 +792,44 @@ export default function AnimeDetailClient({
                 }))}
                 title={title}
               />
+
+              {/* India watch guide — the long-form /watch/{id} page. This is the
+                  only internal link to that route; without it every watch guide
+                  was an orphan that Google could only find via the sitemap. */}
+              <Link
+                href={`/watch/${anime.id}`}
+                className="block rounded-xl neon-rgb-border bg-[var(--color-panel)] p-5 transition-colors hover:bg-white/5"
+              >
+                <h3 className="font-display text-sm font-bold">
+                  Full India Watch Guide
+                </h3>
+                <p className="mt-1 text-xs text-[var(--color-mute)]">
+                  Every legal streaming platform for {title} in India, with dub
+                  languages and pricing.
+                </p>
+                <span className="mt-3 inline-block text-xs font-bold text-[var(--color-cyan)]">
+                  Open guide →
+                </span>
+              </Link>
+
+              {/* Hindi/Tamil/Telugu dub guide, when one is tracked. */}
+              {dubGuideHref && (
+                <Link
+                  href={dubGuideHref}
+                  className="block rounded-xl neon-rgb-border bg-[var(--color-panel)] p-5 transition-colors hover:bg-white/5"
+                >
+                  <h3 className="font-display text-sm font-bold">
+                    Hindi Dub Guide
+                  </h3>
+                  <p className="mt-1 text-xs text-[var(--color-mute)]">
+                    Episodes, release schedule and where to watch {title} in
+                    Hindi, Tamil or Telugu.
+                  </p>
+                  <span className="mt-3 inline-block text-xs font-bold text-[var(--color-magenta)]">
+                    Open dub guide →
+                  </span>
+                </Link>
+              )}
 
               {/* TV Channel Availability */}
               <TvScheduleCard title={title} />
