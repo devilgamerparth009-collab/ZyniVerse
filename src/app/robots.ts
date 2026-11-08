@@ -35,6 +35,22 @@ const PRIVATE_PATHS = [
   "/search",
 ];
 
+// Infinite AniList mirrors. Neither route is in `sitemap.ts` (they are
+// discovered only through internal links), and together they produced 96k of
+// the 131k bot hits measured from 2026-10-18 to 2026-11-08:
+// `/character` 49,497 and `/manga` 47,297 — 73% of all crawler traffic — while
+// contributing no measurable search referrals. Every unique URL is a Node
+// render, and a redeploy starts the on-demand ISR cache empty, so one polite
+// crawler pass pays the render cost again. The sitemap is the set we actually
+// want indexed (/watch, /indian-dubs, /watch-order, /filler, /toons, /wiki,
+// /alternatives), so the mirrors are told not to crawl.
+//
+// Deliberately NOT disallowed: `/anime/` (the ad-bearing detail page and the
+// hub that links to the guides) and every URL that appears in `sitemap.ts`.
+// Revert this list if the character/manga mirrors ever start earning organic
+// sessions — the disallow is a quota decision, not a content decision.
+const LOW_VALUE_CATALOG = ["/character/", "/manga/"];
+
 // AI *search / answer* crawlers: they surface the site in AI answers with a
 // citation and send real users (ChatGPT search, Perplexity answers, Meta AI
 // user prompts). Allowed explicitly — per each vendor's docs these bots are
@@ -152,12 +168,12 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: "/",
-        disallow: PRIVATE_PATHS,
+        disallow: [...PRIVATE_PATHS, ...LOW_VALUE_CATALOG],
       },
       // AI search/answer crawlers: public pages everywhere, private paths
       // still off-limits (the duplicated list keeps this correct even when a
       // parser ignores the wildcard group for these user agents).
-      { userAgent: AI_SEARCH_BOTS, allow: "/", disallow: PRIVATE_PATHS },
+      { userAgent: AI_SEARCH_BOTS, allow: "/", disallow: [...PRIVATE_PATHS, ...LOW_VALUE_CATALOG] },
       // AI training scrapers: opted out of the whole site — including
       // Google's Gemini training pipeline via Google-Extended — while the
       // wildcard rule keeps the site fully indexable for search engines.
