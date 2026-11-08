@@ -5,7 +5,15 @@ export const revalidate = 0;
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "https://zyverse.in";
 
-export async function GET() {
+export async function GET(request: Request) {
+  // The cron workflow already sends `Authorization: Bearer $CRON_SECRET`. This
+  // route was the only unauthenticated one, so anyone could make the site
+  // submit 886 URLs to IndexNow — an open abuse/rate-limit vector.
+  const authHeader = request.headers.get("authorization");
+  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const res = await fetch(`${BASE_URL}/sitemap.xml`, {
       signal: AbortSignal.timeout(30000),

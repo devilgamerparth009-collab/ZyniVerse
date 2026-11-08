@@ -226,7 +226,7 @@ const RULES = [
   },
   {
     name: "Block generic non-browser clients",
-    description: "curl/wget/python/script UAs",
+    description: "curl/wget/python/script UAs (cron paths exempt)",
     action: { mitigate: { action: "deny" } },
     active: true,
     conditionGroup: [
@@ -237,6 +237,17 @@ const RULES = [
             op: "re",
             value:
               "(python-requests|python-urllib|python-httpx|pantra|scrapy|node-fetch|go-http-client|curl/|wget/|java/|http-client|axios/|okhttp-utils)",
+          },
+          // The GitHub Actions cron (`.github/workflows/cron.yml`) calls
+          // `/api/cron/*` with curl, so a blanket curl block silently breaks
+          // every scheduled job (db-prune, analytics, indexnow, …). Those
+          // routes authenticate with `Authorization: Bearer $CRON_SECRET`, so
+          // they are safe to let past this User-Agent rule.
+          {
+            neg: true,
+            op: "re",
+            type: "path",
+            value: "^/api/cron/",
           },
         ],
       },

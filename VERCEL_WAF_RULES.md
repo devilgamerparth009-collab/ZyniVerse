@@ -145,6 +145,16 @@ python-requests, python-urllib, python-httpx, pantra, scrapy, node-fetch,
 go-http-client, curl/, wget/, java/, http-client, axios/, okhttp-utils
 ```
 
+> **`/api/cron/` is exempt (added 2026-11-08).** The GitHub Actions cron
+> (`.github/workflows/cron.yml`) calls every job with curl, so the blanket
+> `curl/` block silently disabled db-prune, analytics, indexnow and the rest.
+> The exemption is safe because those routes require
+> `Authorization: Bearer $CRON_SECRET` (the indexnow route was the one
+> exception and now has the same check).
+>
+> Verification: `curl -A "curl/8.0" https://zyverse.in/api/cron/db-prune`
+> returns `401`, not `403`; any other curl request still returns `403`.
+
 ## Do NOT block (intentionally allowed)
 
 `googlebot`, `bingbot`, and every AI answer/search crawler:
