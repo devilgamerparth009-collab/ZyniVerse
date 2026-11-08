@@ -174,6 +174,12 @@ export default function robots(): MetadataRoute.Robots {
       // still off-limits (the duplicated list keeps this correct even when a
       // parser ignores the wildcard group for these user agents).
       { userAgent: AI_SEARCH_BOTS, allow: "/", disallow: [...PRIVATE_PATHS, ...LOW_VALUE_CATALOG] },
+      // AdSense's content crawler needs to reach the ad-bearing detail pages
+      // (/manga/[id], /character/[id]) even though organic crawlers are told
+      // to skip the infinite mirrors. It is low-volume, so allowing it back
+      // does not undo the quota saving, and blocking it could hurt ad
+      // targeting. Private surfaces stay off-limits.
+      { userAgent: "Mediapartners-Google", allow: "/", disallow: PRIVATE_PATHS },
       // AI training scrapers: opted out of the whole site — including
       // Google's Gemini training pipeline via Google-Extended — while the
       // wildcard rule keeps the site fully indexable for search engines.

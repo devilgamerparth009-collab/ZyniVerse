@@ -34,6 +34,16 @@ describe("robots", () => {
     expect(disallow).not.toContain("/characters");
   });
 
+  it("lets AdSense's content crawler reach the ad-bearing mirror pages", () => {
+    const adsense = rules.find((r) => r.userAgent === "Mediapartners-Google");
+    const adsenseDisallow = (
+      Array.isArray(adsense?.disallow) ? adsense.disallow : [adsense?.disallow]
+    ) as string[];
+    expect(adsenseDisallow).not.toContain("/character/");
+    expect(adsenseDisallow).not.toContain("/manga/");
+    expect(adsenseDisallow).toContain("/api/");
+  });
+
   it("still blocks private surfaces for the wildcard group", () => {
     expect(disallow).toContain("/api/");
     expect(disallow).toContain("/admin/");
