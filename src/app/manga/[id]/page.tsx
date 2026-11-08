@@ -5,7 +5,10 @@ import { getMangaDetailFull, AniListUnavailableError } from "@/lib/anilist";
 import MangaDetailClient from "./manga-client";
 import AnimeUnavailableCard from "@/components/AnimeUnavailableCard";
 
-export const revalidate = 259200;
+// Same reasoning as /character/[id]: a manga page is catalog metadata that is
+// stable for months. It was the second-largest crawl target (47k bot hits in
+// three weeks) and re-rendering it every 3 days was pure ISR-write burn.
+export const revalidate = false;
 
 // Return an EMPTY array: no paths are prerendered at build time (so no
 // build-time AniList queries), but Next.js only enables on-demand ISR for a

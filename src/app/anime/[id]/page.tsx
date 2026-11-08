@@ -12,11 +12,12 @@ import AnimeUnavailableCard from "@/components/AnimeUnavailableCard";
 import { getAnimeEditorial, type AnimeEditorial } from "@/lib/anime-editorials";
 import { prisma } from "@/lib/prisma";
 
-// 48h, matching the AniList detail data-cache window (DETAIL_REVALIDATE).
-// `revalidatePath("/anime/<id>")` on reel upload still refreshes on demand, so
-// community clips stay prompt; this only stretches the crawler-driven rewrite
-// of the static AniList metadata, which is what the ISR-write limit measures.
-export const revalidate = 172800;
+// 7 days. Anime metadata (episode count, cover, cast) changes slowly, and the
+// previous 48h window meant every crawler pass over the catalog re-rendered
+// the same pages. AniList detail fetches revalidate on their own cache window,
+// and `revalidatePath("/anime/<id>")` on reel upload still refreshes the page
+// on demand, so community clips stay prompt.
+export const revalidate = 604800;
 
 // Empty array => no build-time prerender, but on-demand ISR at runtime
 // (Next.js only enables it for a dynamic segment when this function exists).
@@ -230,6 +231,8 @@ export default async function AnimeDetailsPage({
   // zero inbound internal links from the 7k+ anime detail pages.
   const dubPageSlug =
     getDubPageSlugForMalId(anime.idMal) ??
+    getDubPageSlugForTitle(anime.title?.english) ??
+    getDubPageSlugForTitle(anime.title?.romaji) ??
     getDubPageSlugForTitle(bestTitle(anime.title));
 
   return (

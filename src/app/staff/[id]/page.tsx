@@ -4,7 +4,8 @@ import { getStaffBasic, getStaffMedia, AniListUnavailableError } from "@/lib/ani
 import StaffDetailClient from "./staff-client";
 import AnimeUnavailableCard from "@/components/AnimeUnavailableCard";
 
-export const revalidate = 172800;
+// AniList staff metadata is immutable for our purposes; cache until deploy.
+export const revalidate = false;
 
 // Empty array => no build-time prerender, but on-demand ISR at runtime
 // (Next.js only enables it for a dynamic segment when this function exists).

@@ -12,7 +12,30 @@ nothing against Function Duration.
 The proxy blocklist was removed in the same change. **If you skip this step,
 bot traffic is no longer blocked at all.** The rules below are the ones that
 are **live on the `zyni-verse` project** (verified 2026-10-13, re-applied and
-re-verified 2026-10-21).
+re-verified 2026-10-21, and re-applied again on 2026-11-08 after the project
+move left the new project's firewall empty — see the log below).
+
+### Re-application log
+
+| date | project | team | state found | action |
+| --- | --- | --- | --- | --- |
+| 2026-10-21 | `prj_…` (`zyni-verse`) | `gupta-s1` | rules present | verified |
+| 2026-11-08 | `prj_i3W7HWYALqUhXFsS1JrSIPvq2ebS` | `team_QWT6SydfR4belanmvV5JDmRY` | **empty (`0/3`)** | 3 rules re-inserted + published |
+
+**Current production target:** project `prj_i3W7HWYALqUhXFsS1JrSIPvq2ebS`,
+team `team_QWT6SydfR4belanmvV5JDmRY`. If the project is ever moved again,
+run `--list` first. An empty answer (`{"active":null,"draft":null,"versions":[]}`)
+means the crawler flood is unprotected and ISR writes will start climbing
+within a day.
+
+The 2026-11-08 incident repeated the 2026-10-23 pattern exactly:
+`ISR Writes 246K/200K` and `Function Duration 82.2/100 GB-Hrs`, with
+**131,082 bot hits since 2026-10-18** from the app's own counters:
+`/character` 49,497, `/manga` 47,297, `/anime` 19,150 (88% of crawl).
+Top offenders were again `Reflectionbot` 23,505, `SERankingBacklinksBot`
+23,307, `Amzn-SearchBot` 22,897, `Applebot` 20,946, `ExaSearchBot` 12,987.
+After re-applying the rules: Reflectionbot / SERankingBacklinksBot /
+ExaSearchBot → `403`; Googlebot / Bingbot / Chrome → `200` (verified).
 
 > Discoverability rule of thumb: **never block AI-search / answer crawlers or
 > search engines.** We want ChatGPT Search, Perplexity, Claude, Google and Bing
@@ -62,9 +85,10 @@ Authentication is resolved in this order:
    enough.
 
 **The token has to belong to the scope that owns the project.** The CLI
-session in this workspace is logged in as `devilgamerparth009` and can only
-see `gupta-s1` (`zyni-verse`), so the new scope had to be driven with a token
-that has access to `parthgup0102-2490s-projects`.
+session in this workspace has changed accounts more than once; before applying,
+confirm the active account can see the target project
+(`npx vercel api "/v2/user"` and `npx vercel project ls --scope <team>`). The
+2026-11-08 run was made against `team_QWT6SydfR4belanmvV5JDmRY`.
 
 ## Live rules
 
@@ -210,8 +234,16 @@ for this — the `ssoProtection` field lives on `PATCH /v9/projects/{idOrName}`.
   `robots.txt`. Watch Observability → Firewall for a week; if catalog renders
   are still the top consumer, the next step is edge caching / a longer
   `revalidate` on those routes so repeat crawls are CDN HITs, not Node renders.
-- **The new project still needs the 3 firewall rules + Deployment Protection
-  off** (see above). Until that happens it has no bot protection at all.
+- **The 3 firewall rules can silently disappear on a project move.** They are
+  project configuration, not repository content. Re-check with `--list` after
+  any scope/project change; an empty firewall means no bot protection at all.
+- **ISR writes are now capped by a second layer** (2026-11-08): immutable
+  catalog routes (`/character/*`, `/manga/*`, `/watch/*`, `/staff/*`,
+  `/studio/*`, `/voice-actors/*`, `/themes/*`, `/ost/*`, `/indian-dubs/*`,
+  watch-order, manga-releases, hindi-dub-schedule) export `revalidate = false`,
+  so repeat crawls are CDN HITs that never write the ISR cache. Slowly changing
+  routes (`/anime/*`, `/live-action/*`, `/light-novels/*`, `/wiki/*`) use
+  `revalidate = 604800` (7 days). The homepage stays at 3600.
 - **Egress is not measurable from the database** — the Supabase free tier
   allows 5 GB/month and the dashboard has to be checked separately.
 - The GitHub Actions cron was silently running to completion without calling

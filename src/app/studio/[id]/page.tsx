@@ -4,7 +4,8 @@ import { getStudio, AniListUnavailableError } from "@/lib/anilist";
 import StudioDetailClient from "./studio-client";
 import AnimeUnavailableCard from "@/components/AnimeUnavailableCard";
 
-export const revalidate = 172800;
+// Studio metadata is static; cache until deploy instead of re-rendering it.
+export const revalidate = false;
 
 // Empty array => no build-time prerender, but on-demand ISR at runtime
 // (Next.js only enables it for a dynamic segment when this function exists).

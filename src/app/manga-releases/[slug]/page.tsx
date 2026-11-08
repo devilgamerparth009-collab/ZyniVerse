@@ -11,7 +11,8 @@ import {
 import { LiveCountdown } from "@/components/manga-release/LiveCountdown";
 import NativeBannerAd from "@/components/NativeBannerAd";
 
-export const revalidate = 259200;
+// Release schedules are committed data; cache until the next deploy.
+export const revalidate = false;
 export const dynamicParams = false;
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "https://zyverse.in";

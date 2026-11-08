@@ -6,7 +6,8 @@ import LiveActionDetailClient from "./detail-client";
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "https://zyverse.in";
 
-export const revalidate = 172800;
+// Live-action catalog metadata changes slowly; weekly is enough.
+export const revalidate = 604800;
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;

@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import VoiceActorDetail from "@/components/VoiceActorDetail";
 
-export const revalidate = 259200;
+// Voice-actor profiles are catalog data that does not change between deploys.
+export const revalidate = false;
 
 // Empty array => no build-time prerender, but on-demand ISR at runtime
 // (Next.js only enables it for a dynamic segment when this function exists).

@@ -4,13 +4,13 @@ import { cache } from "react";
 import { getAnimeDetailFull, getPopular, bestTitle } from "@/lib/anilist";
 import { getAnimeEditorial } from "@/lib/anime-editorials";
 
-export const revalidate = 172800;
+export const revalidate = 604800;
 
 // No generateStaticParams on purpose: prerendering anime pages at build
 // fires `getAnimeDetailFull` (an AniList Media query) per page — 60+ calls on
 // top of every other route — which trips AniList's 30 req/min per-IP limit,
 // then the 429 retry/backoff sleeps push builds from ~3 min to 8-12 min.
-// Pages render on demand and ISR-cache for 48h (`revalidate` above), so SEO
+// Pages render on demand and ISR-cache for 7 days (`revalidate` above), so SEO
 // stays server-rendered and builds stay fast.
 const getAnimeDetailCached = cache(getAnimeDetailFull);
 

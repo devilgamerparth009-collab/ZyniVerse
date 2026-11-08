@@ -2,7 +2,10 @@ import { Metadata } from "next";
 import { redirect } from "next/navigation";
 import MangaChaptersClient from "./client";
 
-export const revalidate = 259200;
+// Chapter lists do change, but only when a new chapter ships. A weekly window
+// keeps ongoing manga fresh without re-rendering the whole catalog every 3
+// days (the old value, and a major ISR-write cost during crawler storms).
+export const revalidate = 604800;
 
 // Empty array => no build-time prerender, but on-demand ISR at runtime
 // (Next.js only enables it for a dynamic segment when this function exists).

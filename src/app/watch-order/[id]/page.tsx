@@ -7,7 +7,8 @@ import { getDubGuideForWatchOrder, getFillerForWatchOrder } from "@/lib/cross-li
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "https://zyverse.in";
 
-export const revalidate = 172800;
+// Watch-order data is committed; cache until the next deploy.
+export const revalidate = false;
 
 // Empty array => no build-time prerender, but on-demand ISR at runtime
 // (Next.js only enables it for a dynamic segment when this function exists).

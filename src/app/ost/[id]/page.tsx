@@ -4,7 +4,8 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getOSTs, getArtist, getCoverImage } from "@/lib/ost";
 
-export const revalidate = 259200;
+// OST tracklists are static catalog data; cache until the next deploy.
+export const revalidate = false;
 
 // Empty array => no build-time prerender, but on-demand ISR at runtime
 // (Next.js only enables it for a dynamic segment when this function exists).

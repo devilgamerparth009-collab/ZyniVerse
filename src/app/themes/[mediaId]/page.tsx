@@ -2,7 +2,8 @@ import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import ThemeDetailClient from "./content";
 
-export const revalidate = 259200;
+// Theme-song lists are static catalog data; cache until the next deploy.
+export const revalidate = false;
 
 // Empty array => no build-time prerender, but on-demand ISR at runtime
 // (Next.js only enables it for a dynamic segment when this function exists).

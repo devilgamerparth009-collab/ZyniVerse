@@ -10,7 +10,8 @@ import { getFillerNotes } from "@/lib/filler-notes";
 import AISummaryCard from "@/components/AISummaryCard";
 import FillerChecklist from "@/components/FillerChecklist";
 
-export const revalidate = 172800;
+// Filler data is curated and static; 7 days matches the parent anime route.
+export const revalidate = 604800;
 
 // Empty array => no build-time prerender, but on-demand ISR at runtime
 // (Next.js only enables it for a dynamic segment when this function exists).

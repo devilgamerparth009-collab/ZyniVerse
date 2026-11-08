@@ -12,7 +12,8 @@ const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "https://zyverse.in";
 // Next.js only enables on-demand ISR for a dynamic segment when
 // `generateStaticParams` exists. Empty array => no build-time prerender, but
 // hits after the first are served from the CDN instead of a billed Node render.
-export const revalidate = 172800;
+// Watch-order data is committed; cache until the next deploy.
+export const revalidate = false;
 
 export function generateStaticParams() {
   return [];

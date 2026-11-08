@@ -5,7 +5,7 @@ import { getAnimeDetailFull, bestTitle } from "@/lib/anilist";
 import { getStreamingSources } from "@/lib/streaming";
 import { getFillerForAnime } from "@/lib/filler";
 import { getWatchOrderSlugForAnilistId } from "@/lib/watch-order-index";
-import { getDubPageSlugForTitle } from "@/lib/dub-page-index";
+import { getDubPageSlugForMalId, getDubPageSlugForTitle } from "@/lib/dub-page-index";
 import { PageTransition } from "@/components/PageTransition";
 import NativeBannerAd from "@/components/NativeBannerAd";
 import Link from "next/link";
@@ -14,7 +14,10 @@ import Link from "next/link";
 // `generateStaticParams` exists. Returning an empty array means no build-time
 // prerender (so no build-time AniList rate limiting), but every hit after the
 // first is served from the CDN instead of a billed Node render.
-export const revalidate = 259200;
+// Streaming availability is curated and changes only when a platform signs or
+// drops a title. Cache until the next deploy rather than re-rendering every 3
+// days for crawlers.
+export const revalidate = false;
 
 export function generateStaticParams() {
   return [];
@@ -79,7 +82,15 @@ export default async function WatchGuidePage({ params }: Props) {
   // a slug key, not a numeric AniList media id.
   const fillerShow = await getFillerForAnime(mediaId).catch(() => null);
   const watchOrderSlug = getWatchOrderSlugForAnilistId(mediaId);
-  const dubGuideSlug = getDubPageSlugForTitle(title);
+  // MAL id is the reliable key; the title fallback has to try every title
+  // variant because the guide may be stored under the English name while
+  // `bestTitle` returns the romaji one (e.g. Attack on Titan vs Shingeki no
+  // Kyojin), which silently dropped the dub link.
+  const dubGuideSlug =
+    getDubPageSlugForMalId(media.idMal) ??
+    getDubPageSlugForTitle(media.title?.english) ??
+    getDubPageSlugForTitle(media.title?.romaji) ??
+    getDubPageSlugForTitle(title);
 
   return (
     <PageTransition>

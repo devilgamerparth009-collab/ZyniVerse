@@ -4,7 +4,12 @@ import { getCharacter, AniListUnavailableError } from "@/lib/anilist";
 import CharacterDetailClient from "./character-client";
 import AnimeUnavailableCard from "@/components/AnimeUnavailableCard";
 
-export const revalidate = 172800;
+// Crawlers hammered this route hardest: 49k bot hits in three weeks, and every
+// revalidation is a full Node render + ISR write. Character pages are an
+// AniList mirror whose facts (name, image, appearances, voice actors) do not
+// change, so cache them until the next deploy instead of rewriting them every
+// 48 hours. This was the single largest contributor to the ISR-write overage.
+export const revalidate = false;
 
 // Return an EMPTY array: no paths are prerendered at build time (so no
 // build-time AniList queries), but Next.js only enables on-demand ISR for a

@@ -14,7 +14,9 @@ import IndianDubCountdown from "@/components/indian-dubs/IndianDubCountdown";
 import { nextAiringAt, formatIST } from "@/lib/indian-dub-schedule";
 import "../indian-dubs.css";
 
-export const revalidate = 172800;
+// Dub guides are built from committed data + AniList ids; nothing changes
+// between deploys. Cache indefinitely so crawler passes cost zero writes.
+export const revalidate = false;
 export const dynamicParams = false;
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "https://zyverse.in";
