@@ -1,3 +1,5 @@
+import { StyleSheet } from 'react-native';
+
 export const colors = {
   background: '#0a0a0f',
   surface: '#1a1a2e',
@@ -52,3 +54,55 @@ export const borderRadius = {
   xl: 24,
   full: 9999,
 };
+
+/* ------------------------------------------------------------------ */
+/* Theme-aware style sheets                                           */
+/* ------------------------------------------------------------------ */
+
+let themeVersion = 0;
+
+/** Called by the theme provider whenever the active palette changes. */
+export function bumpThemeVersion() {
+  themeVersion += 1;
+}
+
+/**
+ * `StyleSheet.create` freezes the colour values it is handed, so a style sheet
+ * built from the shared `colors` object would never change when the theme does.
+ *
+ * `themed()` takes a *factory* instead of a plain object: the factory is only
+ * re-run after the palette changes, so every `colors.*` reference inside it is
+ * read again and the whole app re-themes without a restart.
+ *
+ *   const styles = themed(() => ({
+ *     container: { backgroundColor: colors.background },
+ *   }));
+ */
+export function themed<T extends Record<string, any>>(
+  factory: () => T
+): { [K in keyof T]: any } {
+  let cache: { version: number; sheet: Record<string, any> } | null = null;
+
+  const resolve = (): Record<string, any> => {
+    if (!cache || cache.version !== themeVersion) {
+      cache = { version: themeVersion, sheet: StyleSheet.create(factory() as any) };
+    }
+    return cache.sheet;
+  };
+
+  // The keys never change, so they are read once. Each style is then exposed
+  // through a getter, which means reading `styles.card` always returns the
+  // sheet built from the palette that is active *right now*.
+  const sheet: Record<string, any> = {};
+  for (const key of Object.keys(factory())) {
+    Object.defineProperty(sheet, key, {
+      enumerable: true,
+      get() {
+        return resolve()[key];
+      },
+    });
+  }
+
+  return sheet as { [K in keyof T]: any };
+}
+

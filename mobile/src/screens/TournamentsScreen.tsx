@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,38 +6,47 @@ import {
   FlatList,
   StyleSheet,
   RefreshControl,
+  Animated,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { colors, spacing, fontSize, borderRadius } from '../theme';
+import { useTheme } from '../hooks/useTheme';
 import { api } from '../services/api';
 import { CharacterTournament } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorView from '../components/ErrorView';
+import AdBanner from '../components/AdBanner';
+import FadeInView from '../components/FadeInView';
 
-const STATUS_META: Record<string, { label: string; color: string }> = {
-  qualifying: { label: 'QUALIFYING', color: '#00ffe0' },
-  active: { label: 'LIVE', color: '#ff00e6' },
-  upcoming: { label: 'UPCOMING', color: '#f59e0b' },
-  completed: { label: 'COMPLETED', color: '#22c55e' },
-  cancelled: { label: 'CANCELLED', color: '#ef4444' },
+const STATUS_META: Record<string, { label: string; color: string; badge: string }> = {
+  active: { label: 'LIVE BATTLE', color: '#ff007f', badge: '🔥' },
+  qualifying: { label: 'QUALIFYING', color: '#00ffe0', badge: '⚡' },
+  upcoming: { label: 'UPCOMING', color: '#f59e0b', badge: '⏳' },
+  completed: { label: 'HALL OF FAME', color: '#22c55e', badge: '👑' },
+  cancelled: { label: 'CLOSED', color: '#ef4444', badge: '⛔' },
 };
 
 function countdownLabel(endsAt?: string | null): string | null {
   if (!endsAt) return null;
   const diff = new Date(endsAt).getTime() - Date.now();
-  if (diff <= 0) return 'Closes today';
+  if (diff <= 0) return 'Voting closed';
   const days = Math.floor(diff / 86400000);
   const hours = Math.floor((diff % 86400000) / 3600000);
-  if (days > 0) return `${days}d ${hours}h left`;
+  if (days > 0) return `⏳ ${days}d ${hours}h left`;
   const minutes = Math.floor((diff % 3600000) / 60000);
-  return `${hours}h ${minutes}m left`;
+  return `⏳ ${hours}h ${minutes}m left`;
 }
+
+type TabKey = 'live' | 'all' | 'history';
 
 export default function TournamentsScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
+  const { colors, isDiwali } = useTheme();
+
   const [tournaments, setTournaments] = useState<CharacterTournament[]>([]);
+  const [activeTab, setActiveTab] = useState<TabKey>('live');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,7 +57,7 @@ export default function TournamentsScreen() {
       const data = await api.tournaments.list();
       setTournaments(data);
     } catch {
-      setError('Could not load tournaments');
+      setError('Could not load anime tournaments');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -64,77 +73,175 @@ export default function TournamentsScreen() {
     fetchTournaments();
   };
 
-  if (loading) return <LoadingSpinner fullScreen />;
-  if (error && tournaments.length === 0) return <ErrorView message={error} onRetry={fetchTournaments} />;
+  const primaryColor = isDiwali ? '#FF8C00' : colors.primary;
 
-  const live = tournaments.filter((t) => t.status === 'qualifying' || t.status === 'active' || t.status === 'upcoming');
-  const history = tournaments.filter((t) => t.status === 'completed' || t.status === 'cancelled');
+  const liveList = tournaments.filter(
+    (t) => t.status === 'active' || t.status === 'qualifying' || t.status === 'upcoming'
+  );
+  const historyList = tournaments.filter(
+    (t) => t.status === 'completed' || t.status === 'cancelled'
+  );
 
-  const renderTournament = ({ item }: { item: CharacterTournament }) => {
-    const meta = STATUS_META[item.status] || { label: item.status.toUpperCase(), color: colors.textDim };
-    const countdown = countdownLabel(item.mode === 'qualifying' ? item.qualifyingEndsAt : item.roundEndsAt);
+  const displayedList =
+    activeTab === 'live' ? liveList : activeTab === 'history' ? historyList : tournaments;
+
+  const renderTournament = ({ item, index }: { item: CharacterTournament; index: number }) => {
+    const meta = STATUS_META[item.status] || {
+      label: item.status.toUpperCase(),
+      color: colors.textDim,
+      badge: '⚔️',
+    };
+    const countdown = countdownLabel(
+      item.mode === 'qualifying' ? item.qualifyingEndsAt : item.roundEndsAt
+    );
+
     return (
-      <TouchableOpacity
-        style={styles.card}
-        activeOpacity={0.7}
-        onPress={() => navigation.navigate('TournamentDetail', { id: item.id, title: item.title })}
-      >
-        <View style={styles.cardHeader}>
-          <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
-          <View style={[styles.statusChip, { borderColor: meta.color }]}>
-            <Text style={[styles.statusText, { color: meta.color }]}>{meta.label}</Text>
+      <FadeInView delay={Math.min(index * 40, 320)} offset={12} duration={340}>
+        <TouchableOpacity
+          style={[
+            styles.card,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+          ]}
+          activeOpacity={0.8}
+          onPress={() =>
+            navigation.navigate('TournamentDetail', {
+              id: item.id,
+              title: item.title,
+            })
+          }
+        >
+          {/* Header Status Tag */}
+          <View style={styles.cardHeader}>
+            <View style={[styles.statusTag, { backgroundColor: `${meta.color}20`, borderColor: meta.color }]}>
+              <Text style={[styles.statusText, { color: meta.color }]}>
+                {meta.badge} {meta.label}
+              </Text>
+            </View>
+
+            {countdown && (
+              <Text style={[styles.countdownText, { color: colors.textMuted }]}>
+                {countdown}
+              </Text>
+            )}
           </View>
-        </View>
-        {item.description ? (
-          <Text style={styles.cardDescription} numberOfLines={2}>{item.description}</Text>
-        ) : null}
-        <View style={styles.cardMeta}>
-          <Text style={styles.metaText}>🎯 {item.size} candidates</Text>
-          <Text style={styles.metaText}>👥 {item._count?.participants ?? 0} entered</Text>
-          {countdown ? <Text style={styles.metaText}>⏳ {countdown}</Text> : null}
-        </View>
-        {item.creator ? (
-          <Text style={styles.creatorText}>by {item.creator.username}</Text>
-        ) : null}
-      </TouchableOpacity>
+
+          {/* Tournament Title */}
+          <Text style={[styles.cardTitle, { color: colors.text }]} numberOfLines={2}>
+            {item.title}
+          </Text>
+
+          {item.description && (
+            <Text style={[styles.cardDesc, { color: colors.textMuted }]} numberOfLines={2}>
+              {item.description}
+            </Text>
+          )}
+
+          {/* Arena Stats Footer */}
+          <View style={[styles.cardFooter, { borderTopColor: colors.border }]}>
+            <View style={styles.participantRow}>
+              <Text style={[styles.statValue, { color: primaryColor }]}>
+                {item.characterCount || item.totalSlots || 32} Contenders
+              </Text>
+              <Text style={[styles.statDot, { color: colors.textDim }]}>•</Text>
+              <Text style={[styles.statValue, { color: colors.textMuted }]}>
+                {item.currentRound ? `Round ${item.currentRound}` : 'Elimination Stage'}
+              </Text>
+            </View>
+
+            <View style={[styles.voteActionBtn, { backgroundColor: primaryColor }]}>
+              <Text style={styles.voteActionText}>Enter Arena ➔</Text>
+            </View>
+          </View>
+        </TouchableOpacity>
+
+        {/* Adsterra Sponsored Ad inside list */}
+        {(index + 1) % 4 === 0 && <AdBanner placement="home-bottom" />}
+      </FadeInView>
     );
   };
 
-  const section = (title: string, data: CharacterTournament[]) =>
-    data.length > 0 ? (
-      <View>
-        <Text style={styles.sectionTitle}>{title}</Text>
-        {data.map((t) => renderTournament({ item: t }))}
-      </View>
-    ) : null;
-
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <Text style={styles.headerTitle}>Tournaments</Text>
-      <FlatList
-        data={[{ key: 'body' }]}
-        renderItem={() => (
-          <View style={styles.listBody}>
-            {live.length === 0 && history.length === 0 ? (
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyTitle}>No tournaments yet</Text>
-                <Text style={styles.emptySubtitle}>Tournaments will appear right here</Text>
-              </View>
-            ) : (
-              <>
-                {section('🎮 Live & Upcoming', live)}
-                {section('🏆 History', history)}
-              </>
-            )}
+    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+      {/* Arena Banner Header */}
+      <FadeInView delay={0} style={[styles.heroHeader, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        <View style={styles.headerTitleRow}>
+          <View>
+            <View style={styles.liveTagRow}>
+              <Text style={{ fontSize: 13 }}>⚔️</Text>
+              <Text style={[styles.liveTagText, { color: primaryColor }]}>
+                ANIME CHARACTER BATTLES
+              </Text>
+            </View>
+            <Text style={[styles.title, { color: colors.text }]}>Tournament Arena</Text>
           </View>
-        )}
-        keyExtractor={(item) => item.key}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: spacing.xxl }}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
-        }
-      />
+        </View>
+
+        {/* Tab Filters */}
+        <View style={styles.tabBar}>
+          {[
+            { key: 'live' as TabKey, label: '🔥 Live Battles', count: liveList.length },
+            { key: 'history' as TabKey, label: '👑 Champions', count: historyList.length },
+            { key: 'all' as TabKey, label: '🌐 All Events', count: tournaments.length },
+          ].map((tab) => {
+            const active = activeTab === tab.key;
+            return (
+              <TouchableOpacity
+                key={tab.key}
+                style={[
+                  styles.tabBtn,
+                  active && {
+                    backgroundColor: primaryColor,
+                  },
+                ]}
+                onPress={() => setActiveTab(tab.key)}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[
+                    styles.tabBtnText,
+                    { color: active ? '#ffffff' : colors.textMuted },
+                  ]}
+                >
+                  {tab.label} ({tab.count})
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </FadeInView>
+
+      {/* Adsterra Ad Banner */}
+      <AdBanner placement="schedule-header" />
+
+      {/* Tournaments List */}
+      {loading && tournaments.length === 0 ? (
+        <View style={{ paddingVertical: 40 }}>
+          <ActivityIndicator size="large" color={primaryColor} />
+        </View>
+      ) : error && tournaments.length === 0 ? (
+        <ErrorView message={error} onRetry={fetchTournaments} />
+      ) : (
+        <FlatList
+          data={displayedList}
+          keyExtractor={(item) => item.id}
+          renderItem={renderTournament}
+          contentContainerStyle={{ paddingBottom: insets.bottom + 90, paddingTop: 6 }}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={primaryColor} />
+          }
+          ListEmptyComponent={
+            <View style={[styles.emptyBox, { backgroundColor: colors.surface }]}>
+              <Text style={{ fontSize: 44, marginBottom: 8 }}>⚔️</Text>
+              <Text style={[styles.emptyTitle, { color: colors.text }]}>
+                No events in this category
+              </Text>
+              <Text style={[styles.emptySub, { color: colors.textMuted }]}>
+                Check back soon or view active tournaments.
+              </Text>
+            </View>
+          }
+        />
+      )}
     </View>
   );
 }
@@ -142,88 +249,133 @@ export default function TournamentsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
   },
-  headerTitle: {
-    color: colors.text,
-    fontSize: fontSize.xxl,
+  heroHeader: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+  },
+  headerTitleRow: {
+    marginBottom: 12,
+  },
+  liveTagRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 2,
+  },
+  liveTagText: {
+    fontSize: 10,
     fontWeight: '800',
-    paddingHorizontal: spacing.md,
-    marginBottom: spacing.md,
+    letterSpacing: 1,
   },
-  listBody: {
-    paddingHorizontal: spacing.md,
+  title: {
+    fontSize: 22,
+    fontWeight: '900',
+    letterSpacing: 0.3,
   },
-  sectionTitle: {
-    color: colors.text,
-    fontSize: fontSize.lg,
+  tabBar: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderRadius: 12,
+    padding: 3,
+    gap: 4,
+  },
+  tabBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabBtnText: {
+    fontSize: 11,
     fontWeight: '700',
-    marginBottom: spacing.sm,
-    marginTop: spacing.sm,
   },
   card: {
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-    borderWidth: 0.5,
-    borderColor: colors.border,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    elevation: 3,
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    marginBottom: 10,
   },
-  cardTitle: {
-    color: colors.text,
-    fontSize: fontSize.md,
-    fontWeight: '700',
-    flex: 1,
-    marginRight: spacing.sm,
-  },
-  statusChip: {
+  statusTag: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
     borderWidth: 1,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: borderRadius.full,
   },
   statusText: {
-    fontSize: 9,
-    fontWeight: '800',
+    fontSize: 10,
+    fontWeight: '900',
     letterSpacing: 0.5,
   },
-  cardDescription: {
-    color: colors.textMuted,
-    fontSize: fontSize.sm,
-    marginTop: spacing.xs,
+  countdownText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
-  cardMeta: {
+  cardTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    lineHeight: 22,
+    marginBottom: 6,
+  },
+  cardDesc: {
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: 12,
+  },
+  cardFooter: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.md,
-    marginTop: spacing.sm,
-  },
-  metaText: {
-    color: colors.textMuted,
-    fontSize: fontSize.xs,
-  },
-  creatorText: {
-    color: colors.textDim,
-    fontSize: fontSize.xs,
-    marginTop: spacing.xs,
-  },
-  emptyState: {
+    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: spacing.xxl * 2,
+    paddingTop: 12,
+    borderTopWidth: 0.5,
+  },
+  participantRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  statValue: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  statDot: {
+    fontSize: 12,
+  },
+  voteActionBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 10,
+  },
+  voteActionText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  emptyBox: {
+    marginHorizontal: 16,
+    marginVertical: 24,
+    padding: 32,
+    borderRadius: 20,
+    alignItems: 'center',
   },
   emptyTitle: {
-    color: colors.text,
-    fontSize: fontSize.md,
-    fontWeight: '600',
-    marginBottom: spacing.xs,
+    fontSize: 16,
+    fontWeight: '800',
+    marginBottom: 6,
   },
-  emptySubtitle: {
-    color: colors.textDim,
-    fontSize: fontSize.sm,
+  emptySub: {
+    fontSize: 12,
+    textAlign: 'center',
   },
 });

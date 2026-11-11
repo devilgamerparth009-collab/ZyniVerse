@@ -8,12 +8,14 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, spacing, fontSize, borderRadius } from '../theme';
+import { colors, themed, spacing, fontSize, borderRadius } from '../theme';
+import { useTheme } from '../hooks/useTheme';
 
 type ContentType = 'anime' | 'manga' | 'light_novel';
 
 export default function MangaScreen() {
   const insets = useSafeAreaInsets();
+  const { colors: themeColors } = useTheme();
   const [activeType, setActiveType] = useState<ContentType>('manga');
   const [query, setQuery] = useState('');
 
@@ -24,7 +26,7 @@ export default function MangaScreen() {
   ];
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: insets.top, backgroundColor: themeColors.background }]}>
       <Text style={styles.headerTitle}>Library</Text>
 
       {/* Type Selector */}
@@ -88,7 +90,7 @@ export default function MangaScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => ({
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -161,4 +163,4 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: fontSize.sm,
   },
-});
+}));

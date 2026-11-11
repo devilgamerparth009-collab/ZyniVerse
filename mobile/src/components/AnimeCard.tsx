@@ -1,88 +1,140 @@
-import React from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
+import React, { useRef } from 'react';
+import {
+  View,
+  Text,
+  Image,
+  TouchableOpacity,
+  StyleSheet,
+  Dimensions,
+  Animated,
+  Easing,
+} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { colors, spacing, fontSize, borderRadius } from '../theme';
+import { useTheme } from '../hooks/useTheme';
+import { spacing, fontSize, borderRadius } from '../theme';
 import { Anime } from '../types';
-import { truncate, formatScore, getScoreColor } from '../utils/helpers';
+import { animePoster, animeTitle, formatScore, getScoreColor } from '../utils/helpers';
 
-const CARD_WIDTH = (Dimensions.get('window').width - spacing.md * 3) / 2.5;
+const SCREEN_WIDTH = Dimensions.get('window').width;
+export const GRID_CARD_WIDTH = (SCREEN_WIDTH - spacing.md * 3) / 2;
 
 interface Props {
   anime: Anime;
+  width?: number;
   compact?: boolean;
   showScore?: boolean;
 }
 
-export default function AnimeCard({ anime, compact = false, showScore = true }: Props) {
+export default function AnimeCard({ anime, width, compact = false, showScore = true }: Props) {
   const navigation = useNavigation<any>();
-  const width = compact ? CARD_WIDTH * 0.75 : CARD_WIDTH;
-  const title = anime.title?.english || anime.title?.romaji || 'Unknown';
-  const imageUrl = anime.coverImage?.medium || anime.coverImage?.large;
+  const { colors } = useTheme();
+  const cardWidth = width ?? (compact ? 118 : GRID_CARD_WIDTH);
+  const title = animeTitle(anime);
+  const imageUrl = animePoster(anime);
   const score = anime.averageScore;
 
+  const scale = useRef(new Animated.Value(1)).current;
+  const imageOpacity = useRef(new Animated.Value(0)).current;
+
+  const pressIn = () =>
+    Animated.spring(scale, {
+      toValue: 0.95,
+      useNativeDriver: true,
+      speed: 40,
+      bounciness: 0,
+    }).start();
+
+  const pressOut = () =>
+    Animated.spring(scale, {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: 24,
+      bounciness: 6,
+    }).start();
+
   return (
-    <TouchableOpacity
-      style={[styles.container, { width }]}
-      onPress={() => navigation.navigate('AnimeDetail', { id: anime.id })}
-      activeOpacity={0.7}
-    >
-      <View style={[styles.imageContainer, { width }]}>
-        {imageUrl ? (
-          <Image
-            source={{ uri: imageUrl }}
-            style={[styles.image, { width }]}
-            resizeMode="cover"
-          />
-        ) : (
-          <View style={[styles.placeholder, { width }]}>
-            <Text style={styles.placeholderText}>?</Text>
-          </View>
-        )}
-        {showScore && score && (
-          <View style={[styles.scoreBadge, { backgroundColor: getScoreColor(score) }]}>
-            <Text style={styles.scoreText}>{formatScore(score)}</Text>
-          </View>
-        )}
-      </View>
-      <Text style={styles.title} numberOfLines={compact ? 1 : 2}>
-        {truncate(title, compact ? 20 : 30)}
-      </Text>
-      {anime.episodes && (
-        <Text style={styles.episodes}>{anime.episodes} eps</Text>
-      )}
-    </TouchableOpacity>
+    <Animated.View style={{ width: cardWidth, transform: [{ scale }] }}>
+      <TouchableOpacity
+        style={styles.container}
+        activeOpacity={1}
+        onPressIn={pressIn}
+        onPressOut={pressOut}
+        onPress={() => navigation.navigate('AnimeDetail', { id: anime.id, title })}
+      >
+        <View
+          style={[
+            styles.imageWrapper,
+            { height: cardWidth * 1.42, backgroundColor: colors.surface },
+          ]}
+        >
+          {imageUrl ? (
+            <Animated.Image
+              source={{ uri: imageUrl }}
+              style={[styles.image, { opacity: imageOpacity }]}
+              resizeMode="cover"
+              onLoad={() =>
+                Animated.timing(imageOpacity, {
+                  toValue: 1,
+                  duration: 320,
+                  easing: Easing.out(Easing.quad),
+                  useNativeDriver: true,
+                }).start()
+              }
+            />
+          ) : (
+            <View style={[styles.placeholder, { backgroundColor: colors.surfaceLight }]}>
+              <Text style={[styles.placeholderText, { color: colors.textDim }]}>?</Text>
+            </View>
+          )}
+          {showScore && score ? (
+            <View style={[styles.scoreBadge, { backgroundColor: getScoreColor(score) }]}>
+              <Text style={styles.scoreText}>{formatScore(score)}</Text>
+            </View>
+          ) : null}
+          {anime.format ? (
+            <View style={styles.formatBadge}>
+              <Text style={[styles.formatText, { color: colors.text }]}>{anime.format}</Text>
+            </View>
+          ) : null}
+        </View>
+        <Text style={[styles.title, { color: colors.text }]} numberOfLines={2}>
+          {title}
+        </Text>
+        <Text style={[styles.meta, { color: colors.textDim }]} numberOfLines={1}>
+          {anime.episodes ? `${anime.episodes} eps` : anime.status || ''}
+          {anime.seasonYear ? ` • ${anime.seasonYear}` : ''}
+        </Text>
+      </TouchableOpacity>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    marginRight: spacing.sm,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.md,
   },
-  imageContainer: {
-    aspectRatio: 3 / 4,
+  imageWrapper: {
+    width: '100%',
     borderRadius: borderRadius.md,
     overflow: 'hidden',
-    position: 'relative',
-    backgroundColor: colors.surfaceLight,
   },
   image: {
-    flex: 1,
+    width: '100%',
+    height: '100%',
   },
   placeholder: {
-    flex: 1,
+    width: '100%',
+    height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.surfaceLight,
   },
   placeholderText: {
-    fontSize: 32,
-    color: colors.textDim,
+    fontSize: 28,
   },
   scoreBadge: {
     position: 'absolute',
-    top: 4,
-    right: 4,
+    left: 6,
+    bottom: 6,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: borderRadius.sm,
@@ -90,17 +142,29 @@ const styles = StyleSheet.create({
   scoreText: {
     color: '#000',
     fontSize: fontSize.xs,
+    fontWeight: '800',
+  },
+  formatBadge: {
+    position: 'absolute',
+    right: 6,
+    top: 6,
+    backgroundColor: 'rgba(10,10,15,0.8)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: borderRadius.sm,
+  },
+  formatText: {
+    fontSize: 9,
     fontWeight: '700',
   },
   title: {
-    color: colors.text,
     fontSize: fontSize.sm,
-    marginTop: spacing.xs,
+    fontWeight: '700',
+    marginTop: 8,
     lineHeight: 18,
   },
-  episodes: {
-    color: colors.textDim,
+  meta: {
     fontSize: fontSize.xs,
-    marginTop: 2,
+    marginTop: 4,
   },
 });

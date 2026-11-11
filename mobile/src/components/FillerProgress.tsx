@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { colors, spacing, fontSize, borderRadius } from '../theme';
+import { useTheme } from '../hooks/useTheme';
+import { spacing, fontSize, borderRadius } from '../theme';
 import { getFillerColor } from '../utils/helpers';
 
 interface Props {
@@ -10,19 +11,20 @@ interface Props {
 }
 
 export default function FillerProgress({ totalEpisodes, totalFillers, fillerPercentage }: Props) {
+  const { colors } = useTheme();
   const barColor = getFillerColor(fillerPercentage);
   const canonCount = totalEpisodes - totalFillers;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.surface }]}>
       <View style={styles.percentageRow}>
         <Text style={[styles.percentage, { color: barColor }]}>
           {fillerPercentage.toFixed(1)}%
         </Text>
-        <Text style={styles.label}>Filler</Text>
+        <Text style={[styles.label, { color: colors.textMuted }]}>Filler</Text>
       </View>
       <View style={styles.barContainer}>
-        <View style={styles.barBackground}>
+        <View style={[styles.barBackground, { backgroundColor: colors.surfaceLight }]}>
           <View
             style={[
               styles.barFill,
@@ -32,13 +34,13 @@ export default function FillerProgress({ totalEpisodes, totalFillers, fillerPerc
         </View>
       </View>
       <View style={styles.counts}>
-        <Text style={styles.countText}>
+        <Text style={[styles.countText, { color: colors.textMuted }]}>
           <Text style={{ color: colors.success }}>{canonCount}</Text> Canon
         </Text>
-        <Text style={styles.countText}>
+        <Text style={[styles.countText, { color: colors.textMuted }]}>
           <Text style={{ color: colors.error }}>{totalFillers}</Text> Filler
         </Text>
-        <Text style={styles.countText}>
+        <Text style={[styles.countText, { color: colors.textMuted }]}>
           <Text style={{ color: colors.text }}>{totalEpisodes}</Text> Total
         </Text>
       </View>
@@ -49,7 +51,6 @@ export default function FillerProgress({ totalEpisodes, totalFillers, fillerPerc
 const styles = StyleSheet.create({
   container: {
     padding: spacing.md,
-    backgroundColor: colors.surface,
     borderRadius: borderRadius.md,
     marginBottom: spacing.md,
   },
@@ -63,7 +64,6 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   label: {
-    color: colors.textMuted,
     fontSize: fontSize.md,
     marginLeft: spacing.sm,
   },
@@ -72,7 +72,6 @@ const styles = StyleSheet.create({
   },
   barBackground: {
     height: 8,
-    backgroundColor: colors.surfaceLight,
     borderRadius: borderRadius.full,
     overflow: 'hidden',
   },
@@ -85,7 +84,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   countText: {
-    color: colors.textMuted,
     fontSize: fontSize.sm,
   },
 });

@@ -12,7 +12,7 @@ interface LiveShow {
   totalEpisodes?: number;
 }
 
-interface PlatformSchedule {
+export interface PlatformSchedule {
   platformId: string;
   shows: Record<string, LiveShow[]>;
 }

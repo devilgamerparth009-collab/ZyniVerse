@@ -96,7 +96,7 @@ eas build --platform android --profile production
 > A debug APK will not work for end users: it has no embedded JS bundle and
 > blocks waiting for a Metro dev server.
 
-Local release APK (signed with the debug keystore, for sideloading only):
+Local release APK:
 
 ```bash
 node scripts/generate-assets.js
@@ -104,6 +104,14 @@ npx expo prebuild --platform android
 cd android && gradlew.bat assembleRelease
 # -> android/app/build/outputs/apk/release/app-release.apk
 ```
+
+> **Signing:** `android/app/build.gradle` reads
+> `mobile/credentials/keystore.properties` and signs the release build with
+> `mobile/credentials/zyniverse-release.jks` (alias `zyniverse`). That folder is
+> gitignored and lives outside `android/` so `expo prebuild --clean` cannot
+> delete the key. **Back the keystore up** — without it you cannot ship updates
+> to an existing install. If the credentials folder is missing, the release
+> build falls back to the debug keystore (sideload-only, not for distribution).
 
 > `android/local.properties` is wiped by `expo prebuild --clean`; if Gradle
 > cannot find the SDK, recreate it with

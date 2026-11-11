@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,538 +7,1032 @@ import {
   Image,
   StyleSheet,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { colors, spacing, fontSize, borderRadius } from '../theme';
-import { getStatusColor } from '../utils/helpers';
+import { colors, themed, spacing, fontSize, borderRadius } from '../theme';
+import { useTheme } from '../hooks/useTheme';
 import { getCurrentUser, api } from '../services/api';
+import {
+  Anime,
+  ProfileAchievement,
+  ProfileEntry,
+  ProfileResponse,
+  ReviewItem,
+} from '../types';
+import {
+  formatCount,
+  formatDate,
+  getStatusColorForCode,
+  LIST_STATUS_LABEL,
+  timeAgo,
+} from '../utils/helpers';
+import LoadingSpinner from '../components/LoadingSpinner';
+import ErrorView from '../components/ErrorView';
+import FadeInView from '../components/FadeInView';
 
-type ProfileTab = 'lists' | 'stats' | 'achievements' | 'settings';
-type StatusTab = 'watching' | 'completed' | 'planning' | 'dropped';
+type TabKey = 'lists' | 'stats' | 'achievements' | 'activity';
+const TABS: { key: TabKey; label: string }[] = [
+  { key: 'lists', label: 'Lists' },
+  { key: 'stats', label: 'Stats' },
+  { key: 'achievements', label: 'Badges' },
+  { key: 'activity', label: 'Activity' },
+];
 
-interface UserProfile {
-  id: string;
-  username: string;
-  avatar?: string | null;
-  bio?: string | null;
-  stats: { completed: number; episodesWatched: number; daysWatched: number };
-  achievements: { id: string; name: string; icon: string; description: string }[];
-  lists: { status: string; mediaId: number; title: string }[];
-  genreDistribution: { genre: string; count: number; percentage: number }[];
+const STATUS_FILTERS = ['ALL', 'CURRENT', 'COMPLETED', 'PLANNING', 'PAUSED', 'DROPPED'];
+
+async function mediaMapFor(entries: ProfileEntry[]): Promise<Map<number, Anime>> {
+  const ids = [...new Set(entries.map((e) => e.mediaId))];
+  const chunks: number[][] = [];
+  for (let i = 0; i < ids.length; i += 50) chunks.push(ids.slice(i, i + 50));
+  const results = await Promise.all(chunks.map((c) => api.batch(c).catch(() => [] as Anime[])));
+  return new Map(results.flat().map((m) => [m.id, m]));
 }
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
-  const [activeTab, setActiveTab] = useState<ProfileTab>('lists');
-  const [activeStatus, setActiveStatus] = useState<StatusTab>('watching');
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const { colors, isDiwali } = useTheme();
+  const primaryAccent = isDiwali ? '#f59e0b' : colors.primary;
+
+  const [profile, setProfile] = useState<ProfileResponse | null>(null);
+  const [mediaMap, setMediaMap] = useState<Map<number, Anime>>(new Map());
+  const [loggedIn, setLoggedIn] = useState(true);
+  const [tab, setTab] = useState<TabKey>('lists');
+  const [statusFilter, setStatusFilter] = useState('ALL');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  // Tracks which avatar URL failed so we can fall back to the initial. Using the
+  // URL (not a boolean) means a newly saved picture retries automatically.
+  const [failedAvatar, setFailedAvatar] = useState<string | null>(null);
 
-  const statusTabs: StatusTab[] = ['watching', 'completed', 'planning', 'dropped'];
-
-  const fetchProfile = useCallback(async () => {
+  const load = useCallback(async () => {
     try {
+      setError(null);
       const user = await getCurrentUser();
-      if (user) {
-        setProfile({
-          id: user.id,
-          username: user.username,
-          avatar: user.avatar || null,
-          bio: user.bio || null,
-          stats: { completed: 0, episodesWatched: 0, daysWatched: 0 },
-          achievements: [],
-          lists: [],
-          genreDistribution: [],
-        });
-      } else {
+      setLoggedIn(!!user);
+      if (!user) {
         setProfile(null);
+        return;
       }
-    } catch {
-      setProfile(null);
+      const data = await api.profile.get();
+      setProfile(data);
+      const map = await mediaMapFor(data.user.entries);
+      setMediaMap(map);
+    } catch (e: any) {
+      setError(e?.message || 'Could not load your profile');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
-    setLoading(false);
-    setRefreshing(false);
   }, []);
 
   useFocusEffect(
     useCallback(() => {
-      fetchProfile();
-    }, [fetchProfile])
+      load();
+    }, [load])
   );
 
-  const onRefresh = () => { setRefreshing(true); fetchProfile(); };
-
-  const signOut = async () => {
-    await api.auth.logout();
-    setProfile(null);
+  const onRefresh = () => {
+    setRefreshing(true);
+    load();
   };
 
-  if (!profile && !loading) {
+  const signOut = () => {
+    Alert.alert('Sign out', 'Are you sure you want to sign out?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Sign Out',
+        style: 'destructive',
+        onPress: async () => {
+          await api.auth.logout();
+          setProfile(null);
+          setLoggedIn(false);
+        },
+      },
+    ]);
+  };
+
+  const filteredEntries = useMemo(() => {
+    if (!profile) return [];
+    if (statusFilter === 'ALL') return profile.user.entries;
+    return profile.user.entries.filter((e) => e.status === statusFilter);
+  }, [profile, statusFilter]);
+
+  const topAnime = useMemo(() => {
+    if (!profile) return [];
+    return profile.topAnime
+      .map((t) => ({ ...t, anime: mediaMap.get(t.mediaId) }))
+      .filter((t) => !!t.anime);
+  }, [profile, mediaMap]);
+
+  if (loading) return <LoadingSpinner fullScreen />;
+
+  if (!loggedIn) {
     return (
-      <View style={[styles.container, { paddingTop: insets.top }]}>
-        <View style={styles.loginPrompt}>
-          <View style={styles.loginIconContainer}>
-            <Text style={styles.loginIcon}>👤</Text>
-          </View>
-          <Text style={styles.loginTitle}>Sign in to ZyniVerse</Text>
-          <Text style={styles.loginSubtitle}>
-            Track your anime, earn achievements, and get personalized recommendations
+      <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+        <View style={styles.authCenter}>
+          <Text style={styles.authIcon}>👤</Text>
+          <Text style={[styles.authTitle, { color: colors.text }]}>Your anime universe awaits</Text>
+          <Text style={[styles.authSubtitle, { color: colors.textMuted }]}>
+            Sign in to build lists, track episodes, earn badges, and see your stats.
           </Text>
           <TouchableOpacity
-            style={styles.loginButton}
+            style={[styles.authButton, { backgroundColor: primaryAccent }]}
             onPress={() => navigation.navigate('Login')}
           >
-            <Text style={styles.loginButtonText}>Sign In</Text>
+            <Text style={styles.authButtonText}>Sign In / Sign Up</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.signupButton}
-            onPress={() => navigation.navigate('Login', { mode: 'signup' })}
-          >
-            <Text style={styles.signupButtonText}>Create Account</Text>
+          <TouchableOpacity onPress={() => navigation.navigate('Settings')}>
+            <Text style={[styles.authSettings, { color: colors.textDim }]}>App Settings</Text>
           </TouchableOpacity>
         </View>
       </View>
     );
   }
 
-  const initial = profile?.username?.[0]?.toUpperCase() || 'U';
-  const filteredLists = profile?.lists?.filter((l) => l.status === activeStatus) || [];
-  const topGenres = profile?.genreDistribution?.slice(0, 5) || [];
-  const totalAchievements = profile?.achievements?.length || 0;
+  if (error && !profile) {
+    return <ErrorView message={error} onRetry={load} />;
+  }
+
+  if (!profile) {
+    return <ErrorView message="Profile unavailable" onRetry={load} />;
+  }
+
+  const { user, stats } = profile;
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView
+        contentContainerStyle={{ paddingBottom: insets.bottom + spacing.xxl }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+        }
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
       >
-        {/* User Header */}
-        <View style={styles.userHeader}>
-          <View style={styles.avatarContainer}>
-            {profile?.avatar ? (
-              <Image source={{ uri: profile.avatar }} style={styles.avatarImage} />
-            ) : (
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{initial}</Text>
-              </View>
-            )}
-          </View>
-          <Text style={styles.username}>{profile?.username || 'User'}</Text>
-          {profile?.bio ? <Text style={styles.bio}>{profile.bio}</Text> : null}
-
-          <View style={styles.statsRow}>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{profile?.stats?.completed || 0}</Text>
-              <Text style={styles.statLabel}>Completed</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{profile?.stats?.episodesWatched || 0}</Text>
-              <Text style={styles.statLabel}>Episodes</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{profile?.stats?.daysWatched || 0}</Text>
-              <Text style={styles.statLabel}>Days</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Tab Switcher */}
-        <View style={styles.tabRow}>
-          {(['lists', 'stats', 'achievements', 'settings'] as ProfileTab[]).map((tab) => (
+        <View style={[styles.banner, { paddingTop: insets.top + spacing.md }]}>
+          <View style={styles.bannerActions}>
             <TouchableOpacity
-              key={tab}
-              style={[styles.tab, activeTab === tab && styles.tabActive]}
-              onPress={() => setActiveTab(tab)}
+              style={styles.iconButton}
+              onPress={() => navigation.navigate('Notifications')}
             >
-              <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
-              </Text>
+              <Text style={styles.iconText}>🔔</Text>
             </TouchableOpacity>
-          ))}
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={() => navigation.navigate('Settings')}
+            >
+              <Text style={styles.iconText}>⚙️</Text>
+            </TouchableOpacity>
+          </View>
+
+          <FadeInView duration={380}>
+            <View style={styles.identity}>
+              <View style={[styles.avatarWrap, { backgroundColor: colors.surfaceLight, borderColor: colors.primary, borderWidth: 2 }]}>
+                {user.avatar && user.avatar !== failedAvatar ? (
+                  <Image
+                    source={{ uri: user.avatar }}
+                    style={styles.avatar}
+                    onError={() => setFailedAvatar(user.avatar || null)}
+                  />
+                ) : (
+                  <Text style={[styles.avatarLetter, { color: colors.primary, fontWeight: '900', fontSize: 24 }]}>
+                    {(user.username || '?').charAt(0).toUpperCase()}
+                  </Text>
+                )}
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.username}>{user.username}</Text>
+                <Text style={styles.levelLine}>
+                  Level {user.level} · {formatCount(user.points)} pts
+                </Text>
+                <Text style={styles.joinLine}>Joined {formatDate(user.createdAt)}</Text>
+              </View>
+            </View>
+          </FadeInView>
+
+          {user.bio ? (
+            <FadeInView delay={60}>
+              <Text style={styles.bio}>{user.bio}</Text>
+            </FadeInView>
+          ) : null}
+
+          <FadeInView delay={100} style={styles.socialRow}>
+            <View style={styles.socialItem}>
+              <Text style={styles.socialValue}>{formatCount(user.followersCount)}</Text>
+              <Text style={styles.socialLabel}>Followers</Text>
+            </View>
+            <View style={styles.socialItem}>
+              <Text style={styles.socialValue}>{formatCount(user.followingCount)}</Text>
+              <Text style={styles.socialLabel}>Following</Text>
+            </View>
+            <View style={styles.socialItem}>
+              <Text style={styles.socialValue}>{formatCount(stats.episodesWatched)}</Text>
+              <Text style={styles.socialLabel}>Episodes</Text>
+            </View>
+            <View style={styles.socialItem}>
+              <Text style={styles.socialValue}>{stats.meanScore || '--'}</Text>
+              <Text style={styles.socialLabel}>Mean Score</Text>
+            </View>
+          </FadeInView>
+
+          <FadeInView delay={150} style={styles.actionRow}>
+            <TouchableOpacity
+              style={styles.editButton}
+              onPress={() => navigation.navigate('EditProfile')}
+            >
+              <Text style={styles.editButtonText}>Edit Profile</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.signOutButton} onPress={signOut}>
+              <Text style={styles.signOutText}>Sign Out</Text>
+            </TouchableOpacity>
+          </FadeInView>
         </View>
 
-        {/* Lists Tab */}
-        {activeTab === 'lists' && (
-          <View style={styles.tabContent}>
-            <View style={styles.statusRow}>
-              {statusTabs.map((s) => (
+        <FadeInView delay={190} style={styles.tabs}>
+          {TABS.map((t) => {
+            const active = tab === t.key;
+            return (
+              <TouchableOpacity
+                key={t.key}
+                style={[styles.tab, active && styles.tabActive]}
+                onPress={() => setTab(t.key)}
+              >
+                <Text style={[styles.tabText, active && styles.tabTextActive]}>{t.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </FadeInView>
+
+        {tab === 'lists' && (
+          <FadeInView key="lists" style={styles.tabBody} offset={10} duration={320}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.filterScroll}
+            >
+              {STATUS_FILTERS.map((status) => {
+                const active = statusFilter === status;
+                return (
+                  <TouchableOpacity
+                    key={status}
+                    style={[styles.filterChip, active && styles.filterChipActive]}
+                    onPress={() => setStatusFilter(status)}
+                  >
+                    <Text style={[styles.filterText, active && styles.filterTextActive]}>
+                      {status === 'ALL' ? 'All' : LIST_STATUS_LABEL[status]}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            {filteredEntries.length === 0 ? (
+              <View style={styles.emptyBox}>
+                <Text style={styles.emptyIcon}>📚</Text>
+                <Text style={styles.emptyText}>Nothing here yet</Text>
                 <TouchableOpacity
-                  key={s}
-                  style={[styles.statusTab, activeStatus === s && { borderBottomColor: getStatusColor(s), borderBottomWidth: 2 }]}
-                  onPress={() => setActiveStatus(s)}
+                  style={styles.emptyButton}
+                  onPress={() => navigation.navigate('Search')}
                 >
-                  <Text style={[styles.statusTabText, activeStatus === s && { color: getStatusColor(s) }]}>
-                    {s.charAt(0).toUpperCase() + s.slice(1)}
-                  </Text>
+                  <Text style={styles.emptyButtonText}>Find Anime</Text>
                 </TouchableOpacity>
+              </View>
+            ) : (
+              filteredEntries.map((entry, index) => {
+                const anime = mediaMap.get(entry.mediaId);
+                const title =
+                  anime?.title?.english ||
+                  anime?.title?.romaji ||
+                  `Anime #${entry.mediaId}`;
+                const poster =
+                  anime?.coverImage?.large ||
+                  anime?.coverImage?.medium ||
+                  anime?.coverImage?.extraLarge;
+                const pct =
+                  entry.total > 0 ? Math.min(100, (entry.progress / entry.total) * 100) : 0;
+                return (
+                  <FadeInView
+                    key={`${entry.mediaId}-${entry.type}`}
+                    delay={Math.min(index * 40, 320)}
+                    duration={320}
+                    offset={10}
+                  >
+                  <TouchableOpacity
+                    style={styles.listRow}
+                    activeOpacity={0.8}
+                    onPress={() =>
+                      navigation.navigate('AnimeDetail', { id: entry.mediaId, title })
+                    }
+                  >
+                    {poster ? (
+                      <Image source={{ uri: poster }} style={styles.listPoster} />
+                    ) : (
+                      <View style={[styles.listPoster, styles.listPosterPlaceholder]}>
+                        <Text style={styles.placeholderText}>?</Text>
+                      </View>
+                    )}
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.listTitle} numberOfLines={2}>
+                        {title}
+                      </Text>
+                      <Text style={styles.listMeta}>
+                        {entry.progress}
+                        {entry.total ? ` / ${entry.total}` : ''} eps
+                        {entry.score ? ` · ★ ${entry.score}` : ''}
+                      </Text>
+                      <View style={styles.progressTrack}>
+                        <View
+                          style={[
+                            styles.progressFill,
+                            { width: `${pct}%`, backgroundColor: getStatusColorForCode(entry.status) },
+                          ]}
+                        />
+                      </View>
+                    </View>
+                    <View
+                      style={[
+                        styles.statusPill,
+                        { borderColor: getStatusColorForCode(entry.status) },
+                      ]}
+                    >
+                      <Text
+                        style={[styles.statusText, { color: getStatusColorForCode(entry.status) }]}
+                      >
+                        {LIST_STATUS_LABEL[entry.status] || entry.status}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                  </FadeInView>
+                );
+              })
+            )}
+          </FadeInView>
+        )}
+
+        {tab === 'stats' && (
+          <FadeInView key="stats" style={styles.tabBody} offset={10} duration={320}>
+            <View style={styles.statsGrid}>
+              {[
+                { label: 'Total', value: stats.total, color: colors.text },
+                { label: 'Watching', value: stats.current, color: colors.watching },
+                { label: 'Completed', value: stats.completed, color: colors.completed },
+                { label: 'Planning', value: stats.planning, color: colors.planning },
+                { label: 'Paused', value: stats.paused, color: colors.paused },
+                { label: 'Dropped', value: stats.dropped, color: colors.dropped },
+              ].map((s, index) => (
+                <FadeInView key={s.label} delay={Math.min(index * 35, 210)} duration={300} offset={8}>
+                  <View style={styles.statCard}>
+                    <Text style={[styles.statValue, { color: s.color }]}>{s.value}</Text>
+                    <Text style={styles.statLabel}>{s.label}</Text>
+                  </View>
+                </FadeInView>
               ))}
             </View>
-            {loading ? (
-              <View style={styles.emptyList}>
-                <Text style={styles.emptyListText}>Loading...</Text>
-              </View>
-            ) : filteredLists.length > 0 ? (
-              filteredLists.map((item, i) => (
+
+            <View style={styles.highlightCard}>
+              <Text style={styles.highlightLabel}>Episodes watched</Text>
+              <Text style={styles.highlightValue}>{formatCount(stats.episodesWatched)}</Text>
+              <Text style={styles.highlightSub}>
+                That is about{' '}
+                {Math.round((stats.episodesWatched * 24) / 60 / 24)} days of anime.
+              </Text>
+            </View>
+
+            <Text style={styles.sectionTitle}>Top Rated</Text>
+            {topAnime.length === 0 ? (
+              <Text style={styles.mutedText}>
+                Rate some completed anime to build your top 5.
+              </Text>
+            ) : (
+              topAnime.map((item, index) => (
                 <TouchableOpacity
-                  key={`${item.mediaId}-${i}`}
-                  style={styles.listItem}
-                  onPress={() => navigation.navigate('AnimeDetail', { id: item.mediaId, title: item.title })}
+                  key={item.mediaId}
+                  style={styles.topRow}
+                  onPress={() =>
+                    navigation.navigate('AnimeDetail', {
+                      id: item.mediaId,
+                      title: item.anime?.title?.english || item.anime?.title?.romaji,
+                    })
+                  }
                 >
-                  <Text style={styles.listItemTitle} numberOfLines={1}>{item.title}</Text>
+                  <Text style={styles.topRank}>#{index + 1}</Text>
+                  {item.anime?.coverImage?.medium ? (
+                    <Image
+                      source={{ uri: item.anime.coverImage.medium }}
+                      style={styles.topPoster}
+                    />
+                  ) : (
+                    <View style={[styles.topPoster, styles.listPosterPlaceholder]} />
+                  )}
+                  <Text style={styles.topTitle} numberOfLines={2}>
+                    {item.anime?.title?.english || item.anime?.title?.romaji}
+                  </Text>
+                  <Text style={styles.topScore}>★ {item.score}</Text>
                 </TouchableOpacity>
               ))
-            ) : (
-              <View style={styles.emptyList}>
-                <Text style={styles.emptyListText}>No anime in this list yet</Text>
-              </View>
             )}
-          </View>
+          </FadeInView>
         )}
 
-        {/* Stats Tab */}
-        {activeTab === 'stats' && (
-          <View style={styles.tabContent}>
-            <View style={styles.statCard}>
-              <Text style={styles.statCardTitle}>Genre Distribution</Text>
-              {loading ? (
-                <Text style={styles.emptyTabText}>Loading...</Text>
-              ) : topGenres.length > 0 ? (
-                topGenres.map((g) => (
-                  <View key={g.genre} style={styles.genreBar}>
-                    <View style={styles.genreBarHeader}>
-                      <Text style={styles.genreBarLabel}>{g.genre}</Text>
-                      <Text style={styles.genreBarValue}>{g.percentage}%</Text>
-                    </View>
-                    <View style={styles.genreBarTrack}>
-                      <View style={[styles.genreBarFill, { width: `${g.percentage}%` }]} />
-                    </View>
-                  </View>
-                ))
-              ) : (
-                <Text style={styles.emptyTabText}>Start watching anime to see stats</Text>
-              )}
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statCardTitle}>Achievements Earned</Text>
-              <Text style={styles.statCardValue}>{totalAchievements} / 26</Text>
-            </View>
-          </View>
-        )}
-
-        {/* Achievements Tab */}
-        {activeTab === 'achievements' && (
-          <View style={styles.tabContent}>
-            {loading ? (
-              <Text style={styles.emptyTabText}>Loading...</Text>
-            ) : totalAchievements > 0 ? (
-              <View style={styles.badgesGrid}>
-                {profile?.achievements?.map((badge) => (
-                  <View key={badge.id} style={styles.badgeItem}>
-                    <Text style={styles.badgeIcon}>{badge.icon}</Text>
-                    <Text style={styles.badgeName}>{badge.name}</Text>
-                    <Text style={styles.badgeDescription} numberOfLines={2}>{badge.description}</Text>
+        {tab === 'achievements' && (
+          <FadeInView key="achievements" style={styles.tabBody} offset={10} duration={320}>
+            <Text style={styles.sectionTitle}>Earned Badges</Text>
+            {user.achievements.length === 0 ? (
+              <View style={styles.emptyBox}>
+                <Text style={styles.emptyIcon}>🏅</Text>
+                <Text style={styles.emptyText}>No badges yet</Text>
+                <Text style={styles.emptyHint}>
+                  Watch anime, write reviews, and post in the forum to earn them.
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.badgeGrid}>
+                {user.achievements.map((a: ProfileAchievement) => (
+                  <View key={a.code} style={styles.badgeCard}>
+                    <Text style={styles.badgeIcon}>{a.icon || ''}</Text>
+                    <Text style={styles.badgeName} numberOfLines={2}>
+                      {a.name}
+                    </Text>
+                    <Text style={styles.badgePoints}>+{a.points} pts</Text>
+                    <Text style={styles.badgeDate}>{formatDate(a.earnedAt)}</Text>
                   </View>
                 ))}
               </View>
-            ) : (
-              <View style={styles.emptyList}>
-                <Text style={styles.emptyListText}>No achievements yet. Keep exploring!</Text>
-              </View>
             )}
-          </View>
+
+            {user.reviews.length > 0 && (
+              <>
+                <Text style={styles.sectionTitle}>Your Reviews</Text>
+                {user.reviews.slice(0, 5).map((review: ReviewItem) => (
+                  <TouchableOpacity
+                    key={review.id}
+                    style={styles.reviewCard}
+                    onPress={() =>
+                      navigation.navigate('AnimeDetail', { id: review.mediaId })
+                    }
+                  >
+                    <View style={styles.reviewHeader}>
+                      <Text style={styles.reviewScore}>★ {review.rating}/10</Text>
+                      <Text style={styles.reviewTime}>{timeAgo(review.createdAt)}</Text>
+                    </View>
+                    {review.comment ? (
+                      <Text style={styles.reviewText} numberOfLines={3}>
+                        {review.comment}
+                      </Text>
+                    ) : null}
+                  </TouchableOpacity>
+                ))}
+              </>
+            )}
+          </FadeInView>
         )}
 
-        {/* Settings Tab */}
-        {activeTab === 'settings' && (
-          <View style={styles.tabContent}>
-            <TouchableOpacity style={styles.settingItem} onPress={() => navigation.navigate('Settings')}>
-              <Text style={styles.settingLabel}>All Settings</Text>
-              <Text style={styles.settingValue}>›</Text>
-            </TouchableOpacity>
-          </View>
+        {tab === 'activity' && (
+          <FadeInView key="activity" style={styles.tabBody} offset={10} duration={320}>
+            <Text style={styles.sectionTitle}>Recent Activity</Text>
+            {user.recentActivity.length === 0 ? (
+              <View style={styles.emptyBox}>
+                <Text style={styles.emptyIcon}>🕒</Text>
+                <Text style={styles.emptyText}>No activity yet</Text>
+                <Text style={styles.emptyHint}>Start watching or rating anime to see it here.</Text>
+              </View>
+            ) : (
+              user.recentActivity.map((activity) => (
+                <TouchableOpacity
+                  key={activity.id}
+                  style={styles.activityRow}
+                  activeOpacity={activity.mediaId ? 0.8 : 1}
+                  onPress={() => {
+                    if (activity.mediaId) {
+                      navigation.navigate('AnimeDetail', {
+                        id: activity.mediaId,
+                        title: activity.mediaTitle || undefined,
+                      });
+                    }
+                  }}
+                >
+                  {activity.mediaImage ? (
+                    <Image source={{ uri: activity.mediaImage }} style={styles.activityImage} />
+                  ) : (
+                    <View style={[styles.activityImage, styles.listPosterPlaceholder]}>
+                      <Text style={styles.placeholderText}></Text>
+                    </View>
+                  )}
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.activityTitle} numberOfLines={2}>
+                      {activity.mediaTitle || activity.message || activity.type}
+                    </Text>
+                    {activity.message && activity.mediaTitle ? (
+                      <Text style={styles.activityMessage} numberOfLines={2}>
+                        {activity.message}
+                      </Text>
+                    ) : null}
+                    <Text style={styles.activityTime}>{timeAgo(activity.createdAt)}</Text>
+                  </View>
+                </TouchableOpacity>
+              ))
+            )}
+          </FadeInView>
         )}
-
-        <View style={{ height: spacing.xxl }} />
       </ScrollView>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => ({
   container: {
     flex: 1,
     backgroundColor: colors.background,
   },
-  loginPrompt: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: spacing.xl,
-  },
-  loginIconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colors.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  loginIcon: {
-    fontSize: 40,
-  },
-  loginTitle: {
-    color: colors.text,
-    fontSize: fontSize.xxl,
-    fontWeight: '700',
-    marginBottom: spacing.sm,
-    textAlign: 'center',
-  },
-  loginSubtitle: {
-    color: colors.textMuted,
-    fontSize: fontSize.md,
-    textAlign: 'center',
-    marginBottom: spacing.xl,
-    lineHeight: 22,
-  },
-  loginButton: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: spacing.xl * 2,
-    paddingVertical: spacing.md,
-    borderRadius: borderRadius.md,
-    marginBottom: spacing.sm,
-    width: '100%',
-    alignItems: 'center',
-  },
-  loginButtonText: {
-    color: '#fff',
-    fontSize: fontSize.md,
-    fontWeight: '600',
-  },
-  signupButton: {
-    paddingHorizontal: spacing.xl * 2,
-    paddingVertical: spacing.md,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    width: '100%',
-    alignItems: 'center',
-  },
-  signupButtonText: {
-    color: colors.text,
-    fontSize: fontSize.md,
-    fontWeight: '600',
-  },
-  userHeader: {
-    alignItems: 'center',
-    paddingVertical: spacing.lg,
+  banner: {
     paddingHorizontal: spacing.md,
+    paddingBottom: spacing.md,
+    backgroundColor: colors.surface,
+    borderBottomLeftRadius: borderRadius.xl,
+    borderBottomRightRadius: borderRadius.xl,
   },
-  avatarContainer: {
+  bannerActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: spacing.sm,
     marginBottom: spacing.sm,
+  },
+  iconButton: {
+    width: 36,
+    height: 36,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconText: {
+    color: colors.text,
+    fontSize: 16,
+  },
+  identity: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  avatarWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.md,
+    overflow: 'hidden',
   },
   avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
+    width: '100%',
+    height: '100%',
   },
-  avatarImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-  },
-  avatarText: {
-    color: '#fff',
+  avatarLetter: {
+    color: colors.primary,
     fontSize: fontSize.xxl,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   username: {
     color: colors.text,
     fontSize: fontSize.xl,
+    fontWeight: '800',
+  },
+  levelLine: {
+    color: colors.primary,
+    fontSize: fontSize.sm,
     fontWeight: '700',
-    marginBottom: spacing.xs,
+    marginTop: 2,
+  },
+  joinLine: {
+    color: colors.textDim,
+    fontSize: fontSize.xs,
+    marginTop: 2,
   },
   bio: {
     color: colors.textMuted,
     fontSize: fontSize.sm,
-    marginBottom: spacing.md,
-    textAlign: 'center',
+    marginTop: spacing.sm,
+    lineHeight: 19,
   },
-  statsRow: {
+  socialRow: {
     flexDirection: 'row',
-    gap: spacing.xl,
+    marginTop: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.background,
   },
-  statItem: {
+  socialItem: {
+    flex: 1,
     alignItems: 'center',
   },
-  statValue: {
+  socialValue: {
     color: colors.text,
-    fontSize: fontSize.xl,
+    fontSize: fontSize.md,
+    fontWeight: '800',
+  },
+  socialLabel: {
+    color: colors.textDim,
+    fontSize: 10,
+    marginTop: 2,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  editButton: {
+    flex: 1,
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.sm + 2,
+    borderRadius: borderRadius.md,
+    alignItems: 'center',
+  },
+  editButtonText: {
+    color: '#0a0a0f',
+    fontWeight: '800',
+    fontSize: fontSize.sm,
+  },
+  signOutButton: {
+    flex: 1,
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: spacing.sm + 2,
+    borderRadius: borderRadius.md,
+    alignItems: 'center',
+  },
+  signOutText: {
+    color: colors.error,
     fontWeight: '700',
+    fontSize: fontSize.sm,
+  },
+  tabs: {
+    flexDirection: 'row',
+    marginHorizontal: spacing.md,
+    marginTop: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.md,
+    padding: 3,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: spacing.sm,
+    alignItems: 'center',
+    borderRadius: borderRadius.sm,
+  },
+  tabActive: {
+    backgroundColor: colors.primary,
+  },
+  tabText: {
+    color: colors.textMuted,
+    fontSize: fontSize.xs,
+    fontWeight: '700',
+  },
+  tabTextActive: {
+    color: '#0a0a0f',
+  },
+  tabBody: {
+    padding: spacing.md,
+  },
+  filterScroll: {
+    gap: spacing.sm,
+    paddingBottom: spacing.md,
+  },
+  filterChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 2,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.surface,
+    borderWidth: 0.5,
+    borderColor: colors.border,
+  },
+  filterChipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  filterText: {
+    color: colors.textMuted,
+    fontSize: fontSize.xs,
+    fontWeight: '600',
+  },
+  filterTextActive: {
+    color: '#0a0a0f',
+    fontWeight: '800',
+  },
+  listRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.sm,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.surface,
+    borderWidth: 0.5,
+    borderColor: colors.border,
+    marginBottom: spacing.sm,
+  },
+  listPoster: {
+    width: 46,
+    height: 64,
+    borderRadius: borderRadius.sm,
+    backgroundColor: colors.surfaceLight,
+    marginRight: spacing.sm,
+  },
+  listPosterPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  placeholderText: {
+    color: colors.textDim,
+    fontSize: fontSize.md,
+  },
+  listTitle: {
+    color: colors.text,
+    fontSize: fontSize.sm,
+    fontWeight: '700',
+  },
+  listMeta: {
+    color: colors.textDim,
+    fontSize: fontSize.xs,
+    marginTop: 2,
+  },
+  progressTrack: {
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: colors.surfaceLight,
+    marginTop: spacing.xs,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 2,
+  },
+  statusPill: {
+    marginLeft: spacing.sm,
+    borderWidth: 1,
+    borderRadius: borderRadius.full,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+  },
+  statusText: {
+    fontSize: 9,
+    fontWeight: '800',
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  statCard: {
+    flexBasis: '31%',
+    flexGrow: 1,
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.surface,
+    borderWidth: 0.5,
+    borderColor: colors.border,
+  },
+  statValue: {
+    fontSize: fontSize.xl,
+    fontWeight: '800',
   },
   statLabel: {
     color: colors.textDim,
     fontSize: fontSize.xs,
     marginTop: 2,
   },
-  tabRow: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    marginHorizontal: spacing.md,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: spacing.sm + 2,
-    alignItems: 'center',
-  },
-  tabActive: {
-    borderBottomWidth: 2,
-    borderBottomColor: colors.primary,
-  },
-  tabText: {
-    color: colors.textDim,
-    fontSize: fontSize.sm,
-    fontWeight: '500',
-  },
-  tabTextActive: {
-    color: colors.primary,
-    fontWeight: '600',
-  },
-  tabContent: {
+  highlightCard: {
+    marginTop: spacing.md,
     padding: spacing.md,
+    borderRadius: borderRadius.lg,
+    backgroundColor: 'rgba(34,211,238,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(34,211,238,0.3)',
   },
-  statusRow: {
-    flexDirection: 'row',
-    marginBottom: spacing.md,
-    gap: spacing.sm,
+  highlightLabel: {
+    color: colors.secondary,
+    fontSize: fontSize.xs,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
-  statusTab: {
-    paddingBottom: spacing.xs,
-    paddingHorizontal: spacing.xs,
-  },
-  statusTabText: {
-    color: colors.textMuted,
-    fontSize: fontSize.sm,
-    fontWeight: '500',
-  },
-  emptyList: {
-    paddingVertical: spacing.xxl,
-    alignItems: 'center',
-  },
-  emptyListText: {
-    color: colors.textDim,
-    fontSize: fontSize.md,
-  },
-  listItem: {
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.md,
-    padding: spacing.md,
-    marginBottom: spacing.xs,
-  },
-  listItemTitle: {
+  highlightValue: {
     color: colors.text,
-    fontSize: fontSize.sm,
-    fontWeight: '600',
+    fontSize: fontSize.hero,
+    fontWeight: '800',
+    marginTop: spacing.xs,
   },
-  statCard: {
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.md,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
+  highlightSub: {
+    color: colors.textMuted,
+    fontSize: fontSize.xs,
+    marginTop: 2,
   },
-  statCardTitle: {
+  sectionTitle: {
     color: colors.text,
     fontSize: fontSize.md,
     fontWeight: '700',
+    marginTop: spacing.lg,
     marginBottom: spacing.sm,
   },
-  statCardValue: {
-    color: colors.textMuted,
-    fontSize: fontSize.sm,
-    marginBottom: spacing.xs,
-  },
-  emptyTabText: {
+  mutedText: {
     color: colors.textDim,
     fontSize: fontSize.sm,
-    paddingVertical: spacing.md,
   },
-  genreBar: {
-    marginBottom: spacing.sm,
-  },
-  genreBarHeader: {
+  topRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 4,
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 0.5,
+    borderBottomColor: colors.border,
   },
-  genreBarLabel: {
-    color: colors.textMuted,
-    fontSize: fontSize.xs,
+  topRank: {
+    color: colors.primary,
+    fontSize: fontSize.sm,
+    fontWeight: '800',
+    width: 32,
   },
-  genreBarValue: {
+  topPoster: {
+    width: 34,
+    height: 48,
+    borderRadius: borderRadius.sm,
+    backgroundColor: colors.surfaceLight,
+    marginRight: spacing.sm,
+  },
+  topTitle: {
+    flex: 1,
     color: colors.text,
-    fontSize: fontSize.xs,
+    fontSize: fontSize.sm,
     fontWeight: '600',
   },
-  genreBarTrack: {
-    height: 6,
-    backgroundColor: colors.surfaceLight,
-    borderRadius: 3,
-    overflow: 'hidden',
+  topScore: {
+    color: colors.warning,
+    fontSize: fontSize.sm,
+    fontWeight: '800',
+    marginLeft: spacing.sm,
   },
-  genreBarFill: {
-    height: '100%',
-    backgroundColor: colors.primary,
-    borderRadius: 3,
-  },
-  badgesGrid: {
+  badgeGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
   },
-  badgeItem: {
-    width: '30%',
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.md,
-    padding: spacing.md,
+  badgeCard: {
+    flexBasis: '31%',
+    flexGrow: 1,
     alignItems: 'center',
+    padding: spacing.sm,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.surface,
+    borderWidth: 0.5,
+    borderColor: colors.border,
   },
   badgeIcon: {
-    fontSize: 28,
-    marginBottom: spacing.xs,
+    fontSize: 26,
+    marginBottom: 4,
   },
   badgeName: {
     color: colors.text,
     fontSize: fontSize.xs,
-    fontWeight: '600',
+    fontWeight: '700',
     textAlign: 'center',
-    marginBottom: 2,
   },
-  badgeDescription: {
+  badgePoints: {
+    color: colors.primary,
+    fontSize: 10,
+    fontWeight: '800',
+    marginTop: 2,
+  },
+  badgeDate: {
     color: colors.textDim,
     fontSize: 9,
-    textAlign: 'center',
+    marginTop: 2,
   },
-  settingItem: {
+  reviewCard: {
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.surface,
+    borderWidth: 0.5,
+    borderColor: colors.border,
+    marginBottom: spacing.sm,
+  },
+  reviewHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginBottom: spacing.xs,
+  },
+  reviewScore: {
+    color: colors.warning,
+    fontSize: fontSize.sm,
+    fontWeight: '800',
+  },
+  reviewTime: {
+    color: colors.textDim,
+    fontSize: fontSize.xs,
+  },
+  reviewText: {
+    color: colors.textMuted,
+    fontSize: fontSize.sm,
+    lineHeight: 19,
+  },
+  activityRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.sm,
     borderBottomWidth: 0.5,
     borderBottomColor: colors.border,
   },
-  settingLabel: {
-    color: colors.text,
-    fontSize: fontSize.md,
+  activityImage: {
+    width: 40,
+    height: 56,
+    borderRadius: borderRadius.sm,
+    backgroundColor: colors.surfaceLight,
+    marginRight: spacing.sm,
   },
-  settingValue: {
+  activityTitle: {
+    color: colors.text,
+    fontSize: fontSize.sm,
+    fontWeight: '600',
+  },
+  activityMessage: {
+    color: colors.textMuted,
+    fontSize: fontSize.xs,
+    marginTop: 2,
+  },
+  activityTime: {
+    color: colors.textDim,
+    fontSize: 11,
+    marginTop: 2,
+  },
+  emptyBox: {
+    alignItems: 'center',
+    paddingVertical: spacing.xl,
+  },
+  emptyIcon: {
+    fontSize: 40,
+    marginBottom: spacing.sm,
+  },
+  emptyText: {
     color: colors.textMuted,
     fontSize: fontSize.md,
+    fontWeight: '600',
   },
-});
+  emptyHint: {
+    color: colors.textDim,
+    fontSize: fontSize.sm,
+    marginTop: spacing.xs,
+    textAlign: 'center',
+  },
+  emptyButton: {
+    marginTop: spacing.md,
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.md,
+  },
+  emptyButtonText: {
+    color: '#0a0a0f',
+    fontWeight: '800',
+    fontSize: fontSize.sm,
+  },
+  authCenter: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.xl,
+  },
+  authIcon: {
+    fontSize: 56,
+    marginBottom: spacing.md,
+  },
+  authTitle: {
+    color: colors.text,
+    fontSize: fontSize.xl,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  authSubtitle: {
+    color: colors.textMuted,
+    fontSize: fontSize.sm,
+    textAlign: 'center',
+    marginTop: spacing.sm,
+    lineHeight: 20,
+  },
+  authButton: {
+    marginTop: spacing.lg,
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.md,
+  },
+  authButtonText: {
+    color: '#0a0a0f',
+    fontWeight: '800',
+    fontSize: fontSize.md,
+  },
+  authSettings: {
+    color: colors.textDim,
+    fontSize: fontSize.sm,
+    marginTop: spacing.lg,
+  },
+}));

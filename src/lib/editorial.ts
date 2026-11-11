@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { DUBBED_ANIME_STATIC, type DubAnimeEntry } from "@/lib/data/dubbed-static";
+import { withFreshDubPosters } from "@/lib/dub-posters";
 import {
   THEATRICAL_RELEASES,
   normalizeTheatricalStatus,
@@ -74,8 +75,10 @@ export function invalidateEditorial(kind?: EditorialKind) {
   else cache.clear();
 }
 
-export function getDubbedEntries() {
-  return getEditorial<DubAnimeEntry>("dubbed", DUBBED_ANIME_STATIC);
+export async function getDubbedEntries() {
+  const bundle = await getEditorial<DubAnimeEntry>("dubbed", DUBBED_ANIME_STATIC);
+  // MAL's CDN paths rot; swap in AniList's stable covers where possible.
+  return { ...bundle, entries: await withFreshDubPosters(bundle.entries) };
 }
 
 export function getTheatricalEntries() {

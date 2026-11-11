@@ -1,261 +1,358 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
+  FlatList,
   ScrollView,
   TouchableOpacity,
   StyleSheet,
   RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { colors, spacing, fontSize, borderRadius } from '../theme';
-import AnimeCard from '../components/AnimeCard';
+import { colors, themed, spacing, fontSize, borderRadius } from '../theme';
+import { useTheme } from '../hooks/useTheme';
+import AnimeCard, { GRID_CARD_WIDTH } from '../components/AnimeCard';
 import { Anime } from '../types';
-import { api } from '../services/api';
-
-const GENRES = [
-  'Action', 'Adventure', 'Comedy', 'Drama', 'Fantasy', 'Horror',
-  'Mystery', 'Romance', 'Sci-Fi', 'Slice of Life', 'Sports',
-];
+import { api, getCurrentUser } from '../services/api';
+import LoadingSpinner from '../components/LoadingSpinner';
+import ErrorView from '../components/ErrorView';
+import FadeInView from '../components/FadeInView';
 
 export default function RecommendationsScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
-  const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
-  const [trending, setTrending] = useState<Anime[]>([]);
+  const { colors: themeColors } = useTheme();
+
+  const [genres, setGenres] = useState<string[]>([]);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [personalGenres, setPersonalGenres] = useState<string[]>([]);
+  const [items, setItems] = useState<Anime[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const fetchData = useCallback(async () => {
+  const loadGenres = useCallback(async () => {
     try {
-      const data = await api.trending.get();
-      setTrending(Array.isArray(data) ? data.slice(0, 10) : []);
-    } catch {}
-    setLoading(false);
-    setRefreshing(false);
+      const list = await api.genres();
+      setGenres(list);
+      return list;
+    } catch {
+      return [] as string[];
+    }
   }, []);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
-  const onRefresh = () => { setRefreshing(true); fetchData(); };
+  // Build a real taste profile from the user's own list instead of guessing.
+  const loadPersonalGenres = useCallback(async () => {
+    const user = await getCurrentUser().catch(() => null);
+    if (!user) return [] as string[];
+    try {
+      const watchlist = await api.watchlist.get();
+      const ids = watchlist.map((w) => w.mediaId).slice(0, 50);
+      if (ids.length === 0) return [] as string[];
+      const media = await api.batch(ids);
+      const counts = new Map<string, number>();
+      for (const m of media) {
+        for (const g of m.genres || []) {
+          counts.set(g, (counts.get(g) || 0) + 1);
+        }
+      }
+      return [...counts.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([g]) => g);
+    } catch {
+      return [] as string[];
+    }
+  }, []);
 
-  const toggleGenre = (genre: string) => {
-    setSelectedGenres((prev) =>
-      prev.includes(genre) ? prev.filter((g) => g !== genre) : [...prev, genre]
-    );
+  const loadRecommendations = useCallback(async (genreList: string[]) => {
+    if (genreList.length === 0) {
+      setItems([]);
+      return;
+    }
+    try {
+      setError(null);
+      const results = await Promise.all(
+        genreList.map((g) => api.recommendations(g, 18).catch(() => [] as Anime[]))
+      );
+      const merged: Anime[] = [];
+      const seen = new Set<number>();
+      // Interleave genres so the grid mixes picks instead of grouping by genre.
+      const maxLen = Math.max(0, ...results.map((r) => r.length));
+      for (let i = 0; i < maxLen; i++) {
+        for (const list of results) {
+          const anime = list[i];
+          if (anime && !seen.has(anime.id)) {
+            seen.add(anime.id);
+            merged.push(anime);
+          }
+        }
+      }
+      setItems(merged);
+    } catch (e: any) {
+      setError(e?.message || 'Could not load recommendations');
+    }
+  }, []);
+
+  const bootstrap = useCallback(async () => {
+    try {
+      setError(null);
+      const [genreList, personal] = await Promise.all([loadGenres(), loadPersonalGenres()]);
+      setPersonalGenres(personal);
+      const initial = personal.length > 0 ? personal : genreList.slice(0, 2);
+      setSelected(initial);
+      await loadRecommendations(initial);
+    } catch (e: any) {
+      setError(e?.message || 'Could not load recommendations');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [loadGenres, loadPersonalGenres, loadRecommendations]);
+
+  useEffect(() => {
+    bootstrap();
+  }, [bootstrap]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    bootstrap();
   };
 
-  const genreFiltered = selectedGenres.length > 0
-    ? trending.filter((a) =>
-        a.genres?.some((g: any) => selectedGenres.includes(g.name || g))
-      )
-    : [];
+  const toggleGenre = (genre: string) => {
+    setSelected((prev) => {
+      const next = prev.includes(genre) ? prev.filter((g) => g !== genre) : [...prev, genre];
+      loadRecommendations(next);
+      return next;
+    });
+  };
+
+  const surpriseMe = () => {
+    if (genres.length === 0) return;
+    const pick = genres[Math.floor(Math.random() * genres.length)];
+    setSelected([pick]);
+    loadRecommendations([pick]);
+  };
+
+  const usingPersonal = personalGenres.length > 0 && selected.join('|') === personalGenres.join('|');
+
+  const header = useMemo(
+    () => (
+      <View>
+        <FadeInView delay={0}>
+          <View style={styles.intro}>
+            <Text style={styles.heading}>For You</Text>
+            <Text style={styles.subheading}>
+              {usingPersonal
+                ? 'Based on genres you already watch'
+                : selected.length > 0
+                  ? 'Picked from your selected genres'
+                  : 'Choose a genre to get started'}
+            </Text>
+          </View>
+        </FadeInView>
+
+        <FadeInView delay={60} style={styles.actionsRow}>
+          <TouchableOpacity style={styles.surpriseButton} onPress={surpriseMe}>
+            <Text style={styles.surpriseText}>🎲 Surprise Me</Text>
+          </TouchableOpacity>
+          {personalGenres.length > 0 && (
+            <TouchableOpacity
+              style={styles.resetButton}
+              onPress={() => {
+                setSelected(personalGenres);
+                loadRecommendations(personalGenres);
+              }}
+            >
+              <Text style={styles.resetText}>↺ Use My Taste</Text>
+            </TouchableOpacity>
+          )}
+        </FadeInView>
+
+        <FadeInView delay={110}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.genreScroll}
+          >
+            {genres.map((genre) => {
+              const active = selected.includes(genre);
+              return (
+                <TouchableOpacity
+                  key={genre}
+                  style={[styles.genreChip, active && styles.genreChipActive]}
+                  onPress={() => toggleGenre(genre)}
+                >
+                  <Text style={[styles.genreText, active && styles.genreTextActive]}>{genre}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </FadeInView>
+      </View>
+    ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [genres, selected, personalGenres, usingPersonal]
+  );
+
+  if (loading) return <LoadingSpinner fullScreen />;
+  if (error && items.length === 0) {
+    return <ErrorView message={error} onRetry={bootstrap} />;
+  }
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
-      >
-        {/* Genre Selector */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Pick Your Genres</Text>
-          <View style={styles.genresRow}>
-            {GENRES.map((genre) => (
-              <TouchableOpacity
-                key={genre}
-                style={[styles.genreChip, selectedGenres.includes(genre) && styles.genreChipActive]}
-                onPress={() => toggleGenre(genre)}
-              >
-                <Text style={[styles.genreText, selectedGenres.includes(genre) && styles.genreTextActive]}>
-                  {genre}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+    <FlatList
+      data={items}
+      keyExtractor={(item) => String(item.id)}
+      numColumns={2}
+      columnWrapperStyle={styles.column}
+      style={[styles.container, { backgroundColor: themeColors.background }]}
+      contentContainerStyle={{
+        paddingHorizontal: spacing.md,
+        paddingBottom: insets.bottom + spacing.xxl,
+      }}
+      ListHeaderComponent={header}
+      renderItem={({ item, index }) => (
+        <FadeInView delay={Math.min(index * 40, 320)} offset={12} duration={340}>
+          <AnimeCard anime={item} width={GRID_CARD_WIDTH} />
+        </FadeInView>
+      )}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+      }
+      ListEmptyComponent={
+        <View style={styles.empty}>
+          <Text style={styles.emptyIcon}>✨</Text>
+          <Text style={styles.emptyText}>Pick a genre above</Text>
+          <Text style={styles.emptyHint}>
+            Recommendations update instantly as you select genres.
+          </Text>
+          <TouchableOpacity
+            style={styles.emptyButton}
+            onPress={() => navigation.navigate('Search')}
+          >
+            <Text style={styles.emptyButtonText}>Browse All Anime</Text>
+          </TouchableOpacity>
         </View>
-
-        {/* Genre-filtered results */}
-        {selectedGenres.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Your Picks</Text>
-            {loading ? (
-              <Text style={styles.emptyText}>Loading...</Text>
-            ) : genreFiltered.length > 0 ? (
-              genreFiltered.slice(0, 6).map((item) => (
-                <TouchableOpacity
-                  key={item.id}
-                  style={styles.recommendationCard}
-                  onPress={() => navigation.navigate('AnimeDetail', { id: item.id, title: item.title.english || item.title.romaji })}
-                >
-                  <View style={styles.recommendationInfo}>
-                    <Text style={styles.recommendationTitle} numberOfLines={1}>
-                      {item.title.english || item.title.romaji}
-                    </Text>
-                    <View style={styles.recommendationMeta}>
-                      <Text style={styles.recommendationScore}>
-                        {item.averageScore ? `Score: ${(item.averageScore / 10).toFixed(1)}` : 'No score'}
-                      </Text>
-                      {item.episodes ? (
-                        <Text style={styles.recommendationEps}>{item.episodes} eps</Text>
-                      ) : null}
-                    </View>
-                  </View>
-                  <Text style={styles.recommendationArrow}>›</Text>
-                </TouchableOpacity>
-              ))
-            ) : (
-              <Text style={styles.emptyText}>No matches found for selected genres</Text>
-            )}
-          </View>
-        )}
-
-        {/* Trending */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Trending</Text>
-          {loading ? (
-            <View style={styles.trendingRow}>
-              {Array.from({ length: 3 }).map((_, i) => (
-                <View key={i} style={[styles.trendingSkeleton, { opacity: 0.5 }]} />
-              ))}
-            </View>
-          ) : trending.length > 0 ? (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {trending.map((item) => (
-                <AnimeCard key={item.id} anime={item} compact />
-              ))}
-            </ScrollView>
-          ) : (
-            <Text style={styles.emptyText}>No trending anime available</Text>
-          )}
-        </View>
-
-        {/* Top Rated */}
-        {trending.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Top Rated</Text>
-            {[...trending]
-              .filter((a) => a.averageScore)
-              .sort((a, b) => (b.averageScore || 0) - (a.averageScore || 0))
-              .slice(0, 5)
-              .map((item) => (
-                <TouchableOpacity
-                  key={item.id}
-                  style={styles.recommendationCard}
-                  onPress={() => navigation.navigate('AnimeDetail', { id: item.id, title: item.title.english || item.title.romaji })}
-                >
-                  <View style={styles.recommendationInfo}>
-                    <Text style={styles.recommendationTitle} numberOfLines={1}>
-                      {item.title.english || item.title.romaji}
-                    </Text>
-                    <View style={styles.recommendationMeta}>
-                      <Text style={styles.recommendationScore}>
-                        Score: {item.averageScore ? (item.averageScore / 10).toFixed(1) : '--'}
-                      </Text>
-                      {item.episodes ? (
-                        <Text style={styles.recommendationEps}>{item.episodes} eps</Text>
-                      ) : null}
-                    </View>
-                  </View>
-                  <Text style={styles.recommendationArrow}>›</Text>
-                </TouchableOpacity>
-              ))}
-          </View>
-        )}
-
-        <View style={{ height: spacing.xxl }} />
-      </ScrollView>
-    </View>
+      }
+      ListFooterComponent={
+        items.length > 0 ? (
+          <ActivityIndicator style={{ opacity: 0 }} color={colors.primary} />
+        ) : null
+      }
+    />
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => ({
   container: {
     flex: 1,
     backgroundColor: colors.background,
   },
-  section: {
-    paddingHorizontal: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  sectionTitle: {
-    color: colors.text,
-    fontSize: fontSize.lg,
-    fontWeight: '700',
+  intro: {
     marginBottom: spacing.sm,
   },
-  genresRow: {
+  heading: {
+    color: colors.text,
+    fontSize: fontSize.xl,
+    fontWeight: '800',
+  },
+  subheading: {
+    color: colors.textDim,
+    fontSize: fontSize.sm,
+    marginTop: 2,
+  },
+  actionsRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  surpriseButton: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 2,
+    borderRadius: borderRadius.full,
+    backgroundColor: 'rgba(192,132,252,0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(192,132,252,0.4)',
+  },
+  surpriseText: {
+    color: colors.primary,
+    fontSize: fontSize.xs,
+    fontWeight: '700',
+  },
+  resetButton: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 2,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.surface,
+    borderWidth: 0.5,
+    borderColor: colors.border,
+  },
+  resetText: {
+    color: colors.textMuted,
+    fontSize: fontSize.xs,
+    fontWeight: '700',
+  },
+  genreScroll: {
+    gap: spacing.sm,
+    paddingBottom: spacing.md,
   },
   genreChip: {
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.xs,
     borderRadius: borderRadius.full,
     backgroundColor: colors.surface,
-    borderWidth: 1,
+    borderWidth: 0.5,
     borderColor: colors.border,
   },
   genreChipActive: {
-    backgroundColor: colors.primary + '33',
-    borderColor: colors.primary,
+    backgroundColor: colors.secondary,
+    borderColor: colors.secondary,
   },
   genreText: {
     color: colors.textMuted,
-    fontSize: fontSize.sm,
+    fontSize: fontSize.xs,
+    fontWeight: '600',
   },
   genreTextActive: {
-    color: colors.primary,
-    fontWeight: '600',
+    color: '#0a0a0f',
+    fontWeight: '800',
   },
-  recommendationCard: {
-    flexDirection: 'row',
+  column: {
+    gap: spacing.md,
+  },
+  empty: {
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.md,
-    padding: spacing.md,
+    paddingTop: spacing.xxl,
+    paddingHorizontal: spacing.lg,
+  },
+  emptyIcon: {
+    fontSize: 44,
     marginBottom: spacing.sm,
   },
-  recommendationInfo: {
-    flex: 1,
-  },
-  recommendationTitle: {
-    color: colors.text,
+  emptyText: {
+    color: colors.textMuted,
     fontSize: fontSize.md,
     fontWeight: '600',
-    marginBottom: 4,
   },
-  recommendationMeta: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  recommendationScore: {
-    color: colors.textMuted,
-    fontSize: fontSize.xs,
-  },
-  recommendationEps: {
-    color: colors.textDim,
-    fontSize: fontSize.xs,
-  },
-  recommendationArrow: {
-    color: colors.textDim,
-    fontSize: fontSize.xl,
-    marginLeft: spacing.sm,
-  },
-  trendingRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  trendingSkeleton: {
-    width: 120,
-    height: 180,
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.md,
-  },
-  emptyText: {
+  emptyHint: {
     color: colors.textDim,
     fontSize: fontSize.sm,
-    paddingVertical: spacing.md,
+    marginTop: spacing.xs,
+    textAlign: 'center',
   },
-});
+  emptyButton: {
+    marginTop: spacing.lg,
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.md,
+  },
+  emptyButtonText: {
+    color: '#0a0a0f',
+    fontWeight: '800',
+    fontSize: fontSize.sm,
+  },
+}));

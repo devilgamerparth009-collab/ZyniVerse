@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { colors, spacing, fontSize, borderRadius } from '../theme';
+import { useTheme } from '../hooks/useTheme';
+import { spacing, fontSize, borderRadius } from '../theme';
 
 interface Props {
   language: 'hindi' | 'tamil' | 'telugu';
@@ -21,15 +22,16 @@ const languageLabels: Record<string, string> = {
 };
 
 export default function DubBadge({ language, available, platform }: Props) {
+  const { colors } = useTheme();
   const color = languageColors[language] || colors.textMuted;
 
   return (
     <View style={[styles.badge, { borderColor: available ? color : colors.border }]}>
       <Text style={[styles.text, { color: available ? color : colors.textDim }]}>
-        {languageLabels[language]} {available ? '✓' : '✗'}
+        {languageLabels[language]} {available ? '✓' : '✕'}
       </Text>
       {platform && available && (
-        <Text style={styles.platform}>{platform}</Text>
+        <Text style={[styles.platform, { color: colors.textMuted }]}>{platform}</Text>
       )}
     </View>
   );
@@ -52,7 +54,6 @@ const styles = StyleSheet.create({
   },
   platform: {
     fontSize: fontSize.xs,
-    color: colors.textMuted,
     marginLeft: 4,
   },
 });

@@ -8,11 +8,13 @@ import {
   RefreshControl,
 } from 'react-native';
 import { useRoute } from '@react-navigation/native';
-import { colors, spacing, fontSize, borderRadius } from '../theme';
+import { colors, themed, spacing, fontSize, borderRadius } from '../theme';
+import { useTheme } from '../hooks/useTheme';
 import { getEpisodeTypeColor } from '../utils/helpers';
 import FillerProgress from '../components/FillerProgress';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorView from '../components/ErrorView';
+import FadeInView from '../components/FadeInView';
 import { api } from '../services/api';
 
 interface FillerEpisode {
@@ -32,6 +34,8 @@ interface FillerData {
 export default function FillerGuideScreen() {
   const route = useRoute<any>();
   const { id, title: animeTitle } = route.params;
+  const { colors, isDiwali } = useTheme();
+  const primaryAccent = isDiwali ? '#f59e0b' : colors.primary;
 
   const [data, setData] = useState<FillerData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -70,11 +74,13 @@ export default function FillerGuideScreen() {
 
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={primaryAccent} />}
     >
-      <Text style={styles.title}>{animeTitle}</Text>
+      <FadeInView duration={360}>
+        <Text style={styles.title}>{animeTitle}</Text>
+      </FadeInView>
 
       {loading ? (
         <LoadingSpinner />
@@ -82,14 +88,16 @@ export default function FillerGuideScreen() {
         <ErrorView message={error} onRetry={fetchData} />
       ) : data ? (
         <>
-          <FillerProgress
-            totalEpisodes={data.totalEpisodes}
-            totalFillers={data.totalFillers}
-            fillerPercentage={data.fillerPercentage}
-          />
+          <FadeInView delay={60}>
+            <FillerProgress
+              totalEpisodes={data.totalEpisodes}
+              totalFillers={data.totalFillers}
+              fillerPercentage={data.fillerPercentage}
+            />
+          </FadeInView>
 
           {/* Summary */}
-          <View style={styles.summaryRow}>
+          <FadeInView delay={120} style={styles.summaryRow}>
             <View style={[styles.summaryBox, { borderColor: colors.success }]}>
               <Text style={[styles.summaryCount, { color: colors.success }]}>{canonCount}</Text>
               <Text style={styles.summaryLabel}>Canon</Text>
@@ -102,10 +110,10 @@ export default function FillerGuideScreen() {
               <Text style={[styles.summaryCount, { color: colors.error }]}>{fillerCount}</Text>
               <Text style={styles.summaryLabel}>Filler</Text>
             </View>
-          </View>
+          </FadeInView>
 
           {/* Legend */}
-          <View style={styles.legend}>
+          <FadeInView delay={170} style={styles.legend}>
             <View style={styles.legendItem}>
               <View style={[styles.legendDot, { backgroundColor: colors.success }]} />
               <Text style={styles.legendText}>Canon</Text>
@@ -118,29 +126,37 @@ export default function FillerGuideScreen() {
               <View style={[styles.legendDot, { backgroundColor: colors.error }]} />
               <Text style={styles.legendText}>Filler</Text>
             </View>
-          </View>
+          </FadeInView>
 
           {/* Episode List */}
           <View style={styles.episodeList}>
-            <Text style={styles.sectionTitle}>Episodes</Text>
-            {data.episodes.map((ep) => (
-              <View
+            <FadeInView delay={210}>
+              <Text style={styles.sectionTitle}>Episodes</Text>
+            </FadeInView>
+            {data.episodes.map((ep, index) => (
+              <FadeInView
                 key={ep.episode}
-                style={[
-                  styles.episodeItem,
-                  { borderLeftColor: getEpisodeTypeColor(ep.type) },
-                ]}
+                delay={Math.min(230 + (index % 12) * 22, 520)}
+                duration={300}
+                offset={10}
               >
-                <View style={styles.episodeInfo}>
-                  <Text style={styles.episodeNumber}>Ep. {ep.episode}</Text>
-                  {ep.title ? <Text style={styles.episodeTitle}>{ep.title}</Text> : null}
+                <View
+                  style={[
+                    styles.episodeItem,
+                    { borderLeftColor: getEpisodeTypeColor(ep.type) },
+                  ]}
+                >
+                  <View style={styles.episodeInfo}>
+                    <Text style={styles.episodeNumber}>Ep. {ep.episode}</Text>
+                    {ep.title ? <Text style={styles.episodeTitle}>{ep.title}</Text> : null}
+                  </View>
+                  <View style={[styles.episodeTypeBadge, { backgroundColor: getEpisodeTypeColor(ep.type) + '33' }]}>
+                    <Text style={[styles.episodeTypeText, { color: getEpisodeTypeColor(ep.type) }]}>
+                      {ep.type}
+                    </Text>
+                  </View>
                 </View>
-                <View style={[styles.episodeTypeBadge, { backgroundColor: getEpisodeTypeColor(ep.type) + '33' }]}>
-                  <Text style={[styles.episodeTypeText, { color: getEpisodeTypeColor(ep.type) }]}>
-                    {ep.type}
-                  </Text>
-                </View>
-              </View>
+              </FadeInView>
             ))}
           </View>
         </>
@@ -155,7 +171,7 @@ export default function FillerGuideScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => ({
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -259,4 +275,4 @@ const styles = StyleSheet.create({
     color: colors.textDim,
     fontSize: fontSize.md,
   },
-});
+}));

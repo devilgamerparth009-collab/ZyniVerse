@@ -4,19 +4,40 @@ import { RootStackParamList } from './types';
 import TabNavigator from './TabNavigator';
 import AnimeDetailScreen from '../screens/AnimeDetailScreen';
 import FillerGuideScreen from '../screens/FillerGuideScreen';
-import MangaScreen from '../screens/MangaScreen';
-import ForumScreen from '../screens/ForumScreen';
+import BrowseScreen from '../screens/BrowseScreen';
+import DubbedScreen from '../screens/DubbedScreen';
+import ThreadListScreen from '../screens/ThreadListScreen';
+import ThreadDetailScreen from '../screens/ThreadDetailScreen';
+import NotificationsScreen from '../screens/NotificationsScreen';
+import EditProfileScreen from '../screens/EditProfileScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import RecommendationsScreen from '../screens/RecommendationsScreen';
 import TournamentDetailScreen from '../screens/TournamentDetailScreen';
 import LoginScreen from '../screens/LoginScreen';
-import { colors } from '../theme';
+import FunZoneScreen from '../screens/FunZoneScreen';
+import QuizScreen from '../screens/QuizScreen';
+import GamesScreen from '../screens/GamesScreen';
+import PollsScreen from '../screens/PollsScreen';
+import LeaderboardScreen from '../screens/LeaderboardScreen';
+import NewsScreen from '../screens/NewsScreen';
+import OSTScreen from '../screens/OSTScreen';
+import WallpapersScreen from '../screens/WallpapersScreen';
+import TVGuideScreen from '../screens/TVGuideScreen';
+import ReelsScreen from '../screens/ReelsScreen';
+import LiveDubsScreen from '../screens/LiveDubsScreen';
+import WordleScreen from '../screens/WordleScreen';
+import DailyDubScheduleScreen from '../screens/DailyDubScheduleScreen';
+import WebScreen from '../screens/WebScreen';
+import SplashScreen from '../screens/SplashScreen';
+import { useTheme } from '../hooks/useTheme';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function AppNavigator() {
+  const { colors } = useTheme();
   return (
     <Stack.Navigator
+      initialRouteName="Splash"
       screenOptions={{
         headerStyle: { backgroundColor: colors.background },
         headerTintColor: colors.text,
@@ -26,9 +47,14 @@ export default function AppNavigator() {
       }}
     >
       <Stack.Screen
+        name="Splash"
+        component={SplashScreen}
+        options={{ headerShown: false, animation: 'fade' }}
+      />
+      <Stack.Screen
         name="MainTabs"
         component={TabNavigator}
-        options={{ headerShown: false }}
+        options={{ headerShown: false, animation: 'fade' }}
       />
       <Stack.Screen
         name="AnimeDetail"
@@ -41,19 +67,41 @@ export default function AppNavigator() {
         options={({ route }) => ({ title: route.params.title })}
       />
       <Stack.Screen
-        name="MangaDetail"
-        component={MangaScreen}
-        options={{ title: 'Manga Detail' }}
+        name="Browse"
+        component={BrowseScreen}
+        options={({ route }) => ({ title: route.params?.title || 'Browse' })}
+      />
+      <Stack.Screen
+        name="Dubbed"
+        component={DubbedScreen}
+        options={{ title: 'Anime Dubs' }}
+      />
+      <Stack.Screen
+        name="ThreadList"
+        component={ThreadListScreen}
+        options={({ route }) => ({
+          title: route.params?.categoryName || route.params?.animeTitle || 'Threads',
+        })}
       />
       <Stack.Screen
         name="ThreadDetail"
-        component={ForumScreen}
-        options={{ title: 'Thread' }}
+        component={ThreadDetailScreen}
+        options={({ route }) => ({ title: route.params?.title || 'Thread' })}
+      />
+      <Stack.Screen
+        name="Notifications"
+        component={NotificationsScreen}
+        options={{ title: 'Notifications' }}
+      />
+      <Stack.Screen
+        name="EditProfile"
+        component={EditProfileScreen}
+        options={{ title: 'Edit Profile' }}
       />
       <Stack.Screen
         name="ForumCategory"
-        component={ForumScreen}
-        options={({ route }) => ({ title: route.params.slug })}
+        component={ThreadListScreen}
+        options={({ route }) => ({ title: route.params.name || route.params.slug })}
       />
       <Stack.Screen
         name="Settings"
@@ -74,6 +122,28 @@ export default function AppNavigator() {
         name="Login"
         component={LoginScreen}
         options={{ title: 'Sign In', presentation: 'modal' }}
+      />
+      <Stack.Screen name="FunZone" component={FunZoneScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Quiz" component={QuizScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Games" component={GamesScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Polls" component={PollsScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Leaderboard" component={LeaderboardScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="News" component={NewsScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="OST" component={OSTScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Wallpapers" component={WallpapersScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="TVGuide" component={TVGuideScreen} options={{ headerShown: false }} />
+      <Stack.Screen
+        name="Reels"
+        component={ReelsScreen}
+        options={{ headerShown: false, animation: 'fade' }}
+      />
+      <Stack.Screen name="LiveDubs" component={LiveDubsScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Wordle" component={WordleScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="DailyDubSchedule" component={DailyDubScheduleScreen} options={{ headerShown: false }} />
+      <Stack.Screen
+        name="Web"
+        component={WebScreen}
+        options={{ headerShown: false, animation: 'slide_from_bottom' }}
       />
     </Stack.Navigator>
   );

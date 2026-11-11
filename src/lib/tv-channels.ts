@@ -371,11 +371,9 @@ export function getDayName(date?: Date): string {
 export function getNext7Days(): string[] {
   const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   const today = new Date().getDay();
-  const result: string[] = [];
-  for (let i = -6; i <= 0; i++) {
-    result.push(days[(today + i + 7) % 7]);
-  }
-  return result;
+  // Today + the next six days. This used to walk backwards, so the schedule
+  // page opened on a week that was already over.
+  return Array.from({ length: 7 }, (_, i) => days[(today + i) % 7]);
 }
 
 export function findAnimeSchedule(title: string): { channelId: string; slots: TimeSlot[] }[] {

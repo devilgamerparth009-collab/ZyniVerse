@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,114 +6,332 @@ import {
   TouchableOpacity,
   StyleSheet,
   RefreshControl,
+  Image,
+  Animated,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, spacing, fontSize, borderRadius } from '../theme';
-import { formatTimeUntilAiring } from '../utils/helpers';
+import { useNavigation } from '@react-navigation/native';
+import { useTheme } from '../hooks/useTheme';
+import { formatAirDate } from '../utils/helpers';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorView from '../components/ErrorView';
+import FadeInView from '../components/FadeInView';
+import AdBanner from '../components/AdBanner';
 import { api } from '../services/api';
+import { ScheduleItem } from '../types';
 
-const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-const FULL_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-interface ScheduleItem {
-  mediaId: number;
-  title: string;
-  episode: number;
-  airingAt: string;
-  timeUntilAiring: number;
+function dayKey(date: Date): string {
+  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+}
+
+function countdown(airingAt: string): { label: string; isLive: boolean; isPast: boolean } {
+  const diff = new Date(airingAt).getTime() - Date.now();
+  if (diff <= -3600000) return { label: 'Aired', isLive: false, isPast: true };
+  if (diff <= 0) return { label: 'Airing Now', isLive: true, isPast: false };
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return { label: `in ${mins}m`, isLive: false, isPast: false };
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return { label: `in ${hrs}h ${mins % 60}m`, isLive: false, isPast: false };
+  return { label: `in ${Math.floor(hrs / 24)}d ${hrs % 24}h`, isLive: false, isPast: false };
+}
+
+function formatTime(iso: string): string {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  } catch {
+    return '';
+  }
 }
 
 export default function ScheduleScreen() {
   const insets = useSafeAreaInsets();
-  const [selectedDay, setSelectedDay] = useState(0);
+  const navigation = useNavigation<any>();
+  const { colors, isDiwali } = useTheme();
+
   const [schedule, setSchedule] = useState<ScheduleItem[]>([]);
+  const [selectedKey, setSelectedKey] = useState<string>(dayKey(new Date()));
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchSchedule = useCallback(async () => {
-    setLoading(true);
-    setError(null);
     try {
+      setError(null);
       const data = await api.schedule.get();
       setSchedule(data);
-    } catch {
-      setError('Could not load schedule');
-      setSchedule([]);
+    } catch (e: any) {
+      setError(e?.message || 'Could not load the airing schedule');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
-    setLoading(false);
-    setRefreshing(false);
   }, []);
 
-  useEffect(() => { fetchSchedule(); }, [fetchSchedule]);
+  useEffect(() => {
+    fetchSchedule();
+  }, [fetchSchedule]);
 
-  const onRefresh = () => { setRefreshing(true); fetchSchedule(); };
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchSchedule();
+  };
 
-  const filteredSchedule = schedule.filter((item) => {
-    if (!item.airingAt) return false;
-    const airDate = new Date(item.airingAt);
-    const dayIndex = (airDate.getDay() + 6) % 7;
-    return dayIndex === selectedDay;
-  });
+  const days = useMemo(() => {
+    const list: { key: string; date: Date; label: string; dayNum: string; isToday: boolean }[] = [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(today);
+      d.setDate(today.getDate() + i);
+      list.push({
+        key: dayKey(d),
+        date: d,
+        label: DAY_LABELS[d.getDay()],
+        dayNum: String(d.getDate()),
+        isToday: i === 0,
+      });
+    }
+    return list;
+  }, []);
+
+  const grouped = useMemo(() => {
+    const map = new Map<string, ScheduleItem[]>();
+    for (const item of schedule) {
+      if (!item.airingAt) continue;
+      const key = dayKey(new Date(item.airingAt));
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(item);
+    }
+    for (const list of map.values()) {
+      list.sort((a, b) => new Date(a.airingAt).getTime() - new Date(b.airingAt).getTime());
+    }
+    return map;
+  }, [schedule]);
+
+  const dayItems = grouped.get(selectedKey) || [];
+  const selectedDay = days.find((d) => d.key === selectedKey) || days[0];
+
+  const primaryColor = isDiwali ? '#FF8C00' : colors.primary;
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <Text style={styles.headerTitle}>Schedule</Text>
+    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+      {/* Top Banner Header */}
+      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        <View style={styles.headerTitleRow}>
+          <FadeInView duration={360}>
+            <View style={styles.statusPill}>
+              <View style={[styles.statusDot, { backgroundColor: '#22c55e' }]} />
+              <Text style={styles.statusPillText}>SIMULCAST AIRING TIMETABLE</Text>
+            </View>
+            <Text style={[styles.title, { color: colors.text }]}>Release Calendar</Text>
+          </FadeInView>
+          <TouchableOpacity
+            style={[styles.refreshIconBtn, { backgroundColor: colors.background, borderColor: colors.border }]}
+            onPress={onRefresh}
+          >
+            <Text style={{ fontSize: 16 }}>🔄</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* 7-Day Horizontal Strip */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.calendarStrip}
+        >
+          {days.map((d) => {
+            const active = d.key === selectedKey;
+            const count = (grouped.get(d.key) || []).length;
+
+            return (
+              <TouchableOpacity
+                key={d.key}
+                style={[
+                  styles.dayCard,
+                  { backgroundColor: colors.background, borderColor: colors.border },
+                  active && {
+                    backgroundColor: primaryColor,
+                    borderColor: primaryColor,
+                  },
+                ]}
+                onPress={() => setSelectedKey(d.key)}
+                activeOpacity={0.7}
+              >
+                {d.isToday && (
+                  <Text style={[styles.todayBadge, { color: active ? '#ffffff' : primaryColor }]}>
+                    TODAY
+                  </Text>
+                )}
+                <Text
+                  style={[
+                    styles.dayLabel,
+                    { color: active ? '#ffffff' : colors.textMuted },
+                  ]}
+                >
+                  {d.label}
+                </Text>
+                <Text
+                  style={[
+                    styles.dayNumber,
+                    { color: active ? '#ffffff' : colors.text },
+                  ]}
+                >
+                  {d.dayNum}
+                </Text>
+
+                {count > 0 && (
+                  <View
+                    style={[
+                      styles.countBadge,
+                      { backgroundColor: active ? 'rgba(255,255,255,0.25)' : colors.surface },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.countText,
+                        { color: active ? '#ffffff' : colors.textDim },
+                      ]}
+                    >
+                      {count}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
 
       <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.daySelector}
-        contentContainerStyle={styles.daySelectorContent}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 90, paddingTop: 12 }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={primaryColor} />
+        }
+        showsVerticalScrollIndicator={false}
       >
-        {DAYS.map((day, index) => (
-          <TouchableOpacity
-            key={day}
-            style={[styles.dayChip, selectedDay === index && styles.dayChipActive]}
-            onPress={() => setSelectedDay(index)}
-          >
-            <Text style={[styles.dayText, selectedDay === index && styles.dayTextActive]}>
-              {day}
+        {/* Section Heading */}
+        <FadeInView delay={60} style={styles.sectionHeadingRow}>
+          <Text style={[styles.sectionHeading, { color: colors.text }]}>
+            {selectedDay.isToday ? 'Airing Today' : `${selectedDay.label}, ${selectedDay.date.toLocaleDateString([], { month: 'short', day: 'numeric' })}`}
+          </Text>
+          <Text style={[styles.epCount, { color: colors.textMuted }]}>
+            {dayItems.length} Episodes Scheduled
+          </Text>
+        </FadeInView>
+
+        {/* Adsterra Sponsored Ad */}
+        <FadeInView delay={110}>
+          <AdBanner placement="schedule-header" />
+        </FadeInView>
+
+        {/* Schedule Items List */}
+        {loading && dayItems.length === 0 ? (
+          <View style={{ paddingVertical: 40 }}>
+            <ActivityIndicator size="large" color={primaryColor} />
+          </View>
+        ) : error && dayItems.length === 0 ? (
+          <ErrorView message={error} onRetry={fetchSchedule} />
+        ) : dayItems.length === 0 ? (
+          <View style={[styles.emptyBox, { backgroundColor: colors.surface }]}>
+            <Text style={{ fontSize: 44, marginBottom: 8 }}>📅</Text>
+            <Text style={[styles.emptyTitle, { color: colors.text }]}>
+              No episodes scheduled for {selectedDay.label}
             </Text>
-          </TouchableOpacity>
-        ))}
+            <Text style={[styles.emptySub, { color: colors.textMuted }]}>
+              Check another day of the week to view upcoming broadcasts.
+            </Text>
+          </View>
+        ) : (
+          dayItems.map((item, idx) => {
+            const timeStr = item.airingAt ? formatTime(item.airingAt) : '';
+            const status = item.airingAt ? countdown(item.airingAt) : { label: '', isLive: false, isPast: false };
+            const poster = item.media?.coverImage?.large || item.media?.coverImage?.medium;
+            const animeTitle = item.media?.title?.english || item.media?.title?.romaji || item.title;
+
+            return (
+              <FadeInView
+                key={`${item.mediaId}-${item.episode}-${idx}`}
+                delay={Math.min(140 + (idx % 10) * 35, 450)}
+                duration={320}
+                offset={10}
+              >
+              <TouchableOpacity
+                style={[
+                  styles.itemCard,
+                  { backgroundColor: colors.surface, borderColor: colors.border },
+                ]}
+                activeOpacity={0.8}
+                onPress={() => {
+                  if (item.mediaId) {
+                    navigation.navigate('AnimeDetail', { id: item.mediaId });
+                  }
+                }}
+              >
+                {/* Anime Cover */}
+                <View style={styles.posterBox}>
+                  {poster ? (
+                    <Image source={{ uri: poster }} style={styles.poster} />
+                  ) : (
+                    <View style={[styles.posterFallback, { backgroundColor: colors.background }]}>
+                      <Text style={{ fontSize: 24 }}>🎬</Text>
+                    </View>
+                  )}
+                  {item.episode && (
+                    <View style={[styles.epBadge, { backgroundColor: primaryColor }]}>
+                      <Text style={styles.epBadgeText}>EP {item.episode}</Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* Details */}
+                <View style={styles.detailsCol}>
+                  <View style={styles.timeRow}>
+                    <Text style={[styles.airTime, { color: colors.textMuted }]}>
+                      ⏰ {timeStr}
+                    </Text>
+                    <View
+                      style={[
+                        styles.countdownBadge,
+                        status.isLive && { backgroundColor: '#ef4444' },
+                        status.isPast && { backgroundColor: 'rgba(255,255,255,0.08)' },
+                        !status.isLive && !status.isPast && { backgroundColor: primaryColor },
+                      ]}
+                    >
+                      <Text style={styles.countdownText}>
+                        {status.isLive ? '🔴 ' : ''}
+                        {status.label}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <Text style={[styles.animeName, { color: colors.text }]} numberOfLines={2}>
+                    {animeTitle}
+                  </Text>
+
+                  {item.media?.format && (
+                    <View style={styles.formatRow}>
+                      <Text style={[styles.formatTag, { color: colors.textDim }]}>
+                        {item.media.format}
+                      </Text>
+                      {item.media?.averageScore && (
+                        <Text style={[styles.formatTag, { color: '#f59e0b' }]}>
+                          ★ {item.media.averageScore / 10}
+                        </Text>
+                      )}
+                    </View>
+                  )}
+                </View>
+              </TouchableOpacity>
+              </FadeInView>
+            );
+          })
+        )}
       </ScrollView>
-
-      <Text style={styles.dayTitle}>{FULL_DAYS[selectedDay]}</Text>
-
-      {loading ? (
-        <LoadingSpinner fullScreen />
-      ) : error ? (
-        <ErrorView message={error} onRetry={fetchSchedule} />
-      ) : filteredSchedule.length === 0 ? (
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyTitle}>No episodes airing</Text>
-          <Text style={styles.emptySubtitle}>Check other days or come back later</Text>
-        </View>
-      ) : (
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          style={styles.list}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
-        >
-          {filteredSchedule.map((item) => (
-            <View key={item.mediaId} style={styles.scheduleItem}>
-              <View style={styles.scheduleInfo}>
-                <Text style={styles.scheduleTitle} numberOfLines={1}>{item.title}</Text>
-                <Text style={styles.scheduleEpisode}>
-                  Episode {item.episode}
-                </Text>
-                <Text style={styles.scheduleTime}>
-                  {formatTimeUntilAiring(item.timeUntilAiring)}
-                </Text>
-              </View>
-            </View>
-          ))}
-          <View style={{ height: spacing.xxl }} />
-        </ScrollView>
-      )}
     </View>
   );
 }
@@ -121,91 +339,193 @@ export default function ScheduleScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
   },
-  headerTitle: {
-    color: colors.text,
-    fontSize: fontSize.xxl,
-    fontWeight: '800',
-    paddingHorizontal: spacing.md,
-    marginBottom: spacing.md,
+  header: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
   },
-  daySelector: {
-    marginBottom: spacing.md,
+  headerTitleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
   },
-  daySelectorContent: {
-    paddingHorizontal: spacing.md,
-    gap: spacing.sm,
-  },
-  dayChip: {
-    paddingHorizontal: spacing.md + 4,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.surface,
-  },
-  dayChipActive: {
-    backgroundColor: colors.primary,
-  },
-  dayText: {
-    color: colors.textMuted,
-    fontSize: fontSize.sm,
-    fontWeight: '600',
-  },
-  dayTextActive: {
-    color: '#fff',
-  },
-  dayTitle: {
-    color: colors.text,
-    fontSize: fontSize.lg,
-    fontWeight: '700',
-    paddingHorizontal: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  list: {
-    flex: 1,
-    paddingHorizontal: spacing.md,
-  },
-  scheduleItem: {
+  statusPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.md,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  scheduleInfo: {
-    flex: 1,
-  },
-  scheduleTitle: {
-    color: colors.text,
-    fontSize: fontSize.md,
-    fontWeight: '600',
+    gap: 6,
     marginBottom: 2,
   },
-  scheduleEpisode: {
-    color: colors.textMuted,
-    fontSize: fontSize.sm,
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  statusPillText: {
+    color: '#22c55e',
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: '900',
+    letterSpacing: 0.3,
+  },
+  refreshIconBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  calendarStrip: {
+    gap: 8,
+  },
+  dayCard: {
+    width: 58,
+    height: 74,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    paddingVertical: 6,
+  },
+  todayBadge: {
+    fontSize: 8,
+    fontWeight: '900',
+    letterSpacing: 0.5,
     marginBottom: 2,
   },
-  scheduleTime: {
-    color: colors.secondary,
-    fontSize: fontSize.xs,
+  dayLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
   },
-  emptyState: {
+  dayNumber: {
+    fontSize: 18,
+    fontWeight: '900',
+    marginTop: 1,
+  },
+  countBadge: {
+    marginTop: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 8,
+  },
+  countText: {
+    fontSize: 9,
+    fontWeight: '800',
+  },
+  sectionHeadingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 18,
+    marginBottom: 8,
+  },
+  sectionHeading: {
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  epCount: {
+    fontSize: 12,
+  },
+  itemCard: {
+    flexDirection: 'row',
+    marginHorizontal: 16,
+    marginBottom: 10,
+    borderRadius: 16,
+    padding: 10,
+    borderWidth: 1,
+    elevation: 2,
+    gap: 12,
+  },
+  posterBox: {
+    width: 66,
+    height: 92,
+    borderRadius: 10,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  poster: {
+    width: '100%',
+    height: '100%',
+  },
+  posterFallback: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  epBadge: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingVertical: 2,
+    alignItems: 'center',
+  },
+  epBadgeText: {
+    color: '#ffffff',
+    fontSize: 9,
+    fontWeight: '900',
+  },
+  detailsCol: {
     flex: 1,
     justifyContent: 'center',
+  },
+  timeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: spacing.xl,
+    marginBottom: 6,
+  },
+  airTime: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  countdownBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  countdownText: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  animeName: {
+    fontSize: 14,
+    fontWeight: '800',
+    lineHeight: 18,
+    marginBottom: 6,
+  },
+  formatRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  formatTag: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  emptyBox: {
+    marginHorizontal: 16,
+    marginVertical: 24,
+    padding: 28,
+    borderRadius: 18,
+    alignItems: 'center',
   },
   emptyTitle: {
-    color: colors.text,
-    fontSize: fontSize.md,
-    fontWeight: '600',
-    marginBottom: spacing.xs,
+    fontSize: 16,
+    fontWeight: '800',
+    marginBottom: 6,
   },
-  emptySubtitle: {
-    color: colors.textDim,
-    fontSize: fontSize.sm,
+  emptySub: {
+    fontSize: 12,
     textAlign: 'center',
   },
 });

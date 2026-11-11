@@ -11,11 +11,13 @@ import {
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, spacing, fontSize, borderRadius } from '../theme';
+import { colors, themed, spacing, fontSize, borderRadius } from '../theme';
+import { useTheme } from '../hooks/useTheme';
 import { api } from '../services/api';
 import { CharacterTournamentDetail, TournamentParticipant, TournamentMatch } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorView from '../components/ErrorView';
+import FadeInView from '../components/FadeInView';
 
 function pad(n: number): string {
   return n < 10 ? `0${n}` : String(n);
@@ -28,7 +30,7 @@ function Countdown({ endsAt }: { endsAt?: string | null }) {
     return () => clearInterval(id);
   }, []);
 
-  let text = '—';
+  let text = '🏆 ';
   if (endsAt) {
     const diff = new Date(endsAt).getTime() - now;
     if (diff <= 0) {
@@ -41,7 +43,7 @@ function Countdown({ endsAt }: { endsAt?: string | null }) {
       text = d > 0 ? `${d}d ${pad(h)}h ${pad(m)}m ${pad(s)}s` : `${pad(h)}h ${pad(m)}m ${pad(s)}s`;
     }
   }
-  return <Text style={styles.countdownValue}>⏳ {text}</Text>;
+  return <Text style={styles.countdownValue}> {text}</Text>;
 }
 
 const STATUS_META: Record<string, { label: string; color: string }> = {
@@ -56,6 +58,8 @@ export default function TournamentDetailScreen() {
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
+  const { colors, isDiwali } = useTheme();
+  const primaryAccent = isDiwali ? '#f59e0b' : colors.primary;
   const tournamentId: string = route.params?.id;
 
   const [detail, setDetail] = useState<CharacterTournamentDetail | null>(null);
@@ -128,7 +132,12 @@ export default function TournamentDetailScreen() {
     const imageUrl = item.charImage || item.franchiseCover;
     const accent = rank <= 3 ? '#34d399' : '#22d3ee';
     return (
-      <View style={styles.participantRow}>
+      <FadeInView
+        style={styles.participantRow}
+        delay={Math.min(index * 40, 320)}
+        offset={12}
+        duration={340}
+      >
         <View style={styles.rankBox}>
           <Text style={[styles.rankText, { color: accent }]}>#{rank}</Text>
         </View>
@@ -159,7 +168,7 @@ export default function TournamentDetailScreen() {
             {votingFor === item.id ? '…' : voted ? '✓ Voted' : 'Vote'}
           </Text>
         </TouchableOpacity>
-      </View>
+      </FadeInView>
     );
   };
 
@@ -203,68 +212,70 @@ export default function TournamentDetailScreen() {
       keyExtractor={(item) => item.id}
       renderItem={renderParticipant}
       showsVerticalScrollIndicator={false}
-      style={[styles.container, { paddingTop: insets.top }]}
+      style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}
       contentContainerStyle={{ paddingBottom: spacing.xxl, paddingHorizontal: spacing.md }}
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={primaryAccent} />
       }
       ListHeaderComponent={
         <View>
-          <Text style={styles.title}>{tournament.title}</Text>
-          {meta ? (
-            <View style={styles.chipRow}>
-              <View style={[styles.chip, { borderColor: meta.color }]}>
-                <Text style={[styles.chipText, { color: meta.color }]}>{meta.label}</Text>
+          <FadeInView delay={0}>
+            <Text style={styles.title}>{tournament.title}</Text>
+            {meta ? (
+              <View style={styles.chipRow}>
+                <View style={[styles.chip, { borderColor: meta.color }]}>
+                  <Text style={[styles.chipText, { color: meta.color }]}>{meta.label}</Text>
+                </View>
+                {tournament.creator ? (
+                  <Text style={styles.creatorText}>by @{tournament.creator.username}</Text>
+                ) : null}
               </View>
-              {tournament.creator ? (
-                <Text style={styles.creatorText}>by @{tournament.creator.username}</Text>
-              ) : null}
-            </View>
-          ) : null}
-          {tournament.description ? (
-            <Text style={styles.description}>{tournament.description}</Text>
-          ) : null}
+            ) : null}
+            {tournament.description ? (
+              <Text style={styles.description}>{tournament.description}</Text>
+            ) : null}
+          </FadeInView>
 
           {isQualifying && tournament.status === 'qualifying' ? (
-            <View style={styles.countdownCard}>
+            <FadeInView delay={60} style={styles.countdownCard}>
               <Countdown endsAt={tournament.qualifyingEndsAt} />
               <Text style={styles.countdownHint}>
                 {detail.totalVotes} vote{detail.totalVotes === 1 ? '' : 's'} cast · one vote per app
               </Text>
-            </View>
+            </FadeInView>
           ) : null}
 
           {isQualifying && tournament.status !== 'qualifying' ? (
-            <View style={styles.countdownCard}>
-              <Text style={styles.countdownValue}>⏳ Qualifying has closed</Text>
+            <FadeInView delay={60} style={styles.countdownCard}>
+              <Text style={styles.countdownValue}> Qualifying has closed</Text>
               <Text style={styles.countdownHint}>
                 {detail.totalVotes} votes cast in the poll
               </Text>
-            </View>
+            </FadeInView>
           ) : null}
 
           {isQualifying ? (
-            <View style={styles.listHeader}>
+            <FadeInView delay={110} style={styles.listHeader}>
               <Text style={styles.listHeaderTitle}>
-                🎯 Ranking — {sortedParticipants.length} candidates
+                 Ranking · {sortedParticipants.length} candidates
               </Text>
               {myPollVote ? (
                 <Text style={styles.votedHint}>You voted. Tap ✓ to change.</Text>
               ) : (
                 <Text style={styles.votedHint}>Vote for your favorite!</Text>
               )}
-            </View>
+            </FadeInView>
           ) : null}
 
           {!isQualifying ? (
-            <View style={styles.listHeader}>
+            <FadeInView delay={110} style={styles.listHeader}>
               <Text style={styles.listHeaderTitle}>
-                🔥 Bracket · Round {tournament.currentRound}/{tournament.totalRounds}
+                🏆 Bracket · Round {tournament.currentRound}/{tournament.totalRounds}
               </Text>
               <Text style={styles.countdownHint}>
                 {detail.totalVotes} votes cast{meta?.label === 'LIVE' && tournament.roundEndsAt ? ` · next round in ${countdownLabel(tournament.roundEndsAt)}` : ''}
               </Text>
-            </View>
+            </FadeInView>
           ) : null}
         </View>
       }
@@ -298,7 +309,7 @@ function countdownLabel(endsAt?: string | null): string {
   return `${hours}h`;
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => ({
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -519,4 +530,4 @@ const styles = StyleSheet.create({
     color: colors.textDim,
     fontSize: fontSize.sm,
   },
-});
+}));
