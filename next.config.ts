@@ -68,6 +68,13 @@ const nextConfig: NextConfig = {
         destination: "/",
         permanent: true,
       },
+      // A stray "$" path (crawled as https://zyverse.in/%24) is not a real page
+      // and was showing up as a permanent 404 in Search Console. Send it home.
+      {
+        source: "/$",
+        destination: "/",
+        permanent: true,
+      },
       // www -> non-www canonicalisation (301, path preserved).
       // Canonical <link> already points to the non-www host, but Google was
       // still crawling the www copies separately (both appear in Search

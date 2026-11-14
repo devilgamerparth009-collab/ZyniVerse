@@ -28,6 +28,13 @@ export function useDmSocket(userId: string | undefined, handlers: DmHandlerArg) 
   useEffect(() => {
     if (!userId) return;
 
+    // socket.io only exists when a standalone server is configured (Railway et
+    // al). Without NEXT_PUBLIC_WS_URL the fallback in `lib/socket` would dial the
+    // current origin's `/api/socketio`, which does not exist on Vercel and would
+    // reconnect forever. Supabase Realtime (useDmRealtime) is the transport in
+    // that case, so skip socket.io entirely.
+    if (!process.env.NEXT_PUBLIC_WS_URL) return;
+
     const socket = getSocket();
 
     const onConnect = () => {

@@ -7,6 +7,7 @@ import { PageTransition } from "@/components/PageTransition";
 import MessageBubble, { type MessageView } from "@/components/MessageBubble";
 import { logError } from "@/lib/logger";
 import { useDmSocket } from "@/hooks/useDmSocket";
+import { useDmRealtime } from "@/hooks/useDmRealtime";
 import { useOnlineUsers } from "@/hooks/useOnlineUsers";
 import type { DmReactionEvent, DmSeenEvent, DmDeleteEvent, DmTypingEvent } from "@/lib/socket";
 
@@ -56,14 +57,14 @@ export default function MessagesClient() {
   const tempIdCounter = useRef(0);
   const onlineUsers = useOnlineUsers(myId);
 
-  const fetchConversations = useCallback(async () => {
-    setLoadingConvos(true);
+  const fetchConversations = useCallback(async (silent = false) => {
+    if (!silent) setLoadingConvos(true);
     try {
       const res = await fetch("/api/chat/conversations");
       const data = await res.json();
       setConversations(data.conversations ?? []);
     } catch (e) { logError(e); }
-    setLoadingConvos(false);
+    if (!silent) setLoadingConvos(false);
   }, []);
 
   const fetchMessages = useCallback(async (conversationId: string) => {
@@ -125,6 +126,31 @@ export default function MessagesClient() {
     el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, [messages, otherTyping]);
 
+  const handleTyping = useCallback(
+    (ev: DmTypingEvent) => {
+      if (ev.userId === myId || ev.conversationId !== activeConvoId) return;
+      setOtherTyping(ev.typing);
+      if (ev.typing) {
+        if (typingTimeout.current) clearTimeout(typingTimeout.current);
+        typingTimeout.current = setTimeout(() => setOtherTyping(false), 5000);
+      }
+    },
+    [myId, activeConvoId]
+  );
+
+  const handleSeen = useCallback(
+    (ev: DmSeenEvent) => {
+      if (ev.conversationId !== activeConvoId) return;
+      setSeenByOther(ev.lastReadAt);
+      setConversations((prev) =>
+        prev.map((c) => (c.id === ev.conversationId ? { ...c, otherLastReadAt: ev.lastReadAt } : c))
+      );
+    },
+    [activeConvoId]
+  );
+
+  // Transport 1 — socket.io. Only live when a standalone server (e.g. Railway)
+  // is configured through NEXT_PUBLIC_WS_URL.
   useDmSocket(myId, {
     onMessage: (msg) => {
       if (activeConvoId === msg.conversationId) {
@@ -139,21 +165,8 @@ export default function MessagesClient() {
         prev.map((m) => (m.id === ev.messageId ? { ...m, reactions: ev.reactions } : m))
       );
     },
-    onTyping: (ev: DmTypingEvent) => {
-      if (ev.userId === myId || ev.conversationId !== activeConvoId) return;
-      setOtherTyping(ev.typing);
-      if (ev.typing) {
-        if (typingTimeout.current) clearTimeout(typingTimeout.current);
-        typingTimeout.current = setTimeout(() => setOtherTyping(false), 5000);
-      }
-    },
-    onSeen: (ev: DmSeenEvent) => {
-      if (ev.conversationId !== activeConvoId) return;
-      setSeenByOther(ev.lastReadAt);
-      setConversations((prev) =>
-        prev.map((c) => (c.id === ev.conversationId ? { ...c, otherLastReadAt: ev.lastReadAt } : c))
-      );
-    },
+    onTyping: handleTyping,
+    onSeen: handleSeen,
     onDelete: (ev: DmDeleteEvent) => {
       if (ev.mode !== "everyone") return;
       setMessages((prev) =>
@@ -161,6 +174,23 @@ export default function MessagesClient() {
       );
       fetchConversations();
     },
+  });
+
+  // Transport 2 — Supabase Realtime. Works on Vercel because the browser talks to
+  // Supabase directly, so DMs stay instant with no WS server running. Only a
+  // pointer (conversationId + messageId) is broadcast; the message body is
+  // re-fetched through the authenticated API.
+  useDmRealtime(myId, {
+    onActivity: (conversationId) => {
+      if (conversationId === activeConvoId) {
+        fetchMessages(conversationId);
+        markAsRead(conversationId);
+      }
+      // silent = don't flash the sidebar skeletons on every incoming message
+      fetchConversations(true);
+    },
+    onTyping: handleTyping,
+    onSeen: handleSeen,
   });
 
   async function handleSend() {

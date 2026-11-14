@@ -144,6 +144,32 @@ export default function HomeScreen() {
           <View style={styles.headerActions}>
             <TouchableOpacity
               style={styles.iconButton}
+              onPress={() =>
+                navigation.navigate('Web', {
+                  title: 'Messages',
+                  path: '/messages',
+                  auth: true,
+                })
+              }
+              accessibilityLabel="Messages"
+            >
+              <Text style={styles.iconText}>💬</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={() =>
+                navigation.navigate('Web', {
+                  title: 'Watch Party',
+                  path: '/watch-party',
+                  auth: true,
+                })
+              }
+              accessibilityLabel="Watch Party"
+            >
+              <Text style={styles.iconText}>👥</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.iconButton}
               onPress={() => navigation.navigate('Search')}
               accessibilityLabel="Search"
             >

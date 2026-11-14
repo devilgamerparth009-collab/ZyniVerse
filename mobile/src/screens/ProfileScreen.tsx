@@ -14,6 +14,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { colors, themed, spacing, fontSize, borderRadius } from '../theme';
 import { useTheme } from '../hooks/useTheme';
 import { getCurrentUser, api } from '../services/api';
+import { unproxyImageUrl } from '../lib/avatar-src';
 import {
   Anime,
   ProfileAchievement,
@@ -67,6 +68,7 @@ export default function ProfileScreen() {
   // Tracks which avatar URL failed so we can fall back to the initial. Using the
   // URL (not a boolean) means a newly saved picture retries automatically.
   const [failedAvatar, setFailedAvatar] = useState<string | null>(null);
+  const [failedAvatarAt, setFailedAvatarAt] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -176,31 +178,51 @@ export default function ProfileScreen() {
           <View style={styles.bannerActions}>
             <TouchableOpacity
               style={styles.iconButton}
-              onPress={() => navigation.navigate('Notifications')}
+              onPress={() =>
+                navigation.navigate('Web', {
+                  title: 'Messages',
+                  path: '/messages',
+                  auth: true,
+                })
+              }
             >
-              <Text style={styles.iconText}>🔔</Text>
+              <Text style={styles.iconText}>💬</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.iconButton}
-              onPress={() => navigation.navigate('Settings')}
+              onPress={() => navigation.navigate('Web', { title: 'Profile', path: `/u/${user.username}`, auth: true }) }
             >
-              <Text style={styles.iconText}>⚙️</Text>
+              <Text style={styles.iconText}>👥</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={() => navigation.navigate('Web', { title: 'Profile', path: `/u/${user.username}`, auth: true }) }
+            >
+              <Text style={styles.iconText}>👤</Text>
             </TouchableOpacity>
           </View>
 
           <FadeInView duration={380}>
             <View style={styles.identity}>
               <View style={[styles.avatarWrap, { backgroundColor: colors.surfaceLight, borderColor: colors.primary, borderWidth: 2 }]}>
-                {user.avatar && user.avatar !== failedAvatar ? (
+                {user.avatar && user.avatar !== failedAvatar && user !== null ? (
                   <Image
-                    source={{ uri: user.avatar }}
+                    source={{ uri: unproxyImageUrl(user.avatar) || user.avatar }}
                     style={styles.avatar}
-                    onError={() => setFailedAvatar(user.avatar || null)}
+                    onError={() => {
+                      if (user.avatar !== failedAvatar) {
+                        setFailedAvatar(user.avatar || null);
+                        setFailedAvatarAt(Date.now());
+                        setAvatar(null);
+                      }
+                    }}
                   />
                 ) : (
-                  <Text style={[styles.avatarLetter, { color: colors.primary, fontWeight: '900', fontSize: 24 }]}>
-                    {(user.username || '?').charAt(0).toUpperCase()}
-                  </Text>
+                  <View style={[styles.avatarWrap, { backgroundColor: colors.surfaceLight, borderColor: colors.primary, borderWidth: 2 }]}>
+                    <Text style={[styles.avatarLetter, { color: colors.primary, fontWeight: '900', fontSize: 24 }]}>
+                      {(user.username || '?').charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
                 )}
               </View>
               <View style={{ flex: 1 }}>

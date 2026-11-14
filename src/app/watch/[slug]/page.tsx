@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import { getAnimeDetailFull, bestTitle } from "@/lib/anilist";
+import { getAnimeDetailFull, bestTitle, AniListUnavailableError } from "@/lib/anilist";
 import { getStreamingSources } from "@/lib/streaming";
 import { getFillerForAnime } from "@/lib/filler";
 import { getWatchOrderSlugForAnilistId } from "@/lib/watch-order-index";
@@ -53,7 +53,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       },
       robots: { index: true, follow: true },
     };
-  } catch {
+  } catch (err) {
+    // AniList is rate-limited / unreachable. The guide itself exists, so the
+    // metadata must not advertise it as indexable while we cannot render it.
+    if (err instanceof AniListUnavailableError) {
+      return { robots: { index: false, follow: false } };
+    }
     return {};
   }
 }
@@ -63,12 +68,17 @@ export default async function WatchGuidePage({ params }: Props) {
   const mediaId = parseInt(slug);
   if (isNaN(mediaId)) notFound();
 
-  let media;
-  try {
-    media = await getAnimeDetailFull(mediaId);
-  } catch {
-    notFound();
-  }
+  // Deliberately NOT wrapped in try/catch. A missing anime comes back as
+  // `null` (handled below), so anything *thrown* here is an upstream failure
+  // (rate limit / timeout / 5xx) for a page that really exists.
+  //
+  // This page used to catch and call notFound() on that error, and because the
+  // route is `revalidate = false` the resulting 404 was cached permanently —
+  // that is exactly what put ~220 live /watch/{id} URLs into Search Console's
+  // "Not found (404)" bucket. Letting the render throw means nothing is cached,
+  // Google sees a temporary 5xx and retries, and the page succeeds as soon as
+  // AniList recovers.
+  const media = await getAnimeDetailFull(mediaId);
 
   // Guard against a null (not-thrown) upstream response, which used to crash
   // this page into a 500 instead of a clean 404.

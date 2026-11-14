@@ -57,36 +57,15 @@ const ANIME_AVATAR_PRESETS = [
 
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 
-/** Avatar image that falls back to the username initial when the URL dies. */
-function Avatar({
-  uri,
-  name,
-  size,
-  style,
-}: {
-  uri: string;
-  name: string;
-  size: number;
-  style?: any;
-}) {
-  const [failed, setFailed] = useState(false);
-  const letter = (name || '?').charAt(0).toUpperCase();
-  const dim = { width: size, height: size, borderRadius: size / 2 };
-
-  if (uri && !failed) {
-    return (
-      <Image
-        source={{ uri }}
-        style={[dim, style]}
-        onError={() => setFailed(true)}
-      />
-    );
-  }
-  return (
-    <View style={[dim, style, styles.avatarFallback]}>
-      <Text style={[styles.avatarFallbackText, { fontSize: size * 0.4 }]}>{letter}</Text>
-    </View>
-  );
+/** Deterministic initials avatar for users who never uploaded a picture. */
+function defaultAvatarUrl(username?: string, seed?: string, sizeStr = '256'): string {
+  const name = (username || 'ZyniVerse').trim() || 'ZyniVerse';
+  const palette = ['7c3aed', '06b6d4', 'ec4899', 'f59e0b', '10b981', '3b82f6'];
+  const key = seed || name;
+  let hash = 0;
+  for (let i = 0; i < key.length; i++) hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
+  const bg = palette[hash % palette.length];
+  return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=${bg}&color=fff&size=${sizeStr}&bold=true`;
 }
 
 export default function EditProfileScreen() {
@@ -260,7 +239,14 @@ export default function EditProfileScreen() {
       >
         <FadeInView delay={0} style={styles.previewRow}>
           <View style={[styles.avatarPreview, { borderColor: themeColors.primary }]}>
-            <Avatar uri={avatar.trim()} name={username} size={64} />
+            <Image
+              source={{ uri: defaultAvatarUrl(username, avatar) }}
+              style={[
+                { width: 64, height: 64, borderRadius: 32 },
+                { backgroundColor: themeColors.surface },
+              ]}
+              alt={username || 'ZyniVerse'}
+            />
             {uploading && (
               <View style={styles.avatarBusy}>
                 <ActivityIndicator color="#fff" />
@@ -359,7 +345,7 @@ export default function EditProfileScreen() {
             contentContainerStyle={{ gap: 10, paddingVertical: 8 }}
           >
             {ANIME_AVATAR_PRESETS.map((p) => {
-              const isSelected = avatar === p.url;
+              const isSelected = avatar === p.url || avatar === '';
               return (
                 <TouchableOpacity
                   key={p.name}
@@ -373,12 +359,14 @@ export default function EditProfileScreen() {
                     borderColor: isSelected ? themeColors.primary : 'transparent',
                   }}
                 >
-                  <Avatar
-                    uri={p.url}
-                    name={p.name}
-                    size={50}
-                    style={{ backgroundColor: themeColors.surface }}
-                  />
+                  <Image
+                  source={{ uri: p.url }}
+                  style={[
+                    { width: 50, height: 50, borderRadius: 25 },
+                    { backgroundColor: themeColors.surface },
+                  ]}
+                  alt={p.name}
+                />
                   <Text
                     style={{
                       color: isSelected ? themeColors.primary : themeColors.textMuted,

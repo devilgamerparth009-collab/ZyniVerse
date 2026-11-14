@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { getSocket, type PartyUser } from "@/lib/socket";
+import type { PartyUser } from "@/lib/socket";
+import { usePartySignal } from "@/lib/party-signal";
 
 const ICE_SERVERS: RTCConfiguration = {
   iceServers: [
@@ -17,14 +18,21 @@ interface VoiceParticipant {
   audioStream?: MediaStream;
 }
 
+/**
+ * Voice chat over WebRTC. Only the signalling transport changed: it now goes
+ * through `usePartySignal` (Supabase Realtime on Vercel, socket.io when a
+ * standalone server is configured). The media path is still peer-to-peer.
+ */
 export function useVoiceChat({
   partyId,
   user,
   isMember,
+  hostId,
 }: {
   partyId: string;
   user: PartyUser | null;
   isMember: boolean;
+  hostId?: string | null;
 }) {
   const [voiceActive, setVoiceActive] = useState(false);
   const [muted, setMuted] = useState(false);
@@ -38,32 +46,42 @@ export function useVoiceChat({
   const analyserRef = useRef<Map<string, { analyser: AnalyserNode; source: MediaStreamAudioSourceNode }>>(new Map());
   const speakingCheckRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const userId = user?.id ?? null;
+  const userRef = useRef<PartyUser | null>(user);
+  userRef.current = user;
+
+  // Stable for the lifetime of the room, so effects below do not re-subscribe
+  // on every render (playback ticks re-render this component often).
+  const signal = usePartySignal({
+    partyId,
+    userId,
+    hostId: hostId ?? null,
+    username: user?.username,
+    avatar: user?.avatar ?? null,
+    scope: "voice",
+  });
+
   // Cleanup function
   const cleanup = useCallback(() => {
-    // Stop local stream
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach((t) => t.stop());
       localStreamRef.current = null;
     }
 
-    // Close all peer connections
     peersRef.current.forEach((pc) => pc.close());
     peersRef.current.clear();
 
-    // Remove all audio elements
     audioElementsRef.current.forEach((el) => {
       el.srcObject = null;
       el.remove();
     });
     audioElementsRef.current.clear();
 
-    // Clear analyser refs
     analyserRef.current.forEach(({ source }) => {
       try { source.disconnect(); } catch { /* ignore */ }
     });
     analyserRef.current.clear();
 
-    // Clear timers
     speakingTimersRef.current.forEach((t) => clearTimeout(t));
     speakingTimersRef.current.clear();
 
@@ -75,21 +93,18 @@ export function useVoiceChat({
 
   // Create a peer connection for a remote user
   const createPeerConnection = useCallback(
-    (remoteSocketId: string, remoteUser: PartyUser, _isInitiator: boolean) => {
+    (remoteSocketId: string, remoteUser: PartyUser) => {
       const pc = new RTCPeerConnection(ICE_SERVERS);
-      const socket = getSocket();
 
-      // Add local tracks
       if (localStreamRef.current) {
         localStreamRef.current.getTracks().forEach((track) => {
           pc.addTrack(track, localStreamRef.current!);
         });
       }
 
-      // Handle ICE candidates
       pc.onicecandidate = (e) => {
         if (e.candidate) {
-          socket.emit("voice-ice-candidate", {
+          signal.emit("voice-ice-candidate", {
             partyId,
             targetId: remoteSocketId,
             candidate: e.candidate.toJSON(),
@@ -97,12 +112,10 @@ export function useVoiceChat({
         }
       };
 
-      // Handle remote stream
       pc.ontrack = (e) => {
         const [stream] = e.streams;
         if (!stream) return;
 
-        // Create audio element for remote user
         let audioEl = audioElementsRef.current.get(remoteSocketId);
         if (!audioEl) {
           audioEl = document.createElement("audio");
@@ -113,7 +126,6 @@ export function useVoiceChat({
         }
         audioEl.srcObject = stream;
 
-        // Setup speaking detection
         try {
           const audioCtx = new AudioContext();
           const source = audioCtx.createMediaStreamSource(stream);
@@ -144,29 +156,27 @@ export function useVoiceChat({
 
       return pc;
     },
-    [partyId]
+    [partyId, signal]
   );
 
-  // Socket event handlers
+  // Signalling handlers
   useEffect(() => {
-    if (!user || !isMember) return;
-
-    const socket = getSocket();
+    if (!userId || !isMember) return;
 
     const handleVoiceUserJoined = async ({ user: remoteUser, socketId: remoteSocketId }: { user: PartyUser; socketId: string }) => {
-      if (remoteSocketId === socket.id) return;
+      if (remoteSocketId === signal.id) return;
       if (!voiceActive) return;
 
-      // Existing user creates offer to new user
-      const pc = createPeerConnection(remoteSocketId, remoteUser, true);
+      // Existing user creates the offer to the new user.
+      const pc = createPeerConnection(remoteSocketId, remoteUser);
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
 
-      socket.emit("voice-offer", {
+      signal.emit("voice-offer", {
         partyId,
         targetId: remoteSocketId,
         offer: pc.localDescription!.toJSON(),
-        fromUser: user,
+        fromUser: userRef.current,
       });
     };
 
@@ -184,13 +194,14 @@ export function useVoiceChat({
 
     const handleVoiceOffer = async ({ offer, fromUser: remoteUser, fromSocketId: remoteSocketId }: { offer: RTCSessionDescriptionInit; fromUser: PartyUser; fromSocketId: string }) => {
       if (!voiceActive) return;
+      if (!remoteSocketId || remoteSocketId === signal.id) return;
 
-      const pc = createPeerConnection(remoteSocketId, remoteUser, false);
+      const pc = createPeerConnection(remoteSocketId, remoteUser);
       await pc.setRemoteDescription(new RTCSessionDescription(offer));
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
 
-      socket.emit("voice-answer", {
+      signal.emit("voice-answer", {
         partyId,
         targetId: remoteSocketId,
         answer: pc.localDescription!.toJSON(),
@@ -220,22 +231,22 @@ export function useVoiceChat({
       setSpeakingMap((prev) => ({ ...prev, [remoteSocketId]: isSpeaking }));
     };
 
-    socket.on("voice-user-joined", handleVoiceUserJoined);
-    socket.on("voice-user-left", handleVoiceUserLeft);
-    socket.on("voice-offer", handleVoiceOffer);
-    socket.on("voice-answer", handleVoiceAnswer);
-    socket.on("voice-ice-candidate", handleVoiceIceCandidate);
-    socket.on("voice-speaking", handleVoiceSpeaking);
+    signal.on("voice-user-joined", handleVoiceUserJoined);
+    signal.on("voice-user-left", handleVoiceUserLeft);
+    signal.on("voice-offer", handleVoiceOffer);
+    signal.on("voice-answer", handleVoiceAnswer);
+    signal.on("voice-ice-candidate", handleVoiceIceCandidate);
+    signal.on("voice-speaking", handleVoiceSpeaking);
 
     return () => {
-      socket.off("voice-user-joined", handleVoiceUserJoined);
-      socket.off("voice-user-left", handleVoiceUserLeft);
-      socket.off("voice-offer", handleVoiceOffer);
-      socket.off("voice-answer", handleVoiceAnswer);
-      socket.off("voice-ice-candidate", handleVoiceIceCandidate);
-      socket.off("voice-speaking", handleVoiceSpeaking);
+      signal.off("voice-user-joined", handleVoiceUserJoined);
+      signal.off("voice-user-left", handleVoiceUserLeft);
+      signal.off("voice-offer", handleVoiceOffer);
+      signal.off("voice-answer", handleVoiceAnswer);
+      signal.off("voice-ice-candidate", handleVoiceIceCandidate);
+      signal.off("voice-speaking", handleVoiceSpeaking);
     };
-  }, [user, isMember, voiceActive, partyId, createPeerConnection]);
+  }, [userId, isMember, voiceActive, partyId, createPeerConnection, signal]);
 
   // Speaking detection - check audio levels periodically
   useEffect(() => {
@@ -247,8 +258,8 @@ export function useVoiceChat({
       return;
     }
 
-    const socket = getSocket();
     const dataArray = new Uint8Array(128);
+    let lastBroadcast = 0;
 
     speakingCheckRef.current = setInterval(() => {
       analyserRef.current.forEach(({ analyser }, socketId) => {
@@ -258,25 +269,27 @@ export function useVoiceChat({
 
         setSpeakingMap((prev) => {
           if (prev[socketId] !== isSpeaking) {
-            // Only emit if state changed
             return { ...prev, [socketId]: isSpeaking };
           }
           return prev;
         });
       });
 
-      // Check local mic level and broadcast speaking state
+      // Local mic level -> broadcast. Throttled: the UI can update at 150 ms,
+      // but one signalling message per 400 ms is plenty for a speaking dot.
       if (localStreamRef.current && !muted) {
+        const now = Date.now();
+        if (now - lastBroadcast < 400) return;
         const localAnalyser = analyserRef.current.get("local");
         if (localAnalyser) {
           localAnalyser.analyser.getByteFrequencyData(dataArray);
           const avg = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
-          const isSpeaking = avg > 20;
+          lastBroadcast = now;
 
-          socket.emit("voice-speaking", {
+          signal.emit("voice-speaking", {
             partyId,
-            user,
-            isSpeaking,
+            user: userRef.current,
+            isSpeaking: avg > 20,
           });
         }
       }
@@ -288,7 +301,7 @@ export function useVoiceChat({
         speakingCheckRef.current = null;
       }
     };
-  }, [voiceActive, muted, partyId, user]);
+  }, [voiceActive, muted, partyId, signal]);
 
   // Start voice chat
   const startVoice = useCallback(async () => {
@@ -301,7 +314,6 @@ export function useVoiceChat({
       localStreamRef.current = stream;
       setVoiceActive(true);
 
-      // Setup local speaking detection
       try {
         const audioCtx = new AudioContext();
         const source = audioCtx.createMediaStreamSource(stream);
@@ -311,24 +323,21 @@ export function useVoiceChat({
         analyserRef.current.set("local", { analyser, source });
       } catch { /* ignore */ }
 
-      // Join voice via socket
-      const socket = getSocket();
-      socket.emit("voice-join", { partyId, user });
+      signal.emit("voice-join", { partyId, user: userRef.current });
     } catch {
       console.error("Could not access microphone");
     }
-  }, [partyId, user]);
+  }, [partyId, signal]);
 
   // Stop voice chat
   const stopVoice = useCallback(() => {
-    const socket = getSocket();
-    socket.emit("voice-leave", { partyId, user });
+    signal.emit("voice-leave", { partyId, user: userRef.current });
     cleanup();
     setVoiceActive(false);
     setMuted(false);
     setParticipants([]);
     setSpeakingMap({});
-  }, [partyId, user, cleanup]);
+  }, [partyId, signal, cleanup]);
 
   // Toggle mute
   const toggleMute = useCallback(() => {
@@ -341,15 +350,18 @@ export function useVoiceChat({
   }, [muted]);
 
   // Cleanup on unmount
+  const voiceActiveRef = useRef(false);
+  voiceActiveRef.current = voiceActive;
+
   useEffect(() => {
     return () => {
       cleanup();
-      if (voiceActive) {
-        const socket = getSocket();
-        socket.emit("voice-leave", { partyId, user });
+      if (voiceActiveRef.current) {
+        signal.emit("voice-leave", { partyId, user: userRef.current });
       }
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return {
     voiceActive,

@@ -429,6 +429,27 @@ export async function isLoggedIn(): Promise<boolean> {
   return (await readCookie()) !== null;
 }
 
+/**
+ * Whether the in-app WebView needs a session hand-off before opening a
+ * signed-in page. OAuth sign-ins already live in the platform cookie jar that
+ * Android shares with the WebView, so only an explicitly stored cookie (email
+ * sign-in) has to be bridged.
+ */
+export async function needsWebBridge(): Promise<boolean> {
+  const stored = await readCookie();
+  return !!stored && stored !== NATIVE_JAR_MARKER;
+}
+
+/** Two-minute token that `/auth/mobile-web` exchanges for a real cookie. */
+export async function getWebBridgeToken(): Promise<string | null> {
+  try {
+    const data = await authedGet<{ token?: string }>('/auth/mobile-web-token');
+    return data?.token || null;
+  } catch {
+    return null;
+  }
+}
+
 /* ------------------------------------------------------------------ */
 /* AniList / public media                                              */
 /* ------------------------------------------------------------------ */
@@ -1368,6 +1389,8 @@ export const api = {
     startOAuth,
     setCookie: setSessionCookie,
     useNativeJar: useNativeCookieJar,
+    needsWebBridge,
+    webBridgeToken: getWebBridgeToken,
   },
 
   watchlist: {

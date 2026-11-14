@@ -107,12 +107,16 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Which social providers the server actually has credentials for.
+  // Which social providers the server actually has credentials for. Assume
+  // none until the server says otherwise: an unconfigured provider would send
+  // people to a broken OAuth page in an external browser.
   const [available, setAvailable] = useState<Record<Provider, boolean>>({
-    google: true,
-    github: true,
+    google: false,
+    github: false,
     discord: false,
   });
+
+  const anySocial = available.google || available.github || available.discord;
 
   // Social OAuth runs in the system browser (Custom Tabs) so Google/GitHub can
   // show their own consent screens without an embedded-WebView block.
@@ -341,58 +345,8 @@ export default function LoginScreen() {
               : 'Join the community — track anime, dubs, reels and events.'}
           </Text>
 
-          {/* Social buttons — real brand marks, only enabled providers */}
-          <Animated.View style={[styles.socialGroup, socialStyle]}>
-            <TouchableOpacity
-              style={[
-                styles.socialButton,
-                { backgroundColor: '#ffffff', borderColor: '#e2e8f0' },
-                !available.google && styles.socialDisabled,
-              ]}
-              onPress={() => openOAuth('google')}
-              activeOpacity={0.85}
-            >
-              <GoogleLogo size={20} />
-              <Text style={styles.googleButtonText}>Continue with Google</Text>
-            </TouchableOpacity>
-
-            <View style={styles.socialRow}>
-              <TouchableOpacity
-                style={[
-                  styles.socialMiniButton,
-                  { backgroundColor: '#181c24', borderColor: '#30363d' },
-                  !available.github && styles.socialDisabled,
-                ]}
-                onPress={() => openOAuth('github')}
-                activeOpacity={0.85}
-              >
-                <GitHubLogo size={18} color="#ffffff" />
-                <Text style={styles.miniButtonText}>GitHub</Text>
-                {!available.github && <Text style={styles.soonTag}>Soon</Text>}
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.socialMiniButton,
-                  { backgroundColor: '#5865F2', borderColor: '#5865F2' },
-                  !available.discord && styles.socialDisabled,
-                ]}
-                onPress={() => openOAuth('discord')}
-                activeOpacity={0.85}
-              >
-                <DiscordLogo size={18} color="#ffffff" />
-                <Text style={styles.miniButtonText}>Discord</Text>
-                {!available.discord && <Text style={styles.soonTag}>Soon</Text>}
-              </TouchableOpacity>
-            </View>
-          </Animated.View>
-
-          {/* Divider */}
-          <View style={styles.dividerRow}>
-            <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
-            <Text style={[styles.dividerText, { color: colors.textDim }]}>or with email</Text>
-            <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
-          </View>
+          {/* Email-first: the form is the primary path. Social buttons only
+              render below it when the server actually has them configured. */}
 
           {/* Form */}
           <Animated.View style={formStyle}>
@@ -503,10 +457,68 @@ export default function LoginScreen() {
               </Text>
             </TouchableOpacity>
           </Animated.View>
+
+          {anySocial && (
+            <>
+              <View style={styles.dividerRow}>
+                <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+                <Text style={[styles.dividerText, { color: colors.textDim }]}>or continue with</Text>
+                <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+              </View>
+
+              <Animated.View style={[styles.socialGroup, socialStyle]}>
+                {available.google && (
+                  <TouchableOpacity
+                    style={[
+                      styles.socialButton,
+                      { backgroundColor: '#ffffff', borderColor: '#e2e8f0' },
+                    ]}
+                    onPress={() => openOAuth('google')}
+                    activeOpacity={0.85}
+                  >
+                    <GoogleLogo size={20} />
+                    <Text style={styles.googleButtonText}>Continue with Google</Text>
+                  </TouchableOpacity>
+                )}
+
+                {(available.github || available.discord) && (
+                  <View style={styles.socialRow}>
+                    {available.github && (
+                      <TouchableOpacity
+                        style={[
+                          styles.socialMiniButton,
+                          { backgroundColor: '#181c24', borderColor: '#30363d' },
+                        ]}
+                        onPress={() => openOAuth('github')}
+                        activeOpacity={0.85}
+                      >
+                        <GitHubLogo size={18} color="#ffffff" />
+                        <Text style={styles.miniButtonText}>GitHub</Text>
+                      </TouchableOpacity>
+                    )}
+
+                    {available.discord && (
+                      <TouchableOpacity
+                        style={[
+                          styles.socialMiniButton,
+                          { backgroundColor: '#5865F2', borderColor: '#5865F2' },
+                        ]}
+                        onPress={() => openOAuth('discord')}
+                        activeOpacity={0.85}
+                      >
+                        <DiscordLogo size={18} color="#ffffff" />
+                        <Text style={styles.miniButtonText}>Discord</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                )}
+              </Animated.View>
+            </>
+          )}
         </View>
 
         <Text style={[styles.secureNote, { color: colors.textDim }]}>
-          🔒 Secure sign-in with Google, GitHub or email — no passwords leave your device
+          🔒 Sign in securely with your ZyniVerse email and password
         </Text>
       </ScrollView>
 

@@ -44,7 +44,7 @@ export type RootStackParamList = {
   LiveDubs: undefined;
   Wordle: undefined;
   DailyDubSchedule: undefined;
-  Web: { title?: string; path?: string; url?: string };
+  Web: { title?: string; path?: string; url?: string; auth?: boolean };
 };
 
 export type TabParamList = {
