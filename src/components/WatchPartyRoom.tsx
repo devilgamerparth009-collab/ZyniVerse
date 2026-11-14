@@ -14,6 +14,7 @@ import InviteModal from "@/components/InviteModal";
 import ScreenShare from "@/components/ScreenShare";
 import { useWatchPartySocket } from "@/hooks/useWatchPartySocket";
 import { useVoiceChat } from "@/hooks/useVoiceChat";
+import { usePartySignal } from "@/lib/party-signal";
 import type { ChatMessage, SyncState } from "@/lib/socket";
 import type { WatchPartyData } from "@/lib/watch-party";
 import { logError } from "@/lib/logger";
@@ -63,7 +64,9 @@ export default function WatchPartyRoom({ partyId }: { partyId: string }) {
 
   const fetchParty = useCallback(async () => {
     try {
-      const res = await fetch(`/api/watch-party/${partyId}`);
+      // The route is CDN-cached for 5 minutes (withPublicCache). A live party
+      // must not read a stale member/status snapshot, so bust the cache key.
+      const res = await fetch(`/api/watch-party/${partyId}?t=${Date.now()}`);
       if (!res.ok) throw new Error("Not found");
       const data = await res.json();
       setParty(data.party);
@@ -144,20 +147,54 @@ export default function WatchPartyRoom({ partyId }: { partyId: string }) {
     setScreenShareActive(false);
   }, []);
 
+  const handleVideoUpdated = useCallback((data: { videoUrl: string; videoType: string }) => {
+    // Viewers get the host's new source instantly instead of waiting for a reload.
+    setParty((prev) =>
+      prev ? { ...prev, videoUrl: data.videoUrl, videoType: data.videoType } : prev
+    );
+  }, []);
+
+  // Membership lives in the DB, so a join/leave just refreshes that part of the
+  // party. Deliberately not `fetchParty()`: that would also reset playback state
+  // for everyone mid-episode.
+  const refreshPartyMeta = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/watch-party/${partyId}?t=${Date.now()}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setParty((prev) =>
+        prev
+          ? {
+              ...prev,
+              members: data.party.members,
+              status: data.party.status,
+              episode: data.party.episode,
+            }
+          : data.party
+      );
+    } catch (e) {
+      logError(e);
+    }
+  }, [partyId]);
+
   const {
-    connected, socketAvailable, socket,
+    connected,
     emitHostSync, emitHostPlay, emitHostPause, emitHostSeek,
     emitHostEpisode, emitChatMessage, emitReaction, emitVideoSource,
   } = useWatchPartySocket({
     partyId,
     user: userId ? { id: userId, username: session?.user?.name || "User", avatar: null } : null,
     isHost: !!isHost,
+    hostId: party?.hostId ?? null,
     onSyncState: handleSyncState,
     onNewMessage: handleNewMessage,
     onEpisodeChange: handleEpisodeChange,
     onPlay: handlePlay,
     onPause: handlePause,
     onSeek: handleSeek,
+    onVideoUpdated: handleVideoUpdated,
+    onMemberJoined: refreshPartyMeta,
+    onMemberLeft: refreshPartyMeta,
     onScreenShareStarted: handleScreenShareStarted,
     onScreenShareStopped: handleScreenShareStopped,
   });
@@ -170,10 +207,22 @@ export default function WatchPartyRoom({ partyId }: { partyId: string }) {
   useEffect(() => { playbackPosRef.current = playbackPos; }, [playbackPos]);
   const lastAppliedRef = useRef(0);
 
+  // WebRTC signalling for screen sharing. Same transport choice as the room
+  // itself: Supabase Realtime on Vercel, socket.io when a WS server exists.
+  const mediaSignal = usePartySignal({
+    partyId,
+    userId: userId ?? null,
+    hostId: party?.hostId ?? null,
+    username: session?.user?.name || undefined,
+    avatar: null,
+    scope: "screen",
+  });
+
   const voiceChat = useVoiceChat({
     partyId,
     user: userId ? { id: userId, username: session?.user?.name || "User", avatar: null } : null,
     isMember: !!isMember,
+    hostId: party?.hostId ?? null,
   });
 
   useEffect(() => {
@@ -450,7 +499,7 @@ export default function WatchPartyRoom({ partyId }: { partyId: string }) {
             All Parties
           </Link>
           <div className="flex items-center gap-3">
-            {socketAvailable && connected && (
+            {connected && (
               <span className="inline-flex items-center gap-1.5 rounded-full border border-green-500/20 bg-green-500/10 px-2.5 py-1 text-[10px] font-bold text-green-400">
                 <span className="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse" />
                 LIVE SYNC
@@ -520,7 +569,7 @@ export default function WatchPartyRoom({ partyId }: { partyId: string }) {
               <ScreenShare
                 isHost={!!isHost}
                 partyId={partyId}
-                socket={socket}
+                socket={mediaSignal}
                 screenShareActive={screenShareActive}
                 onScreenShareToggle={setScreenShareActive}
               />

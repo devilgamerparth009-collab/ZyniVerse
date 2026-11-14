@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { toggleReaction, broadcastToConversation } from "@/lib/chat";
 
 const VALID_EMOJIS = ["❤️", "👍", "😂", "😮", "😢", "😡", "🔥"];
@@ -23,11 +23,13 @@ export async function POST(
     if (!msg) return NextResponse.json({ error: "Message not found" }, { status: 404 });
 
     const reactions = await toggleReaction(messageId, session.user.id, emoji);
-    broadcastToConversation(msg.conversationId, session.user.id, "dm-reaction", {
-      conversationId: msg.conversationId,
-      messageId,
-      reactions,
-    }).catch(() => {});
+    after(() =>
+      broadcastToConversation(msg.conversationId, session.user.id, "dm-reaction", {
+        conversationId: msg.conversationId,
+        messageId,
+        reactions,
+      }).catch(() => {})
+    );
     return NextResponse.json({ reactions });
   } catch (e) {
     return NextResponse.json(

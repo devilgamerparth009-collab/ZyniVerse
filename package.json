@@ -10,7 +10,7 @@
     "lint": "eslint",
     "test": "vitest run",
     "embed:content": "tsx scripts/embed-content.ts",
-      "build:sw": "tsx scripts/build-sw.ts",
+    "build:sw": "tsx scripts/build-sw.ts",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "db:seed": "prisma db seed",
@@ -18,7 +18,9 @@
     "db:seed:editorial": "tsx prisma/seed-editorial.ts",
     "posters:sync": "node scripts/sync-live-action-posters.mjs",
     "reels:import": "node scripts/import-reels.mjs --manifest scripts/reels-manifest.example.json --commit",
-    "posters:import": "node scripts/import-posters.mjs --manifest scripts/posters-manifest.example.json --commit"
+    "posters:import": "node scripts/import-posters.mjs --manifest scripts/posters-manifest.example.json --commit",
+    "cache:prune": "node scripts/prune-cache.mjs",
+    "cache:prune:apply": "node scripts/prune-cache.mjs --commit --reindex"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -30,7 +32,7 @@
     "@stripe/stripe-js": "^9.10.0",
     "@supabase/supabase-js": "^2.110.6",
     "@vercel/analytics": "^2.0.1",
-    "@vercel/blob": "^2.8.0",
+    "@vercel/blob": "^2.4.0",
     "@vercel/speed-insights": "^2.0.0",
     "adm-zip": "^0.6.0",
     "bcryptjs": "^3.0.3",

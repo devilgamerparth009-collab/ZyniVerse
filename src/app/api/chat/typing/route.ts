@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { broadcastToConversation } from "@/lib/chat";
 
 export async function POST(req: NextRequest) {
@@ -16,12 +16,14 @@ export async function POST(req: NextRequest) {
   });
   if (!participant) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  broadcastToConversation(conversationId, session.user.id, "dm-typing", {
-    conversationId,
-    userId: session.user.id,
-    username: participant.user.username,
-    typing: !!typing,
-  }).catch(() => {});
+  after(() =>
+    broadcastToConversation(conversationId, session.user.id, "dm-typing", {
+      conversationId,
+      userId: session.user.id,
+      username: participant.user.username,
+      typing: !!typing,
+    }).catch(() => {})
+  );
 
   return NextResponse.json({ success: true });
 }

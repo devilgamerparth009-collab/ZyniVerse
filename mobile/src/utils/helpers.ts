@@ -188,3 +188,24 @@ export function formatCount(n?: number | null): string {
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
   return String(n);
 }
+
+const WEB_ORIGIN = 'https://zyverse.in';
+
+/** Turns a relative server path into an absolute URL for <Image>. */
+export function webAbsoluteUrl(url?: string | null): string {
+  if (!url) return '';
+  if (/^(https?:|data:|blob:)/i.test(url)) return url;
+  return WEB_ORIGIN + (url.startsWith('/') ? url : '/' + url);
+}
+
+/** Deterministic initials avatar for users who never uploaded a picture. */
+export function defaultAvatarFor(username?: string | null, seed?: string): string {
+  const name = (username || 'ZyniVerse').trim() || 'ZyniVerse';
+  const palette = ['7c3aed', '06b6d4', 'ec4899', 'f59e0b', '10b981', '3b82f6'];
+  const key = seed || name;
+  let hash = 0;
+  for (let i = 0; i < key.length; i++) hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
+  const bg = palette[hash % palette.length];
+  return 'https://ui-avatars.com/api/?name=' + encodeURIComponent(name) + '&background=' + bg + '&color=fff&size=256&bold=true';
+}
+

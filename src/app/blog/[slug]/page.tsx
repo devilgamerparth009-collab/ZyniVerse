@@ -13,7 +13,7 @@ const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "https://zyverse.in";
 // enables on-demand ISR for a dynamic segment when it exists. Without it the
 // route renders dynamically on every request (no-store self-fetch also forced
 // that; it now uses a time-based revalidate instead).
-export const revalidate = 172800;
+export const revalidate = 604800;
 
 export function generateStaticParams() {
   return [];
@@ -35,7 +35,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   try {
     const { slug } = await params;
     const res = await fetch(`${BASE_URL}/api/blog/${slug}`, {
-      next: { revalidate: 21600 },
+      next: { revalidate: 86400 },
     });
 
     if (!res.ok) return FALLBACK_METADATA;

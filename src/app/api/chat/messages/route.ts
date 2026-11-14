@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { sendMessage, getMessages, broadcastToConversation } from "@/lib/chat";
 export const dynamic = "force-dynamic";
 
@@ -35,7 +35,11 @@ export async function POST(req: NextRequest) {
 
   try {
     const message = await sendMessage(conversationId, session.user.id, content.trim(), replyToId || undefined);
-    broadcastToConversation(conversationId, session.user.id, "dm-message", message).catch(() => {});
+    // `after()` keeps the realtime publish alive past the response, which plain
+    // fire-and-forget promises do not guarantee on serverless (Vercel).
+    after(() =>
+      broadcastToConversation(conversationId, session.user.id, "dm-message", message).catch(() => {})
+    );
     return NextResponse.json({ message });
   } catch (e) {
     return NextResponse.json(

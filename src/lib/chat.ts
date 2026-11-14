@@ -1,5 +1,6 @@
 import { prisma } from "./prisma";
 import type { Prisma } from "@prisma/client";
+import { broadcastRealtime, realtimeConfigured } from "./realtime";
 
 export const messageInclude = {
   sender: { select: { id: true, username: true, avatar: true } },
@@ -17,21 +18,73 @@ export const messageInclude = {
   },
 } satisfies Prisma.MessageInclude;
 
+/**
+ * Strip anything sensitive before a payload is published to a Supabase Realtime
+ * channel.
+ *
+ * Realtime broadcast channels are authorised by the publishable (anon) key,
+ * which ships inside the browser bundle. Anyone who learns a user id could
+ * therefore subscribe to `dm:<userId>`, so DM *content* must never be part of a
+ * broadcast. Only a pointer (conversationId + messageId) goes out; the recipient
+ * then pulls the real message through the authenticated `/api/chat/messages`
+ * route.
+ */
+function toRealtimeNotification(
+  event: string,
+  payload: unknown,
+): Record<string, unknown> {
+  const p = (payload ?? {}) as Record<string, unknown>;
+  switch (event) {
+    case "dm-message":
+      return { conversationId: p.conversationId, messageId: p.id };
+    case "dm-reaction":
+    case "dm-delete":
+      return { conversationId: p.conversationId, messageId: p.messageId };
+    default:
+      // dm-typing / dm-seen carry no message content.
+      return p;
+  }
+}
+
+/**
+ * Publish one event to every recipient's personal Realtime channel.
+ *
+ * Uses the plain-HTTP broadcast endpoint instead of a websocket so it is safe
+ * inside a serverless function: one request, no long-lived socket, and it works
+ * on Vercel where `server.ts` (socket.io) cannot run.
+ */
+
 export async function broadcastToConversation(
   conversationId: string,
   excludeUserId: string,
   event: string,
   payload: unknown
 ) {
+  // Two interchangeable transports:
+  //   1. socket.io on a standalone server (NEXT_PUBLIC_WS_URL, e.g. Railway)
+  //   2. Supabase Realtime Broadcast, which works on Vercel
+  // Exactly one is used, so a recipient never receives the same event twice.
   const wsBase = process.env.NEXT_PUBLIC_WS_URL;
-  if (!wsBase) return;
+  const useSupabase = !wsBase && realtimeConfigured();
+  if (!wsBase && !useSupabase) return;
+
   const participants = await prisma.conversationParticipant.findMany({
     where: { conversationId, userId: { not: excludeUserId } },
     select: { userId: true },
   });
   if (participants.length === 0) return;
 
+  if (useSupabase) {
+    await broadcastRealtime(
+      participants.map((p) => `dm:${p.userId}`),
+      event,
+      toRealtimeNotification(event, payload),
+    );
+    return;
+  }
+
   const token = process.env.DM_BROADCAST_TOKEN;
+  if (!wsBase) return;
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (token) headers["x-dm-token"] = token;
   for (const p of participants) {

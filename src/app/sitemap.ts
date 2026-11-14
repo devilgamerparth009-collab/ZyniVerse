@@ -45,7 +45,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE_URL}/compare-anime`,  changeFrequency: "weekly", priority: 0.6 },
     { url: `${BASE_URL}/popular-characters`,  changeFrequency: "weekly", priority: 0.6 },
     // NOTE: no /calendar entry — next.config.ts 308-redirects it to /schedule.
-    { url: `${BASE_URL}/streaming-calendar`,  changeFrequency: "daily", priority: 0.7 },
+    // NOTE: no /streaming-calendar entry — that route 307-redirects to
+    // /schedule, and submitting a redirecting URL makes Search Console report
+    // "Page with redirect" instead of indexing anything. /schedule is below.
     { url: `${BASE_URL}/seasonal-tracker`,  changeFrequency: "daily", priority: 0.6 },
     { url: `${BASE_URL}/tools/filler-time`,  changeFrequency: "weekly", priority: 0.6 },
     { url: `${BASE_URL}/tools/binge-calculator`,  changeFrequency: "weekly", priority: 0.6 },

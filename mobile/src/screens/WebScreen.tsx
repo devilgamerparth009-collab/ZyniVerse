@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -6,15 +6,28 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Animated,
-  Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { WebView } from 'react-native-webview';
 import { useTheme } from '../hooks/useTheme';
+import { api } from '../services/api';
 import { spacing, borderRadius } from '../theme';
 
 const BASE = 'https://zyverse.in';
+
+type Source = { uri: string; headers?: Record<string, string> };
+
+/** Path (+ query) of a zyverse.in URL, used as the post-sign-in destination. */
+function nextPathFor(target: string): string {
+  try {
+    const url = new URL(target);
+    if (url.origin === BASE) return `${url.pathname}${url.search}`;
+  } catch {
+    /* not an absolute URL */
+  }
+  return '/';
+}
 
 export default function WebScreen() {
   const insets = useSafeAreaInsets();
@@ -26,13 +39,71 @@ export default function WebScreen() {
   const path: string | undefined = route.params?.path;
   const explicitUrl: string | undefined = route.params?.url;
   const title: string = route.params?.title || 'ZyniVerse';
-  const initialUrl = explicitUrl || `${BASE}${path || '/'}`;
+  /** Signed-in pages need the app's session copied into the WebView first. */
+  const needsAuth: boolean = !!route.params?.auth;
+
+  const targetUrl = useMemo(
+    () => explicitUrl || `${BASE}${path || '/'}`,
+    [explicitUrl, path]
+  );
 
   const webRef = useRef<WebView>(null);
   const progress = useRef(new Animated.Value(0)).current;
+  const [source, setSource] = useState<Source | null>(
+    needsAuth ? null : { uri: targetUrl }
+  );
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [canGoBack, setCanGoBack] = useState(false);
+
+  // Hand the session to the WebView. Everything stays inside the app: when the
+  // app is signed in we mint a short-lived bridge token and let the website set
+  // a real cookie on its own origin, so signed-in pages render correctly even
+  // on devices whose WebView does not share the native cookie jar. Signed-out
+  // visitors get the website's login page *inside* the WebView — never an
+  // external browser.
+  useEffect(() => {
+    if (!needsAuth) {
+      setSource({ uri: targetUrl });
+      return;
+    }
+
+    let cancelled = false;
+    setSource(null);
+    setLoading(true);
+
+    (async () => {
+      const loggedIn = await api.auth.isLoggedIn();
+      if (cancelled) return;
+
+      if (loggedIn) {
+        const token = await api.auth.webBridgeToken();
+        if (cancelled) return;
+        if (token) {
+          const next = nextPathFor(targetUrl);
+          setSource({
+            uri: `${BASE}/auth/mobile-web?t=${encodeURIComponent(token)}&next=${encodeURIComponent(next)}`,
+          });
+          return;
+        }
+        // Token mint failed (offline / old server build): load the page
+        // directly and let the shared platform cookie jar authenticate it.
+        setSource({ uri: targetUrl });
+        return;
+      }
+
+      const next = nextPathFor(targetUrl);
+      if (!cancelled) {
+        setSource({ uri: `${BASE}/login?next=${encodeURIComponent(next)}` });
+      }
+    })().catch(() => {
+      if (!cancelled) setSource({ uri: targetUrl });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [needsAuth, targetUrl]);
 
   const onLoadProgress = useCallback(
     ({ nativeEvent }: any) => {
@@ -72,15 +143,19 @@ export default function WebScreen() {
             {title}
           </Text>
           <Text style={[styles.host, { color: colors.textDim }]} numberOfLines={1}>
-            {explicitUrl ? explicitUrl.replace(/^https?:\/\//, '') : `zyverse.in${path || '/'}`}
+            {targetUrl.replace(/^https?:\/\//, '')}
           </Text>
         </View>
 
         <TouchableOpacity
           style={[styles.iconBtn, { borderColor: colors.border, backgroundColor: colors.surface }]}
-          onPress={() => Linking.openURL(initialUrl).catch(() => {})}
+          onPress={() => {
+            setFailed(false);
+            setLoading(true);
+            setSource({ uri: `${BASE}/` });
+          }}
         >
-          <Text style={[styles.iconTextSmall, { color: colors.text }]}>↗</Text>
+          <Text style={[styles.iconTextSmall, { color: colors.text }]}>⌂</Text>
         </TouchableOpacity>
       </View>
 
@@ -94,7 +169,7 @@ export default function WebScreen() {
           <Text style={{ fontSize: 40 }}>📡</Text>
           <Text style={[styles.failTitle, { color: colors.text }]}>Could not load this page</Text>
           <Text style={[styles.failText, { color: colors.textMuted }]}>
-            Check your connection, or open it in your browser instead.
+            Check your connection and tap “Try again”. Everything stays inside the app.
           </Text>
           <TouchableOpacity
             style={[styles.retry, { backgroundColor: tint }]}
@@ -107,15 +182,24 @@ export default function WebScreen() {
             <Text style={styles.retryText}>Try again</Text>
           </TouchableOpacity>
         </View>
+      ) : !source ? (
+        <View style={styles.center}>
+          <ActivityIndicator color={tint} size="large" />
+          <Text style={[styles.failText, { color: colors.textMuted }]}>Preparing your session…</Text>
+        </View>
       ) : (
         <WebView
           ref={webRef}
-          source={{ uri: initialUrl }}
+          source={source}
           style={{ flex: 1, backgroundColor: colors.background }}
           javaScriptEnabled
           domStorageEnabled
           sharedCookiesEnabled
           thirdPartyCookiesEnabled
+          mediaPlaybackRequiresUserAction={false}
+          allowsInlineMediaPlayback
+          allowsFullscreenVideo
+          mediaCapturePermissionGrantType="grantIfSameHostElsePrompt"
           onLoadProgress={onLoadProgress}
           onLoadStart={() => setLoading(true)}
           onLoadEnd={() => {

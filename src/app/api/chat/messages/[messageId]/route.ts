@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { deleteMessage, broadcastToConversation } from "@/lib/chat";
 
 export async function DELETE(
@@ -21,13 +21,15 @@ export async function DELETE(
     if (!msg) return NextResponse.json({ error: "Message not found" }, { status: 404 });
 
     const updated = await deleteMessage(messageId, session.user.id, mode);
-    broadcastToConversation(msg.conversationId, session.user.id, "dm-delete", {
-      conversationId: msg.conversationId,
-      messageId,
-      mode,
-      deletedFor: updated?.deletedFor ? updated.deletedFor.split(",").filter(Boolean) : [],
-      isDeleted: updated?.isDeleted ?? false,
-    }).catch(() => {});
+    after(() =>
+      broadcastToConversation(msg.conversationId, session.user.id, "dm-delete", {
+        conversationId: msg.conversationId,
+        messageId,
+        mode,
+        deletedFor: updated?.deletedFor ? updated.deletedFor.split(",").filter(Boolean) : [],
+        isDeleted: updated?.isDeleted ?? false,
+      }).catch(() => {})
+    );
     return NextResponse.json({ message: updated });
   } catch (e) {
     return NextResponse.json(

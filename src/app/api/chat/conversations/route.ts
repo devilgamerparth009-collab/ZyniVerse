@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { getConversations, getOrCreateConversation, getUnreadCounts, broadcastToConversation } from "@/lib/chat";
 
 export async function GET() {
@@ -57,11 +57,13 @@ export async function PUT(req: NextRequest) {
     data: { lastReadAt: new Date() },
   });
 
-  broadcastToConversation(conversationId, session.user.id, "dm-seen", {
-    conversationId,
-    userId: session.user.id,
-    lastReadAt: new Date().toISOString(),
-  }).catch(() => {});
+  after(() =>
+    broadcastToConversation(conversationId, session.user.id, "dm-seen", {
+      conversationId,
+      userId: session.user.id,
+      lastReadAt: new Date().toISOString(),
+    }).catch(() => {})
+  );
 
   return NextResponse.json({ success: true });
 }

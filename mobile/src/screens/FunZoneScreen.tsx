@@ -53,17 +53,77 @@ const FEATURES: Feature[] = [
   { key: 'ostlist', label: 'OP & ED Vault', sub: 'Openings', emoji: '🎧', route: 'OST', tint: '#fb7185' },
 ];
 
-type WebFeature = { key: string; label: string; emoji: string; path: string; tint: string };
+type WebFeature = {
+  key: string;
+  label: string;
+  emoji: string;
+  path: string;
+  tint: string;
+  /** Needs the app's signed-in session (messages, watch party rooms). */
+  auth?: boolean;
+  /** Opens a native screen instead of the embedded website. */
+  nativeRoute?: string;
+};
 
-const WEB_FEATURES: WebFeature[] = [
-  { key: 'wordle', label: 'Anime Wordle', emoji: '🟩', path: '/wordle', tint: '#22c55e' },
-  { key: 'tierlist', label: 'Tier List', emoji: '🏆', path: '/tierlist', tint: '#eab308' },
-  { key: 'bingo', label: 'Anime Bingo', emoji: '🎯', path: '/bingo', tint: '#f472b6' },
-  { key: 'watchparty', label: 'Watch Party', emoji: '👥', path: '/watch-party', tint: '#38bdf8' },
-  { key: 'tracker', label: 'Season Tracker', emoji: '📊', path: '/seasonal-tracker', tint: '#a855f7' },
-  { key: 'va', label: 'Voice Actors', emoji: '🎭', path: '/voice-actors', tint: '#fb923c' },
-  { key: 'manga', label: 'Manga', emoji: '📚', path: '/manga', tint: '#f87171' },
-  { key: 'merch', label: 'Merch', emoji: '🛍️', path: '/merch', tint: '#34d399' },
+type WebGroup = { key: string; title: string; items: WebFeature[] };
+
+/**
+ * Web features that do not have a native screen yet. Every entry loads the
+ * real zyverse.in page inside the app, so the APK always matches the website.
+ */
+const WEB_GROUPS: WebGroup[] = [
+  {
+    key: 'social',
+    title: 'Social & Live',
+    items: [
+      { key: 'messages', label: 'Messages', emoji: '💬', path: '/messages', tint: '#22d3ee', auth: true },
+      { key: 'watchparty', label: 'Watch Party', emoji: '👥', path: '/watch-party', tint: '#38bdf8', auth: true },
+      { key: 'community', label: 'Community', emoji: '🌐', path: '/community', tint: '#a78bfa' },
+      { key: 'clubs', label: 'Clubs', emoji: '🏛️', path: '/clubs', tint: '#f59e0b', auth: true },
+      { key: 'feed', label: 'Social Feed', emoji: '📰', path: '/feed', tint: '#22c55e', auth: true },
+      { key: 'friends', label: 'Friends', emoji: '🤝', path: '/friends', tint: '#ec4899', auth: true },
+      { key: 'notifications', label: 'Alerts', emoji: '🔔', path: '/notifications', tint: '#f97316', auth: true },
+      { key: 'moments', label: 'Moments', emoji: '✨', path: '/moments', tint: '#eab308' },
+      { key: 'clips', label: 'Clips', emoji: '✂️', path: '/clips', tint: '#8b5cf6' },
+      { key: 'memes', label: 'Memes', emoji: '😂', path: '/memes', tint: '#facc15' },
+      { key: 'fanart', label: 'Fan Art', emoji: '🎨', path: '/fanart', tint: '#fb7185' },
+      { key: 'cosplay', label: 'Cosplay', emoji: '🎭', path: '/cosplay', tint: '#d946ef' },
+    ],
+  },
+  {
+    key: 'explore',
+    title: 'Explore & Track',
+    items: [
+      { key: 'top', label: 'Top Anime', emoji: '🔝', path: '/top-anime', tint: '#f97316' },
+      { key: 'calendar', label: 'Anime Calendar', emoji: '🗓️', path: '/calendar', tint: '#3b82f6' },
+      { key: 'watchorder', label: 'Watch Order', emoji: '🧭', path: '/watch-order', tint: '#10b981' },
+      { key: 'watchlist', label: 'Watchlist', emoji: '📌', path: '/watchlist', tint: '#f43f5e', auth: true },
+      { key: 'tracker', label: 'Season Tracker', emoji: '📊', path: '/seasonal-tracker', tint: '#a855f7' },
+      { key: 'characters', label: 'Characters', emoji: '🎭', path: '/characters', tint: '#fb923c' },
+      { key: 'va', label: 'Voice Actors', emoji: '🎤', path: '/voice-actors', tint: '#fbbf24' },
+      { key: 'manga', label: 'Manga', emoji: '📚', path: '/manga', tint: '#f87171' },
+      { key: 'mangarel', label: 'Manga Releases', emoji: '📖', path: '/manga-releases', tint: '#fb7185' },
+      { key: 'lightnovels', label: 'Light Novels', emoji: '📕', path: '/light-novels', tint: '#e879f9' },
+      { key: 'blog', label: 'Blog', emoji: '✍️', path: '/blog', tint: '#0ea5e9' },
+      { key: 'wiki', label: 'Wiki', emoji: '📜', path: '/wiki', tint: '#84cc16' },
+    ],
+  },
+  {
+    key: 'play',
+    title: 'Games & More',
+    items: [
+      { key: 'wordle', label: 'Anime Wordle', emoji: '🟩', path: '/wordle', tint: '#22c55e', nativeRoute: 'Wordle' },
+      { key: 'tierlist', label: 'Tier List', emoji: '🏆', path: '/tierlist', tint: '#eab308' },
+      { key: 'bingo', label: 'Anime Bingo', emoji: '🎯', path: '/bingo', tint: '#f472b6' },
+      { key: 'challenges', label: 'Challenges', emoji: '🔥', path: '/challenges', tint: '#ef4444' },
+      { key: 'contests', label: 'Contests', emoji: '🥇', path: '/contests', tint: '#f59e0b' },
+      { key: 'achievements', label: 'Achievements', emoji: '🏅', path: '/achievements', tint: '#facc15', auth: true },
+      { key: 'merch', label: 'Merch', emoji: '🛍️', path: '/merch', tint: '#34d399' },
+      { key: 'premium', label: 'Premium', emoji: '💎', path: '/premium', tint: '#60a5fa' },
+      { key: 'tools', label: 'Tools', emoji: '🛠️', path: '/tools', tint: '#94a3b8' },
+      { key: 'random', label: 'Surprise Me', emoji: '🎲', path: '/random', tint: '#f472b6' },
+    ],
+  },
 ];
 
 function LivePulse({ color }: { color: string }) {
@@ -453,35 +513,61 @@ export default function FunZoneScreen() {
             <Text style={[styles.sectionTitle, { color: colors.text }]}>More from ZyniVerse</Text>
             <TouchableOpacity
               onPress={() =>
-                navigation.navigate('Web', { title: 'ZyniVerse', path: '/' })
+                navigation.navigate('Web', { title: 'ZyniVerse', path: '/', auth: true })
               }
             >
-              <Text style={[styles.seeAll, { color: tint }]}>Web →</Text>
+              <Text style={[styles.seeAll, { color: tint }]}>Full site →</Text>
             </TouchableOpacity>
           </View>
-          <View style={styles.webGrid}>
-            {WEB_FEATURES.map((f, i) => (
-              <FadeInView key={f.key} delay={400 + i * 30} offset={8}>
-                <PressableScale
-                  style={[
-                    styles.webCard,
-                    { width: WEB_CARD_WIDTH, backgroundColor: colors.surface, borderColor: colors.border },
-                  ]}
-                  onPress={() =>
-                    f.key === 'wordle'
-                      ? navigation.navigate('Wordle')
-                      : navigation.navigate('Web', { title: f.label, path: f.path })
-                  }
-                >
-                  <Text style={styles.webEmoji}>{f.emoji}</Text>
-                  <Text style={[styles.webLabel, { color: colors.text }]} numberOfLines={2}>
-                    {f.label}
-                  </Text>
-                  <View style={[styles.webDot, { backgroundColor: f.tint }]} />
-                </PressableScale>
-              </FadeInView>
-            ))}
-          </View>
+
+          {WEB_GROUPS.map((group, gi) => (
+            <View key={group.key}>
+              <Text style={[styles.webGroupTitle, { color: colors.textMuted }]}>
+                {group.title}
+              </Text>
+              <View style={styles.webGrid}>
+                {group.items.map((f, i) => (
+                  <FadeInView key={f.key} delay={400 + gi * 120 + i * 25} offset={8}>
+                    <PressableScale
+                      style={[
+                        styles.webCard,
+                        { width: WEB_CARD_WIDTH, backgroundColor: colors.surface, borderColor: colors.border },
+                      ]}
+                      onPress={() =>
+                        f.nativeRoute
+                          ? navigation.navigate(f.nativeRoute)
+                          : navigation.navigate('Web', {
+                              title: f.label,
+                              path: f.path,
+                              auth: f.auth,
+                            })
+                      }
+                    >
+                      <Text style={styles.webEmoji}>{f.emoji}</Text>
+                      <Text style={[styles.webLabel, { color: colors.text }]} numberOfLines={2}>
+                        {f.label}
+                      </Text>
+                      <View style={[styles.webDot, { backgroundColor: f.tint }]} />
+                    </PressableScale>
+                  </FadeInView>
+                ))}
+              </View>
+            </View>
+          ))}
+
+          <PressableScale
+            style={[styles.openSiteBtn, { borderColor: tint, backgroundColor: `${tint}14` }]}
+            onPress={() =>
+              navigation.navigate('Web', { title: 'ZyniVerse', path: '/', auth: true })
+            }
+          >
+            <Text style={[styles.openSiteText, { color: tint }]}>
+              🌐 Open the full ZyniVerse website
+            </Text>
+            <Text style={[styles.openSiteSub, { color: colors.textMuted }]}>
+              Every page, signed in with your account
+            </Text>
+          </PressableScale>
         </FadeInView>
 
         <AdBanner placement="home-bottom" />
@@ -653,6 +739,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     gap: spacing.sm,
   },
+  webGroupTitle: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginTop: spacing.md,
+    marginBottom: spacing.xs,
+    paddingHorizontal: spacing.md,
+  },
+  openSiteBtn: {
+    marginTop: spacing.lg,
+    marginHorizontal: spacing.md,
+    borderWidth: 1,
+    borderRadius: borderRadius.lg,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+    gap: 4,
+  },
+  openSiteText: { fontSize: fontSize.sm, fontWeight: '800' },
+  openSiteSub: { fontSize: 10, textAlign: 'center' },
   webCard: {
     borderWidth: 1,
     borderRadius: borderRadius.md,

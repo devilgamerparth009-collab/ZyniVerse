@@ -26,6 +26,18 @@ const PERMISSIONS_TO_REMOVE = [
 ];
 
 /**
+ * Watch-party voice chat and screen sharing run inside the WebView, so the app
+ * itself must hold the microphone permission. react-native-webview requests it
+ * from Android when the page calls getUserMedia(), but only if the manifest
+ * declares it.
+ */
+const PERMISSIONS_TO_ADD = [
+  'android.permission.RECORD_AUDIO',
+  'android.permission.MODIFY_AUDIO_SETTINGS',
+  'android.permission.CAMERA',
+];
+
+/**
  * Safety net for the Firebase case above: if anything ever re-introduces a
  * library that links Play Services, drop its startup components and permissions
  * so the APK still launches instead of dying in a ContentProvider.
@@ -50,6 +62,21 @@ module.exports = function withZyniManifest(config) {
           return !FIREBASE_MARKERS.some((marker) => name.startsWith(marker));
         }
       );
+    }
+
+    // Ensure the media permissions the WebView needs are declared.
+    if (!Array.isArray(manifestRoot['uses-permission'])) {
+      manifestRoot['uses-permission'] = [];
+    }
+    const declared = new Set(
+      manifestRoot['uses-permission']
+        .map((perm) => (perm && perm.$ ? perm.$['android:name'] : null))
+        .filter(Boolean)
+    );
+    for (const name of PERMISSIONS_TO_ADD) {
+      if (declared.has(name)) continue;
+      manifestRoot['uses-permission'].push({ $: { 'android:name': name } });
+      declared.add(name);
     }
 
     // Strip Play Services / Firebase components that would run at startup.
