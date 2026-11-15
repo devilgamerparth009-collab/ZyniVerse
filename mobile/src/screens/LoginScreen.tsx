@@ -233,10 +233,15 @@ export default function LoginScreen() {
         });
 
         if (result.type === 'success') {
+          // Use the website's own session cookie handling via setCookie,
+          // then use useNativeCookieJar to let Android's shared WebView cookie jar
+          // handle the session for all subsequent API calls.
           const cookie = cookieFromRedirect(result.url || '');
           if (!cookie) throw new Error('Sign-in did not return a session. Please try again.');
 
           await api.auth.setCookie(cookie);
+          // Use native cookie jar so Android WebView + React Native fetch share the same cookie
+          await api.auth.useNativeCookieJar();
           const user = await api.auth.current();
           if (!user) throw new Error('Could not verify the new session. Please try again.');
 
