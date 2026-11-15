@@ -26,6 +26,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { ThemeMode } from '../theme/ThemeContext';
 import { isChristmasWindow } from '../utils/themeUtils';
 
+const appConfig = require('../../app.json');
+const APP_VERSION = appConfig?.expo?.version ?? '1.5.0';
+
 const openLink = (url: string) => Linking.openURL(url).catch(() => {});
 
 function SettingRow({ label, value, onPress, disabled }: any) {
@@ -266,7 +269,7 @@ export default function SettingsScreen() {
         <FadeInView delay={210} style={styles.group}>
           <Text style={[styles.groupTitle, { color: themeColors.textMuted }]}>About</Text>
           <View style={[styles.groupContent, { backgroundColor: themeColors.surface, borderColor: themeColors.border }]}>
-            <SettingRow label="Version" value={runtimeVersion || '1.2.0'} disabled />
+            <SettingRow label="Version" value={runtimeVersion || APP_VERSION} disabled />
             <SettingRow label="App update" value={status} onPress={onUpdatePress} />
             <SettingRow label="Website" value="zyverse.in" onPress={() => openLink('https://zyverse.in')} />
             <SettingRow label="Terms of Service" onPress={() => openLink('https://zyverse.in/terms')} />

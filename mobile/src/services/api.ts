@@ -269,18 +269,41 @@ function cookieForHeader(stored: string | null): string | undefined {
 async function fetchSessionUser(storedCookie: string | null): Promise<User | null> {
   try {
     const cookie = cookieForHeader(storedCookie);
-    const res = await fetchWithTimeout(`${WEB_HOST}/api/auth/session`, {
-      headers: { Accept: 'application/json', ...(cookie ? { Cookie: cookie } : {}) },
-    });
-    if (!res.ok) return null;
-    const json = await res.json();
-    if (!json?.user) return null;
-    return {
-      id: json.user.id || '',
-      username: json.user.name || json.user.email || 'User',
-      email: json.user.email || '',
-      avatar: json.user.image || undefined,
-    };
+    const headers = { Accept: 'application/json', ...(cookie ? { Cookie: cookie } : {}) };
+
+    // 1. Try standard NextAuth session endpoint
+    try {
+      const res = await fetchWithTimeout(`${WEB_HOST}/api/auth/session`, { headers });
+      if (res.ok) {
+        const json = await res.json().catch(() => null);
+        if (json?.user) {
+          return {
+            id: json.user.id || '',
+            username: json.user.name || json.user.email || 'User',
+            email: json.user.email || '',
+            avatar: json.user.image || undefined,
+          };
+        }
+      }
+    } catch {}
+
+    // 2. Fallback to mobile-token endpoint
+    try {
+      const res = await fetchWithTimeout(`${WEB_HOST}/api/auth/mobile-token`, { headers });
+      if (res.ok) {
+        const json = await res.json().catch(() => null);
+        if (json?.ok && json?.user) {
+          return {
+            id: json.user.id || '',
+            username: json.user.name || json.user.email || 'User',
+            email: json.user.email || '',
+            avatar: json.user.image || undefined,
+          };
+        }
+      }
+    } catch {}
+
+    return null;
   } catch {
     return null;
   }
