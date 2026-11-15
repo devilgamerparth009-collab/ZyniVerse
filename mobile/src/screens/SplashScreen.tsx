@@ -227,7 +227,7 @@ export default function SplashScreen() {
   const letterAnims = useRef(WORDMARK.map(() => new Animated.Value(0))).current;
   const episodeTag = useRef(new Animated.Value(0)).current;
   const subtitleOpacity = useRef(new Animated.Value(0)).current;
-  const subtitleSpacing = useRef(new Animated.Value(0)).current;
+  const subtitleRise = useRef(new Animated.Value(0)).current;
   const chipsOpacity = useRef(new Animated.Value(0)).current;
   const halftoneOpacity = useRef(new Animated.Value(0)).current;
   const progress = useRef(new Animated.Value(0)).current;
@@ -303,7 +303,7 @@ export default function SplashScreen() {
       Animated.delay(1080),
       Animated.parallel([
         Animated.timing(subtitleOpacity, { toValue: 1, duration: 460, useNativeDriver: true }),
-        Animated.timing(subtitleSpacing, { toValue: 1, duration: 700, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
+        Animated.timing(subtitleRise, { toValue: 1, duration: 700, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
       ]),
     ]).start();
 
@@ -338,7 +338,7 @@ export default function SplashScreen() {
 
   const barWidth = progress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] });
   const glintX = glint.interpolate({ inputRange: [-1, 1], outputRange: [-190, 190] });
-  const letterSpacing = subtitleSpacing.interpolate({ inputRange: [0, 1], outputRange: [1, 5] });
+  const subtitleShift = subtitleRise.interpolate({ inputRange: [0, 1], outputRange: [12, 0] });
   const flashOpacity = flash.interpolate({ inputRange: [0, 1], outputRange: [0, 0.55] });
 
   return (
@@ -483,7 +483,16 @@ export default function SplashScreen() {
           </View>
         </View>
 
-        <Animated.Text style={[styles.brandSubtitle, { color: accent, opacity: subtitleOpacity, letterSpacing }]}>
+        <Animated.Text
+          style={[
+            styles.brandSubtitle,
+            {
+              color: accent,
+              opacity: subtitleOpacity,
+              transform: [{ translateY: subtitleShift }],
+            },
+          ]}
+        >
           YOUR ANIME UNIVERSE
         </Animated.Text>
 
@@ -643,6 +652,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '800',
     marginTop: 10,
+    letterSpacing: 3.2,
   },
   chips: {
     flexDirection: 'row',
