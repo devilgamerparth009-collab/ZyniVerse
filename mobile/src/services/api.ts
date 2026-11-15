@@ -1272,13 +1272,19 @@ async function postReel(payload: {
   return authedPost('/reels', payload);
 }
 
-/** Stores a NextAuth session cookie captured from the in-app OAuth WebView. */
-export async function setSessionCookie(cookie: string): Promise<void> {
-  await saveSessionToStorage(cookie);
-  const user = await fetchSessionUser(cookie);
+/** Stores a NextAuth session cookie captured from OAuth or login. */
+export async function setSessionCookie(cookie: string, user?: User | null): Promise<void> {
+  await saveSessionToStorage(cookie, user);
   if (user) {
     try {
       await AsyncStorage.setItem('zv_cached_user', JSON.stringify(user));
+    } catch {}
+    return;
+  }
+  const live = await fetchSessionUser(cookie);
+  if (live) {
+    try {
+      await AsyncStorage.setItem('zv_cached_user', JSON.stringify(live));
     } catch {}
   }
 }
@@ -1576,6 +1582,7 @@ export const api = {
     startOAuth,
     setCookie: setSessionCookie,
     useNativeJar: useNativeCookieJar,
+    useNativeCookieJar,
     needsWebBridge,
     webBridgeToken: getWebBridgeToken,
   },

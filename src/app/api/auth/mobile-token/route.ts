@@ -21,6 +21,7 @@ export async function GET() {
   }
 
   const jar = await cookies();
+  const allCookies = jar.getAll();
   const candidates = [
     "__Secure-authjs.session-token",
     "authjs.session-token",
@@ -29,9 +30,10 @@ export async function GET() {
   ];
 
   const pairs: string[] = [];
-  for (const name of candidates) {
-    const value = jar.get(name)?.value;
-    if (value) pairs.push(`${name}=${value}`);
+  for (const c of allCookies) {
+    if (candidates.includes(c.name) || c.name.includes("session-token")) {
+      pairs.push(`${c.name}=${c.value}`);
+    }
   }
 
   if (pairs.length === 0) {

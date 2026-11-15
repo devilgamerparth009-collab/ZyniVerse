@@ -36,6 +36,27 @@ function cookieFromRedirect(url: string): string | null {
   return cookie && cookie.includes('session-token') ? cookie : null;
 }
 
+/** Reads the user object if the server also sent it back in the deep link. */
+function userFromRedirect(url: string): any | null {
+  try {
+    const queryIndex = url.indexOf('?');
+    if (queryIndex === -1) return null;
+    const params = new URLSearchParams(url.slice(queryIndex + 1).split('#')[0]);
+    const userRaw = params.get('user');
+    if (!userRaw) return null;
+    const parsed = JSON.parse(userRaw);
+    if (!parsed || (!parsed.id && !parsed.email)) return null;
+    return {
+      id: parsed.id || '',
+      username: parsed.name || parsed.username || parsed.email || 'User',
+      email: parsed.email || '',
+      avatar: parsed.image || parsed.avatar || undefined,
+    };
+  } catch {
+    return null;
+  }
+}
+
 /** Floating neon orb, lifted from the website's login background. */
 function Orb({
   size,
@@ -233,17 +254,23 @@ export default function LoginScreen() {
         });
 
         if (result.type === 'success') {
-          // Use the website's own session cookie handling via setCookie,
-          // then use useNativeCookieJar to let Android's shared WebView cookie jar
-          // handle the session for all subsequent API calls.
           const cookie = cookieFromRedirect(result.url || '');
           if (!cookie) throw new Error('Sign-in did not return a session. Please try again.');
 
-          await api.auth.setCookie(cookie);
-          // Use native cookie jar so Android WebView + React Native fetch share the same cookie
-          await api.auth.useNativeCookieJar();
-          const user = await api.auth.current();
-          if (!user) throw new Error('Could not verify the new session. Please try again.');
+          const userFromUrl = userFromRedirect(result.url || '');
+          await api.auth.setCookie(cookie, userFromUrl);
+
+          // Verify session: use direct user payload from deep link or fetch current user
+          let user = userFromUrl || (await api.auth.current());
+          if (!user) {
+            // Short retry for network lag after system browser dismisses
+            await new Promise((resolve) => setTimeout(resolve, 600));
+            user = await api.auth.current();
+          }
+
+          if (!user) {
+            throw new Error('Could not verify the new session. Please try again.');
+          }
 
           navigation.goBack();
           return;

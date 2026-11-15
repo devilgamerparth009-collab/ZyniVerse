@@ -36,9 +36,12 @@ export default function MobileDonePage() {
             requested && /^zyniverse:\/\/auth(\?|$)/.test(requested) ? requested : null;
           if (safeRedirect) {
             const sep = safeRedirect.includes("?") ? "&" : "?";
+            const userParam = data.user
+              ? `&user=${encodeURIComponent(JSON.stringify(data.user))}`
+              : "";
             setState("done");
             window.location.replace(
-              `${safeRedirect}${sep}cookie=${encodeURIComponent(data.cookie)}`
+              `${safeRedirect}${sep}cookie=${encodeURIComponent(data.cookie)}${userParam}`
             );
             return;
           }
