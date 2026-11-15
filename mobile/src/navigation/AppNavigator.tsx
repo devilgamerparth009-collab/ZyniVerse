@@ -24,6 +24,11 @@ import OSTScreen from '../screens/OSTScreen';
 import WallpapersScreen from '../screens/WallpapersScreen';
 import TVGuideScreen from '../screens/TVGuideScreen';
 import ReelsScreen from '../screens/ReelsScreen';
+import WatchPartyScreen from '../screens/WatchPartyScreen';
+import WatchPartyRoomScreen from '../screens/WatchPartyRoomScreen';
+import MangaScreen from '../screens/MangaScreen';
+import VibeScreen from '../screens/VibeScreen';
+import TasteProfileScreen from '../screens/TasteProfileScreen';
 import LiveDubsScreen from '../screens/LiveDubsScreen';
 import WordleScreen from '../screens/WordleScreen';
 import DailyDubScheduleScreen from '../screens/DailyDubScheduleScreen';
@@ -136,6 +141,19 @@ export default function AppNavigator() {
         name="Reels"
         component={ReelsScreen}
         options={{ headerShown: false, animation: 'fade' }}
+      />
+      <Stack.Screen name="WatchParty" component={WatchPartyScreen} options={{ headerShown: false }} />
+      <Stack.Screen
+        name="WatchPartyRoom"
+        component={WatchPartyRoomScreen}
+        options={{ headerShown: false, animation: 'slide_from_right' }}
+      />
+      <Stack.Screen name="Manga" component={MangaScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Vibe" component={VibeScreen} options={{ headerShown: false }} />
+      <Stack.Screen
+        name="TasteProfile"
+        component={TasteProfileScreen}
+        options={{ headerShown: false, animation: 'slide_from_right' }}
       />
       <Stack.Screen name="LiveDubs" component={LiveDubsScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Wordle" component={WordleScreen} options={{ headerShown: false }} />

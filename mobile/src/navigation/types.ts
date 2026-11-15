@@ -41,6 +41,11 @@ export type RootStackParamList = {
   Wallpapers: undefined;
   TVGuide: undefined;
   Reels: undefined;
+  WatchParty: undefined;
+  WatchPartyRoom: { id: string };
+  Manga: undefined;
+  Vibe: undefined;
+  TasteProfile: undefined;
   LiveDubs: undefined;
   Wordle: undefined;
   DailyDubSchedule: undefined;

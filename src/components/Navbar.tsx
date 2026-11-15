@@ -64,6 +64,7 @@ const MORE_CATEGORIES: MoreCategory[] = [
       { to: "/discover", label: "Unified Feed 🎌" },
       { to: "/feed", label: "My Feed ✨" },
       { to: "/dna", label: "Anime DNA 🧬" },
+      { to: "/vibe", label: "Vibe 📡" },
       { to: "/ai", label: "Zyni AI ✨" },
       { to: "/top-anime", label: "Top Anime" },
       { to: "/leaderboard", label: "Leaderboard" },

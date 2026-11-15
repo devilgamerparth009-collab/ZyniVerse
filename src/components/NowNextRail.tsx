@@ -52,7 +52,8 @@ function ChannelLogo({ channelId, size = 36 }: { channelId: string; size?: numbe
   const [imgError, setImgError] = useState(false);
   const ch = TV_CHANNELS[channelId];
   if (!ch) return null;
-  if (!ch.logoUrl || imgError) {
+  const logoSrc = ch.logoProxyUrl || ch.logoUrl;
+  if (!logoSrc || imgError) {
     return (
       <span
         className="flex shrink-0 items-center justify-center rounded-lg font-bold text-white"
@@ -69,12 +70,12 @@ function ChannelLogo({ channelId, size = 36 }: { channelId: string; size?: numbe
   }
   return (
     <Image
-      src={ch.logoUrl}
+      src={logoSrc}
       alt={ch.name}
       width={size}
       height={size}
       className="shrink-0 rounded-lg"
-      style={{ objectFit: "contain", width: size, height: size, background: "rgba(0,0,0,0.3)", border: `1px solid ${ch.color}44` }}
+      style={{ objectFit: "contain", width: size, height: size, background: ch.logoPlate === "dark" ? "#0d0d16" : "#f6f7fb", border: `1px solid ${ch.color}44`, padding: 2 }}
       onError={() => setImgError(true)}
     />
   );

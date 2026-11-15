@@ -87,6 +87,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE_URL}/reels`,  changeFrequency: "daily", priority: 0.6 },
     { url: `${BASE_URL}/creators`,  changeFrequency: "weekly", priority: 0.7 },
     { url: `${BASE_URL}/discover`,  changeFrequency: "daily", priority: 0.6 },
+    // Vibe is a live community pulse (7-day rolling window) so it is worth
+    // re-crawling often — the aggregate changes every few minutes.
+    { url: `${BASE_URL}/vibe`,  changeFrequency: "daily", priority: 0.6 },
     { url: `${BASE_URL}/feed`,  changeFrequency: "daily", priority: 0.7 },
     { url: `${BASE_URL}/posts`,  changeFrequency: "daily", priority: 0.4 },
     { url: `${BASE_URL}/awards`,  changeFrequency: "monthly", priority: 0.5 },

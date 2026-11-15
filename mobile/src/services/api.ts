@@ -12,6 +12,10 @@ import {
   ForumCategory,
   ForumPost,
   ForumThread,
+  DnaProfile,
+  MangaChapter,
+  MangaEntry,
+  MangaListResponse,
   MediaPage,
   NotificationItem,
   ProfileResponse,
@@ -19,6 +23,11 @@ import {
   ScheduleItem,
   SearchSuggestion,
   User,
+  VibeResponse,
+  WatchParty,
+  WatchPartyMessage,
+  WatchPartySearchResult,
+  WatchPartySyncState,
   WatchlistItem,
 } from '../types';
 
@@ -1340,6 +1349,184 @@ export async function startOAuth(
 }
 
 /* ------------------------------------------------------------------ */
+/* Watch parties                                                       */
+/* ------------------------------------------------------------------ */
+
+async function getWatchParties(mine = false): Promise<WatchParty[]> {
+  const data = await requestJson<{ parties?: WatchParty[] }>(
+    buildUrl('/watch-party', mine ? { mine: 'true' } : undefined),
+    { headers: await authHeader() }
+  );
+  return data?.parties || [];
+}
+
+async function getWatchParty(id: string): Promise<WatchParty> {
+  // Cache-bust: a party is live state, never serve a stale copy.
+  const data = await requestJson<{ party: WatchParty }>(
+    buildUrl(`/watch-party/${id}`, { t: String(Date.now()) })
+  );
+  return data.party;
+}
+
+async function createWatchParty(input: {
+  mediaId: number;
+  mediaTitle: string;
+  mediaImage?: string | null;
+  coverImage?: string | null;
+  clubId?: string;
+}): Promise<WatchParty> {
+  const data = await authedPost<{ party: WatchParty }>('/watch-party', input);
+  return data.party;
+}
+
+async function updateWatchParty(
+  id: string,
+  patch: Record<string, unknown>
+): Promise<WatchParty> {
+  const data = await authedPost<{ party: WatchParty }>(`/watch-party/${id}`, patch, 'PUT');
+  return data.party;
+}
+
+async function getWatchPartySync(id: string): Promise<WatchPartySyncState> {
+  const data = await requestJson<{ party: WatchPartySyncState }>(
+    buildUrl(`/watch-party/${id}/sync`, { t: String(Date.now()) })
+  );
+  return data.party;
+}
+
+async function joinWatchParty(id: string): Promise<void> {
+  await authedPost(`/watch-party/${id}/join`);
+}
+
+async function leaveWatchParty(id: string): Promise<void> {
+  await authedPost(`/watch-party/${id}/join`, undefined, 'DELETE');
+}
+
+async function searchWatchPartyAnime(q: string): Promise<WatchPartySearchResult[]> {
+  const data = await requestJson<{ results?: WatchPartySearchResult[] }>(
+    buildUrl('/watch-party/search', { q })
+  );
+  return data?.results || [];
+}
+
+/**
+ * Party chat lives in the shared activity feed: every message is an Activity
+ * row whose text starts with `[PARTY:<id>]`. Reading the latest 50 rows and
+ * filtering client-side mirrors the web room exactly and needs no new schema.
+ */
+async function getWatchPartyMessages(id: string): Promise<WatchPartyMessage[]> {
+  const data = await requestJson<{ activities?: any[] }>(
+    buildUrl('/activity', { limit: '50' }),
+    { headers: await authHeader() }
+  );
+  const tag = `[PARTY:${id}]`;
+  return (data?.activities || [])
+    .filter((a) => typeof a?.message === 'string' && a.message.startsWith(tag))
+    .map((a) => ({
+      id: String(a.id),
+      userId: a.userId || a.user?.id || null,
+      username: a.user?.username || 'Fan',
+      avatar: a.user?.avatar || null,
+      message: String(a.message).slice(tag.length).trim(),
+      createdAt: a.createdAt,
+    }))
+    .reverse();
+}
+
+/* ------------------------------------------------------------------ */
+/* Manga tracker                                                       */
+/* ------------------------------------------------------------------ */
+
+async function getMangaCatalog(
+  tab: 'trending' | 'popular' | 'top' = 'trending',
+  perPage = 24,
+  type?: string
+): Promise<Anime[]> {
+  return listAnime('/anilist/manga', {
+    tab,
+    perPage: String(perPage),
+    ...(type ? { type } : {}),
+  });
+}
+
+async function getMangaList(params: {
+  status?: string;
+  type?: string;
+  q?: string;
+  sort?: string;
+  page?: number;
+  perPage?: number;
+} = {}): Promise<MangaListResponse> {
+  const query: Record<string, string> = {};
+  if (params.status) query.status = params.status;
+  if (params.type) query.type = params.type;
+  if (params.q) query.q = params.q;
+  if (params.sort) query.sort = params.sort;
+  if (params.page) query.page = String(params.page);
+  if (params.perPage) query.perPage = String(params.perPage);
+  return authedGet<MangaListResponse>('/manga/list', query);
+}
+
+async function saveMangaEntry(input: {
+  mediaId: number;
+  title: string;
+  coverImage?: string | null;
+  status?: string;
+  chapters?: number;
+  volumes?: number;
+  totalChapters?: number | null;
+  totalVolumes?: number | null;
+  score?: number | null;
+  subType?: string;
+}): Promise<MangaEntry> {
+  const data = await authedPost<{ entry: MangaEntry }>('/manga/list', input);
+  return data.entry;
+}
+
+async function removeMangaEntry(mediaId: number): Promise<void> {
+  await authedPost('/manga/list', { mediaId }, 'DELETE');
+}
+
+async function getMangaChapters(
+  mediaId: number
+): Promise<{ chapters: MangaChapter[]; entry: MangaEntry | null }> {
+  const data = await authedGet<{ chapters?: MangaChapter[]; entry?: MangaEntry | null }>(
+    '/manga/chapters',
+    { mediaId }
+  );
+  return { chapters: data?.chapters || [], entry: data?.entry || null };
+}
+
+async function toggleMangaChapter(input: {
+  mediaId: number;
+  chapter: number;
+  title?: string | null;
+  read?: boolean;
+  mangaDexId?: string | null;
+}): Promise<MangaChapter> {
+  const data = await authedPost<{ chapter: MangaChapter }>('/manga/chapters', {
+    read: true,
+    ...input,
+  });
+  return data.chapter;
+}
+
+/* ------------------------------------------------------------------ */
+/* Vibe + Anime DNA                                                    */
+/* ------------------------------------------------------------------ */
+
+async function getVibe(): Promise<VibeResponse> {
+  return requestJson<VibeResponse>(buildUrl('/vibe'));
+}
+
+async function getAnimeDna(username: string): Promise<DnaProfile> {
+  const data = await requestJson<{ profile: DnaProfile }>(
+    buildUrl(`/dna/${encodeURIComponent(username)}`)
+  );
+  return data.profile;
+}
+
+/* ------------------------------------------------------------------ */
 /* Public API object                                                   */
 /* ------------------------------------------------------------------ */
 
@@ -1444,6 +1631,31 @@ export const api = {
     toggleFollow: toggleFollowUser,
     liveDubs: getLiveDubs,
   },
+
+  watchParty: {
+    list: getWatchParties,
+    get: getWatchParty,
+    create: createWatchParty,
+    update: updateWatchParty,
+    sync: getWatchPartySync,
+    join: joinWatchParty,
+    leave: leaveWatchParty,
+    search: searchWatchPartyAnime,
+    messages: getWatchPartyMessages,
+    send: (id: string, message: string) => updateWatchParty(id, { message }),
+  },
+
+  manga: {
+    catalog: getMangaCatalog,
+    list: getMangaList,
+    save: saveMangaEntry,
+    remove: removeMangaEntry,
+    chapters: getMangaChapters,
+    toggleChapter: toggleMangaChapter,
+  },
+
+  vibe: { get: getVibe },
+  dna: { get: getAnimeDna },
 
   tournaments: {
     list: async () => {

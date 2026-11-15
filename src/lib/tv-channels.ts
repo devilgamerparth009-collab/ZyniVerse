@@ -9,6 +9,23 @@ export interface TvChannel {
   type: "tv" | "youtube";
   subscriberCount?: string;
   logoUrl?: string;
+  /**
+   * Same-origin, CDN-cached copy of `logoUrl`.
+   *
+   * Wikimedia's `upload.wikimedia.org` rate-limits bursts of image requests
+   * with HTTP 429 (very common from mobile carriers), which is why channel
+   * logos used to render as blank squares inside the app. Routing the image
+   * through our own API means the phone talks to zyverse.in only, and the
+   * origin server fetches the file once and caches it for a week.
+   */
+  logoProxyUrl?: string;
+  /**
+   * Which plate the logo sits on. Logos are drawn for one background: a black
+   * wordmark disappears on a dark plate, a white one disappears on a light
+   * plate. Measured per file (mean luminance of the opaque pixels) so every
+   * channel stays legible. Defaults to "light".
+   */
+  logoPlate?: "light" | "dark";
   logoInvert?: boolean;
 }
 
@@ -98,6 +115,7 @@ const RAW_TV_CHANNELS: Record<string, TvChannel> = {
     website: "https://www.pogotv.in",
     dthNumbers: "Tata Play 660, Airtel 664",
     type: "tv",
+    logoPlate: "dark",
     logoUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/49/POGO-logo.svg/250px-POGO-logo.svg.png",
   },
   nick: {
@@ -153,6 +171,7 @@ const RAW_TV_CHANNELS: Record<string, TvChannel> = {
     website: "https://www.hotstar.com",
     dthNumbers: "Tata Play 651, Airtel 651",
     type: "tv",
+    logoPlate: "dark",
     logoUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/36/2019_Disney_Junior_logo.svg/250px-2019_Disney_Junior_logo.svg.png",
   },
   epic_kids: {
@@ -217,6 +236,7 @@ const RAW_TV_CHANNELS: Record<string, TvChannel> = {
     website: "https://www.youtube.com/@MuseAsia",
     type: "youtube",
     subscriberCount: "8.67M",
+    logoPlate: "dark",
     logoUrl: "https://yt3.googleusercontent.com/g0wRRtSUd80WQcCUib0DWVK8CgUcjn_djL9Pg1sC875q9Hjf4CqTK3dvaLW3GBaAPtAXIUa6=s900-c-k-c0x00ffffff-no-rj",
   },
   muse_india: {
@@ -228,6 +248,7 @@ const RAW_TV_CHANNELS: Record<string, TvChannel> = {
     website: "https://www.youtube.com/@MuseIndia",
     type: "youtube",
     subscriberCount: "1.2M",
+    logoPlate: "dark",
     logoUrl: "https://yt3.googleusercontent.com/EhiAEsA972_jooWrHY8oLLDS1C9L84-YVNyKclXsNSKB2tYnUqqqi_O10JkcPd64EnaburVG=s900-c-k-c0x00ffffff-no-rj",
   },
   crunchyroll: {
@@ -265,7 +286,23 @@ const RAW_TV_CHANNELS: Record<string, TvChannel> = {
   },
 };
 
-export const TV_CHANNELS: Record<string, TvChannel> = RAW_TV_CHANNELS;
+export const TV_CHANNELS: Record<string, TvChannel> = Object.fromEntries(
+  Object.entries(RAW_TV_CHANNELS).map(([id, channel]) => [
+    id,
+    { ...channel, logoProxyUrl: `/api/channel-logo/${id}` },
+  ]),
+);
+
+/**
+ * Upstream logo files, keyed by channel id. Only the logo proxy route reads
+ * this; every UI should use `logoProxyUrl` instead so the phone never talks to
+ * the rate-limited origin directly.
+ */
+export const TV_CHANNEL_LOGO_SOURCES: Record<string, string> = Object.fromEntries(
+  Object.entries(RAW_TV_CHANNELS)
+    .filter(([, channel]) => !!channel.logoUrl)
+    .map(([id, channel]) => [id, channel.logoUrl as string]),
+);
 
 // ────────────────────────────────────────────────────────────────────────
 // No hardcoded lineups are kept here.

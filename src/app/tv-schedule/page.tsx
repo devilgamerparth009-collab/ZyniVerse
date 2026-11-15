@@ -93,7 +93,9 @@ function ChannelLogo({
   size?: number;
 }) {
   const [imgError, setImgError] = useState(false);
-  const showImg = channel.logoUrl && !imgError;
+  // Prefer the same-origin proxy: Wikimedia rate-limits direct image loads.
+  const logoSrc = channel.logoProxyUrl || channel.logoUrl;
+  const showImg = logoSrc && !imgError;
 
   if (!showImg) {
     return (
@@ -114,12 +116,12 @@ function ChannelLogo({
 
   return (
     <Image
-      src={channel.logoUrl ?? ""}
+      src={channel.logoProxyUrl || channel.logoUrl || ""}
       alt={channel.name}
       width={size}
       height={size}
       className="rounded-xl shrink-0 shadow-lg"
-      style={{ border: `1.5px solid ${channel.color}44`, objectFit: "contain", background: "rgba(0,0,0,0.3)", width: size, height: size }}
+      style={{ border: `1.5px solid ${channel.color}44`, objectFit: "contain", background: channel.logoPlate === "dark" ? "#0d0d16" : "#f6f7fb", width: size, height: size, padding: 2 }}
       onError={() => setImgError(true)}
     />
   );
@@ -583,7 +585,7 @@ function ChannelScheduleCard({
                     channelColor={channel.color}
                     showDescription={showDesc}
                     isStreaming={channel.type !== "tv"}
-                    channelLogoUrl={channel.logoUrl}
+                    channelLogoUrl={channel.logoProxyUrl || channel.logoUrl}
                     channelShortName={channel.shortName}
                   />
                 ))

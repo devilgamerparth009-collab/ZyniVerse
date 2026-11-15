@@ -11,100 +11,197 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../hooks/useTheme';
+import appConfig from '../../app.json';
 
 const { width, height } = Dimensions.get('window');
 const WORDMARK = 'ZyniVerse'.split('');
+const APP_VERSION = appConfig?.expo?.version ?? '1.5.0';
 
-function Particle({ delay, x, y, color }: { delay: number; x: number; y: number; color: string }) {
-  const opacity = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(0)).current;
-  const scale = useRef(new Animated.Value(0)).current;
+/* ------------------------------------------------------------------ */
+/* Manga speed lines                                                   */
+/* ------------------------------------------------------------------ */
 
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.delay(delay),
-        Animated.parallel([
-          Animated.timing(opacity, { toValue: 0.85, duration: 900, useNativeDriver: true }),
-          Animated.timing(scale, { toValue: 1, duration: 900, useNativeDriver: true }),
-        ]),
-        Animated.parallel([
-          Animated.timing(translateY, { toValue: -70, duration: 2200, useNativeDriver: true }),
-          Animated.timing(opacity, { toValue: 0, duration: 2200, useNativeDriver: true }),
-        ]),
-        Animated.parallel([
-          Animated.timing(translateY, { toValue: 0, duration: 0, useNativeDriver: true }),
-          Animated.timing(scale, { toValue: 0, duration: 0, useNativeDriver: true }),
-        ]),
-      ])
-    ).start();
-  }, []);
+const SPEED_LINES = Array.from({ length: 22 }, (_, i) => ({
+  angle: (360 / 22) * i + (i % 3) * 1.6,
+  length: 96 + ((i * 37) % 120),
+  width: i % 4 === 0 ? 3 : i % 3 === 0 ? 2 : 1,
+  opacity: i % 5 === 0 ? 0.85 : i % 2 === 0 ? 0.5 : 0.3,
+}));
 
+function SpeedLines({ burst, color, colorAlt }: { burst: Animated.Value; color: string; colorAlt: string }) {
   return (
-    <Animated.View
-      style={[
-        styles.particle,
-        { left: x, top: y, backgroundColor: color, opacity, transform: [{ translateY }, { scale }] },
-      ]}
-    />
+    <View pointerEvents="none" style={styles.speedLayer}>
+      {SPEED_LINES.map((line, i) => (
+        <Animated.View
+          key={`sl-${i}`}
+          style={{
+            position: 'absolute',
+            width: line.width,
+            height: line.length,
+            borderRadius: line.width,
+            backgroundColor: i % 3 === 0 ? colorAlt : color,
+            opacity: burst.interpolate({
+              inputRange: [0, 0.12, 0.55, 1],
+              outputRange: [0, line.opacity, line.opacity * 0.45, 0],
+            }),
+            transform: [
+              { rotate: `${line.angle}deg` },
+              {
+                translateY: burst.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [-70 - (i % 4) * 14, -250 - (i % 5) * 40],
+                }),
+              },
+              {
+                scaleY: burst.interpolate({ inputRange: [0, 0.4, 1], outputRange: [0.25, 1, 1.35] }),
+              },
+            ],
+          }}
+        />
+      ))}
+    </View>
   );
 }
 
-function DriftOrb({
-  size,
-  color,
-  from,
-  to,
-  duration,
-  delay,
-  opacity,
-}: {
-  size: number;
-  color: string;
-  from: { x: number; y: number };
-  to: { x: number; y: number };
-  duration: number;
-  delay: number;
-  opacity: number;
-}) {
-  const t = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.delay(delay),
-        Animated.timing(t, { toValue: 1, duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(t, { toValue: 0, duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-      ])
-    ).start();
-  }, [t, duration, delay]);
+/* ------------------------------------------------------------------ */
+/* Katana slash wipe                                                   */
+/* ------------------------------------------------------------------ */
 
+function SlashBar({
+  progress,
+  color,
+  fromLeft,
+  thickness,
+  offset,
+}: {
+  progress: Animated.Value;
+  color: string;
+  fromLeft: boolean;
+  thickness: number;
+  offset: number;
+}) {
+  const distance = width * 1.9;
   return (
     <Animated.View
       pointerEvents="none"
       style={{
         position: 'absolute',
-        width: size,
-        height: size,
-        borderRadius: size / 2,
+        top: height * 0.34 + offset,
+        left: -width * 0.5,
+        width: distance,
+        height: thickness,
         backgroundColor: color,
-        opacity,
+        borderRadius: thickness,
         transform: [
-          { translateX: t.interpolate({ inputRange: [0, 1], outputRange: [from.x, to.x] }) },
-          { translateY: t.interpolate({ inputRange: [0, 1], outputRange: [from.y, to.y] }) },
+          { rotate: '-19deg' },
+          {
+            translateX: progress.interpolate({
+              inputRange: [0, 0.45, 1],
+              outputRange: [fromLeft ? -distance : distance, 0, fromLeft ? distance : -distance],
+            }),
+          },
+          {
+            scaleY: progress.interpolate({ inputRange: [0, 0.2, 0.5, 1], outputRange: [0.2, 1, 1, 0.2] }),
+          },
         ],
       }}
     />
   );
 }
 
-const PARTICLE_COLORS = ['#00ffe0', '#7000ff', '#ff00e6', '#f59e0b', '#38bdf8'];
-const PARTICLES = Array.from({ length: 26 }, (_, i) => ({
+/* ------------------------------------------------------------------ */
+/* Sakura / ember sparks                                               */
+/* ------------------------------------------------------------------ */
+
+const SPARKS = Array.from({ length: 16 }, (_, i) => ({
   id: i,
-  x: (Math.sin(i * 1.3) * 0.5 + 0.5) * width,
-  y: (Math.cos(i * 0.9) * 0.5 + 0.5) * height,
-  delay: (i * 240) % 2600,
-  color: PARTICLE_COLORS[i % PARTICLE_COLORS.length],
+  x: ((Math.sin(i * 2.1) * 0.5 + 0.5) * 0.9 + 0.05) * width,
+  y: ((Math.cos(i * 1.4) * 0.5 + 0.5) * 0.85 + 0.05) * height,
+  size: 3 + (i % 4),
+  delay: (i * 190) % 2200,
+  drift: (i % 2 === 0 ? 1 : -1) * (18 + (i % 5) * 9),
+  duration: 2600 + (i % 5) * 420,
 }));
+
+function Spark({
+  spark,
+  color,
+  colorAlt,
+}: {
+  spark: (typeof SPARKS)[number];
+  color: string;
+  colorAlt: string;
+}) {
+  const t = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.delay(spark.delay),
+        Animated.timing(t, { toValue: 1, duration: spark.duration, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        Animated.timing(t, { toValue: 0, duration: 0, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [t, spark.delay, spark.duration]);
+
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={{
+        position: 'absolute',
+        left: spark.x,
+        top: spark.y,
+        width: spark.size,
+        height: spark.size,
+        borderRadius: spark.id % 3 === 0 ? 1 : spark.size / 2,
+        backgroundColor: spark.id % 3 === 0 ? colorAlt : color,
+        opacity: t.interpolate({ inputRange: [0, 0.15, 0.7, 1], outputRange: [0, 0.9, 0.5, 0] }),
+        transform: [
+          { translateX: t.interpolate({ inputRange: [0, 1], outputRange: [0, spark.drift] }) },
+          { translateY: t.interpolate({ inputRange: [0, 1], outputRange: [0, -120 - spark.size * 8] }) },
+          { rotate: t.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '220deg'] }) },
+        ],
+      }}
+    />
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Manga halftone texture                                              */
+/* ------------------------------------------------------------------ */
+
+const HALFTONE = Array.from({ length: 30 }, (_, i) => ({
+  row: Math.floor(i / 6),
+  col: i % 6,
+}));
+
+function Halftone({ opacity, color }: { opacity: Animated.Value; color: string }) {
+  return (
+    <Animated.View pointerEvents="none" style={[styles.halftone, { opacity }]}>
+      {HALFTONE.map((dot, i) => (
+        <View
+          key={`ht-${i}`}
+          style={{
+            position: 'absolute',
+            left: dot.col * 15,
+            top: dot.row * 15,
+            width: 5,
+            height: 5,
+            borderRadius: 2.5,
+            backgroundColor: color,
+            opacity: 0.55 - (dot.row + dot.col) * 0.03,
+          }}
+        />
+      ))}
+    </Animated.View>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Screen                                                              */
+/* ------------------------------------------------------------------ */
 
 export default function SplashScreen() {
   const navigation = useNavigation<any>();
@@ -112,297 +209,193 @@ export default function SplashScreen() {
   const accent = isDiwali ? '#f59e0b' : isChristmas ? '#7dd3fc' : '#00ffe0';
   const accentAlt = isDiwali ? '#ea580c' : isChristmas ? '#f472b6' : '#ff00e6';
 
-  const contentScale = useRef(new Animated.Value(0.94)).current;
-  const contentOpacity = useRef(new Animated.Value(0)).current;
   const exitOpacity = useRef(new Animated.Value(1)).current;
   const exitScale = useRef(new Animated.Value(1)).current;
 
-  const logoScale = useRef(new Animated.Value(0.2)).current;
+  const burst = useRef(new Animated.Value(0)).current;
+  const slash = useRef(new Animated.Value(0)).current;
+  const flash = useRef(new Animated.Value(0)).current;
+
+  const logoScale = useRef(new Animated.Value(1.75)).current;
   const logoOpacity = useRef(new Animated.Value(0)).current;
-  const logoRotate = useRef(new Animated.Value(-14)).current;
+  const logoGlow = useRef(new Animated.Value(0)).current;
+  const glint = useRef(new Animated.Value(-1)).current;
 
-  const glowScale = useRef(new Animated.Value(0.5)).current;
-  const glowOpacity = useRef(new Animated.Value(0)).current;
-
-  const ringSpin = useRef(new Animated.Value(0)).current;
-  const ringSpinBack = useRef(new Animated.Value(0)).current;
+  const ringScale = useRef(new Animated.Value(0.4)).current;
   const ringOpacity = useRef(new Animated.Value(0)).current;
 
-  // Sonar-style pulses: thin, soft rings that keep expanding from the logo.
-  const pulses = useRef([0, 1, 2].map(() => new Animated.Value(0))).current;
-
   const letterAnims = useRef(WORDMARK.map(() => new Animated.Value(0))).current;
+  const episodeTag = useRef(new Animated.Value(0)).current;
   const subtitleOpacity = useRef(new Animated.Value(0)).current;
-  const subtitleY = useRef(new Animated.Value(12)).current;
+  const subtitleSpacing = useRef(new Animated.Value(0)).current;
   const chipsOpacity = useRef(new Animated.Value(0)).current;
+  const halftoneOpacity = useRef(new Animated.Value(0)).current;
   const progress = useRef(new Animated.Value(0)).current;
-  const shimmerX = useRef(new Animated.Value(-1)).current;
 
   useEffect(() => {
-    Animated.parallel([
-      Animated.timing(contentOpacity, { toValue: 1, duration: 420, useNativeDriver: true }),
-      Animated.spring(contentScale, { toValue: 1, useNativeDriver: true, tension: 60, friction: 9 }),
+    // 1. Opening slash — two blades cross the frame and leave a white flash.
+    Animated.sequence([
+      Animated.delay(120),
+      Animated.timing(slash, { toValue: 1, duration: 780, easing: Easing.inOut(Easing.cubic), useNativeDriver: true }),
     ]).start();
 
-    // Sonar pulses — each ring fades in, expands and dissolves before the next
-    // one starts. Staggered by a third of the duration so the rhythm is steady.
-    const PULSE_MS = 2400;
-    pulses.forEach((value, i) => {
-      Animated.loop(
-        Animated.sequence([
-          Animated.delay(i * (PULSE_MS / pulses.length)),
-          Animated.timing(value, {
-            toValue: 1,
-            duration: PULSE_MS,
-            easing: Easing.out(Easing.quad),
-            useNativeDriver: true,
-          }),
-          Animated.timing(value, { toValue: 0, duration: 0, useNativeDriver: true }),
-          Animated.delay((pulses.length - 1 - i) * (PULSE_MS / pulses.length)),
-        ])
-      ).start();
-    });
+    Animated.sequence([
+      Animated.delay(380),
+      Animated.timing(flash, { toValue: 1, duration: 110, useNativeDriver: true }),
+      Animated.timing(flash, { toValue: 0, duration: 420, useNativeDriver: true }),
+    ]).start();
 
-    // Two orbit rings spinning in opposite directions carry the visible motion.
-    Animated.loop(
-      Animated.timing(ringSpin, {
-        toValue: 1,
-        duration: 9000,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      })
-    ).start();
-    Animated.loop(
-      Animated.timing(ringSpinBack, {
-        toValue: 1,
-        duration: 14000,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      })
-    ).start();
-
+    // 2. Manga speed-line burst behind the logo.
     Animated.sequence([
       Animated.delay(300),
-      Animated.timing(ringOpacity, { toValue: 1, duration: 700, useNativeDriver: true }),
+      Animated.timing(burst, { toValue: 1, duration: 900, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
     ]).start();
 
-    // Logo pop
+    // 3. Impact frame: the logo overshoots, settles, then breathes.
     Animated.sequence([
-      Animated.delay(360),
-      Animated.parallel([
-        Animated.spring(logoScale, { toValue: 1, useNativeDriver: true, tension: 75, friction: 6 }),
-        Animated.spring(logoRotate, { toValue: 0, useNativeDriver: true, tension: 60, friction: 7 }),
-        Animated.timing(logoOpacity, { toValue: 1, duration: 360, useNativeDriver: true }),
-      ]),
+      Animated.delay(420),
+      Animated.timing(logoOpacity, { toValue: 1, duration: 180, useNativeDriver: true }),
+      Animated.spring(logoScale, { toValue: 1, tension: 120, friction: 7, useNativeDriver: true }),
     ]).start();
 
-    // Glow breathing
+    Animated.sequence([
+      Animated.delay(430),
+      Animated.timing(logoGlow, { toValue: 1, duration: 520, useNativeDriver: true }),
+    ]).start();
+
     Animated.sequence([
       Animated.delay(520),
       Animated.parallel([
-        Animated.spring(glowScale, { toValue: 1.15, useNativeDriver: true, tension: 45, friction: 8 }),
-        Animated.timing(glowOpacity, { toValue: 0.55, duration: 520, useNativeDriver: true }),
+        Animated.timing(ringOpacity, { toValue: 1, duration: 180, useNativeDriver: true }),
+        Animated.timing(ringScale, { toValue: 2.4, duration: 780, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
       ]),
+      Animated.timing(ringOpacity, { toValue: 0, duration: 320, useNativeDriver: true }),
     ]).start();
+
+    // 4. Logo glint sweep, repeated while the screen is up.
     Animated.loop(
       Animated.sequence([
-        Animated.delay(1100),
-        Animated.timing(glowScale, { toValue: 1.28, duration: 1500, useNativeDriver: true }),
-        Animated.timing(glowScale, { toValue: 1.12, duration: 1500, useNativeDriver: true }),
+        Animated.delay(1150),
+        Animated.timing(glint, { toValue: 1, duration: 760, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        Animated.delay(700),
+        Animated.timing(glint, { toValue: -1, duration: 0, useNativeDriver: true }),
       ])
     ).start();
 
-    // Letter-by-letter wordmark
+    // 5. Wordmark: each letter snaps in like a title card.
     Animated.stagger(
-      55,
+      48,
       letterAnims.map((v) =>
         Animated.sequence([
-          Animated.delay(680),
-          Animated.spring(v, { toValue: 1, useNativeDriver: true, tension: 90, friction: 7 }),
+          Animated.delay(760),
+          Animated.spring(v, { toValue: 1, tension: 110, friction: 8, useNativeDriver: true }),
         ])
       )
     ).start();
 
+    // 6. Episode tag + subtitle + chips.
     Animated.sequence([
-      Animated.delay(1150),
+      Animated.delay(820),
+      Animated.spring(episodeTag, { toValue: 1, tension: 70, friction: 9, useNativeDriver: true }),
+    ]).start();
+
+    Animated.sequence([
+      Animated.delay(1080),
       Animated.parallel([
-        Animated.timing(subtitleOpacity, { toValue: 1, duration: 480, useNativeDriver: true }),
-        Animated.spring(subtitleY, { toValue: 0, useNativeDriver: true, tension: 60, friction: 9 }),
+        Animated.timing(subtitleOpacity, { toValue: 1, duration: 460, useNativeDriver: true }),
+        Animated.timing(subtitleSpacing, { toValue: 1, duration: 700, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
       ]),
     ]).start();
 
     Animated.sequence([
-      Animated.delay(1500),
-      Animated.timing(chipsOpacity, { toValue: 1, duration: 520, useNativeDriver: true }),
+      Animated.delay(1320),
+      Animated.parallel([
+        Animated.timing(chipsOpacity, { toValue: 1, duration: 480, useNativeDriver: true }),
+        Animated.timing(halftoneOpacity, { toValue: 1, duration: 620, useNativeDriver: true }),
+      ]),
     ]).start();
 
-    // Progress
+    // 7. Loader.
     Animated.timing(progress, {
       toValue: 1,
       duration: 2500,
-      delay: 400,
+      delay: 380,
       easing: Easing.inOut(Easing.cubic),
       useNativeDriver: false,
     }).start();
 
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(shimmerX, { toValue: 1, duration: 1200, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-        Animated.delay(400),
-        Animated.timing(shimmerX, { toValue: -1, duration: 0, useNativeDriver: true }),
-      ])
-    ).start();
-
+    // 8. Exit: content punches in and dissolves.
     const timer = setTimeout(() => {
       Animated.parallel([
-        Animated.timing(exitOpacity, { toValue: 0, duration: 420, useNativeDriver: true }),
-        Animated.timing(exitScale, { toValue: 1.08, duration: 420, useNativeDriver: true }),
-      ]).start(() => {
-        navigation.replace('MainTabs');
-      });
+        Animated.timing(exitOpacity, { toValue: 0, duration: 380, useNativeDriver: true }),
+        Animated.timing(exitScale, { toValue: 1.06, duration: 380, easing: Easing.in(Easing.quad), useNativeDriver: true }),
+      ]).start(() => navigation.replace('MainTabs'));
     }, 3050);
 
     return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const barWidth = progress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] });
-  const shimmerTranslate = shimmerX.interpolate({
-    inputRange: [-1, 1],
-    outputRange: [-140, 140],
-  });
-  const haloOuterOpacity = glowOpacity.interpolate({
-    inputRange: [0, 0.55],
-    outputRange: [0, 0.09],
-    extrapolate: 'clamp',
-  });
-  const haloMidOpacity = glowOpacity.interpolate({
-    inputRange: [0, 0.55],
-    outputRange: [0, 0.15],
-    extrapolate: 'clamp',
-  });
-  const haloCoreOpacity = glowOpacity.interpolate({
-    inputRange: [0, 0.55],
-    outputRange: [0, 0.24],
-    extrapolate: 'clamp',
-  });
+  const glintX = glint.interpolate({ inputRange: [-1, 1], outputRange: [-190, 190] });
+  const letterSpacing = subtitleSpacing.interpolate({ inputRange: [0, 1], outputRange: [1, 5] });
+  const flashOpacity = flash.interpolate({ inputRange: [0, 1], outputRange: [0, 0.55] });
 
   return (
     <Animated.View
       style={[
         styles.container,
-        {
-          backgroundColor: colors.background,
-          opacity: exitOpacity,
-          transform: [{ scale: exitScale }],
-        },
+        { backgroundColor: '#05060d', opacity: exitOpacity, transform: [{ scale: exitScale }] },
       ]}
     >
-      <StatusBar barStyle="light-content" backgroundColor={colors.background} translucent />
+      <StatusBar barStyle="light-content" backgroundColor="#05060d" translucent />
 
-      <DriftOrb size={280} color={accent} from={{ x: -140, y: -80 }} to={{ x: 30, y: 40 }} duration={6500} delay={0} opacity={0.14} />
-      <DriftOrb size={240} color={accentAlt} from={{ x: 220, y: 90 }} to={{ x: 90, y: -50 }} duration={8200} delay={200} opacity={0.13} />
-      <DriftOrb size={200} color="#38bdf8" from={{ x: -40, y: height - 320 }} to={{ x: 170, y: height - 460 }} duration={7600} delay={450} opacity={0.1} />
+      {/* Ambient wash */}
+      <View pointerEvents="none" style={[styles.ambient, { backgroundColor: accent, top: -height * 0.22, left: -width * 0.35 }]} />
+      <View pointerEvents="none" style={[styles.ambient, { backgroundColor: accentAlt, bottom: -height * 0.18, right: -width * 0.4, opacity: 0.1 }]} />
 
-      {PARTICLES.map((p) => (
-        <Particle key={p.id} delay={p.delay} x={p.x} y={p.y} color={p.color} />
+      <SpeedLines burst={burst} color={accent} colorAlt={accentAlt} />
+
+      {SPARKS.map((spark) => (
+        <Spark key={`sp-${spark.id}`} spark={spark} color={accent} colorAlt={accentAlt} />
       ))}
 
-      <Animated.View
-        style={[
-          styles.content,
-          { opacity: contentOpacity, transform: [{ scale: contentScale }] },
-        ]}
-      >
-        {/* Sonar pulses */}
-        {pulses.map((value, i) => (
-          <Animated.View
-            key={`pulse-${i}`}
-            pointerEvents="none"
-            style={[
-              styles.pulse,
-              {
-                borderColor: i % 2 === 0 ? accent : accentAlt,
-                opacity: value.interpolate({
-                  inputRange: [0, 0.12, 1],
-                  outputRange: [0, 0.5, 0],
-                }),
-                transform: [
-                  {
-                    scale: value.interpolate({ inputRange: [0, 1], outputRange: [0.86, 2.15] }),
-                  },
-                ],
-              },
-            ]}
-          />
-        ))}
+      <Halftone opacity={halftoneOpacity} color={accent} />
 
-        {/* Soft halo: three faint circles read as a gradient, not a blob. */}
-        <Animated.View
-          pointerEvents="none"
-          style={[
-            styles.halo,
-            styles.haloOuter,
-            { backgroundColor: accent, opacity: haloOuterOpacity, transform: [{ scale: glowScale }] },
-          ]}
-        />
-        <Animated.View
-          pointerEvents="none"
-          style={[
-            styles.halo,
-            styles.haloMid,
-            { backgroundColor: accent, opacity: haloMidOpacity, transform: [{ scale: glowScale }] },
-          ]}
-        />
-        <Animated.View
-          pointerEvents="none"
-          style={[
-            styles.halo,
-            styles.haloCore,
-            { backgroundColor: accent, opacity: haloCoreOpacity, transform: [{ scale: glowScale }] },
-          ]}
-        />
+      {/* Impact flash */}
+      <Animated.View pointerEvents="none" style={[styles.flash, { opacity: flashOpacity }]} />
 
-        {/* Orbit rings — solid hairlines (Android renders dashed+radius badly)
-            with a single glowing dot each so the rotation is readable. */}
-        <Animated.View
-          pointerEvents="none"
-          style={[
-            styles.orbitRing,
-            styles.orbitOuter,
-            { borderColor: `${accentAlt}33`, opacity: ringOpacity, transform: [{ rotate: ringSpinBack.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '-360deg'] }) }] },
-          ]}
-        >
-          <View style={[styles.orbitDot, { backgroundColor: accentAlt, shadowColor: accentAlt }]} />
+      <SlashBar progress={slash} color={accent} fromLeft thickness={44} offset={-26} />
+      <SlashBar progress={slash} color={accentAlt} fromLeft={false} thickness={20} offset={30} />
+
+      {/* Title card */}
+      <View style={styles.content}>
+        <Animated.View style={{ opacity: logoGlow, transform: [{ scale: logoGlow.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] }) }] }}>
+          <View style={[styles.halo, { backgroundColor: accent, width: 260, height: 260, borderRadius: 130, opacity: 0.06 }]} />
+          <View style={[styles.halo, { backgroundColor: accent, width: 170, height: 170, borderRadius: 85, opacity: 0.09 }]} />
         </Animated.View>
 
+        {/* Impact ring */}
         <Animated.View
           pointerEvents="none"
           style={[
-            styles.orbitRing,
-            styles.orbitInner,
-            { borderColor: `${accent}40`, opacity: ringOpacity, transform: [{ rotate: ringSpin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) }] },
+            styles.impactRing,
+            {
+              borderColor: accent,
+              opacity: ringOpacity,
+              transform: [{ scale: ringScale }],
+            },
           ]}
-        >
-          <View style={[styles.orbitDotSmall, { backgroundColor: accent, shadowColor: accent }]} />
-        </Animated.View>
+        />
 
-        {/* Logo */}
         <Animated.View
           style={[
-            styles.logoContainer,
+            styles.logoFrame,
             {
               borderColor: accent,
               shadowColor: accent,
               opacity: logoOpacity,
-              transform: [
-                { scale: logoScale },
-                {
-                  rotate: logoRotate.interpolate({
-                    inputRange: [-14, 0],
-                    outputRange: ['-14deg', '0deg'],
-                  }),
-                },
-              ],
+              transform: [{ scale: logoScale }],
             },
           ]}
         >
@@ -410,74 +403,111 @@ export default function SplashScreen() {
           <Animated.View
             pointerEvents="none"
             style={[
-              styles.shimmer,
-              { backgroundColor: '#ffffff', transform: [{ translateX: shimmerTranslate }, { rotate: '18deg' }] },
+              styles.glint,
+              { backgroundColor: '#ffffff', transform: [{ translateX: glintX }, { rotate: '20deg' }] },
             ]}
           />
+          <View pointerEvents="none" style={[styles.frameCorner, styles.cornerTL, { borderColor: accent }]} />
+          <View pointerEvents="none" style={[styles.frameCorner, styles.cornerBR, { borderColor: accentAlt }]} />
         </Animated.View>
 
-        {/* Wordmark */}
-        <View style={styles.wordmark}>
-          {WORDMARK.map((letter, i) => (
-            <Animated.Text
-              key={`${letter}-${i}`}
-              style={[
-                styles.brandLetter,
-                {
-                  color: i < 4 ? colors.text : accent,
-                  opacity: letterAnims[i],
-                  transform: [
-                    {
-                      translateY: letterAnims[i].interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [18, 0],
-                      }),
-                    },
-                    {
-                      scale: letterAnims[i].interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [0.6, 1],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            >
-              {letter}
-            </Animated.Text>
-          ))}
-        </View>
-
+        {/* Episode tag */}
         <Animated.View
           style={[
-            styles.subtitleWrap,
-            { opacity: subtitleOpacity, transform: [{ translateY: subtitleY }] },
+            styles.episodeTag,
+            {
+              borderColor: `${accent}66`,
+              opacity: episodeTag,
+              transform: [{ translateY: episodeTag.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }],
+            },
           ]}
         >
-          <Text style={[styles.brandSubtitle, { color: accent }]}>YOUR ANIME UNIVERSE</Text>
+          <View style={[styles.episodeDot, { backgroundColor: accent }]} />
+          <Text style={[styles.episodeText, { color: accent }]}>EP. 01 · ORIGIN</Text>
         </Animated.View>
 
+        {/* Wordmark with chromatic echo */}
+        <View style={styles.wordmarkWrap}>
+          <View pointerEvents="none" style={styles.echoRow}>
+            {WORDMARK.map((letter, i) => (
+              <Animated.Text
+                key={`echo-a-${i}`}
+                style={[
+                  styles.brandLetter,
+                  styles.echoLetter,
+                  {
+                    color: accentAlt,
+                    opacity: letterAnims[i].interpolate({ inputRange: [0, 1], outputRange: [0, 0.55] }),
+                    transform: [
+                      { translateX: -2.5 },
+                      { translateY: letterAnims[i].interpolate({ inputRange: [0, 1], outputRange: [16, 0] }) },
+                    ],
+                  },
+                ]}
+              >
+                {letter}
+              </Animated.Text>
+            ))}
+          </View>
+
+          <View style={styles.wordmark}>
+            {WORDMARK.map((letter, i) => (
+              <Animated.Text
+                key={`${letter}-${i}`}
+                style={[
+                  styles.brandLetter,
+                  {
+                    color: '#ffffff',
+                    textShadowColor: accent,
+                    opacity: letterAnims[i],
+                    transform: [
+                      {
+                        translateY: letterAnims[i].interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [22, 0],
+                        }),
+                      },
+                      {
+                        scale: letterAnims[i].interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [1.35, 1],
+                        }),
+                      },
+                    ],
+                  },
+                ]}
+              >
+                {letter}
+              </Animated.Text>
+            ))}
+          </View>
+        </View>
+
+        <Animated.Text style={[styles.brandSubtitle, { color: accent, opacity: subtitleOpacity, letterSpacing }]}>
+          YOUR ANIME UNIVERSE
+        </Animated.Text>
+
         <Animated.View style={[styles.chips, { opacity: chipsOpacity }]}>
-          {['TV Guide', 'Regional Dubs', 'Reels', 'Arena'].map((chip) => (
+          {['TV Guide', 'Dubs', 'Reels', 'Arena'].map((chip) => (
             <View key={chip} style={[styles.chip, { borderColor: `${accent}55` }]}>
               <Text style={[styles.chipText, { color: colors.textMuted }]}>{chip}</Text>
             </View>
           ))}
         </Animated.View>
-      </Animated.View>
+      </View>
 
-      {/* Loading bar */}
+      {/* Loader */}
       <View style={styles.loadingWrap}>
         <View style={[styles.loadingTrack, { backgroundColor: `${accent}22` }]}>
           <Animated.View style={[styles.loadingFill, { width: barWidth, backgroundColor: accent }]} />
         </View>
         <Animated.Text style={[styles.loadingText, { color: colors.textDim, opacity: subtitleOpacity }]}>
-          Waking up your universe…
+          Summoning your universe…
         </Animated.Text>
       </View>
 
       <Animated.Text style={[styles.versionTag, { color: colors.textDim, opacity: subtitleOpacity }]}>
-        ZyniVerse • v1.3.0
+        ZyniVerse • v{APP_VERSION}
       </Animated.Text>
     </Animated.View>
   );
@@ -490,110 +520,136 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden',
   },
-  particle: {
+  ambient: {
     position: 'absolute',
-    width: 4,
-    height: 4,
-    borderRadius: 2,
+    width: width * 0.9,
+    height: width * 0.9,
+    borderRadius: width * 0.45,
+    opacity: 0.16,
+  },
+  speedLayer: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  flash: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#ffffff',
+  },
+  halftone: {
+    position: 'absolute',
+    right: 18,
+    bottom: 120,
+    width: 90,
+    height: 80,
   },
   content: {
     alignItems: 'center',
     justifyContent: 'center',
   },
-  pulse: {
+  halo: {
+    position: 'absolute',
+    alignSelf: 'center',
+    top: -50,
+    left: -50,
+  },
+  impactRing: {
     position: 'absolute',
     width: 150,
     height: 150,
     borderRadius: 75,
-    borderWidth: 1.5,
+    borderWidth: 2,
   },
-  halo: {
-    position: 'absolute',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  haloOuter: { width: 360, height: 360, borderRadius: 180 },
-  haloMid: { width: 250, height: 250, borderRadius: 125 },
-  haloCore: { width: 168, height: 168, borderRadius: 84 },
-  orbitRing: {
-    position: 'absolute',
-    borderWidth: 1,
-  },
-  orbitOuter: { width: 258, height: 258, borderRadius: 129 },
-  orbitInner: { width: 196, height: 196, borderRadius: 98 },
-  orbitDot: {
-    position: 'absolute',
-    top: -4,
-    left: 122,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    elevation: 6,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.9,
-    shadowRadius: 6,
-  },
-  orbitDotSmall: {
-    position: 'absolute',
-    top: -3,
-    left: 91,
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    elevation: 6,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.9,
-    shadowRadius: 6,
-  },
-  logoContainer: {
-    width: 104,
-    height: 104,
-    borderRadius: 30,
-    backgroundColor: '#121422',
+  logoFrame: {
+    width: 108,
+    height: 108,
+    borderRadius: 28,
+    backgroundColor: '#0c0e18',
     borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
-    elevation: 24,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.55,
-    shadowRadius: 24,
     overflow: 'hidden',
+    elevation: 26,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.65,
+    shadowRadius: 26,
   },
   logoImage: {
-    width: 78,
-    height: 78,
+    width: 80,
+    height: 80,
     borderRadius: 20,
   },
-  shimmer: {
+  glint: {
     position: 'absolute',
-    top: -40,
-    width: 26,
-    height: 190,
-    opacity: 0.22,
+    top: -50,
+    width: 22,
+    height: 220,
+    opacity: 0.28,
+  },
+  frameCorner: {
+    position: 'absolute',
+    width: 16,
+    height: 16,
+  },
+  cornerTL: {
+    top: 6,
+    left: 6,
+    borderTopWidth: 2,
+    borderLeftWidth: 2,
+  },
+  cornerBR: {
+    bottom: 6,
+    right: 6,
+    borderBottomWidth: 2,
+    borderRightWidth: 2,
+  },
+  episodeTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginTop: 22,
+  },
+  episodeDot: { width: 4, height: 4, borderRadius: 2 },
+  episodeText: { fontSize: 9, fontWeight: '900', letterSpacing: 1.6 },
+  wordmarkWrap: {
+    marginTop: 12,
+    alignItems: 'center',
+  },
+  echoRow: {
+    position: 'absolute',
+    flexDirection: 'row',
+    top: 2,
   },
   wordmark: {
     flexDirection: 'row',
-    marginTop: 26,
   },
   brandLetter: {
-    fontSize: 38,
+    fontSize: 40,
     fontWeight: '900',
-    letterSpacing: 1,
+    letterSpacing: 0.6,
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 14,
   },
-  subtitleWrap: {
-    marginTop: 8,
+  echoLetter: {
+    fontSize: 40,
+    fontWeight: '900',
+    letterSpacing: 0.6,
   },
   brandSubtitle: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '800',
-    letterSpacing: 4,
+    marginTop: 10,
   },
   chips: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
     gap: 6,
-    marginTop: 20,
+    marginTop: 18,
     paddingHorizontal: 30,
   },
   chip: {

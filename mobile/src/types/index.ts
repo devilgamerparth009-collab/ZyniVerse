@@ -256,6 +256,196 @@ export interface ActivityItem {
   createdAt: string;
 }
 
+/* ------------------------------------------------------------------ */
+/* Watch party                                                         */
+/* ------------------------------------------------------------------ */
+
+export interface WatchPartyUser {
+  id: string;
+  username: string;
+  avatar?: string | null;
+}
+
+export interface WatchPartyMember {
+  id: string;
+  userId: string;
+  role: string;
+  joinedAt: string;
+  user: WatchPartyUser;
+}
+
+export interface WatchParty {
+  id: string;
+  hostId: string;
+  mediaId: number;
+  mediaTitle: string;
+  mediaImage?: string | null;
+  coverImage?: string | null;
+  episode: number;
+  status: 'waiting' | 'live' | 'ended';
+  startTime?: string | null;
+  videoUrl?: string | null;
+  videoType?: string | null;
+  isPlaying: boolean;
+  playbackPos: number;
+  lastSyncAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  host: WatchPartyUser;
+  members: WatchPartyMember[];
+}
+
+export interface WatchPartySyncState {
+  isPlaying: boolean;
+  playbackPos: number;
+  episode: number;
+  status: 'waiting' | 'live' | 'ended';
+  lastSyncAt?: string | null;
+}
+
+export interface WatchPartySearchResult {
+  id: number;
+  title: string;
+  image?: string | null;
+  episodes?: number | null;
+  status?: string | null;
+  year?: number | null;
+}
+
+export interface WatchPartyMessage {
+  id: string;
+  userId?: string | null;
+  username: string;
+  avatar?: string | null;
+  message: string;
+  createdAt: string;
+}
+
+/* ------------------------------------------------------------------ */
+/* Manga tracker                                                       */
+/* ------------------------------------------------------------------ */
+
+export interface MangaEntry {
+  id: string;
+  userId?: string;
+  mediaId: number;
+  title: string;
+  coverImage?: string | null;
+  status: string;
+  chapters: number;
+  volumes: number;
+  totalChapters?: number | null;
+  totalVolumes?: number | null;
+  score?: number | null;
+  subType?: string | null;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface MangaChapter {
+  id: string;
+  entryId: string;
+  chapter: number;
+  title?: string | null;
+  read: boolean;
+  readAt?: string | null;
+  mangaDexId?: string | null;
+}
+
+export interface MangaListResponse {
+  entries: MangaEntry[];
+  page: number;
+  perPage: number;
+  total: number;
+  hasMore: boolean;
+  counts: Record<string, number>;
+  overallTotal: number;
+}
+
+/* ------------------------------------------------------------------ */
+/* Vibe (community pulse)                                              */
+/* ------------------------------------------------------------------ */
+
+export interface VibeTitle {
+  mediaId: number;
+  title: string;
+  image?: string | null;
+  fans: number;
+  events: number;
+  lastSeen?: string;
+}
+
+export interface VibeLiveRoom {
+  id: string;
+  mediaId: number;
+  title: string;
+  image?: string | null;
+  episode: number;
+  members: number;
+}
+
+export interface VibeResponse {
+  generatedAt: string;
+  windowDays: number;
+  pulse: {
+    fans: number;
+    titles: number;
+    episodes: number;
+    liveRooms: number;
+    inRooms: number;
+  };
+  nowWatching: VibeTitle[];
+  liveRooms: VibeLiveRoom[];
+}
+
+/* ------------------------------------------------------------------ */
+/* Anime DNA (taste profile)                                           */
+/* ------------------------------------------------------------------ */
+
+export interface DnaGenre {
+  genre: string;
+  count: number;
+  pct: number;
+}
+
+export interface DnaArchetype {
+  key: string;
+  label: string;
+  emoji: string;
+  punchline: string;
+  blurb: string;
+}
+
+export interface DnaWatchStyle {
+  label: string;
+  emoji: string;
+  note: string;
+}
+
+export interface DnaProfile {
+  displayName: string;
+  username: string;
+  avatar?: string | null;
+  archetype: DnaArchetype;
+  watchStyle: DnaWatchStyle;
+  topGenres: DnaGenre[];
+  formats: string[];
+  fingerprint: string;
+  genes: string[];
+  totalAnime: number;
+  completedCount: number;
+  droppedCount: number;
+  planningCount: number;
+  meanScore: number;
+  totalDaysWatched: number;
+  streak: number;
+  favoriteStudio?: string | null;
+  peakYear?: number | null;
+  shareCode: string;
+}
+
 export interface ProfileStats {
   total: number;
   current: number;
@@ -594,6 +784,10 @@ export interface TvChannelInfo {
   type: 'tv' | 'youtube';
   subscriberCount?: string;
   logoUrl?: string;
+  /** Same-origin cached copy served by /api/channel-logo/<id>. */
+  logoProxyUrl?: string;
+  /** Which background the logo is legible on. */
+  logoPlate?: 'light' | 'dark';
   logoInvert?: boolean;
 }
 

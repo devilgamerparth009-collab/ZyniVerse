@@ -15,7 +15,7 @@ import { colors, themed, spacing, fontSize, borderRadius } from '../theme';
 import { api, getCurrentUser } from '../services/api';
 import { Anime, AnimeOfTheDay, User, WatchlistItem } from '../types';
 import { animePoster, animeTitle, LIST_STATUS_LABEL } from '../utils/helpers';
-import AnimeRow from '../components/AnimeRow';
+import ShowcaseRail from '../components/ShowcaseRail';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorView from '../components/ErrorView';
 import FadeInView from '../components/FadeInView';
@@ -33,6 +33,7 @@ export default function HomeScreen() {
 
   const [trending, setTrending] = useState<Anime[]>([]);
   const [popular, setPopular] = useState<Anime[]>([]);
+  const [seasonal, setSeasonal] = useState<Anime[]>([]);
   const [topRated, setTopRated] = useState<Anime[]>([]);
   const [upcoming, setUpcoming] = useState<Anime[]>([]);
   const [continueWatching, setContinueWatching] = useState<{ entry: WatchlistItem; anime: Anime }[]>([]);
@@ -49,15 +50,17 @@ export default function HomeScreen() {
       setError(null);
       if (!isRefresh) setLoading(true);
 
-      const [trendingRes, popularRes, topRes, upcomingRes, aotdRes] = await Promise.all([
+      const [trendingRes, popularRes, seasonalRes, topRes, upcomingRes, aotdRes] = await Promise.all([
         api.trending.get(12).catch(() => [] as Anime[]),
         api.popular.get(12).catch(() => [] as Anime[]),
+        api.seasonal.get(12).catch(() => [] as Anime[]),
         api.topRated.get(12).catch(() => [] as Anime[]),
         api.upcoming.get(1, 12).then((p) => p.media).catch(() => [] as Anime[]),
         api.fun.animeOfTheDay().catch(() => null),
       ]);
       setTrending(trendingRes);
       setPopular(popularRes);
+      setSeasonal(seasonalRes);
       setTopRated(topRes);
       setUpcoming(upcomingRes);
       setAotd(aotdRes);
@@ -166,13 +169,7 @@ export default function HomeScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.iconButton}
-              onPress={() =>
-                navigation.navigate('Web', {
-                  title: 'Watch Party',
-                  path: '/watch-party',
-                  auth: true,
-                })
-              }
+              onPress={() => navigation.navigate('WatchParty')}
               accessibilityLabel="Watch Party"
             >
               <Text style={styles.iconText}>👥</Text>
@@ -573,24 +570,41 @@ export default function HomeScreen() {
           </View>
         )}
 
-        <AnimeRow
+        <ShowcaseRail
           title="Trending Now"
+          subtitle="What everyone is bingeing today"
           anime={trending}
+          variant="trending"
+          accent={isDiwali ? '#fb923c' : isChristmas ? '#7dd3fc' : undefined}
           onSeeAll={() => openBrowse('trending', 'Trending Now')}
         />
-        <AnimeRow
+        <ShowcaseRail
           title="Popular This Season"
+          subtitle="Ranked by fandom heat"
           anime={popular}
+          variant="popular"
           onSeeAll={() => openBrowse('popular', 'Popular')}
         />
-        <AnimeRow
+        <ShowcaseRail
+          title="This Season"
+          subtitle="Fresh episodes, week by week"
+          anime={seasonal}
+          variant="seasonal"
+          accent={isChristmas ? '#7dd3fc' : undefined}
+          onSeeAll={() => openBrowse('seasonal', 'This Season')}
+        />
+        <ShowcaseRail
           title="Top Rated"
+          subtitle="The all-time greats"
           anime={topRated}
+          variant="topRated"
           onSeeAll={() => openBrowse('top-rated', 'Top Rated')}
         />
-        <AnimeRow
+        <ShowcaseRail
           title="Upcoming"
+          subtitle="Set your reminders now"
           anime={upcoming}
+          variant="upcoming"
           onSeeAll={() => openBrowse('upcoming', 'Upcoming')}
         />
 
