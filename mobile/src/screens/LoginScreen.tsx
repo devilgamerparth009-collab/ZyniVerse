@@ -265,21 +265,12 @@ export default function LoginScreen() {
           let user = userFromUrl || (await api.auth.current());
           if (!user) {
             // Short retry for network lag after system browser dismisses
-            await new Promise((resolve) => setTimeout(resolve, 600));
+            await new Promise((resolve) => setTimeout(resolve, 800));
             user = await api.auth.current();
           }
 
-          // If the browser handshake returned a valid session cookie,
-          // ensure the session is established so the user is never blocked
           if (!user) {
-            user = {
-              id: 'user_' + Date.now().toString(36),
-              username: 'User',
-              email: '',
-            };
-            try {
-              await AsyncStorage.setItem('zv_cached_user', JSON.stringify(user));
-            } catch {}
+            throw new Error('Could not verify the new session. Please try again.');
           }
 
           navigation.goBack();
