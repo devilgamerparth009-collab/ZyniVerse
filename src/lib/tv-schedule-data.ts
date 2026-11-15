@@ -22,6 +22,14 @@ export interface ChannelSchedulePayload {
   channelLogo?: string;
   channelType: "tv" | "youtube";
   days: Record<string, ScheduleSlot[]>;
+  /**
+   * Where the listings came from:
+   *  - `epg`      real epg.pw scrape
+   *  - `fallback` curated offline guide (epg.pw unreachable)
+   *  - `live`     AniList simulcast data
+   *  - `empty`    nothing available
+   */
+  source?: "epg" | "fallback" | "live" | "empty";
 }
 
 export interface TvGrid {
@@ -30,6 +38,8 @@ export interface TvGrid {
   updatedAt: string;
   channels: ChannelSchedulePayload[];
   liveAiringTotal: number;
+  /** True when at least one linear channel is showing the offline guide. */
+  offlineLinear?: boolean;
 }
 
 export const ALL_DAYS = [
@@ -79,6 +89,9 @@ const GRID_MEMO_MS = 60 * 1000;
 
 let streamingMemo: { at: number; platforms: PlatformSchedule[] } | null = null;
 const gridMemo = new Map<string, { at: number; grid: TvGrid }>();
+/** Stops a failing epg.pw from being hammered on every request. */
+let lastScrapeAt = 0;
+const SCRAPE_COOLDOWN_MS = 2 * 60 * 1000;
 
 function emptyDays(): Record<string, ScheduleSlot[]> {
   const days: Record<string, ScheduleSlot[]> = {};
@@ -88,6 +101,219 @@ function emptyDays(): Record<string, ScheduleSlot[]> {
 
 function hasTodayData(days: Record<string, ScheduleSlot[]> | undefined, today: string): boolean {
   return !!days && Array.isArray(days[today]) && days[today].length > 0;
+}
+
+/* ------------------------------------------------------------------ */
+/* Offline linear guide                                                */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Curated per-channel lineups used only when epg.pw cannot be reached from the
+ * server. They are clearly labelled as an offline guide in the UI — the point is
+ * that a viewer always sees *something* useful for a channel instead of an
+ * empty timeline, and the real scrape replaces them as soon as it succeeds.
+ */
+const LINEAR_FALLBACK_LINEUPS: Record<string, string[]> = {
+  cn: [
+    "Looney Tunes Cartoons",
+    "The Tom and Jerry Show",
+    "The Powerpuff Girls",
+    "Ben 10",
+    "The Amazing World of Gumball",
+    "We Bare Bears",
+    "Teen Titans Go!",
+    "Craig of the Creek",
+    "Regular Show",
+    "Adventure Time",
+    "Dexter's Laboratory",
+    "Scooby-Doo! Mystery Incorporated",
+  ],
+  sony_yay: [
+    "Taarak Mehta Kka Chhota Chashmah",
+    "Honey Bunny Ka Jholmaal",
+    "Pakdam Pakdai",
+    "Kicko & Super Speedo",
+    "Inspector Fabre",
+    "Gattu Battu",
+    "Bhaalu Gaadi",
+    "Chimpoo Simpoo",
+    "Krishna Balram",
+    "Oscar's Oasis",
+  ],
+  hungama: [
+    "Shin-chan",
+    "Doraemon",
+    "Ninja Hattori",
+    "Perman",
+    "Kiteretsu",
+    "Chhota Bheem",
+    "Keymon Ache",
+    "Suneel in the World",
+    "Beyblade Burst",
+    "Pokémon",
+  ],
+  super_hungama: [
+    "Chhota Bheem",
+    "Mighty Raju",
+    "Little Singham",
+    "Shiva",
+    "Arjun: Prince of Bali",
+    "Pakdam Pakdai",
+    "Bali",
+    "Gattu Battu",
+    "Krishna Balram",
+    "Vir: The Robot Boy",
+  ],
+  pogo: [
+    "Chhota Bheem",
+    "Little Singham",
+    "Mighty Raju",
+    "Shaktimaan",
+    "Bandbudh Aur Budbak",
+    "Tik Tak Tail",
+    "Gattu Battu",
+    "Krishna Balram",
+    "Pakdam Pakdai",
+    "Bali",
+  ],
+  nick: [
+    "SpongeBob SquarePants",
+    "The Loud House",
+    "The Casagrandes",
+    "Ninja Hattori",
+    "Motu Patlu",
+    "Pakdam Pakdai",
+    "Kung Fu Panda: Legends of Awesomeness",
+    "Avatar: The Last Airbender",
+    "Teenage Mutant Ninja Turtles",
+    "The Fairly OddParents",
+  ],
+  nick_jr: [
+    "Peppa Pig",
+    "PAW Patrol",
+    "Dora the Explorer",
+    "Blue's Clues & You!",
+    "Blaze and the Monster Machines",
+    "Bubble Guppies",
+    "Shimmer and Shine",
+    "Rusty Rivets",
+    "Thomas & Friends",
+    "Max & Ruby",
+  ],
+  sonic: [
+    "Sonic Boom",
+    "Motu Patlu",
+    "Ninja Hattori",
+    "Pakdam Pakdai",
+    "Oggy and the Cockroaches",
+    "Keymon Ache",
+    "Rise of the Teenage Mutant Ninja Turtles",
+    "Power Rangers",
+    "Gattu Battu",
+    "Bali",
+  ],
+  discovery_kids: [
+    "How It's Made",
+    "Wild Kratts",
+    "Dino Dan",
+    "MythBusters",
+    "Man vs. Wild",
+    "Science Max",
+    "Animal Planet Kids",
+    "Into the Wild",
+  ],
+  disney_channel: [
+    "DuckTales",
+    "Mickey Mouse Clubhouse",
+    "Phineas and Ferb",
+    "Gravity Falls",
+    "Miraculous: Tales of Ladybug & Cat Noir",
+    "Big Hero 6: The Series",
+    "Kim Possible",
+    "Amphibia",
+    "The Owl House",
+    "Fish Hooks",
+  ],
+  disney_junior: [
+    "Mickey Mouse Clubhouse",
+    "Sofia the First",
+    "Doc McStuffins",
+    "Jake and the Never Land Pirates",
+    "PJ Masks",
+    "Bluey",
+    "Puppy Dog Pals",
+    "Vampirina",
+    "Fancy Nancy",
+    "Muppet Babies",
+  ],
+  animax: [
+    "Naruto",
+    "Bleach",
+    "One Piece",
+    "Jujutsu Kaisen",
+    "Demon Slayer",
+    "My Hero Academia",
+    "Black Clover",
+    "Hunter x Hunter",
+    "Fairy Tail",
+    "Sword Art Online",
+  ],
+  epic_kids: [
+    "Chhota Bheem",
+    "Little Singham",
+    "Mighty Raju",
+    "Shiva",
+    "Vir: The Robot Boy",
+    "Gattu Battu",
+    "Krishna Balram",
+    "Bali",
+    "Pakdam Pakdai",
+    "Arjun: Prince of Bali",
+  ],
+};
+
+const DEFAULT_LINEUP = [
+  "Anime Marathon",
+  "Cartoon Classics",
+  "Family Movie",
+  "Kids Block",
+  "Adventure Time",
+  "Comedy Hour",
+];
+
+const FALLBACK_START_MIN = 6 * 60;
+const FALLBACK_END_MIN = 23 * 60 + 30;
+const FALLBACK_SLOT_MIN = 30;
+
+function minutesToHhmm(total: number): string {
+  const clamped = Math.min(total, 24 * 60 - 1);
+  const h = Math.floor(clamped / 60).toString().padStart(2, "0");
+  const m = (clamped % 60).toString().padStart(2, "0");
+  return `${h}:${m}`;
+}
+
+/** A full week of half-hour slots built from the channel's curated lineup. */
+function fallbackDaysFor(channelId: string): Record<string, ScheduleSlot[]> {
+  const lineup = LINEAR_FALLBACK_LINEUPS[channelId] ?? DEFAULT_LINEUP;
+  const days = emptyDays();
+  let cursor = 0;
+
+  for (const day of ALL_DAYS) {
+    const slots: ScheduleSlot[] = [];
+    for (let minute = FALLBACK_START_MIN; minute < FALLBACK_END_MIN; minute += FALLBACK_SLOT_MIN) {
+      const show = lineup[cursor++ % lineup.length];
+      slots.push({
+        show,
+        start: minutesToHhmm(minute),
+        end: minutesToHhmm(minute + FALLBACK_SLOT_MIN),
+        duration: FALLBACK_SLOT_MIN,
+        description: "Offline guide · live EPG unavailable",
+      });
+    }
+    days[day] = slots;
+  }
+
+  return days;
 }
 
 async function readEpgCache(): Promise<{
@@ -128,6 +354,16 @@ async function scrapeAndStore(): Promise<Map<string, Record<string, ScheduleSlot
   return map;
 }
 
+/**
+ * Resolves the epg.pw cache into a per-channel day map.
+ *
+ * The important subtlety: a cached row can hold data for *other* days but none
+ * for today (the common case right after midnight, or when the previous scrape
+ * only reached a subset of channels). Serving that map as-is made every linear
+ * channel report `source=epg` with zero slots for the selected day. So we only
+ * short-circuit when a meaningful share of channels actually has today's data,
+ * and otherwise wait for a bounded fresh scrape.
+ */
 async function getEpgMap(today: string): Promise<Map<string, Record<string, ScheduleSlot[]>>> {
   const { map, newest } = await readEpgCache();
   const now = Date.now();
@@ -141,22 +377,25 @@ async function getEpgMap(today: string): Promise<Map<string, Record<string, Sche
 
   if (freshEnough) return map;
 
-  // Stale-while-revalidate. A cached grid is always better than a 20s wait, so
-  // ANY usable cached day is served immediately while a refresh runs in the
-  // background. This is what keeps the first visitor after the cache expires
-  // (or after midnight, when yesterday's row no longer has "today") from
-  // staring at a spinner.
-  const hasAnything = EPG_CHANNEL_IDS.some((id) => {
-    const days = map.get(id);
-    return !!days && Object.values(days).some((d) => Array.isArray(d) && d.length > 0);
-  });
+  const channelsWithToday = EPG_CHANNEL_IDS.filter((id) => hasTodayData(map.get(id), today)).length;
+  const enoughToday = channelsWithToday >= Math.ceil(EPG_CHANNEL_IDS.length / 2);
 
-  if (hasAnything) {
-    void scrapeAndStore().catch(() => {});
+  // Stale-while-revalidate, but only when the cache genuinely covers today.
+  // A grid with half the channels on today's listings is still better than a
+  // 9s spinner, and the background scrape fills the rest in.
+  if (enoughToday) {
+    if (now - lastScrapeAt > SCRAPE_COOLDOWN_MS) {
+      lastScrapeAt = now;
+      void scrapeAndStore().catch(() => {});
+    }
     return map;
   }
 
-  // Truly cold: scrape, but never let epg.pw hold the request hostage.
+  // No usable data for today: block on a bounded scrape. The cooldown prevents
+  // a burst of requests from each launching their own scrape.
+  if (now - lastScrapeAt <= SCRAPE_COOLDOWN_MS) return map;
+
+  lastScrapeAt = now;
   const scraped = await withTimeout(
     scrapeAndStore(),
     9000,
@@ -285,30 +524,62 @@ async function buildGrid(selectedDay: string, today: string): Promise<TvGrid> {
   ]);
 
   const channels: ChannelSchedulePayload[] = [];
+  let offlineLinear = false;
 
   for (const id of EPG_CHANNEL_IDS) {
     const channel = TV_CHANNELS[id];
     if (!channel) continue;
     const cached = epgMap.get(id);
     const days = emptyDays();
+    let hasRealData = false;
     if (cached) {
       for (const d of ALL_DAYS) {
-        if (Array.isArray(cached[d])) days[d] = cached[d];
+        if (Array.isArray(cached[d]) && cached[d].length > 0) {
+          days[d] = cached[d];
+          hasRealData = true;
+        }
       }
     }
-    channels.push(channelPayload(channel, days));
+
+    if (!hasRealData) {
+      // epg.pw unreachable from this server: keep the channel useful with the
+      // curated offline guide instead of an empty timeline.
+      Object.assign(days, fallbackDaysFor(id));
+      offlineLinear = true;
+      channels.push({ ...channelPayload(channel, days), source: "fallback" });
+      continue;
+    }
+
+    // The cache may cover other days but not the one being viewed (this is
+    // exactly what made every linear channel render an empty timeline while
+    // still claiming `source=epg`). Fill just that day from the offline guide.
+    if ((days[selectedDay]?.length ?? 0) === 0) {
+      days[selectedDay] = fallbackDaysFor(id)[selectedDay];
+      offlineLinear = true;
+      channels.push({ ...channelPayload(channel, days), source: "fallback" });
+      continue;
+    }
+
+    channels.push({ ...channelPayload(channel, days), source: "epg" });
   }
 
   for (const id of STREAMING_CHANNEL_IDS) {
     const channel = TV_CHANNELS[id];
     if (!channel) continue;
-    channels.push(channelPayload(channel, emptyDays()));
+    channels.push({ ...channelPayload(channel, emptyDays()), source: "empty" });
   }
 
   // Any extra channel in the catalogue (e.g. YouTube channels) still shows up.
+  // A TV channel with no epg.pw mapping gets the offline guide instead of a
+  // permanently blank timeline — but it does not trigger the global offline
+  // banner, because that channel never had live data to lose.
   for (const channel of Object.values(TV_CHANNELS)) {
     if (channels.some((c) => c.channelId === channel.id)) continue;
-    channels.push(channelPayload(channel, emptyDays()));
+    if (channel.type === "tv") {
+      channels.push({ ...channelPayload(channel, fallbackDaysFor(channel.id)), source: "fallback" });
+      continue;
+    }
+    channels.push({ ...channelPayload(channel, emptyDays()), source: "empty" });
   }
 
   let liveAiringTotal = 0;
@@ -336,6 +607,9 @@ async function buildGrid(selectedDay: string, today: string): Promise<TvGrid> {
       }
       target.days[dayName].sort((a, b) => a.start.localeCompare(b.start));
     }
+    if (Object.values(target.days).some((slots) => slots.length > 0)) {
+      target.source = "live";
+    }
   }
 
   // Keep the requested day first in the payload but sort channels by whether
@@ -353,6 +627,7 @@ async function buildGrid(selectedDay: string, today: string): Promise<TvGrid> {
     updatedAt: new Date().toISOString(),
     channels,
     liveAiringTotal,
+    offlineLinear,
   };
 }
 

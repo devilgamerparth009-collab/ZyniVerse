@@ -51,6 +51,7 @@ const FEATURES: Feature[] = [
   { key: 'leaderboard', label: 'Leaderboard', sub: 'Top fans', emoji: '🏆', route: 'Leaderboard', tint: '#eab308' },
   { key: 'wallpapers', label: 'Wallpapers', sub: '4K anime art', emoji: '🖼️', route: 'Wallpapers', tint: '#38bdf8' },
   { key: 'ostlist', label: 'OP & ED Vault', sub: 'Openings', emoji: '🎧', route: 'OST', tint: '#fb7185' },
+  { key: 'tvguide', label: 'TV & Streaming', sub: 'Live EPG', emoji: '📺', route: 'TVGuide', tint: '#60a5fa' },
 ];
 
 type WebFeature = {
@@ -63,6 +64,8 @@ type WebFeature = {
   auth?: boolean;
   /** Opens a native screen instead of the embedded website. */
   nativeRoute?: string;
+  /** Params passed to the native screen. */
+  nativeParams?: Record<string, any>;
 };
 
 type WebGroup = { key: string; title: string; items: WebFeature[] };
@@ -82,7 +85,7 @@ const WEB_GROUPS: WebGroup[] = [
       { key: 'clubs', label: 'Clubs', emoji: '🏛️', path: '/clubs', tint: '#f59e0b', auth: true },
       { key: 'feed', label: 'Social Feed', emoji: '📰', path: '/feed', tint: '#22c55e', auth: true },
       { key: 'friends', label: 'Friends', emoji: '🤝', path: '/friends', tint: '#ec4899', auth: true },
-      { key: 'notifications', label: 'Alerts', emoji: '🔔', path: '/notifications', tint: '#f97316', auth: true },
+      { key: 'notifications', label: 'Alerts', emoji: '🔔', path: '/notifications', tint: '#f97316', auth: true, nativeRoute: 'Notifications' },
       { key: 'moments', label: 'Moments', emoji: '✨', path: '/moments', tint: '#eab308' },
       { key: 'clips', label: 'Clips', emoji: '✂️', path: '/clips', tint: '#8b5cf6' },
       { key: 'memes', label: 'Memes', emoji: '😂', path: '/memes', tint: '#facc15' },
@@ -94,8 +97,9 @@ const WEB_GROUPS: WebGroup[] = [
     key: 'explore',
     title: 'Explore & Track',
     items: [
-      { key: 'top', label: 'Top Anime', emoji: '🔝', path: '/top-anime', tint: '#f97316' },
-      { key: 'calendar', label: 'Anime Calendar', emoji: '🗓️', path: '/calendar', tint: '#3b82f6' },
+      { key: 'top', label: 'Top Anime', emoji: '🔝', path: '/top-anime', tint: '#f97316', nativeRoute: 'Browse', nativeParams: { mode: 'top-rated', title: 'Top Anime' } },
+      { key: 'seasonal', label: 'Seasonal Now', emoji: '🌸', path: '/seasonal', tint: '#22d3ee', nativeRoute: 'Browse', nativeParams: { mode: 'seasonal', title: 'This Season' } },
+      { key: 'calendar', label: 'Anime Calendar', emoji: '🗓️', path: '/calendar', tint: '#3b82f6', nativeRoute: 'Schedule' },
       { key: 'watchorder', label: 'Watch Order', emoji: '🧭', path: '/watch-order', tint: '#10b981' },
       { key: 'watchlist', label: 'Watchlist', emoji: '📌', path: '/watchlist', tint: '#f43f5e', auth: true },
       { key: 'tracker', label: 'Season Tracker', emoji: '📊', path: '/seasonal-tracker', tint: '#a855f7' },
@@ -147,8 +151,8 @@ function LivePulse({ color }: { color: string }) {
 export default function FunZoneScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
-  const { colors, isDiwali } = useTheme();
-  const tint = isDiwali ? '#f59e0b' : colors.primary;
+  const { colors, isDiwali, isChristmas } = useTheme();
+  const tint = isDiwali ? '#f59e0b' : isChristmas ? '#7dd3fc' : colors.primary;
 
   const [aotd, setAotd] = useState<AnimeOfTheDay | null>(null);
   const [leaders, setLeaders] = useState<LeaderboardEntry[]>([]);
@@ -535,7 +539,7 @@ export default function FunZoneScreen() {
                       ]}
                       onPress={() =>
                         f.nativeRoute
-                          ? navigation.navigate(f.nativeRoute)
+                          ? navigation.navigate(f.nativeRoute, f.nativeParams)
                           : navigation.navigate('Web', {
                               title: f.label,
                               path: f.path,

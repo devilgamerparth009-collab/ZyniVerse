@@ -2,7 +2,7 @@ import { useAppTheme, ThemeMode } from '../theme/ThemeContext';
 import { getThemeName } from '../utils/themeUtils';
 
 export function useTheme() {
-  const { theme, colors, mode, setTheme, navTheme, isDiwali } = useAppTheme();
+  const { theme, colors, mode, setTheme, navTheme, isDiwali, isChristmas } = useAppTheme();
 
   const selectTheme = (key: ThemeMode) => setTheme(key);
 
@@ -14,5 +14,6 @@ export function useTheme() {
     selectTheme,
     getThemeName,
     isDiwali,
+    isChristmas,
   };
 }

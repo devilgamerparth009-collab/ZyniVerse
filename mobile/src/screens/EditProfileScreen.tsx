@@ -22,6 +22,7 @@ import { ProfileResponse } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorView from '../components/ErrorView';
 import FadeInView from '../components/FadeInView';
+import SantaHat from '../components/SantaHat';
 
 /**
  * Real AniList character artwork. Every URL was fetched and returned HTTP 200
@@ -71,7 +72,7 @@ function defaultAvatarUrl(username?: string, seed?: string, sizeStr = '256'): st
 export default function EditProfileScreen() {
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
-  const { colors: themeColors } = useTheme();
+  const { colors: themeColors, isChristmas } = useTheme();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -238,20 +239,23 @@ export default function EditProfileScreen() {
         showsVerticalScrollIndicator={false}
       >
         <FadeInView delay={0} style={styles.previewRow}>
-          <View style={[styles.avatarPreview, { borderColor: themeColors.primary }]}>
-            <Image
-              source={{ uri: defaultAvatarUrl(username, avatar) }}
-              style={[
-                { width: 64, height: 64, borderRadius: 32 },
-                { backgroundColor: themeColors.surface },
-              ]}
-              alt={username || 'ZyniVerse'}
-            />
-            {uploading && (
-              <View style={styles.avatarBusy}>
-                <ActivityIndicator color="#fff" />
-              </View>
-            )}
+          <View style={styles.avatarWrap}>
+            <View style={[styles.avatarPreview, { borderColor: themeColors.primary }]}>
+              <Image
+                source={{ uri: defaultAvatarUrl(username, avatar) }}
+                style={[
+                  { width: 64, height: 64, borderRadius: 32 },
+                  { backgroundColor: themeColors.surface },
+                ]}
+                alt={username || 'ZyniVerse'}
+              />
+              {uploading && (
+                <View style={styles.avatarBusy}>
+                  <ActivityIndicator color="#fff" />
+                </View>
+              )}
+            </View>
+            {isChristmas && <SantaHat size={30} style={styles.previewSantaHat} />}
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[styles.previewName, { color: themeColors.text }]}>
@@ -345,7 +349,7 @@ export default function EditProfileScreen() {
             contentContainerStyle={{ gap: 10, paddingVertical: 8 }}
           >
             {ANIME_AVATAR_PRESETS.map((p) => {
-              const isSelected = avatar === p.url || avatar === '';
+              const isSelected = avatar === p.url;
               return (
                 <TouchableOpacity
                   key={p.name}
@@ -367,6 +371,9 @@ export default function EditProfileScreen() {
                   ]}
                   alt={p.name}
                 />
+                  {isChristmas && isSelected && (
+                    <SantaHat size={20} style={styles.presetSantaHat} />
+                  )}
                   <Text
                     style={{
                       color: isSelected ? themeColors.primary : themeColors.textMuted,
@@ -504,6 +511,24 @@ const styles = themed(() => ({
     alignItems: 'center',
     marginBottom: spacing.md,
   },
+  avatarWrap: {
+    width: 68,
+    height: 68,
+    marginRight: spacing.md,
+    overflow: 'visible',
+  },
+  previewSantaHat: {
+    position: 'absolute',
+    top: -13,
+    right: -9,
+    transform: [{ rotate: '14deg' }],
+  },
+  presetSantaHat: {
+    position: 'absolute',
+    top: -7,
+    right: 0,
+    transform: [{ rotate: '14deg' }],
+  },
   avatarPreview: {
     width: 68,
     height: 68,
@@ -511,7 +536,6 @@ const styles = themed(() => ({
     backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: spacing.md,
     overflow: 'hidden',
     borderWidth: 2,
   },

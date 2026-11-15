@@ -23,14 +23,8 @@ import {
   setPreferredDubLanguage,
 } from '../services/prefs';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {
-  loadStoredThemeByKey,
-  storeTheme,
-  DEFAULT_THEME,
-  DIWALI_THEME,
-  NIGHT_THEME,
-  LIGHT_THEME,
-} from '../utils/themeUtils';
+import type { ThemeMode } from '../theme/ThemeContext';
+import { isChristmasWindow } from '../utils/themeUtils';
 
 const openLink = (url: string) => Linking.openURL(url).catch(() => {});
 
@@ -133,7 +127,7 @@ export default function SettingsScreen() {
     else await downloadUpdate();
   };
 
-  const handleSelectTheme = (key: 'default' | 'diwali' | 'night' | 'light') => {
+  const handleSelectTheme = (key: ThemeMode) => {
     selectTheme(key);
   };
 
@@ -236,10 +230,17 @@ export default function SettingsScreen() {
             <View style={styles.themeGrid}>
               {([
                 { key: 'default', label: '🌆 Cyberpunk', desc: 'Neon cyan & purple', accent: '#00ffe0', bg: '#08090f' },
+                {
+                  key: 'christmas',
+                  label: '🎄 Christmas',
+                  desc: isChristmasWindow() ? 'Seasonal · live now' : 'Snow, ice & neon pink',
+                  accent: '#7dd3fc',
+                  bg: '#060b14',
+                },
                 { key: 'diwali', label: '🪔 Diwali Regal', desc: 'Warm amber & royal gold', accent: '#f59e0b', bg: '#0c0a08' },
                 { key: 'night', label: '🌙 Midnight', desc: 'Deep indigo & slate', accent: '#818cf8', bg: '#070b14' },
                 { key: 'light', label: '☀️ Minimal Light', desc: 'Crisp clean slate', accent: '#4f46e5', bg: '#f8fafc' },
-              ] as { key: 'default' | 'night' | 'diwali' | 'light'; label: string; desc: string; accent: string; bg: string }[]).map(t => {
+              ] as { key: ThemeMode; label: string; desc: string; accent: string; bg: string }[]).map(t => {
                 const active = themeMode === t.key;
                 return (
                   <TouchableOpacity

@@ -21,13 +21,15 @@ import ErrorView from '../components/ErrorView';
 import FadeInView from '../components/FadeInView';
 import PressableScale from '../components/PressableScale';
 import AdBanner from '../components/AdBanner';
+import Snowfall from '../components/Snowfall';
+import ChristmasBanner from '../components/ChristmasBanner';
 import { useTheme } from '../hooks/useTheme';
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
-  const { colors, isDiwali } = useTheme();
-  const primaryColor = isDiwali ? '#FF8C00' : colors.primary;
+  const { colors, isDiwali, isChristmas } = useTheme();
+  const primaryColor = isDiwali ? '#FF8C00' : isChristmas ? '#7dd3fc' : colors.primary;
 
   const [trending, setTrending] = useState<Anime[]>([]);
   const [popular, setPopular] = useState<Anime[]>([]);
@@ -137,6 +139,13 @@ export default function HomeScreen() {
         <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
           <View>
             <Text style={[styles.brand, { color: colors.text }]}>ZyniVerse</Text>
+            {isChristmas && (
+              <View style={styles.xmasLights} accessibilityLabel="Christmas lights">
+                {['#f472b6', '#7dd3fc', '#f8fafc', '#facc15', '#34d399'].map((light) => (
+                  <View key={light} style={[styles.xmasBulb, { backgroundColor: light }]} />
+                ))}
+              </View>
+            )}
             <Text style={[styles.greeting, { color: colors.textMuted }]}>
               {user ? `Hey, ${user.username}` : 'Your anime universe'}
             </Text>
@@ -222,6 +231,20 @@ export default function HomeScreen() {
             </TouchableOpacity>
           )}
 
+          {isChristmas && (
+            <TouchableOpacity
+              style={{
+                backgroundColor: '#7dd3fc',
+                paddingHorizontal: 12,
+                paddingVertical: 7,
+                borderRadius: 20,
+              }}
+              onPress={() => navigation.navigate('Browse', { mode: 'trending', title: 'Christmas Specials' })}
+            >
+              <Text style={{ color: '#06111f', fontSize: 12, fontWeight: '900' }}>❄️ Christmas Specials</Text>
+            </TouchableOpacity>
+          )}
+
           <TouchableOpacity
             style={{
               backgroundColor: colors.surface,
@@ -278,6 +301,14 @@ export default function HomeScreen() {
             <Text style={{ color: colors.text, fontSize: 12, fontWeight: '700' }}>✨ For You</Text>
           </TouchableOpacity>
         </ScrollView>
+
+        {isChristmas && (
+          <ChristmasBanner
+            onPress={() =>
+              navigation.navigate('Browse', { mode: 'trending', title: 'Christmas Specials' })
+            }
+          />
+        )}
 
         {featured && (
           <FadeInView delay={40} duration={480}>
@@ -581,6 +612,8 @@ export default function HomeScreen() {
         {/* Scrollable in-feed AdBanner (Never sticks to bottom) */}
         <AdBanner size="banner" />
       </ScrollView>
+
+      {isChristmas && <Snowfall />}
     </View>
   );
 }
@@ -607,6 +640,18 @@ const styles = themed(() => ({
     color: colors.textDim,
     fontSize: fontSize.sm,
     marginTop: 2,
+  },
+  xmasLights: {
+    flexDirection: 'row',
+    gap: 4,
+    marginTop: 4,
+    marginBottom: 2,
+  },
+  xmasBulb: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+    opacity: 0.9,
   },
   headerActions: {
     flexDirection: 'row',

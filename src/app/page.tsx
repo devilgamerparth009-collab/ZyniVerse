@@ -58,6 +58,7 @@ export const metadata: Metadata = {
 
 import { FadeIn, PageTransition } from "@/components/PageTransition";
 import AuroraParticles from "@/components/AuroraParticles";
+import ChristmasCountdown from "@/components/ChristmasCountdown";
 import RevealTitle from "@/components/RevealTitle";
 import {
   DynamicSection as Section,
@@ -227,6 +228,7 @@ export default async function Home() {
   return (
     <PageTransition>
       <div className="animate-page-in zy-home">
+      <ChristmasCountdown />
       <FadeIn>
             <div className="mx-auto max-w-7xl px-4 pt-5 sm:px-6">
               <Link

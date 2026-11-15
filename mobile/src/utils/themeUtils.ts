@@ -45,6 +45,24 @@ export const DIWALI_THEME: ThemeConfig = {
 };
 
 /**
+ * 🎄 Christmas Anime Wonderland (icy blue, snow white & neon pink)
+ *
+ * Seasonal skin, not a rebrand: the dark base and the pink/cyan signature stay
+ * intact, only the accents shift to a frozen winter palette.
+ */
+export const CHRISTMAS_THEME: ThemeConfig = {
+  primary: '#7dd3fc',
+  secondary: '#f472b6',
+  accent: '#f8fafc',
+  background: '#060b14',
+  surface: '#0f1a2b',
+  text: '#f0f9ff',
+  textMuted: '#93c5fd',
+  border: '#1e3a5f',
+  notification: '#7dd3fc',
+};
+
+/**
  * 🌙 Midnight Indigo Theme (Easy on eyes for night viewing)
  */
 export const NIGHT_THEME: ThemeConfig = {
@@ -105,8 +123,21 @@ export async function forceSetTheme(themeKey: string, theme: ThemeConfig): Promi
 }
 
 export function getThemeName(theme: ThemeConfig): string {
+  if (theme.primary === CHRISTMAS_THEME.primary) return 'Christmas';
   if (theme.primary === DIWALI_THEME.primary) return 'Diwali';
   if (theme.primary === NIGHT_THEME.primary) return 'Night';
   if (theme.primary === LIGHT_THEME.primary) return 'Light';
   return 'Cyberpunk Dark';
+}
+
+/** Seasonal window for the Christmas skin: 1–25 December (local time). */
+export function isChristmasWindow(date = new Date()): boolean {
+  return date.getMonth() === 11 && date.getDate() >= 1 && date.getDate() <= 25;
+}
+
+/** Milliseconds until 00:00 on 26 December, or 0 when the window is closed. */
+export function msUntilChristmasEnds(date = new Date()): number {
+  if (!isChristmasWindow(date)) return 0;
+  const end = new Date(date.getFullYear(), 11, 26, 0, 0, 0, 0);
+  return Math.max(0, end.getTime() - date.getTime());
 }

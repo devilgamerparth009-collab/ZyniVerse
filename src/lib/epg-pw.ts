@@ -2,6 +2,26 @@ import { type TimeSlot } from "./tv-channels";
 
 const EPG_PW_BASE = "https://epg.pw/api/epg.json";
 
+/**
+ * epg.pw sits behind a CDN that is quick to throttle bursts, and Vercel's egress
+ * IPs are shared by a lot of traffic. Sending browser-ish headers plus keeping
+ * the fan-out small (see `mapWithConcurrency`) is what stops every channel from
+ * silently coming back empty in production.
+ */
+const EPG_HEADERS: Record<string, string> = {
+  "User-Agent":
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+  Accept: "application/json, text/plain, */*",
+  "Accept-Language": "en-US,en;q=0.9",
+  Referer: "https://epg.pw/areas/in.html",
+  Origin: "https://epg.pw",
+};
+
+const EPG_ATTEMPT_TIMEOUT_MS = 8000;
+const EPG_MAX_ATTEMPTS = 2;
+/** Parallel requests to epg.pw. Above this the CDN starts returning empty bodies. */
+const EPG_CONCURRENCY = 4;
+
 // Our channel IDs -> epg.pw channel IDs.
 //
 // These were verified against https://epg.pw/areas/in.html on 2026-11-11.
@@ -58,20 +78,72 @@ async function fetchEpgPwDay(channelId: number, date: Date): Promise<EpgPwEntry[
   const dateStr = formatDate(date);
   const url = `${EPG_PW_BASE}?channel_id=${channelId}&lang=en&date=${dateStr}&timezone=Asia%2FKolkata`;
 
-  try {
-    // 24h cache: a daily channel listing only changes once a day. Keeping this
-    // high also stops the route from hammering epg.pw on every render.
-    const res = await fetch(url, {
-      next: { revalidate: 86400 },
-      signal: AbortSignal.timeout(7000),
-    });
-    if (!res.ok) return [];
-    const data: EpgPwResponse = await res.json();
-    if (data.error_message || !data.epg_list) return [];
-    return data.epg_list;
-  } catch {
-    return [];
+  for (let attempt = 1; attempt <= EPG_MAX_ATTEMPTS; attempt++) {
+    try {
+      // `no-store` is deliberate. The old `next: { revalidate: 86400 }` meant a
+      // single throttled response (epg.pw answers HTTP 200 with an empty
+      // `epg_list`) was cached by Next for 24h, so one bad minute blanked the
+      // whole linear grid for a day. Our own 6h Postgres cache is the real
+      // cache; failures must never be memoised.
+      const res = await fetch(url, {
+        cache: "no-store",
+        headers: EPG_HEADERS,
+        signal: AbortSignal.timeout(EPG_ATTEMPT_TIMEOUT_MS),
+      });
+      if (!res.ok) {
+        if (res.status === 429 || res.status >= 500) {
+          await sleep(400 * attempt);
+          continue;
+        }
+        return [];
+      }
+      const data: EpgPwResponse = await res.json();
+      if (data.error_message || !data.epg_list?.length) {
+        // Empty body is usually a soft throttle, so retry once before giving up.
+        if (attempt < EPG_MAX_ATTEMPTS) {
+          await sleep(400 * attempt);
+          continue;
+        }
+        return [];
+      }
+      return data.epg_list;
+    } catch {
+      if (attempt < EPG_MAX_ATTEMPTS) {
+        await sleep(400 * attempt);
+        continue;
+      }
+      return [];
+    }
   }
+  return [];
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Runs `worker` over `items` with a fixed maximum number in flight. */
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  worker: (item: T) => Promise<R>
+): Promise<PromiseSettledResult<R>[]> {
+  const results: PromiseSettledResult<R>[] = new Array(items.length);
+  let cursor = 0;
+
+  async function run(): Promise<void> {
+    while (cursor < items.length) {
+      const index = cursor++;
+      try {
+        results[index] = { status: "fulfilled", value: await worker(items[index]) };
+      } catch (reason) {
+        results[index] = { status: "rejected", reason };
+      }
+    }
+  }
+
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, run));
+  return results;
 }
 
 function cleanTitle(title: string): string {
@@ -115,12 +187,25 @@ function bucketEntries(entries: EpgPwEntry[]): Record<string, TimeSlot[]> {
     .filter((p) => !Number.isNaN(p.raw))
     .sort((a, b) => a.raw - b.raw);
 
-  for (let i = 0; i < parsed.length; i++) {
-    const current = parsed[i];
-    const next = parsed[i + 1];
+  // epg.pw answers the "tomorrow" request with the same list as "today" for
+  // channels whose feed only carries the current day, so the merged array can
+  // contain every programme twice. De-duplicating before computing end times is
+  // important: a duplicate at the same timestamp would otherwise make a show
+  // end at the exact minute it starts.
+  const seenProgramme = new Set<string>();
+  const unique = parsed.filter((p) => {
+    const key = `${p.raw}|${p.entry.title}`;
+    if (seenProgramme.has(key)) return false;
+    seenProgramme.add(key);
+    return true;
+  });
+
+  for (let i = 0; i < unique.length; i++) {
+    const current = unique[i];
+    const next = unique[i + 1];
 
     let end: string;
-    if (next && next.dayName === current.dayName) {
+    if (next && next.dayName === current.dayName && next.start !== current.start) {
       end = next.start;
     } else {
       end = addMinutes(current.start, 30);
@@ -172,24 +257,28 @@ export async function fetchAllEpgFromPw(options: { from?: number; to?: number } 
   const now = new Date();
   const dates: Date[] = [now, new Date(now.getTime() + 24 * 60 * 60 * 1000)];
 
-  const results = await Promise.allSettled(
-    entries.map(async ([channelId, epgPwId]) => {
-      const dayResponses = await Promise.allSettled(
-        dates.map((date) => fetchEpgPwDay(epgPwId, date))
-      );
-
-      const allEntries: EpgPwEntry[] = [];
-      for (const r of dayResponses) {
-        if (r.status === "fulfilled") allEntries.push(...r.value);
-      }
-
-      return { channelId, days: bucketEntries(allEntries) };
-    })
+  // Flatten to channel×day jobs so one slow channel cannot stall the rest, and
+  // so the request fan-out stays under epg.pw's burst limit.
+  const jobs = entries.flatMap(([channelId, epgPwId]) =>
+    dates.map((date) => ({ channelId, epgPwId, date }))
   );
 
+  const settled = await mapWithConcurrency(jobs, EPG_CONCURRENCY, (job) =>
+    fetchEpgPwDay(job.epgPwId, job.date)
+  );
+
+  const byChannel = new Map<string, EpgPwEntry[]>();
+  settled.forEach((result, index) => {
+    if (result.status !== "fulfilled" || result.value.length === 0) return;
+    const channelId = jobs[index].channelId;
+    const list = byChannel.get(channelId) ?? [];
+    list.push(...result.value);
+    byChannel.set(channelId, list);
+  });
+
   const out: { channelId: string; days: Record<string, TimeSlot[]> }[] = [];
-  for (const r of results) {
-    if (r.status === "fulfilled") out.push(r.value);
+  for (const [channelId, allEntries] of byChannel) {
+    out.push({ channelId, days: bucketEntries(allEntries) });
   }
   return out;
 }

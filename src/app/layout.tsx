@@ -18,6 +18,7 @@ import AdBanner from "@/components/AdBanner";
 import DeferredWidgets from "@/components/DeferredWidgets";
 import NativeBannerAd from "@/components/NativeBannerAd";
 import OnboardingGate from "@/components/OnboardingGate";
+import ChristmasSnow from "@/components/ChristmasSnow";
 
 import ActivityTracker from "@/components/ActivityTracker";
 import AnalyticsTracker from "@/components/AnalyticsTracker";
@@ -309,6 +310,7 @@ export default function RootLayout({
             <ServiceWorkerRegistration />
             <OfflineStatus />
             <InstallPrompt />
+            <ChristmasSnow />
           </Providers>
         </AuthProvider>
         {/* Vercel Analytics/Speed Insights inject their own scripts — VERCEL_URL is

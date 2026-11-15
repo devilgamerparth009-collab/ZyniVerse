@@ -27,6 +27,7 @@ async function GET_inner(req: NextRequest) {
         channel: ch,
         day: grid.day,
         schedule: { day: grid.day, slots },
+        source: entry?.source ?? "empty",
         updatedAt: grid.updatedAt,
       });
     }
@@ -43,6 +44,7 @@ async function GET_inner(req: NextRequest) {
       return {
         channel: ch,
         schedule: { day: grid.day, slots },
+        source: entry.source ?? "empty",
       };
     });
 
@@ -51,6 +53,7 @@ async function GET_inner(req: NextRequest) {
       today: grid.today,
       updatedAt: grid.updatedAt,
       liveAiringTotal: grid.liveAiringTotal,
+      offlineLinear: grid.offlineLinear ?? false,
       channels,
       availableDays: getScheduleDays(),
     });

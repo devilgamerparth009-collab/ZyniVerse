@@ -108,9 +108,9 @@ const PARTICLES = Array.from({ length: 26 }, (_, i) => ({
 
 export default function SplashScreen() {
   const navigation = useNavigation<any>();
-  const { colors, isDiwali } = useTheme();
-  const accent = isDiwali ? '#f59e0b' : '#00ffe0';
-  const accentAlt = isDiwali ? '#ea580c' : '#ff00e6';
+  const { colors, isDiwali, isChristmas } = useTheme();
+  const accent = isDiwali ? '#f59e0b' : isChristmas ? '#7dd3fc' : '#00ffe0';
+  const accentAlt = isDiwali ? '#ea580c' : isChristmas ? '#f472b6' : '#ff00e6';
 
   const contentScale = useRef(new Animated.Value(0.94)).current;
   const contentOpacity = useRef(new Animated.Value(0)).current;

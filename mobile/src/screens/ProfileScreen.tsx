@@ -213,7 +213,6 @@ export default function ProfileScreen() {
                       if (user.avatar !== failedAvatar) {
                         setFailedAvatar(user.avatar || null);
                         setFailedAvatarAt(Date.now());
-                        setAvatar(null);
                       }
                     }}
                   />

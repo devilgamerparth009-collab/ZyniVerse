@@ -51,6 +51,7 @@ interface ChannelLiveSchedule {
   channelLogo?: string;
   channelType: "tv" | "youtube";
   days: Record<string, LiveScheduleEntry[]>;
+  source?: "epg" | "fallback" | "live" | "empty";
 }
 
 interface LiveScheduleData {
@@ -58,6 +59,7 @@ interface LiveScheduleData {
   today: string;
   channels: ChannelLiveSchedule[];
   liveAiringTotal: number;
+  offlineLinear?: boolean;
 }
 import { PageTransition } from "@/components/PageTransition";
 import { logError } from "@/lib/logger";
@@ -798,6 +800,19 @@ function TvSchedulePage() {
             )}
           </div>
         </motion.div>
+
+        {liveData?.offlineLinear && (
+          <motion.div
+            {...FADE_UP}
+            className="mb-4 flex items-start gap-2 rounded-xl border border-amber-400/40 bg-amber-400/10 px-3 py-2"
+          >
+            <span className="text-sm leading-5">📡</span>
+            <p className="text-[11px] leading-5 text-amber-200/80">
+              Live EPG is unreachable right now, so Indian TV channels show the curated offline
+              guide. Streaming listings below are still live.
+            </p>
+          </motion.div>
+        )}
 
         <NowNextRail data={liveData} />
 

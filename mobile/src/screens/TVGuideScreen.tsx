@@ -59,6 +59,19 @@ function nextSlot(slots?: TvTimeSlot[]): TvTimeSlot | null {
   );
 }
 
+/** 0–1 progress through the currently airing slot (0 when not airing). */
+function slotProgress(slot: TvTimeSlot | null): number {
+  if (!slot) return 0;
+  const mins = nowMinutes();
+  const [sh, sm] = slot.start.split(':').map(Number);
+  const [eh, em] = slot.end.split(':').map(Number);
+  const start = sh * 60 + (sm || 0);
+  let end = eh * 60 + (em || 0);
+  if (end <= start) end += 24 * 60;
+  const adjusted = mins < start ? mins + 24 * 60 : mins;
+  return Math.min(1, Math.max(0, (adjusted - start) / (end - start)));
+}
+
 function LiveDot({ color }: { color: string }) {
   const pulse = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -198,6 +211,15 @@ export default function TVGuideScreen() {
   const [activeChannel, setActiveChannel] = useState<TvChannelEntry | null>(null);
   const [filter, setFilter] = useState<'all' | 'tv' | 'streaming'>('all');
   const [query, setQuery] = useState('');
+  const [offline, setOffline] = useState(false);
+
+  const applyOffline = useCallback((payload?: { offlineLinear?: boolean; channels?: TvChannelEntry[] }) => {
+    if (!payload) return;
+    setOffline(
+      !!payload.offlineLinear ||
+        (payload.channels || []).some((c) => c.source === 'fallback')
+    );
+  }, []);
 
   const load = useCallback(async (selectedDay?: string) => {
     try {
@@ -208,6 +230,7 @@ export default function TVGuideScreen() {
         if (base.availableDays?.length) setDays(base.availableDays);
         if (base.day) setDay(base.day);
         setUpdatedAt(base.updatedAt || null);
+        applyOffline(base);
       } else {
         setChannels([]);
         setError('No listings came back from the guide. Pull down to retry.');
@@ -218,7 +241,7 @@ export default function TVGuideScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [applyOffline]);
 
   useEffect(() => {
     // Paint the last good grid immediately, then refresh underneath. The guide
@@ -231,13 +254,14 @@ export default function TVGuideScreen() {
       if (cached.availableDays?.length) setDays(cached.availableDays);
       if (cached.day) setDay(cached.day);
       setUpdatedAt(cached.updatedAt || null);
+      applyOffline(cached);
       setLoading(false);
     })();
     load();
     return () => {
       cancelled = true;
     };
-  }, [load]);
+  }, [load, applyOffline]);
 
   const visible = useMemo(() => {
     let list = channels;
@@ -329,6 +353,19 @@ export default function TVGuideScreen() {
               </FadeInView>
             ))}
           </ScrollView>
+        )}
+
+        {/* Offline-guide notice */}
+        {offline && (
+          <FadeInView delay={70}>
+            <View style={[styles.offlineBanner, { backgroundColor: `${tint}14`, borderColor: `${tint}55` }]}>
+              <Text style={{ fontSize: 14 }}>📡</Text>
+              <Text style={[styles.offlineText, { color: colors.textMuted }]}>
+                Live EPG is unreachable right now, so linear channels show the curated offline guide.
+                Streaming listings are still live.
+              </Text>
+            </View>
+          </FadeInView>
         )}
 
         {/* Day selector */}
@@ -480,6 +517,24 @@ export default function TVGuideScreen() {
                         </Text>
                       )}
 
+                      {slot && (
+                        <View style={[styles.progressTrack, { backgroundColor: `${entry.channel.color}33` }]}>
+                          <View
+                            style={[
+                              styles.progressFill,
+                              {
+                                width: `${Math.round(slotProgress(slot) * 100)}%`,
+                                backgroundColor: entry.channel.color,
+                              },
+                            ]}
+                          />
+                        </View>
+                      )}
+
+                      {entry.source === 'fallback' && (
+                        <Text style={[styles.offlineTag, { color: colors.warning }]}>OFFLINE GUIDE</Text>
+                      )}
+
                       {!!entry.channel.dthNumbers && (
                         <Text style={[styles.dth, { color: colors.textDim }]} numberOfLines={1}>
                           📡 {entry.channel.dthNumbers}
@@ -523,6 +578,7 @@ export default function TVGuideScreen() {
                     </Text>
                     <Text style={[styles.sheetMeta, { color: colors.textMuted }]} numberOfLines={1}>
                       {activeChannel.schedule?.day} · {activeChannel.schedule?.slots?.length || 0} shows
+                      {activeChannel.source === 'fallback' ? ' · offline guide' : ''}
                       {activeChannel.channel.dthNumbers ? ` · ${activeChannel.channel.dthNumbers}` : ''}
                     </Text>
                   </View>
@@ -610,6 +666,17 @@ const styles = StyleSheet.create({
   liveDotHalo: { position: 'absolute', width: 10, height: 10, borderRadius: 5 },
   liveDot: { width: 8, height: 8, borderRadius: 4 },
   liveLabel: { fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
+  offlineBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.sm,
+    padding: 10,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+  },
+  offlineText: { flex: 1, fontSize: 11, lineHeight: 16 },
   liveStrip: { paddingHorizontal: spacing.md, gap: 10, paddingBottom: spacing.md },
   liveCard: { width: 152, borderRadius: borderRadius.lg, borderWidth: 1, padding: 12, minHeight: 126 },
   liveCardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
@@ -661,6 +728,9 @@ const styles = StyleSheet.create({
   typePill: { borderWidth: 1, borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 },
   typePillText: { fontSize: 8, fontWeight: '900', letterSpacing: 0.6 },
   nowText: { fontSize: 11, marginTop: 3 },
+  progressTrack: { height: 3, borderRadius: 2, marginTop: 6, overflow: 'hidden' },
+  progressFill: { height: 3, borderRadius: 2 },
+  offlineTag: { fontSize: 8, fontWeight: '900', letterSpacing: 0.8, marginTop: 4 },
   dth: { fontSize: 10, marginTop: 2 },
   chevron: { fontSize: 22, fontWeight: '300' },
   skeletonCard: {

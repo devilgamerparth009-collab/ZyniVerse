@@ -3,7 +3,7 @@
     "name": "ZyniVerse",
     "slug": "zyniverse",
     "scheme": "zyniverse",
-    "version": "1.4.0",
+    "version": "1.4.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -29,8 +29,8 @@
         "foregroundImage": "./assets/adaptive-icon-foreground.png",
         "backgroundColor": "#000000"
       },
-      "package": "app.zyniverse.mobile",
-      "versionCode": 5,
+      "package": "app.zyverse.mobile",
+      "versionCode": 140010,
       "permissions": ["RECORD_AUDIO", "MODIFY_AUDIO_SETTINGS", "CAMERA"]
     },
     "plugins": [
@@ -46,7 +46,8 @@
       ],
       "./plugins/withZyniManifest",
       "./plugins/withZyniKotlinVersion",
-      "./plugins/withAndroidArchitectures"
+      "./plugins/withAndroidArchitectures",
+      "./plugins/withZyniReleaseConfig"
     ],
     "updates": {
       "enabled": false,

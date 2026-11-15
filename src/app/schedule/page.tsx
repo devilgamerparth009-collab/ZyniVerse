@@ -39,7 +39,11 @@ export const metadata: Metadata = {
 // week roll-over — are client-driven in the board, which re-anchors to the new
 // week within 30s of a Sunday boundary, so a ≤5min-stale snapshot is invisible.
 // `loading.tsx` streams the skeleton while the first render generates.
-export const revalidate = 604800; // 7 days (was 6 hours, was 3 hours)
+//
+// Kept at 15 minutes on purpose: an earlier 7-day window meant a single AniList
+// rate-limit response was baked into the page for a whole week. 15 min is still
+// cheap (96 renders/day) and lets a recovered upstream heal the page quickly.
+export const revalidate = 900;
 
 /** Schedule-specific structured data so the board can win rich results. */
 function buildScheduleJsonLd(schedule: AiringScheduleEntry[]) {

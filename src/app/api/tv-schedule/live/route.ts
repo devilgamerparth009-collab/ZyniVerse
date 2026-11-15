@@ -21,6 +21,7 @@ async function GET_inner() {
       today: grid.today,
       channels: grid.channels,
       liveAiringTotal: grid.liveAiringTotal,
+      offlineLinear: grid.offlineLinear ?? false,
     });
   } catch (error) {
     return NextResponse.json(

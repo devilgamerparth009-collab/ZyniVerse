@@ -616,6 +616,8 @@ export interface TvDaySchedule {
 export interface TvChannelEntry {
   channel: TvChannelInfo;
   schedule?: TvDaySchedule;
+  /** Where the listings came from; `fallback` means the offline guide. */
+  source?: 'epg' | 'fallback' | 'live' | 'empty';
 }
 
 export interface TvScheduleResponse {
@@ -625,6 +627,8 @@ export interface TvScheduleResponse {
   today?: string;
   updatedAt?: string;
   liveAiringTotal?: number;
+  /** At least one linear channel is showing the curated offline guide. */
+  offlineLinear?: boolean;
 }
 
 /* ------------------------------------------------------------------ */
