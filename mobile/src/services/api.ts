@@ -333,6 +333,7 @@ export async function getCurrentUser(): Promise<User | null> {
 }
 
 async function login(email: string, password: string): Promise<User> {
+  // Step 1: Get CSRF token + any initial cookies
   const csrfRes = await fetchWithTimeout(`${WEB_HOST}/api/auth/csrf`, {
     headers: { Accept: 'application/json' },
   });
@@ -341,19 +342,18 @@ async function login(email: string, password: string): Promise<User> {
   };
   if (!csrf.csrfToken) throw new Error('Could not reach ZyniVerse login');
 
-  const jar = extractAuthCookies(csrfRes);
-  const cookieHeader = serializeCookies(jar);
+  const csrfJar = extractAuthCookies(csrfRes);
 
-  // `X-Auth-Return-Redirect` makes Auth.js answer with a JSON body instead of a
-  // 302. React Native follows redirects unconditionally, which would drop the
-  // session Set-Cookie header; a plain 200 keeps it visible to fetch().
-  const res = await fetchWithTimeout(`${WEB_HOST}/api/auth/callback/credentials`, {
+  // Step 2: Post credentials. Use X-Auth-Return-Redirect so NextAuth returns
+  // a JSON body (200) instead of a 302 redirect — RN follows redirects
+  // automatically and the Set-Cookie header gets dropped in the process.
+  const credRes = await fetchWithTimeout(`${WEB_HOST}/api/auth/callback/credentials`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
       Accept: 'application/json',
       'X-Auth-Return-Redirect': '1',
-      ...(cookieHeader ? { Cookie: cookieHeader } : {}),
+      ...(Object.keys(csrfJar).length ? { Cookie: serializeCookies(csrfJar) } : {}),
     },
     body: new URLSearchParams({
       csrfToken: csrf.csrfToken,
@@ -362,14 +362,21 @@ async function login(email: string, password: string): Promise<User> {
       callbackUrl: `${WEB_HOST}/`,
       json: 'true',
     }).toString(),
+    // Don't follow redirects — we need to capture the Set-Cookie header
+    redirect: 'manual' as RequestRedirect,
   });
 
+  // Check for auth errors in the JSON response
   let callbackError: string | null = null;
   try {
-    const payload = await res.json();
-    const url = typeof payload?.url === 'string' ? payload.url : '';
-    const match = url.match(/[?&]error=([^&]+)/);
-    if (match) callbackError = decodeURIComponent(match[1]);
+    // Only try to parse if it's a real JSON response (not an opaque redirect)
+    const contentType = credRes.headers.get?.('content-type') || '';
+    if (contentType.includes('json')) {
+      const payload = await credRes.json();
+      const url = typeof payload?.url === 'string' ? payload.url : '';
+      const match = url.match(/[?&]error=([^&]+)/);
+      if (match) callbackError = decodeURIComponent(match[1]);
+    }
   } catch {
     /* not JSON – fall through to the session check */
   }
@@ -382,15 +389,54 @@ async function login(email: string, password: string): Promise<User> {
     );
   }
 
-  const merged = { ...jar, ...extractAuthCookies(res) };
-  const captured = hasSessionCookie(merged);
-  const stored = captured ? serializeCookies(merged) : NATIVE_JAR_MARKER;
+  // Step 3: Collect session cookie from credentials response
+  const merged = { ...csrfJar, ...extractAuthCookies(credRes) };
 
-  const user = await fetchSessionUser(stored);
+  // Step 4: If RN didn't expose the Set-Cookie (happens on some Android versions),
+  // fall back to fetching the session endpoint directly — the native cookie jar
+  // should have it after the successful login POST above.
+  if (!hasSessionCookie(merged)) {
+    // Try to get session cookie from the mobile-token endpoint
+    // (the native jar may have the cookie even if fetch() didn't expose it)
+    try {
+      const tokenRes = await fetchWithTimeout(`${WEB_HOST}/api/auth/mobile-token`);
+      if (tokenRes.ok) {
+        const tokenData = await tokenRes.json().catch(() => null);
+        if (tokenData?.ok && tokenData?.cookie && tokenData?.user) {
+          const cookieStr = tokenData.cookie as string;
+          await saveSessionToStorage(cookieStr, {
+            id: tokenData.user.id || '',
+            username: tokenData.user.name || tokenData.user.email || 'User',
+            email: tokenData.user.email || '',
+            avatar: tokenData.user.image || undefined,
+          });
+          return {
+            id: tokenData.user.id || '',
+            username: tokenData.user.name || tokenData.user.email || 'User',
+            email: tokenData.user.email || '',
+            avatar: tokenData.user.image || undefined,
+          };
+        }
+      }
+    } catch {/* ignore */}
+
+    // Last resort: try with NATIVE_JAR_MARKER (native cookie jar)
+    const user = await fetchSessionUser(NATIVE_JAR_MARKER);
+    if (user) {
+      await saveSessionToStorage(NATIVE_JAR_MARKER, user);
+      return user;
+    }
+
+    throw new Error('Invalid email or password');
+  }
+
+  // Step 5: We have the cookie — verify the session
+  const cookieStr = serializeCookies(merged);
+  const user = await fetchSessionUser(cookieStr);
   if (!user) {
     throw new Error('Invalid email or password');
   }
-  await saveSessionToStorage(stored, user);
+  await saveSessionToStorage(cookieStr, user);
   return user;
 }
 
