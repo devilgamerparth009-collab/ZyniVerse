@@ -199,6 +199,23 @@ export async function downloadUpdate(
     throw new Error('The downloaded file looks incomplete. Please retry.');
   }
 
+  // The server publishes the exact byte size. A dropped connection can leave a
+  // truncated file that is still several MB, so check it before offering the
+  // installer — a broken APK would only fail later with a cryptic parse error.
+  const expectedSize = release.sizeBytes || 0;
+  if (expectedSize > 0 && bytes !== expectedSize) {
+    try {
+      await FileSystem.deleteAsync(result.uri, { idempotent: true });
+    } catch {
+      /* ignore */
+    }
+    throw new Error(
+      `The download stopped early (${Math.round(bytes / 1048576)} of ${Math.round(
+        expectedSize / 1048576
+      )} MB). Please retry on a stable connection.`
+    );
+  }
+
   const downloaded: DownloadedUpdate = {
     release,
     uri: result.uri,

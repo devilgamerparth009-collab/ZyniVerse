@@ -6,6 +6,7 @@
   - `GET /api/mobile/version` returns the latest build, notes, APK URL and size.
   - App checks on launch, downloads in the background and offers a one-tap install.
   - Native `Settings → App update` screen with progress, skip and retry.
+  - Downloads are verified against the published byte size, so a truncated APK can never reach the installer.
   - `REQUEST_INSTALL_PACKAGES` permission + Android installer intent.
 - **Server-driven content (no APK update needed)**
   - `GET /api/mobile/feed` + `src/content/mobile-feed.json`.
@@ -30,8 +31,8 @@
 ## Build
 
 - **APK:** `app-release.apk` / `dist/ZyniVerse-1.6.0.apk`
-- **Size:** 42,051,753 bytes (~40.1 MB)
-- **SHA-256:** `f4819f41d1395bf3fe6eb57b386da8ee8e0fac744214df93ea382a5fc4fe8371`
+- **Size:** 42,052,121 bytes (~40.1 MB)
+- **SHA-256:** `8b0199df768fa396104133cd789d536ad851296ac33cd223707d4dbc03d6a498`
 - **versionCode:** 160000
 - **versionName:** 1.6.0
 - **Package:** `app.zyverse.mobile`
@@ -52,10 +53,13 @@
 | `GET /api/users/ZyniBot` | 200, public profile payload |
 | `GET /download` | 200 |
 | `GET /api/mobile/download` | 302 → GitHub release asset |
+| GitHub release `v1.6.0` | created, asset uploaded |
+| Release asset URL | 200, 42,052,121 bytes, `application/vnd.android.package-archive` |
+| Release asset digest | `sha256:8b0199df…` (matches local APK) |
+| Production `https://zyverse.in` deploy | live (`c3bbc56`) |
 
 ## Pending (manual)
 
-- Create GitHub release `v1.6.0` and upload `ZyniVerse-1.6.0.apk`.
 - Device install / smoke test once a phone is reachable over ADB.
 - Play Console upload + store listing assets.
 - Remove the dead `ws.zyverse.in` DNS record (points at `153.52.255.71`).

@@ -33,6 +33,18 @@ export interface MobileRelease {
 const FALLBACK_VERSION_NAME = "1.6.0";
 const FALLBACK_VERSION_CODE = 160000;
 
+/**
+ * Verified metadata for builds we have actually published. Keeping it keyed by
+ * version means bumping `MOBILE_VERSION_NAME` without also setting the env vars
+ * can never make the app check a new APK against an old hash/size.
+ */
+const PUBLISHED_BUILDS: Record<string, { sha256: string; sizeBytes: number }> = {
+  "1.6.0": {
+    sha256: "8b0199df768fa396104133cd789d536ad851296ac33cd223707d4dbc03d6a498",
+    sizeBytes: 42052121,
+  },
+};
+
 function envNumber(value: string | undefined): number | undefined {
   if (!value) return undefined;
   const n = Number(value);
@@ -45,13 +57,14 @@ function githubAsset(versionName: string): string {
 
 const versionName = process.env.MOBILE_VERSION_NAME || FALLBACK_VERSION_NAME;
 const versionCode = envNumber(process.env.MOBILE_VERSION_CODE) || FALLBACK_VERSION_CODE;
+const published = PUBLISHED_BUILDS[versionName];
 
 export const MOBILE_RELEASE: MobileRelease = {
   versionName,
   versionCode,
   apkUrl: process.env.MOBILE_APK_URL || githubAsset(versionName),
-  sha256: process.env.MOBILE_APK_SHA256 || undefined,
-  sizeBytes: envNumber(process.env.MOBILE_APK_SIZE) || undefined,
+  sha256: process.env.MOBILE_APK_SHA256 || published?.sha256,
+  sizeBytes: envNumber(process.env.MOBILE_APK_SIZE) || published?.sizeBytes,
   notes: (process.env.MOBILE_RELEASE_NOTES
     ? process.env.MOBILE_RELEASE_NOTES.split("|")
     : [
