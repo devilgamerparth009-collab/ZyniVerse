@@ -1,32 +1,75 @@
 import { NextRequest } from "next/server";
-import { TV_CHANNEL_LOGO_SOURCES } from "@/lib/tv-channels";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+import { TV_CHANNEL_LOGO_SOURCES, TV_CHANNELS } from "@/lib/tv-channels";
 
 /**
- * Same-origin channel logo proxy.
+ * Same-origin channel logo proxy (legacy + fallback).
  *
- * Why this exists: every channel logo used to be loaded straight from
- * `upload.wikimedia.org`. Wikimedia answers bursty app traffic with
- * `429 Too Many Requests`, so on Android most logos silently failed and the
- * TV guide showed empty squares. The phone now asks zyverse.in for
- * `/api/channel-logo/<channelId>`; this handler fetches the upstream file once,
- * keeps it in the Next.js data cache for a week, and returns it with immutable
- * CDN headers. Every later viewer is served from the edge.
+ * Primary logos now ship as static files in `public/channel-logos/<id>.png`
+ * and `logoProxyUrl` points straight at them. This handler stays around so
+ * already-installed app versions keep working, and so a missing static file
+ * degrades to a branded SVG wordmark instead of a blank 1x1 pixel.
  */
 
 const BROWSER_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 
-// 1x1 transparent PNG. Used when the upstream is unreachable so the client
-// falls back to its own branded channel badge instead of showing a broken icon.
-const TRANSPARENT_PNG = Buffer.from(
-  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
-  "base64",
-);
-
 const CACHE_HEADERS = {
   "Cache-Control":
     "public, max-age=604800, s-maxage=604800, stale-while-revalidate=2592000, immutable",
 };
+
+function escapeXml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+/**
+ * A clean branded wordmark. Never blank, so the client always has something
+ * legible to show even if every upstream source is down.
+ */
+function wordmark(id: string): Response {
+  const channel = TV_CHANNELS[id];
+  const label = escapeXml(channel?.shortName || channel?.name || id.toUpperCase());
+  const name = escapeXml(channel?.name || id);
+  const accent = escapeXml(channel?.color || "#38bdf8");
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="200" viewBox="0 0 320 200">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#11121c"/>
+      <stop offset="1" stop-color="#1b1d2e"/>
+    </linearGradient>
+  </defs>
+  <rect width="320" height="200" rx="34" fill="url(#g)"/>
+  <rect x="18" y="18" width="284" height="164" rx="24" fill="none" stroke="${accent}" stroke-opacity="0.55" stroke-width="3"/>
+  <text x="160" y="96" fill="${accent}" font-family="Arial Black, Arial, sans-serif" font-size="54" font-weight="900" text-anchor="middle" letter-spacing="2">${label}</text>
+  <text x="160" y="138" fill="#e6e8f5" font-family="Arial, sans-serif" font-size="20" font-weight="700" text-anchor="middle">${name}</text>
+  <rect x="118" y="154" width="84" height="5" rx="2.5" fill="${accent}"/>
+</svg>`;
+  return new Response(svg, {
+    status: 200,
+    headers: { "Content-Type": "image/svg+xml; charset=utf-8", ...CACHE_HEADERS },
+  });
+}
+
+async function localLogo(id: string): Promise<Response | null> {
+  try {
+    const file = path.join(process.cwd(), "public", "channel-logos", `${id}.png`);
+    const body = await readFile(file);
+    if (!body.byteLength) return null;
+    return new Response(body, {
+      status: 200,
+      headers: { "Content-Type": "image/png", ...CACHE_HEADERS },
+    });
+  } catch {
+    return null;
+  }
+}
 
 async function fetchLogo(src: string): Promise<Response | null> {
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -37,14 +80,13 @@ async function fetchLogo(src: string): Promise<Response | null> {
           Accept: "image/avif,image/webp,image/png,image/svg+xml,image/*,*/*;q=0.8",
           Referer: "https://zyverse.in/",
         },
-        // Cache the upstream bytes for a week; logos never change.
         next: { revalidate: 604800 },
       });
       if (upstream.ok) {
         const type = upstream.headers.get("content-type") || "";
-        // Some CDNs answer 200 with an HTML error page — never pass that on.
         if (!type.startsWith("image/")) continue;
         const body = await upstream.arrayBuffer();
+        // Reject Wikimedia's 1x1 error pixel as well as empty bodies.
         if (body.byteLength === 0) continue;
         return new Response(body, {
           status: 200,
@@ -64,23 +106,22 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
+
+  const local = await localLogo(id);
+  if (local) return local;
+
   const src = TV_CHANNEL_LOGO_SOURCES[id];
-  if (!src) {
-    return new Response(TRANSPARENT_PNG, {
-      status: 404,
-      headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=60" },
-    });
+  if (src) {
+    const remote = await fetchLogo(src);
+    if (remote) return remote;
   }
 
-  const logo = await fetchLogo(src);
-  if (logo) return logo;
+  // Never return the old transparent 1x1: clients treat a 200 as success and
+  // then render an empty square. A branded wordmark is always legible.
+  if (TV_CHANNELS[id]) return wordmark(id);
 
-  // Short cache so a transient outage does not stick for a week.
-  return new Response(TRANSPARENT_PNG, {
-    status: 200,
-    headers: {
-      "Content-Type": "image/png",
-      "Cache-Control": "public, max-age=300, s-maxage=300",
-    },
+  return new Response("Not found", {
+    status: 404,
+    headers: { "Cache-Control": "public, max-age=60" },
   });
 }

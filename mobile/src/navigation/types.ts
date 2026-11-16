@@ -49,6 +49,18 @@ export type RootStackParamList = {
   LiveDubs: undefined;
   Wordle: undefined;
   DailyDubSchedule: undefined;
+  Update: undefined;
+  Messages: undefined;
+  Chat: {
+    conversationId?: string;
+    userId?: string;
+    username?: string;
+    avatar?: string;
+  };
+  Friends: undefined;
+  UserProfile: { username: string };
+  Feed: undefined;
+  Hub: { kind: string; title?: string };
   Web: { title?: string; path?: string; url?: string; auth?: boolean };
 };
 

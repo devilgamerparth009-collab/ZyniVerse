@@ -10,9 +10,9 @@ import {
   Animated,
   Modal,
   TextInput,
+  Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../hooks/useTheme';
 import { api } from '../services/api';
 import { TvChannelEntry, TvTimeSlot } from '../types';
@@ -23,6 +23,8 @@ import { spacing, borderRadius } from '../theme';
 import { webAbsoluteUrl } from '../utils/helpers';
 
 const TV_DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const TILE_WIDTH = (SCREEN_WIDTH - spacing.md * 2 - 10) / 2;
 
 function getTodayDayName() {
   return TV_DAYS[new Date().getDay()];
@@ -233,7 +235,6 @@ function ChannelBadge({
 }
 
 export default function TVGuideScreen() {
-  const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
   const { colors, isDiwali, isChristmas } = useTheme();
   const tint = isDiwali ? '#f59e0b' : isChristmas ? '#7dd3fc' : colors.primary;
@@ -354,6 +355,57 @@ export default function TVGuideScreen() {
         contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={tint} />}
       >
+        {/* Command centre: day, live count and coverage at a glance */}
+        <FadeInView delay={0}>
+          <View style={[styles.hero, { backgroundColor: colors.surface, borderColor: `${tint}44` }]}>
+            <View pointerEvents="none" style={[styles.heroGlow, { backgroundColor: `${tint}22` }]} />
+            <View style={styles.heroTop}>
+              <View
+                style={[
+                  styles.heroLive,
+                  { backgroundColor: liveNow.length ? '#ef444422' : colors.background },
+                ]}
+              >
+                <LiveDot color={liveNow.length ? '#ef4444' : colors.textDim} size={6} />
+                <Text
+                  style={[
+                    styles.heroLiveText,
+                    { color: liveNow.length ? '#ef4444' : colors.textMuted },
+                  ]}
+                >
+                  {liveNow.length ? `${liveNow.length} LIVE` : 'OFF AIR'}
+                </Text>
+              </View>
+              <Text style={[styles.heroDate, { color: colors.textMuted }]}>
+                {day} ·{' '}
+                {dateForDay(day).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
+              </Text>
+            </View>
+            <Text style={[styles.heroTitle, { color: colors.text }]}>What’s on right now</Text>
+            <Text style={[styles.heroSub, { color: colors.textMuted }]}>
+              {totalSlots > 0
+                ? `${channels.length} channels · ${totalSlots} airings · ${
+                    offline ? 'offline guide' : 'live EPG'
+                  }`
+                : 'Loading the electronic programme guide…'}
+            </Text>
+            <View style={styles.heroStats}>
+              {[
+                { label: 'Channels', value: channels.length },
+                { label: 'Live now', value: liveNow.length },
+                { label: 'Airings', value: totalSlots },
+              ].map((stat) => (
+                <View key={stat.label} style={[styles.heroStat, { borderColor: colors.border }]}>
+                  <Text style={[styles.heroStatValue, { color: tint }]}>{stat.value}</Text>
+                  <Text style={[styles.heroStatLabel, { color: colors.textMuted }]}>
+                    {stat.label}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        </FadeInView>
+
         {/* Live now strip */}
         <FadeInView delay={20}>
           <View style={styles.liveHead}>
@@ -520,99 +572,126 @@ export default function TVGuideScreen() {
           <>
             <View style={styles.listHead}>
               <Text style={[styles.listHeadTitle, { color: colors.textMuted }]}>
-                CHANNELS · {visible.length}
+                CHANNEL WALL · {visible.length}
               </Text>
               <Text style={[styles.listHeadHint, { color: colors.textDim }]}>Tap for the full day</Text>
             </View>
-            <View style={styles.grid}>
+            <View style={styles.tileGrid}>
               {visible.map((entry, i) => {
                 const slot = currentSlot(entry.schedule?.slots);
                 const next = nextSlot(entry.schedule?.slots);
                 const count = entry.schedule?.slots?.length || 0;
                 const isStreaming = entry.channel.type !== 'tv';
+                const brand = entry.channel.color;
                 return (
-                  <FadeInView key={entry.channel.id} delay={Math.min(i, 10) * 40} offset={14}>
+                  <FadeInView
+                    key={entry.channel.id}
+                    delay={Math.min(i, 10) * 40}
+                    offset={14}
+                    style={styles.tileWrap}
+                  >
                     <PressableScale
-                      style={[styles.channelCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                      style={[
+                        styles.tile,
+                        {
+                          backgroundColor: colors.surface,
+                          borderColor: slot ? `${brand}99` : colors.border,
+                        },
+                      ]}
                       onPress={() => setActiveChannel(entry)}
                     >
                       <View
                         pointerEvents="none"
-                        style={[styles.cardWash, { backgroundColor: `${entry.channel.color}12` }]}
+                        style={[styles.tileGlow, { backgroundColor: `${brand}18` }]}
                       />
-                      <View style={[styles.accent, { backgroundColor: entry.channel.color }]} />
-                      <ChannelBadge channel={entry.channel} size={54} />
-
-                      <View style={{ flex: 1 }}>
-                        <View style={styles.channelTitleRow}>
-                          <Text style={[styles.channelName, { color: colors.text }]} numberOfLines={1}>
-                            {entry.channel.name}
-                          </Text>
+                      <View style={styles.tileTop}>
+                        <ChannelBadge channel={entry.channel} size={44} />
+                        <View style={styles.tileBadges}>
+                          {slot && (
+                            <View style={styles.tileLivePill}>
+                              <LiveDot color="#ffffff" size={4} />
+                              <Text style={styles.tileLiveText}>LIVE</Text>
+                            </View>
+                          )}
                           <View
                             style={[
                               styles.typePill,
                               {
-                                borderColor: isStreaming ? `${colors.secondary}88` : `${tint}88`,
-                                backgroundColor: isStreaming ? `${colors.secondary}18` : `${tint}18`,
+                                borderColor: isStreaming
+                                  ? `${colors.secondary}88`
+                                  : `${tint}88`,
+                                backgroundColor: isStreaming
+                                  ? `${colors.secondary}18`
+                                  : `${tint}18`,
                               },
                             ]}
                           >
                             <Text
-                              style={[styles.typePillText, { color: isStreaming ? colors.secondary : tint }]}
+                              style={[
+                                styles.typePillText,
+                                { color: isStreaming ? colors.secondary : tint },
+                              ]}
                             >
                               {isStreaming ? 'OTT' : 'TV'}
                             </Text>
                           </View>
                         </View>
+                      </View>
 
-                        {slot ? (
-                          <Text style={[styles.nowText, { color: colors.text }]} numberOfLines={1}>
-                            <Text style={{ color: '#ef4444', fontWeight: '900' }}>● </Text>
+                      <Text style={[styles.tileName, { color: colors.text }]} numberOfLines={1}>
+                        {entry.channel.name}
+                      </Text>
+
+                      {slot ? (
+                        <>
+                          <Text style={[styles.tileShow, { color: colors.text }]} numberOfLines={2}>
                             {slot.show}
-                            <Text style={{ color: colors.textDim }}>  {slot.start}–{slot.end}</Text>
                           </Text>
-                        ) : next ? (
-                          <Text style={[styles.nowText, { color: colors.textMuted }]} numberOfLines={1}>
-                            <Text style={{ color: tint, fontWeight: '800' }}>Next </Text>
-                            {next.start} · {next.show}
+                          <Text style={[styles.tileTime, { color: colors.textDim }]}>
+                            {slot.start} – {slot.end}
                           </Text>
-                        ) : (
-                          <Text style={[styles.nowText, { color: colors.textDim }]} numberOfLines={1}>
-                            {count > 0 ? `${count} shows listed` : 'No listings for this day'}
-                          </Text>
-                        )}
-
-                        {slot && (
-                          <View style={[styles.progressTrack, { backgroundColor: `${entry.channel.color}33` }]}>
+                          <View style={[styles.progressTrack, { backgroundColor: `${brand}33` }]}>
                             <View
                               style={[
                                 styles.progressFill,
                                 {
                                   width: `${Math.round(slotProgress(slot) * 100)}%`,
-                                  backgroundColor: entry.channel.color,
+                                  backgroundColor: brand,
                                 },
                               ]}
                             />
                           </View>
+                        </>
+                      ) : (
+                        <>
+                          <Text
+                            style={[styles.tileShow, { color: colors.textMuted }]}
+                            numberOfLines={2}
+                          >
+                            {next
+                              ? `Next · ${next.show}`
+                              : count > 0
+                                ? `${count} shows listed`
+                                : 'No listings today'}
+                          </Text>
+                          <Text style={[styles.tileTime, { color: colors.textDim }]}>
+                            {next ? next.start : entry.channel.dthNumbers || ' '}
+                          </Text>
+                        </>
+                      )}
+
+                      <View style={styles.tileFooter}>
+                        {entry.source === 'fallback' ? (
+                          <Text style={[styles.offlineTag, { color: colors.warning }]}>
+                            OFFLINE
+                          </Text>
+                        ) : (
+                          <Text style={[styles.countTag, { color: colors.textDim }]}>
+                            {count} shows
+                          </Text>
                         )}
-
-                        <View style={styles.cardFooter}>
-                          {entry.source === 'fallback' ? (
-                            <Text style={[styles.offlineTag, { color: colors.warning }]}>OFFLINE GUIDE</Text>
-                          ) : (
-                            <Text style={[styles.countTag, { color: colors.textDim }]}>
-                              {count} shows
-                            </Text>
-                          )}
-                          {!!entry.channel.dthNumbers && (
-                            <Text style={[styles.dth, { color: colors.textDim }]} numberOfLines={1}>
-                              📡 {entry.channel.dthNumbers}
-                            </Text>
-                          )}
-                        </View>
+                        <Text style={[styles.tileOpen, { color: brand }]}>Open ›</Text>
                       </View>
-
-                      <Text style={[styles.chevron, { color: colors.textDim }]}>›</Text>
                     </PressableScale>
                   </FadeInView>
                 );
@@ -620,13 +699,6 @@ export default function TVGuideScreen() {
             </View>
           </>
         )}
-
-        <TouchableOpacity
-          style={[styles.webLink, { borderColor: colors.border }]}
-          onPress={() => navigation.navigate('Web', { title: 'TV Schedule', path: '/tv-schedule' })}
-        >
-          <Text style={[styles.webLinkText, { color: tint }]}>Open the full guide on zyverse.in →</Text>
-        </TouchableOpacity>
       </ScrollView>
 
       {/* Channel sheet */}
@@ -719,17 +791,12 @@ export default function TVGuideScreen() {
                 </ScrollView>
 
                 <TouchableOpacity
-                  style={[styles.sheetBtn, { backgroundColor: tint }]}
-                  onPress={() => {
-                    const channel = activeChannel;
-                    setActiveChannel(null);
-                    navigation.navigate('Web', {
-                      title: channel.channel.name,
-                      path: '/tv-schedule',
-                    });
-                  }}
+                  style={[styles.sheetBtnOutline, { borderColor: colors.border }]}
+                  onPress={() => setActiveChannel(null)}
                 >
-                  <Text style={styles.sheetBtnText}>Full channel guide →</Text>
+                  <Text style={[styles.sheetBtnOutlineText, { color: colors.textMuted }]}>
+                    Close
+                  </Text>
                 </TouchableOpacity>
               </>
             )}
@@ -741,6 +808,50 @@ export default function TVGuideScreen() {
 }
 
 const styles = StyleSheet.create({
+  hero: {
+    marginHorizontal: spacing.md,
+    marginTop: spacing.md,
+    borderRadius: borderRadius.xl ?? borderRadius.lg,
+    borderWidth: 1,
+    padding: spacing.md,
+    overflow: 'hidden',
+  },
+  heroGlow: {
+    position: 'absolute',
+    right: -60,
+    top: -70,
+    width: 190,
+    height: 190,
+    borderRadius: 95,
+  },
+  heroTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
+  },
+  heroLive: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: borderRadius.full,
+  },
+  heroLiveText: { fontSize: 9, fontWeight: '900', letterSpacing: 1 },
+  heroDate: { fontSize: 11, fontWeight: '700' },
+  heroTitle: { fontSize: 20, fontWeight: '900', letterSpacing: -0.4 },
+  heroSub: { fontSize: 11.5, marginTop: 3, lineHeight: 16 },
+  heroStats: { flexDirection: 'row', gap: 8, marginTop: spacing.md },
+  heroStat: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: borderRadius.md,
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  heroStatValue: { fontSize: 18, fontWeight: '900' },
+  heroStatLabel: { fontSize: 9, fontWeight: '700', letterSpacing: 0.4, marginTop: 1 },
   liveHead: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -821,6 +932,57 @@ const styles = StyleSheet.create({
   },
   listHeadTitle: { fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
   listHeadHint: { fontSize: 10 },
+  tileGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: spacing.md,
+    gap: 10,
+  },
+  tileWrap: { width: TILE_WIDTH },
+  tile: {
+    width: '100%',
+    minHeight: 176,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    padding: 11,
+    overflow: 'hidden',
+  },
+  tileGlow: {
+    position: 'absolute',
+    right: -34,
+    top: -40,
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+  },
+  tileTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 6,
+  },
+  tileBadges: { alignItems: 'flex-end', gap: 5 },
+  tileLivePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#ef4444',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 5,
+  },
+  tileLiveText: { color: '#fff', fontSize: 7.5, fontWeight: '900', letterSpacing: 0.8 },
+  tileName: { fontSize: 13, fontWeight: '800', marginTop: 9 },
+  tileShow: { fontSize: 11.5, lineHeight: 15, marginTop: 3, minHeight: 30 },
+  tileTime: { fontSize: 9.5, fontWeight: '600', marginTop: 2 },
+  tileFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 'auto',
+    paddingTop: 7,
+  },
+  tileOpen: { fontSize: 9.5, fontWeight: '900' },
   grid: { paddingHorizontal: spacing.md, gap: 10 },
   channelCard: {
     flexDirection: 'row',
@@ -906,4 +1068,12 @@ const styles = StyleSheet.create({
   emptyText: { fontSize: 12, textAlign: 'center', lineHeight: 18 },
   sheetBtn: { marginTop: spacing.md, borderRadius: borderRadius.md, paddingVertical: 13, alignItems: 'center' },
   sheetBtnText: { color: '#0b0b10', fontSize: 13, fontWeight: '900' },
+  sheetBtnOutline: {
+    marginTop: spacing.md,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  sheetBtnOutlineText: { fontSize: 12, fontWeight: '800' },
 });

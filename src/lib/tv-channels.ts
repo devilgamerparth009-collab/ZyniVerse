@@ -286,10 +286,46 @@ const RAW_TV_CHANNELS: Record<string, TvChannel> = {
   },
 };
 
+/**
+ * Local, pre-trimmed copies of every channel logo live in
+ * `public/channel-logos/<id>.png`. They are generated once from the upstream
+ * files and committed, so the phone never has to reach Wikimedia (which answers
+ * app traffic with 429 and used to leave 16 of 20 tiles blank).
+ *
+ * `logoPlate` is measured from the opaque pixels of the processed file:
+ * a dark wordmark needs a light plate and vice versa.
+ */
+const LOGO_PLATES: Record<string, "light" | "dark"> = {
+  animax: "light",
+  cn: "dark",
+  crunchyroll: "light",
+  discovery_kids: "light",
+  disney_channel: "light",
+  disney_junior: "light",
+  epic_kids: "dark",
+  hungama: "light",
+  jio_hotstar: "light",
+  muse_asia: "light",
+  muse_india: "light",
+  netflix_anime: "light",
+  nick: "light",
+  nick_jr: "light",
+  pogo: "light",
+  prime_video: "dark",
+  sonic: "light",
+  sony_liv: "dark",
+  sony_yay: "dark",
+  super_hungama: "light",
+};
+
 export const TV_CHANNELS: Record<string, TvChannel> = Object.fromEntries(
   Object.entries(RAW_TV_CHANNELS).map(([id, channel]) => [
     id,
-    { ...channel, logoProxyUrl: `/api/channel-logo/${id}` },
+    {
+      ...channel,
+      logoProxyUrl: `/channel-logos/${id}.png`,
+      logoPlate: LOGO_PLATES[id] ?? channel.logoPlate ?? "light",
+    },
   ]),
 );
 

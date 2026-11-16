@@ -13,7 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { colors, themed, spacing, fontSize, borderRadius } from '../theme';
 import { useTheme } from '../hooks/useTheme';
-import { useOTAUpdate } from '../hooks/useOTAUpdate';
+import { checkForUpdate, currentVersionName } from '../services/updater';
 import FadeInView from '../components/FadeInView';
 import { api, getCurrentUser } from '../services/api';
 import { NotificationPrefs } from '../types';
@@ -27,7 +27,7 @@ import type { ThemeMode } from '../theme/ThemeContext';
 import { isChristmasWindow } from '../utils/themeUtils';
 
 const appConfig = require('../../app.json');
-const APP_VERSION = appConfig?.expo?.version ?? '1.5.0';
+const APP_VERSION = appConfig?.expo?.version ?? '1.6.0';
 
 const openLink = (url: string) => Linking.openURL(url).catch(() => {});
 
@@ -99,8 +99,13 @@ const PREF_ROWS: { key: keyof NotificationPrefs; label: string }[] = [
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
-  const { status, isUpdatePending, runtimeVersion, downloadUpdate, reloadNow } = useOTAUpdate();
   const { selectedThemeKey: themeMode, selectTheme, colors: themeColors } = useTheme();
+
+  // The version comes from the installed APK itself (expo-application), never
+  // from a stale OTA runtime string — that mismatch is why Settings used to
+  // show 1.2.0 / 1.4.1 on a 1.5.0 build.
+  const installedVersion = currentVersionName() || APP_VERSION;
+  const [updateLabel, setUpdateLabel] = useState('Check for updates');
 
   const [loggedIn, setLoggedIn] = useState(false);
   const [username, setUsername] = useState('');
@@ -125,10 +130,23 @@ export default function SettingsScreen() {
     }, [load])
   );
 
-  const onUpdatePress = async () => {
-    if (isUpdatePending) await reloadNow();
-    else await downloadUpdate();
-  };
+  useFocusEffect(
+    useCallback(() => {
+      let alive = true;
+      checkForUpdate()
+        .then((release) => {
+          if (!alive) return;
+          if (!release) return setUpdateLabel('Check for updates');
+          setUpdateLabel(
+            release.updateAvailable ? `v${release.latestVersionName} ready` : 'Up to date'
+          );
+        })
+        .catch(() => {});
+      return () => {
+        alive = false;
+      };
+    }, [])
+  );
 
   const handleSelectTheme = (key: ThemeMode) => {
     selectTheme(key);
@@ -269,8 +287,12 @@ export default function SettingsScreen() {
         <FadeInView delay={210} style={styles.group}>
           <Text style={[styles.groupTitle, { color: themeColors.textMuted }]}>About</Text>
           <View style={[styles.groupContent, { backgroundColor: themeColors.surface, borderColor: themeColors.border }]}>
-            <SettingRow label="Version" value={runtimeVersion || APP_VERSION} disabled />
-            <SettingRow label="App update" value={status} onPress={onUpdatePress} />
+            <SettingRow label="Version" value={installedVersion} disabled />
+            <SettingRow
+              label="App update"
+              value={updateLabel}
+              onPress={() => navigation.navigate('Update')}
+            />
             <SettingRow label="Website" value="zyverse.in" onPress={() => openLink('https://zyverse.in')} />
             <SettingRow label="Terms of Service" onPress={() => openLink('https://zyverse.in/terms')} />
             <SettingRow label="Privacy Policy" onPress={() => openLink('https://zyverse.in/privacy')} />

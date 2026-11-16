@@ -810,7 +810,9 @@ export default function DailyDubScheduleScreen() {
 
         <TouchableOpacity
           style={[styles.webLink, { borderColor: colors.border }]}
-          onPress={() => navigation.navigate('Web', { title: 'Hindi Dub Schedule', path: '/hindi-dub-schedule' })}
+          onPress={() =>
+            Linking.openURL('https://zyverse.in/hindi-dub-schedule').catch(() => {})
+          }
         >
           <Text style={[styles.webLinkText, { color: tint }]}>Open the full week on zyverse.in →</Text>
         </TouchableOpacity>

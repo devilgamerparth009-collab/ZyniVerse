@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, themed, spacing, fontSize, borderRadius } from '../theme';
 import { api, getCurrentUser } from '../services/api';
 import { Anime, AnimeOfTheDay, User, WatchlistItem } from '../types';
@@ -24,6 +25,32 @@ import AdBanner from '../components/AdBanner';
 import Snowfall from '../components/Snowfall';
 import ChristmasBanner from '../components/ChristmasBanner';
 import { useTheme } from '../hooks/useTheme';
+
+const FEED_DISMISSED_KEY = 'zv_feed_dismissed';
+
+interface MobileFeed {
+  updatedAt?: string;
+  announcement?: {
+    active?: boolean;
+    id: string;
+    emoji?: string;
+    title: string;
+    message?: string;
+    ctaLabel?: string;
+    ctaScreen?: string;
+    ctaParams?: Record<string, any>;
+    tint?: string;
+  } | null;
+  spotlight?: {
+    id: string;
+    emoji?: string;
+    title: string;
+    subtitle?: string;
+    screen?: string;
+    params?: Record<string, any>;
+    tint?: string;
+  }[];
+}
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -41,6 +68,8 @@ export default function HomeScreen() {
 
   const [user, setUser] = useState<User | null>(null);
   const [unread, setUnread] = useState(0);
+  const [feed, setFeed] = useState<MobileFeed | null>(null);
+  const [dismissedFeedId, setDismissedFeedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,13 +79,14 @@ export default function HomeScreen() {
       setError(null);
       if (!isRefresh) setLoading(true);
 
-      const [trendingRes, popularRes, seasonalRes, topRes, upcomingRes, aotdRes] = await Promise.all([
+      const [trendingRes, popularRes, seasonalRes, topRes, upcomingRes, aotdRes, feedRes] = await Promise.all([
         api.trending.get(12).catch(() => [] as Anime[]),
         api.popular.get(12).catch(() => [] as Anime[]),
         api.seasonal.get(12).catch(() => [] as Anime[]),
         api.topRated.get(12).catch(() => [] as Anime[]),
         api.upcoming.get(1, 12).then((p) => p.media).catch(() => [] as Anime[]),
         api.fun.animeOfTheDay().catch(() => null),
+        api.get<MobileFeed>('/mobile/feed').catch(() => null),
       ]);
       setTrending(trendingRes);
       setPopular(popularRes);
@@ -64,6 +94,7 @@ export default function HomeScreen() {
       setTopRated(topRes);
       setUpcoming(upcomingRes);
       setAotd(aotdRes);
+      setFeed(feedRes);
 
       const current = await getCurrentUser();
       setUser(current);
@@ -104,6 +135,14 @@ export default function HomeScreen() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  useEffect(() => {
+    AsyncStorage.getItem(FEED_DISMISSED_KEY)
+      .then((value) => {
+        if (value) setDismissedFeedId(value);
+      })
+      .catch(() => {});
+  }, []);
 
   // Refresh the continue-watching row whenever the tab regains focus so
   // progress changes made on other screens are reflected immediately.
@@ -156,13 +195,7 @@ export default function HomeScreen() {
           <View style={styles.headerActions}>
             <TouchableOpacity
               style={styles.iconButton}
-              onPress={() =>
-                navigation.navigate('Web', {
-                  title: 'Messages',
-                  path: '/messages',
-                  auth: true,
-                })
-              }
+              onPress={() => navigation.navigate('Messages')}
               accessibilityLabel="Messages"
             >
               <Text style={styles.iconText}>💬</Text>
@@ -298,6 +331,123 @@ export default function HomeScreen() {
             <Text style={{ color: colors.text, fontSize: 12, fontWeight: '700' }}>✨ For You</Text>
           </TouchableOpacity>
         </ScrollView>
+
+        {/* Server-driven announcement. Edited in src/content/mobile-feed.json,
+            so it appears in every installed app without an APK update. */}
+        {feed?.announcement?.active && feed.announcement.id !== dismissedFeedId && (
+          <FadeInView delay={20}>
+            <View
+              style={[
+                styles.announcement,
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: `${feed.announcement.tint || primaryColor}66`,
+                },
+              ]}
+            >
+              <View
+                pointerEvents="none"
+                style={[
+                  styles.announcementGlow,
+                  { backgroundColor: `${feed.announcement.tint || primaryColor}1f` },
+                ]}
+              />
+              <View style={styles.announcementTop}>
+                <View
+                  style={[
+                    styles.announcementEmoji,
+                    { backgroundColor: `${feed.announcement.tint || primaryColor}22` },
+                  ]}
+                >
+                  <Text style={{ fontSize: 20 }}>{feed.announcement.emoji || '📣'}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.announcementTitle, { color: colors.text }]}>
+                    {feed.announcement.title}
+                  </Text>
+                  {!!feed.announcement.message && (
+                    <Text style={[styles.announcementBody, { color: colors.textMuted }]}>
+                      {feed.announcement.message}
+                    </Text>
+                  )}
+                </View>
+                <TouchableOpacity
+                  onPress={() => {
+                    const id = feed.announcement!.id;
+                    setDismissedFeedId(id);
+                    AsyncStorage.setItem(FEED_DISMISSED_KEY, id).catch(() => {});
+                  }}
+                  accessibilityLabel="Dismiss announcement"
+                  hitSlop={8}
+                >
+                  <Text style={{ color: colors.textDim, fontSize: 15, fontWeight: '800' }}>✕</Text>
+                </TouchableOpacity>
+              </View>
+              {!!feed.announcement.ctaLabel && (
+                <TouchableOpacity
+                  style={[
+                    styles.announcementCta,
+                    { backgroundColor: feed.announcement.tint || primaryColor },
+                  ]}
+                  onPress={() => {
+                    const target = feed.announcement?.ctaScreen;
+                    if (target) navigation.navigate(target, feed.announcement?.ctaParams);
+                  }}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.announcementCtaText}>{feed.announcement.ctaLabel} →</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </FadeInView>
+        )}
+
+        {/* Server-pushed spotlight cards */}
+        {!!feed?.spotlight?.length && (
+          <FadeInView delay={30}>
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>✨ From ZyniVerse</Text>
+              <Text style={[styles.seeAll, { color: colors.textDim }]}>Live from server</Text>
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{
+                paddingHorizontal: spacing.md,
+                gap: 10,
+                paddingBottom: spacing.md,
+              }}
+            >
+              {feed.spotlight.map((card) => (
+                <TouchableOpacity
+                  key={card.id}
+                  activeOpacity={card.screen ? 0.85 : 1}
+                  onPress={() => card.screen && navigation.navigate(card.screen, card.params)}
+                  style={[
+                    styles.spotlightCard,
+                    {
+                      backgroundColor: colors.surface,
+                      borderColor: `${card.tint || primaryColor}55`,
+                    },
+                  ]}
+                >
+                  <Text style={{ fontSize: 22 }}>{card.emoji || '✨'}</Text>
+                  <Text style={[styles.spotlightTitle, { color: colors.text }]} numberOfLines={2}>
+                    {card.title}
+                  </Text>
+                  {!!card.subtitle && (
+                    <Text style={[styles.spotlightSub, { color: colors.textMuted }]} numberOfLines={2}>
+                      {card.subtitle}
+                    </Text>
+                  )}
+                  <Text style={[styles.spotlightOpen, { color: card.tint || primaryColor }]}>
+                    Open →
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </FadeInView>
+        )}
 
         {isChristmas && (
           <ChristmasBanner
@@ -985,5 +1135,79 @@ const styles = themed(() => ({
     color: colors.textDim,
     fontSize: fontSize.xs,
     marginTop: 2,
+  },
+  announcement: {
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.md,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    padding: spacing.md,
+    overflow: 'hidden',
+  },
+  announcementGlow: {
+    position: 'absolute',
+    right: -50,
+    top: -60,
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+  },
+  announcementTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+  },
+  announcementEmoji: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  announcementTitle: {
+    fontSize: fontSize.md,
+    fontWeight: '900',
+    lineHeight: 19,
+  },
+  announcementBody: {
+    fontSize: fontSize.xs,
+    lineHeight: 17,
+    marginTop: 3,
+  },
+  announcementCta: {
+    alignSelf: 'flex-start',
+    marginTop: spacing.sm,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: borderRadius.full,
+  },
+  announcementCtaText: {
+    color: '#0a0a0f',
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  spotlightCard: {
+    width: 156,
+    minHeight: 132,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    padding: spacing.md,
+  },
+  spotlightTitle: {
+    fontSize: fontSize.sm,
+    fontWeight: '800',
+    marginTop: spacing.sm,
+    lineHeight: 17,
+  },
+  spotlightSub: {
+    fontSize: 10.5,
+    lineHeight: 14,
+    marginTop: 3,
+  },
+  spotlightOpen: {
+    fontSize: 10,
+    fontWeight: '900',
+    marginTop: 'auto',
+    paddingTop: spacing.sm,
   },
 }));

@@ -32,6 +32,13 @@ import TasteProfileScreen from '../screens/TasteProfileScreen';
 import LiveDubsScreen from '../screens/LiveDubsScreen';
 import WordleScreen from '../screens/WordleScreen';
 import DailyDubScheduleScreen from '../screens/DailyDubScheduleScreen';
+import UpdateScreen from '../screens/UpdateScreen';
+import MessagesScreen from '../screens/MessagesScreen';
+import ChatScreen from '../screens/ChatScreen';
+import FriendsScreen from '../screens/FriendsScreen';
+import UserProfileScreen from '../screens/UserProfileScreen';
+import FeedScreen from '../screens/FeedScreen';
+import HubScreen from '../screens/HubScreen';
 import WebScreen from '../screens/WebScreen';
 import SplashScreen from '../screens/SplashScreen';
 import { useTheme } from '../hooks/useTheme';
@@ -158,6 +165,13 @@ export default function AppNavigator() {
       <Stack.Screen name="LiveDubs" component={LiveDubsScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Wordle" component={WordleScreen} options={{ headerShown: false }} />
       <Stack.Screen name="DailyDubSchedule" component={DailyDubScheduleScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Update" component={UpdateScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Messages" component={MessagesScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Chat" component={ChatScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Friends" component={FriendsScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="UserProfile" component={UserProfileScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Feed" component={FeedScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Hub" component={HubScreen} options={{ headerShown: false }} />
       <Stack.Screen
         name="Web"
         component={WebScreen}

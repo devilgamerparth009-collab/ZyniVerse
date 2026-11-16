@@ -1,0 +1,32 @@
+{
+  "updatedAt": "2026-11-16T00:00:00.000Z",
+  "announcement": {
+    "active": true,
+    "id": "v160-launch",
+    "emoji": "🚀",
+    "title": "ZyniVerse 1.6.0 is here",
+    "message": "In-app updates, real channel logos, a rebuilt TV guide and native community screens. Tap to see what's new.",
+    "ctaLabel": "What's new",
+    "ctaScreen": "Update",
+    "tint": "#22d3ee"
+  },
+  "spotlight": [
+    {
+      "id": "new-season",
+      "emoji": "🌸",
+      "title": "New season picks",
+      "subtitle": "Freshly airing anime, updated by the server",
+      "screen": "Browse",
+      "params": { "mode": "seasonal", "title": "This Season" },
+      "tint": "#f472b6"
+    },
+    {
+      "id": "tv-tonight",
+      "emoji": "📺",
+      "title": "TV tonight",
+      "subtitle": "Live EPG with real channel logos",
+      "screen": "TVGuide",
+      "tint": "#60a5fa"
+    }
+  ]
+}

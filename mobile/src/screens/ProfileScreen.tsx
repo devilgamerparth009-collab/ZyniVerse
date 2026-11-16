@@ -14,7 +14,6 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { colors, themed, spacing, fontSize, borderRadius } from '../theme';
 import { useTheme } from '../hooks/useTheme';
 import { getCurrentUser, api } from '../services/api';
-import { unproxyImageUrl } from '../lib/avatar-src';
 import {
   Anime,
   ProfileAchievement,
@@ -23,6 +22,7 @@ import {
   ReviewItem,
 } from '../types';
 import {
+  absoluteAvatarUrl,
   formatCount,
   formatDate,
   getStatusColorForCode,
@@ -132,7 +132,12 @@ export default function ProfileScreen() {
 
   if (loading) return <LoadingSpinner fullScreen />;
 
-  if (!loggedIn) {
+  // A stale session shows up as "Unauthorized" / 401 from /api/profile even
+  // though a cached user was returned locally. Treat that as signed-out instead
+  // of dead-ending on an error screen.
+  const needsSignIn = !loggedIn || (!!error && /unauthor|401|session|sign in|expired/i.test(error));
+
+  if (needsSignIn) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
         <View style={styles.authCenter}>
@@ -160,7 +165,26 @@ export default function ProfileScreen() {
   }
 
   if (!profile) {
-    return <ErrorView message="Profile unavailable" onRetry={load} />;
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+        <View style={styles.authCenter}>
+          <Text style={styles.authIcon}>📡</Text>
+          <Text style={[styles.authTitle, { color: colors.text }]}>Profile unavailable</Text>
+          <Text style={[styles.authSubtitle, { color: colors.textMuted }]}>
+            We could not reach your profile. Check your connection and try again.
+          </Text>
+          <TouchableOpacity
+            style={[styles.authButton, { backgroundColor: primaryAccent }]}
+            onPress={load}
+          >
+            <Text style={styles.authButtonText}>Try Again</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.navigate('Settings')}>
+            <Text style={[styles.authSettings, { color: colors.textDim }]}>App Settings</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
   }
 
   const { user, stats } = profile;
@@ -178,27 +202,33 @@ export default function ProfileScreen() {
           <View style={styles.bannerActions}>
             <TouchableOpacity
               style={styles.iconButton}
-              onPress={() =>
-                navigation.navigate('Web', {
-                  title: 'Messages',
-                  path: '/messages',
-                  auth: true,
-                })
-              }
+              onPress={() => navigation.navigate('Messages')}
+              accessibilityLabel="Messages"
             >
               <Text style={styles.iconText}>💬</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.iconButton}
-              onPress={() => navigation.navigate('Web', { title: 'Profile', path: `/u/${user.username}`, auth: true }) }
+              onPress={() => navigation.navigate('Friends')}
+              accessibilityLabel="Friends"
             >
               <Text style={styles.iconText}>👥</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.iconButton}
-              onPress={() => navigation.navigate('Web', { title: 'Profile', path: `/u/${user.username}`, auth: true }) }
+              onPress={() =>
+                navigation.navigate('UserProfile', { username: user.username })
+              }
+              accessibilityLabel="Public profile"
             >
               <Text style={styles.iconText}>👤</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={() => navigation.navigate('Settings')}
+              accessibilityLabel="Settings"
+            >
+              <Text style={styles.iconText}>⚙️</Text>
             </TouchableOpacity>
           </View>
 
@@ -207,7 +237,7 @@ export default function ProfileScreen() {
               <View style={[styles.avatarWrap, { backgroundColor: colors.surfaceLight, borderColor: colors.primary, borderWidth: 2 }]}>
                 {user.avatar && user.avatar !== failedAvatar && user !== null ? (
                   <Image
-                    source={{ uri: unproxyImageUrl(user.avatar) || user.avatar }}
+                    source={{ uri: absoluteAvatarUrl(user.avatar) }}
                     style={styles.avatar}
                     onError={() => {
                       if (user.avatar !== failedAvatar) {

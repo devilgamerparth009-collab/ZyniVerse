@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { colors, themed, spacing, fontSize, borderRadius } from '../theme';
 import { useTheme } from '../hooks/useTheme';
 import { api, getCurrentUser } from '../services/api';
+import { proxyImageUrl } from '../lib/avatar-src';
+import { webAbsoluteUrl } from '../utils/helpers';
 import { ProfileResponse } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorView from '../components/ErrorView';
@@ -58,15 +60,36 @@ const ANIME_AVATAR_PRESETS = [
 
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 
-/** Deterministic initials avatar for users who never uploaded a picture. */
-function defaultAvatarUrl(username?: string, seed?: string, sizeStr = '256'): string {
+/**
+ * Absolute, proxied URL for an avatar/preset.
+ *
+ * AniList's CDN answers bursts of image requests from mobile carriers with
+ * 429, so preset artwork is routed through zyverse.in's cached image proxy.
+ * Already-absolute non-proxyable URLs (uploads on our own domain) pass
+ * through untouched.
+ */
+function avatarImageUrl(raw: string): string {
+  if (!raw) return '';
+  if (/^data:|^blob:/i.test(raw)) return raw;
+  const proxied = proxyImageUrl(raw) || raw;
+  return webAbsoluteUrl(proxied);
+}
+
+/** Deterministic initials for users who never uploaded a picture. */
+function initialsFor(username?: string): string {
   const name = (username || 'ZyniVerse').trim() || 'ZyniVerse';
-  const palette = ['7c3aed', '06b6d4', 'ec4899', 'f59e0b', '10b981', '3b82f6'];
-  const key = seed || name;
+  const parts = name.split(/[\s._-]+/).filter(Boolean);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return name.slice(0, 2).toUpperCase();
+}
+
+/** Stable background colour per username so the fallback never flickers. */
+function initialsColor(username?: string): string {
+  const palette = ['#7c3aed', '#06b6d4', '#ec4899', '#f59e0b', '#10b981', '#3b82f6'];
+  const key = (username || 'ZyniVerse').trim() || 'ZyniVerse';
   let hash = 0;
   for (let i = 0; i < key.length; i++) hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
-  const bg = palette[hash % palette.length];
-  return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=${bg}&color=fff&size=${sizeStr}&bold=true`;
+  return palette[hash % palette.length];
 }
 
 export default function EditProfileScreen() {
@@ -78,12 +101,18 @@ export default function EditProfileScreen() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // A broken avatar URL must not leave an empty circle: fall back to initials.
+  const [previewFailed, setPreviewFailed] = useState(false);
 
   const [username, setUsername] = useState('');
   const [bio, setBio] = useState('');
   const [signature, setSignature] = useState('');
   const [avatar, setAvatar] = useState('');
   const [banner, setBanner] = useState('');
+
+  useEffect(() => {
+    setPreviewFailed(false);
+  }, [avatar]);
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -234,21 +263,35 @@ export default function EditProfileScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView
-        contentContainerStyle={{ padding: spacing.md, paddingBottom: insets.bottom + spacing.xxl }}
+        contentContainerStyle={{ padding: spacing.md, paddingBottom: insets.bottom + 108 }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
         <FadeInView delay={0} style={styles.previewRow}>
           <View style={styles.avatarWrap}>
             <View style={[styles.avatarPreview, { borderColor: themeColors.primary }]}>
-              <Image
-                source={{ uri: defaultAvatarUrl(username, avatar) }}
-                style={[
-                  { width: 64, height: 64, borderRadius: 32 },
-                  { backgroundColor: themeColors.surface },
-                ]}
-                alt={username || 'ZyniVerse'}
-              />
+              {avatar && !previewFailed ? (
+                <Image
+                  source={{ uri: avatarImageUrl(avatar) }}
+                  style={[
+                    { width: 64, height: 64, borderRadius: 32 },
+                    { backgroundColor: themeColors.surface },
+                  ]}
+                  onError={() => setPreviewFailed(true)}
+                  alt={username || 'ZyniVerse'}
+                />
+              ) : (
+                <View
+                  style={[
+                    styles.avatarFallback,
+                    { width: 64, height: 64, borderRadius: 32, backgroundColor: initialsColor(username) },
+                  ]}
+                >
+                  <Text style={[styles.avatarFallbackText, { color: '#fff', fontSize: 24 }]}>
+                    {initialsFor(username)}
+                  </Text>
+                </View>
+              )}
               {uploading && (
                 <View style={styles.avatarBusy}>
                   <ActivityIndicator color="#fff" />
@@ -364,13 +407,13 @@ export default function EditProfileScreen() {
                   }}
                 >
                   <Image
-                  source={{ uri: p.url }}
-                  style={[
-                    { width: 50, height: 50, borderRadius: 25 },
-                    { backgroundColor: themeColors.surface },
-                  ]}
-                  alt={p.name}
-                />
+                    source={{ uri: avatarImageUrl(p.url) }}
+                    style={[
+                      { width: 50, height: 50, borderRadius: 25 },
+                      { backgroundColor: themeColors.surface },
+                    ]}
+                    alt={p.name}
+                  />
                   {isChristmas && isSelected && (
                     <SantaHat size={20} style={styles.presetSantaHat} />
                   )}
@@ -497,6 +540,36 @@ export default function EditProfileScreen() {
           </TouchableOpacity>
         </FadeInView>
       </ScrollView>
+
+      {/* Sticky action bar: Save is always on screen, even after scrolling
+          through the long form or the password section. */}
+      <View
+        style={[
+          styles.stickyBar,
+          {
+            paddingBottom: insets.bottom + spacing.sm,
+            backgroundColor: themeColors.background,
+            borderTopColor: themeColors.border,
+          },
+        ]}
+      >
+        <TouchableOpacity
+          style={[
+            styles.stickySave,
+            { backgroundColor: themeColors.primary },
+            saving && { opacity: 0.6 },
+          ]}
+          onPress={save}
+          disabled={saving}
+          activeOpacity={0.85}
+        >
+          {saving ? (
+            <ActivityIndicator color="#0a0a0f" />
+          ) : (
+            <Text style={styles.saveText}>Save Changes</Text>
+          )}
+        </TouchableOpacity>
+      </View>
     </KeyboardAvoidingView>
   );
 }
@@ -627,6 +700,20 @@ const styles = themed(() => ({
     paddingVertical: spacing.md,
     alignItems: 'center',
     marginTop: spacing.lg,
+  },
+  stickyBar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
+    borderTopWidth: 0.5,
+  },
+  stickySave: {
+    borderRadius: borderRadius.md,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
   },
   saveText: {
     color: '#0a0a0f',

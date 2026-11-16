@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   Animated,
   Dimensions,
+  Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -71,28 +72,28 @@ type WebFeature = {
 type WebGroup = { key: string; title: string; items: WebFeature[] };
 
 /**
- * Web features that do not have a native screen yet. Every entry loads the
- * real zyverse.in page inside the app, so the APK always matches the website.
+ * Every tile now opens a native screen. Only real external media playback
+ * (clip video URLs, watch-party rooms hosted on the website) uses the WebView.
  */
 const WEB_GROUPS: WebGroup[] = [
   {
     key: 'social',
     title: 'Social & Live',
     items: [
-      { key: 'messages', label: 'Messages', emoji: '💬', path: '/messages', tint: '#22d3ee', auth: true },
+      { key: 'messages', label: 'Messages', emoji: '💬', path: '/messages', tint: '#22d3ee', auth: true, nativeRoute: 'Messages' },
       { key: 'watchparty', label: 'Watch Party', emoji: '👥', path: '/watch-party', tint: '#38bdf8', auth: true, nativeRoute: 'WatchParty' },
       { key: 'vibe', label: 'Vibe', emoji: '📡', path: '/vibe', tint: '#f472b6', nativeRoute: 'Vibe' },
       { key: 'dna', label: 'Anime DNA', emoji: '🧬', path: '/dna', tint: '#a78bfa', nativeRoute: 'TasteProfile' },
-      { key: 'community', label: 'Community', emoji: '🌐', path: '/community', tint: '#a78bfa' },
-      { key: 'clubs', label: 'Clubs', emoji: '🏛️', path: '/clubs', tint: '#f59e0b', auth: true },
-      { key: 'feed', label: 'Social Feed', emoji: '📰', path: '/feed', tint: '#22c55e', auth: true },
-      { key: 'friends', label: 'Friends', emoji: '🤝', path: '/friends', tint: '#ec4899', auth: true },
+      { key: 'community', label: 'Community', emoji: '🌐', path: '/community', tint: '#a78bfa', nativeRoute: 'Hub', nativeParams: { kind: 'community', title: 'Community' } },
+      { key: 'clubs', label: 'Clubs', emoji: '🏛️', path: '/clubs', tint: '#f59e0b', auth: true, nativeRoute: 'Hub', nativeParams: { kind: 'clubs', title: 'Clubs' } },
+      { key: 'feed', label: 'Social Feed', emoji: '📰', path: '/feed', tint: '#22c55e', auth: true, nativeRoute: 'Feed' },
+      { key: 'friends', label: 'Friends', emoji: '🤝', path: '/friends', tint: '#ec4899', auth: true, nativeRoute: 'Friends' },
       { key: 'notifications', label: 'Alerts', emoji: '🔔', path: '/notifications', tint: '#f97316', auth: true, nativeRoute: 'Notifications' },
-      { key: 'moments', label: 'Moments', emoji: '✨', path: '/moments', tint: '#eab308' },
-      { key: 'clips', label: 'Clips', emoji: '✂️', path: '/clips', tint: '#8b5cf6' },
-      { key: 'memes', label: 'Memes', emoji: '😂', path: '/memes', tint: '#facc15' },
-      { key: 'fanart', label: 'Fan Art', emoji: '🎨', path: '/fanart', tint: '#fb7185' },
-      { key: 'cosplay', label: 'Cosplay', emoji: '🎭', path: '/cosplay', tint: '#d946ef' },
+      { key: 'moments', label: 'Moments', emoji: '✨', path: '/moments', tint: '#eab308', nativeRoute: 'Hub', nativeParams: { kind: 'moments', title: 'Moments' } },
+      { key: 'clips', label: 'Clips', emoji: '✂️', path: '/clips', tint: '#8b5cf6', nativeRoute: 'Hub', nativeParams: { kind: 'clips', title: 'Clips' } },
+      { key: 'memes', label: 'Memes', emoji: '😂', path: '/memes', tint: '#facc15', nativeRoute: 'Hub', nativeParams: { kind: 'memes', title: 'Memes' } },
+      { key: 'fanart', label: 'Fan Art', emoji: '🎨', path: '/fanart', tint: '#fb7185', nativeRoute: 'Hub', nativeParams: { kind: 'fanart', title: 'Fan Art' } },
+      { key: 'cosplay', label: 'Cosplay', emoji: '🎭', path: '/cosplay', tint: '#d946ef', nativeRoute: 'Hub', nativeParams: { kind: 'cosplay', title: 'Cosplay' } },
     ],
   },
   {
@@ -102,16 +103,16 @@ const WEB_GROUPS: WebGroup[] = [
       { key: 'top', label: 'Top Anime', emoji: '🔝', path: '/top-anime', tint: '#f97316', nativeRoute: 'Browse', nativeParams: { mode: 'top-rated', title: 'Top Anime' } },
       { key: 'seasonal', label: 'Seasonal Now', emoji: '🌸', path: '/seasonal', tint: '#22d3ee', nativeRoute: 'Browse', nativeParams: { mode: 'seasonal', title: 'This Season' } },
       { key: 'calendar', label: 'Anime Calendar', emoji: '🗓️', path: '/calendar', tint: '#3b82f6', nativeRoute: 'Schedule' },
-      { key: 'watchorder', label: 'Watch Order', emoji: '🧭', path: '/watch-order', tint: '#10b981' },
-      { key: 'watchlist', label: 'Watchlist', emoji: '📌', path: '/watchlist', tint: '#f43f5e', auth: true },
-      { key: 'tracker', label: 'Season Tracker', emoji: '📊', path: '/seasonal-tracker', tint: '#a855f7' },
-      { key: 'characters', label: 'Characters', emoji: '🎭', path: '/characters', tint: '#fb923c' },
-      { key: 'va', label: 'Voice Actors', emoji: '🎤', path: '/voice-actors', tint: '#fbbf24' },
+      { key: 'watchorder', label: 'Watch Order', emoji: '🧭', path: '/watch-order', tint: '#10b981', nativeRoute: 'Hub', nativeParams: { kind: 'watch-order', title: 'Watch Order' } },
+      { key: 'watchlist', label: 'Watchlist', emoji: '📌', path: '/watchlist', tint: '#f43f5e', auth: true, nativeRoute: 'Hub', nativeParams: { kind: 'watchlist', title: 'Watchlist' } },
+      { key: 'tracker', label: 'Season Tracker', emoji: '📊', path: '/seasonal-tracker', tint: '#a855f7', nativeRoute: 'Hub', nativeParams: { kind: 'seasonal-tracker', title: 'Season Tracker' } },
+      { key: 'characters', label: 'Characters', emoji: '🎭', path: '/characters', tint: '#fb923c', nativeRoute: 'Hub', nativeParams: { kind: 'characters', title: 'Characters' } },
+      { key: 'va', label: 'Voice Actors', emoji: '🎤', path: '/voice-actors', tint: '#fbbf24', nativeRoute: 'Hub', nativeParams: { kind: 'voice-actors', title: 'Voice Actors' } },
       { key: 'manga', label: 'Manga', emoji: '📚', path: '/manga', tint: '#f87171', nativeRoute: 'Manga' },
-      { key: 'mangarel', label: 'Manga Releases', emoji: '📖', path: '/manga-releases', tint: '#fb7185' },
-      { key: 'lightnovels', label: 'Light Novels', emoji: '📕', path: '/light-novels', tint: '#e879f9' },
-      { key: 'blog', label: 'Blog', emoji: '✍️', path: '/blog', tint: '#0ea5e9' },
-      { key: 'wiki', label: 'Wiki', emoji: '📜', path: '/wiki', tint: '#84cc16' },
+      { key: 'mangarel', label: 'Manga Releases', emoji: '📖', path: '/manga-releases', tint: '#fb7185', nativeRoute: 'Hub', nativeParams: { kind: 'manga-releases', title: 'Manga Releases' } },
+      { key: 'lightnovels', label: 'Light Novels', emoji: '📕', path: '/light-novels', tint: '#e879f9', nativeRoute: 'Hub', nativeParams: { kind: 'light-novels', title: 'Light Novels' } },
+      { key: 'blog', label: 'Blog', emoji: '✍️', path: '/blog', tint: '#0ea5e9', nativeRoute: 'Hub', nativeParams: { kind: 'blog', title: 'Blog' } },
+      { key: 'wiki', label: 'Wiki', emoji: '📜', path: '/wiki', tint: '#84cc16', nativeRoute: 'Hub', nativeParams: { kind: 'wiki', title: 'Wiki' } },
     ],
   },
   {
@@ -119,15 +120,15 @@ const WEB_GROUPS: WebGroup[] = [
     title: 'Games & More',
     items: [
       { key: 'wordle', label: 'Anime Wordle', emoji: '🟩', path: '/wordle', tint: '#22c55e', nativeRoute: 'Wordle' },
-      { key: 'tierlist', label: 'Tier List', emoji: '🏆', path: '/tierlist', tint: '#eab308' },
-      { key: 'bingo', label: 'Anime Bingo', emoji: '🎯', path: '/bingo', tint: '#f472b6' },
-      { key: 'challenges', label: 'Challenges', emoji: '🔥', path: '/challenges', tint: '#ef4444' },
-      { key: 'contests', label: 'Contests', emoji: '🥇', path: '/contests', tint: '#f59e0b' },
-      { key: 'achievements', label: 'Achievements', emoji: '🏅', path: '/achievements', tint: '#facc15', auth: true },
-      { key: 'merch', label: 'Merch', emoji: '🛍️', path: '/merch', tint: '#34d399' },
-      { key: 'premium', label: 'Premium', emoji: '💎', path: '/premium', tint: '#60a5fa' },
-      { key: 'tools', label: 'Tools', emoji: '🛠️', path: '/tools', tint: '#94a3b8' },
-      { key: 'random', label: 'Surprise Me', emoji: '🎲', path: '/random', tint: '#f472b6' },
+      { key: 'tierlist', label: 'Tier List', emoji: '🏆', path: '/tierlist', tint: '#eab308', nativeRoute: 'Hub', nativeParams: { kind: 'tierlist', title: 'Tier Lists' } },
+      { key: 'bingo', label: 'Anime Bingo', emoji: '🎯', path: '/bingo', tint: '#f472b6', nativeRoute: 'Hub', nativeParams: { kind: 'bingo', title: 'Anime Bingo' } },
+      { key: 'challenges', label: 'Challenges', emoji: '🔥', path: '/challenges', tint: '#ef4444', nativeRoute: 'Hub', nativeParams: { kind: 'challenges', title: 'Challenges' } },
+      { key: 'contests', label: 'Contests', emoji: '🥇', path: '/contests', tint: '#f59e0b', nativeRoute: 'Hub', nativeParams: { kind: 'contests', title: 'Contests' } },
+      { key: 'achievements', label: 'Achievements', emoji: '🏅', path: '/achievements', tint: '#facc15', auth: true, nativeRoute: 'Hub', nativeParams: { kind: 'achievements', title: 'Achievements' } },
+      { key: 'merch', label: 'Merch', emoji: '🛍️', path: '/merch', tint: '#34d399', nativeRoute: 'Hub', nativeParams: { kind: 'merch', title: 'Merch' } },
+      { key: 'premium', label: 'Premium', emoji: '💎', path: '/premium', tint: '#60a5fa', nativeRoute: 'Hub', nativeParams: { kind: 'premium', title: 'Premium' } },
+      { key: 'tools', label: 'Tools', emoji: '🛠️', path: '/tools', tint: '#94a3b8', nativeRoute: 'Hub', nativeParams: { kind: 'tools', title: 'Tools' } },
+      { key: 'random', label: 'Surprise Me', emoji: '🎲', path: '/random', tint: '#f472b6', nativeRoute: 'Hub', nativeParams: { kind: 'random', title: 'Surprise Me' } },
     ],
   },
 ];
@@ -517,13 +518,6 @@ export default function FunZoneScreen() {
         <FadeInView delay={380}>
           <View style={styles.sectionHeadRow}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>More from ZyniVerse</Text>
-            <TouchableOpacity
-              onPress={() =>
-                navigation.navigate('Web', { title: 'ZyniVerse', path: '/', auth: true })
-              }
-            >
-              <Text style={[styles.seeAll, { color: tint }]}>Full site →</Text>
-            </TouchableOpacity>
           </View>
 
           {WEB_GROUPS.map((group, gi) => (
@@ -542,11 +536,7 @@ export default function FunZoneScreen() {
                       onPress={() =>
                         f.nativeRoute
                           ? navigation.navigate(f.nativeRoute, f.nativeParams)
-                          : navigation.navigate('Web', {
-                              title: f.label,
-                              path: f.path,
-                              auth: f.auth,
-                            })
+                          : Linking.openURL(`https://zyverse.in${f.path}`).catch(() => {})
                       }
                     >
                       <Text style={styles.webEmoji}>{f.emoji}</Text>
@@ -563,15 +553,13 @@ export default function FunZoneScreen() {
 
           <PressableScale
             style={[styles.openSiteBtn, { borderColor: tint, backgroundColor: `${tint}14` }]}
-            onPress={() =>
-              navigation.navigate('Web', { title: 'ZyniVerse', path: '/', auth: true })
-            }
+            onPress={() => Linking.openURL('https://zyverse.in').catch(() => {})}
           >
             <Text style={[styles.openSiteText, { color: tint }]}>
-              🌐 Open the full ZyniVerse website
+              🌐 Open zyverse.in in your browser
             </Text>
             <Text style={[styles.openSiteSub, { color: colors.textMuted }]}>
-              Every page, signed in with your account
+              Every feature in this app is native — the browser is only for extras
             </Text>
           </PressableScale>
         </FadeInView>

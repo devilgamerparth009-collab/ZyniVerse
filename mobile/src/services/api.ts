@@ -137,7 +137,13 @@ async function fetchWithTimeout(
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), init?.timeoutMs ?? REQUEST_TIMEOUT_MS);
   try {
-    return await fetch(url, { ...init, signal: controller.signal });
+    return await fetch(url, {
+      // Lets React Native's native cookie jar attach the NextAuth session
+      // automatically (Google / OAuth sign-in lives there).
+      credentials: 'include',
+      ...init,
+      signal: controller.signal,
+    });
   } catch (e: any) {
     if (e?.name === 'AbortError') throw new Error('Request timed out. Check your connection.');
     throw e;
@@ -146,20 +152,61 @@ async function fetchWithTimeout(
   }
 }
 
+const RETRYABLE_STATUSES = new Set([421, 425, 429]);
+
+function friendlyHttpError(status: number, serverMessage?: string): string {
+  if (status === 401) return 'Your session expired. Please sign in again.';
+  if (status === 421) return 'Session check failed. Please try again.';
+  if (status === 429) return 'Too many requests. Please wait a moment and try again.';
+  if (status === 404) return serverMessage || 'Not found.';
+  if (status >= 500) return serverMessage || 'ZyniVerse is having trouble. Please try again.';
+  return serverMessage || `API Error: ${status}`;
+}
+
 async function requestJson<T>(
   url: string,
   init?: RequestInit & { timeoutMs?: number }
 ): Promise<T> {
   try {
-    const res = await fetchWithTimeout(url, init);
-    if (!res.ok) {
+    let lastStatus = 0;
+    let lastMessage: string | undefined;
+
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const res = await fetchWithTimeout(url, init);
+      if (res.ok) {
+        if (res.status === 204) return undefined as T;
+        return (await res.json()) as T;
+      }
+
+      lastStatus = res.status;
       const body = await res.json().catch(() => null);
-      const msg =
-        (body && (body.error || body.message)) || `API Error: ${res.status}`;
-      throw new Error(msg);
+      lastMessage = (body && (body.error || body.message)) || undefined;
+
+      // Vercel / carrier middleboxes occasionally answer a valid request with
+      // 421 (Misdirected Request) or 429; both are transient and safe to retry.
+      if (attempt === 0 && RETRYABLE_STATUSES.has(res.status)) {
+        await new Promise((r) => setTimeout(r, 450));
+        continue;
+      }
+
+      // 401 can happen when the platform cookie jar did not attach on the
+      // first try. Retry once with the stored NextAuth cookie, if we have one.
+      if (attempt === 0 && res.status === 401) {
+        const stored = await readCookie();
+        const cookie = cookieForHeader(stored);
+        if (cookie) {
+          init = {
+            ...init,
+            headers: { ...(init?.headers as Record<string, string>), Cookie: cookie },
+          };
+          continue;
+        }
+      }
+
+      break;
     }
-    if (res.status === 204) return undefined as T;
-    return (await res.json()) as T;
+
+    throw new Error(friendlyHttpError(lastStatus, lastMessage));
   } catch (e: any) {
     if (e?.name === 'AbortError') throw new Error('Request timed out. Check your connection.');
     throw e;
@@ -1533,6 +1580,118 @@ async function getAnimeDna(username: string): Promise<DnaProfile> {
 }
 
 /* ------------------------------------------------------------------ */
+/* Chat, friends, feed, public profiles                                */
+/* ------------------------------------------------------------------ */
+
+export interface ChatUserRef {
+  id: string;
+  username: string;
+  avatar?: string | null;
+}
+
+export interface ChatConversation {
+  id: string;
+  createdAt?: string;
+  updatedAt?: string;
+  otherUser?: ChatUserRef | null;
+  lastMessage?: {
+    id: string;
+    content: string;
+    senderId: string;
+    createdAt: string;
+    isDeleted?: boolean;
+  } | null;
+  unreadCount?: number;
+}
+
+export interface ChatMessage {
+  id: string;
+  conversationId?: string;
+  content: string;
+  createdAt: string;
+  sender: ChatUserRef;
+  isDeleted?: boolean;
+  reactions?: { id: string; emoji: string; userId: string }[];
+}
+
+async function getConversations(): Promise<ChatConversation[]> {
+  const data = await authedGet<any>('/chat/conversations');
+  return data?.conversations || [];
+}
+
+async function getChatMessages(conversationId: string, limit = 50): Promise<ChatMessage[]> {
+  const data = await authedGet<any>('/chat/messages', { conversationId, limit });
+  return data?.messages || [];
+}
+
+async function sendChatMessage(conversationId: string, content: string): Promise<ChatMessage> {
+  const data = await authedPost<any>('/chat/messages', { conversationId, content });
+  return data?.message || data;
+}
+
+async function markConversationRead(conversationId: string): Promise<void> {
+  await authedPost('/chat/conversations', { conversationId }, 'PUT');
+}
+
+async function startConversation(recipientId: string): Promise<ChatConversation | null> {
+  const data = await authedPost<any>('/chat/conversations', { recipientId });
+  return data?.conversation || null;
+}
+
+async function searchUsers(query: string): Promise<ChatUserRef[]> {
+  if (!query.trim()) return [];
+  const data = await authedGet<any>('/users/search', { q: query.trim() });
+  const list = data?.users || data?.results || (Array.isArray(data) ? data : []);
+  return list.map((u: any) => ({
+    id: u.id,
+    username: u.username || u.name || 'User',
+    avatar: u.avatar || u.image || null,
+  }));
+}
+
+export interface FriendItem {
+  id: string;
+  username: string;
+  avatar?: string | null;
+}
+
+export interface FriendRequestRow {
+  id: string;
+  status?: string;
+  createdAt?: string;
+  sender?: ChatUserRef | null;
+  receiver?: ChatUserRef | null;
+}
+
+async function getFriends(type: 'friends' | 'pending' | 'sent' = 'friends'): Promise<any> {
+  return authedGet<any>('/friends', { type });
+}
+
+async function respondToFriendRequest(requestId: string, accept: boolean): Promise<void> {
+  await authedPost(`/friends/${encodeURIComponent(requestId)}`, { action: accept ? 'accept' : 'decline' }, 'PUT');
+}
+
+async function removeFriend(friendId: string): Promise<void> {
+  await authedPost(`/friends/${encodeURIComponent(friendId)}`, undefined, 'DELETE');
+}
+
+async function sendFriendRequest(receiverId: string): Promise<void> {
+  await authedPost('/friends', { receiverId });
+}
+
+async function getFeed(mode: 'foryou' | 'following' = 'foryou', limit = 20): Promise<any> {
+  return requestJson<any>(buildUrl('/feed', { mode, limit }));
+}
+
+async function getPublicProfile(username: string): Promise<any> {
+  return requestJson<any>(buildUrl(`/users/${encodeURIComponent(username)}`));
+}
+
+async function toggleFollow(followingId: string, follow: boolean): Promise<void> {
+  await authedPost('/follow', { followingId }, follow ? 'POST' : 'DELETE');
+}
+
+/* ------------------------------------------------------------------ */
 /* Public API object                                                   */
 /* ------------------------------------------------------------------ */
 
@@ -1613,6 +1772,26 @@ export const api = {
     markAllRead: markNotificationsRead,
     prefs: { get: getNotificationPrefs, update: updateNotificationPrefs },
   },
+
+  chat: {
+    conversations: getConversations,
+    messages: getChatMessages,
+    send: sendChatMessage,
+    markRead: markConversationRead,
+    start: startConversation,
+    searchUsers,
+  },
+
+  friends: {
+    list: getFriends,
+    respond: respondToFriendRequest,
+    remove: removeFriend,
+    request: sendFriendRequest,
+  },
+
+  feed: { get: getFeed },
+  users: { publicProfile: getPublicProfile },
+  follow: toggleFollow,
 
   fun: {
     animeOfTheDay: getAnimeOfTheDay,
