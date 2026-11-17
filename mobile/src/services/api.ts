@@ -8,6 +8,10 @@ import {
   DubStatus,
   DubScheduleLanguage,
   DubScheduleResponse,
+  DubCatalogResponse,
+  DubScheduleListResponse,
+  DubLanguageStat,
+  DubLanguagesResponse,
   FillerData,
   ForumCategory,
   ForumPost,
@@ -738,6 +742,57 @@ async function getDubSchedule(language: DubScheduleLanguage): Promise<DubSchedul
       recent: data.data?.recent || [],
     },
   };
+}
+
+export interface DubCatalogQuery {
+  kind: 'series' | 'movie';
+  language?: string;
+  q?: string;
+  sort?: 'recent' | 'title' | 'rating' | 'year';
+  page?: number;
+  limit?: number;
+}
+
+/**
+ * Imported Hindi / regional dub catalogue (series and movies). The website
+ * syncs this straight from the Indian dub listing sites, so the app reads the
+ * same rows through `/api/dub/catalog` instead of scraping anything itself.
+ */
+async function getDubCatalog(query: DubCatalogQuery): Promise<DubCatalogResponse> {
+  const key = [
+    'dub_catalog',
+    query.kind,
+    query.language || 'all',
+    query.sort || 'recent',
+    query.q || '',
+    query.page || 1,
+  ].join('_');
+
+  return fetchWithCache(key, () =>
+    requestJson<DubCatalogResponse>(
+      buildUrl('/dub/catalog', {
+        kind: query.kind,
+        language: query.language,
+        q: query.q,
+        sort: query.sort,
+        page: query.page ?? 1,
+        limit: query.limit ?? 24,
+      })
+    )
+  );
+}
+
+async function getDubWeeklySchedule(): Promise<DubScheduleListResponse> {
+  return fetchWithCache('dub_weekly_schedule', () =>
+    requestJson<DubScheduleListResponse>(`${WEB_API}/dub/schedule?limit=200`)
+  );
+}
+
+async function getDubLanguageStats(): Promise<DubLanguageStat[]> {
+  const data = await fetchWithCache('dub_language_stats', () =>
+    requestJson<DubLanguagesResponse>(`${WEB_API}/dub/languages`)
+  );
+  return Array.isArray(data?.languages) ? data.languages : [];
 }
 
 async function getSchedule(): Promise<ScheduleItem[]> {
@@ -1728,6 +1783,11 @@ export const api = {
   filler: { get: getFiller },
   dubStatus: { get: getDubStatus },
   dubSchedule: { get: getDubSchedule },
+  dub: {
+    catalog: getDubCatalog,
+    weeklySchedule: getDubWeeklySchedule,
+    languages: getDubLanguageStats,
+  },
   schedule: { get: getSchedule },
   search,
 

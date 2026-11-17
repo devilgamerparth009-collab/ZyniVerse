@@ -32,6 +32,7 @@ import TasteProfileScreen from '../screens/TasteProfileScreen';
 import LiveDubsScreen from '../screens/LiveDubsScreen';
 import WordleScreen from '../screens/WordleScreen';
 import DailyDubScheduleScreen from '../screens/DailyDubScheduleScreen';
+import HindiDubScreen from '../screens/HindiDubScreen';
 import UpdateScreen from '../screens/UpdateScreen';
 import MessagesScreen from '../screens/MessagesScreen';
 import ChatScreen from '../screens/ChatScreen';
@@ -165,6 +166,7 @@ export default function AppNavigator() {
       <Stack.Screen name="LiveDubs" component={LiveDubsScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Wordle" component={WordleScreen} options={{ headerShown: false }} />
       <Stack.Screen name="DailyDubSchedule" component={DailyDubScheduleScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="HindiDub" component={HindiDubScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Update" component={UpdateScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Messages" component={MessagesScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Chat" component={ChatScreen} options={{ headerShown: false }} />

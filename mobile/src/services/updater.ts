@@ -63,7 +63,7 @@ export function currentVersionCode(): number {
 
 /** Marketing version baked into the installed APK (e.g. "1.6.0"). */
 export function currentVersionName(): string {
-  return Application.nativeApplicationVersion || '1.6.0';
+  return Application.nativeApplicationVersion || '1.7.0';
 }
 
 export function formatBytes(bytes?: number | null): string {

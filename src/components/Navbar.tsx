@@ -88,6 +88,8 @@ const MORE_CATEGORIES: MoreCategory[] = [
     title: "India",
     icon: "🇮🇳",
     items: [
+      { to: "/hindi-dub", label: "Dub Library" },
+      { to: "/hindi-dub/schedule", label: "Dub Schedule" },
       { to: "/indian-dubs", label: "Indian Dubs" },
       { to: "/theatrical-releases", label: "Theatrical Releases" },
       { to: "/toons", label: "Toons & Cartoons" },

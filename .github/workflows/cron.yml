@@ -32,6 +32,7 @@ on:
     - cron: "0 2 1 * *" # refresh-awards (1st, 02:00)
     - cron: "0 4 1 * *" # refresh-posters (1st, 04:00)
     - cron: "0 6 1 * *" # analytics (1st, 06:00)
+    - cron: "30 20 * * *" # dub-sync (daily, 02:00 IST)
   workflow_dispatch:
     inputs:
       endpoint:
@@ -89,6 +90,7 @@ jobs:
             "0 2 1 * *") LIST="refresh-awards" ;;
             "0 4 1 * *") LIST="refresh-posters" ;;
             "0 6 1 * *") LIST="analytics" ;;
+            "30 20 * * *") LIST="dub-sync" ;;
             "")           LIST="__manual__" ;;
             *)            LIST="" ;;
           esac
@@ -109,6 +111,7 @@ jobs:
               06) [ "$DOM" = "01" ] && LIST="analytics" ;;
               08) [ "$DOW" = "1" ]  && LIST="indexnow" ;;
               09) LIST="character-tournaments" ;;
+              20) LIST="dub-sync" ;;
               *)  LIST="" ;;
             esac
             echo "No schedule context — fell back to time routing at UTC $(date -u)"

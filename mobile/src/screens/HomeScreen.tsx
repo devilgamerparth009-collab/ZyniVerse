@@ -298,6 +298,20 @@ export default function HomeScreen() {
               paddingVertical: 7,
               borderRadius: 20,
             }}
+            onPress={() => navigation.navigate('HindiDub')}
+          >
+            <Text style={{ color: colors.text, fontSize: 12, fontWeight: '700' }}>🇮🇳 Hindi Dub Library</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={{
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+              borderWidth: 1,
+              paddingHorizontal: 12,
+              paddingVertical: 7,
+              borderRadius: 20,
+            }}
             onPress={() => navigation.navigate('Schedule')}
           >
             <Text style={{ color: colors.text, fontSize: 12, fontWeight: '700' }}>🗓 Timetable</Text>

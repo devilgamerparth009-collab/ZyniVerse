@@ -49,6 +49,7 @@ export type RootStackParamList = {
   LiveDubs: undefined;
   Wordle: undefined;
   DailyDubSchedule: undefined;
+  HindiDub: undefined;
   Update: undefined;
   Messages: undefined;
   Chat: {

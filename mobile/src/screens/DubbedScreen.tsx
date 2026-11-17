@@ -257,6 +257,27 @@ export default function DubbedScreen() {
         </TouchableOpacity>
       </FadeInView>
 
+      <FadeInView delay={85}>
+        <TouchableOpacity
+          style={[
+            styles.dailyScheduleBanner,
+            { borderColor: `${colors.secondary}66`, backgroundColor: colors.surface },
+          ]}
+          activeOpacity={0.85}
+          onPress={() => navigation.navigate('HindiDub')}
+        >
+          <Text style={{ fontSize: 24 }}>🇮🇳</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.dailyScheduleTitle, { color: colors.text }]}>
+              Hindi Dub Library
+            </Text>
+            <Text style={[styles.dailyScheduleSub, { color: colors.secondary }]}>
+              Auto-synced series, movies, languages & weekly airings →
+            </Text>
+          </View>
+        </TouchableOpacity>
+      </FadeInView>
+
       <FadeInView delay={110}>
         <ScrollView
           horizontal

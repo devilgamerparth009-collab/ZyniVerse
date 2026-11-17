@@ -27,7 +27,7 @@ import type { ThemeMode } from '../theme/ThemeContext';
 import { isChristmasWindow } from '../utils/themeUtils';
 
 const appConfig = require('../../app.json');
-const APP_VERSION = appConfig?.expo?.version ?? '1.6.0';
+const APP_VERSION = appConfig?.expo?.version ?? '1.7.0';
 
 const openLink = (url: string) => Linking.openURL(url).catch(() => {});
 

@@ -30,8 +30,8 @@ export interface MobileRelease {
   minSupportedVersionCode: number;
 }
 
-const FALLBACK_VERSION_NAME = "1.6.0";
-const FALLBACK_VERSION_CODE = 160000;
+const FALLBACK_VERSION_NAME = "1.7.0";
+const FALLBACK_VERSION_CODE = 170000;
 
 /**
  * Verified metadata for builds we have actually published. Keeping it keyed by
@@ -68,12 +68,12 @@ export const MOBILE_RELEASE: MobileRelease = {
   notes: (process.env.MOBILE_RELEASE_NOTES
     ? process.env.MOBILE_RELEASE_NOTES.split("|")
     : [
-        "Brand-new in-app updater — future versions install without a browser.",
-        "TV & Streaming: every channel logo now ships with the app.",
-        "Profile: fixed session errors, website avatar sync and default avatar.",
-        "Edit Profile: avatar picker previews instantly + sticky Save button.",
-        "Native Messages, Friends, Clubs and Community screens (no WebView).",
-        "Instant content updates from the server — new announcements appear without an APK update.",
+        "New: Hindi Dub Library — 1,200+ Hindi/regional dub series and movies.",
+        "Weekly Hindi dub airing schedule with IST timings.",
+        "Filter dubs by Hindi, Tamil, Telugu, Bengali, Malayalam, Kannada and more.",
+        "Auto-synced daily from animedubhindi.link and desidubanime.me.",
+        "Source links stay valid when the source site changes its domain.",
+        "Faster catalogue browsing with search, sorting and pull-to-refresh.",
       ]
   ).map((line) => line.trim()).filter(Boolean),
   mandatory: process.env.MOBILE_RELEASE_MANDATORY === "true",

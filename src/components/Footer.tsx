@@ -43,6 +43,7 @@ const LINK_COLUMNS: FooterColumn[] = [
       { href: "/live-action", label: "Live Action", icon: "film" },
       { href: "/dubbed", label: "Regional Dubs", icon: "globe" },
       { href: "/indian-dubs", label: "Indian Dubs", icon: "globe" },
+      { href: "/hindi-dub", label: "Hindi Dub Library", icon: "globe" },
       { href: "/random", label: "Random Anime", icon: "shuffle" },
       { href: "/a-z", label: "A–Z Index", icon: "list" },
       { href: "/moments", label: "Moments", icon: "image" },

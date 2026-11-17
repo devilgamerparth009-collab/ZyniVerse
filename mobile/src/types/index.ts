@@ -886,3 +886,70 @@ export interface LiveDubsResponse {
   fetchedAt: string;
   sources: LiveDubSource[];
 }
+
+export interface DubCatalogTitle {
+  id: string;
+  source: string;
+  sourceName: string;
+  sourceUrl: string;
+  slug: string;
+  title: string;
+  kind: 'series' | 'movie' | string;
+  posterUrl: string | null;
+  languages: string[];
+  genres: string[];
+  season: string | null;
+  episodeInfo: string | null;
+  description: string | null;
+  year: number | null;
+  rating: number | null;
+  updatedAt: string;
+  lastModified: string | null;
+}
+
+export interface DubCatalogResponse {
+  success: boolean;
+  items: DubCatalogTitle[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface DubAiring {
+  id: string;
+  source: string;
+  sourceName: string;
+  title: string;
+  posterUrl: string | null;
+  season: string | null;
+  episodeInfo: string | null;
+  languages: string[];
+  dayLabel: string | null;
+  timeLabel: string | null;
+  releaseAt: string | null;
+  sourceUrl: string;
+}
+
+export interface DubScheduleListResponse {
+  success: boolean;
+  total: number;
+  days: string[];
+  groups: { day: string; items: DubAiring[] }[];
+  unscheduled: DubAiring[];
+}
+
+export interface DubLanguageStat {
+  language: string;
+  slug: string;
+  total: number;
+  series: number;
+  movies: number;
+}
+
+export interface DubLanguagesResponse {
+  success: boolean;
+  total: number;
+  languages: DubLanguageStat[];
+}
+

@@ -3203,3 +3203,69 @@ model EditorialEntry {
   @@unique([kind, slug])
   @@index([kind, isPublished, sortOrder])
 }
+
+/// Imported Hindi / regional dub catalogue. Only factual metadata is stored
+/// (title, type, languages, poster, air info) plus a deep link back to the
+/// source site — ZyniVerse never re-hosts or proxies the actual video.
+/// `source` is the site key ("animedubhindi" | "desidubanime") and `sourceId`
+/// is the stable slug/post-id on that site.
+model DubCatalogTitle {
+  id           String    @id @default(cuid())
+  source       String
+  sourceId     String
+  sourceUrl    String
+  slug         String
+  title        String
+  kind         String    @default("series") // series | movie
+  posterUrl    String?
+  languages    String[]  @default([])
+  genres       String[]  @default([])
+  season       String?
+  episodeInfo  String?
+  description  String?
+  year         Int?
+  rating       Float?
+  lastModified DateTime?
+  detailFetchedAt DateTime?
+  firstSeenAt  DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([source, sourceId])
+  @@index([kind, updatedAt])
+  @@index([source, lastModified])
+  @@index([source, kind])
+}
+
+/// Weekly airing schedule imported from the source sites (IST times).
+model DubScheduleEntry {
+  id          String    @id @default(cuid())
+  source      String
+  sourceId    String
+  title       String
+  posterUrl   String?
+  season      String?
+  episodeInfo String?
+  languages   String[]  @default([])
+  dayLabel    String?
+  timeLabel   String?
+  releaseAt   DateTime?
+  sourceUrl   String
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([source, sourceId])
+  @@index([releaseAt])
+  @@index([source])
+}
+
+/// Domain + sync bookkeeping per source. These listing sites change domains
+/// regularly, so the resolver stores whichever host answered last and the
+/// importer keeps working after a move without a redeploy.
+model DubSourceState {
+  source        String    @id
+  baseUrl       String
+  status        String    @default("ok") // ok | error
+  lastCheckedAt DateTime  @default(now())
+  lastSyncAt    DateTime?
+  lastError     String?
+  itemCount     Int       @default(0)
+}

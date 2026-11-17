@@ -67,6 +67,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE_URL}/light-novels`,  changeFrequency: "daily", priority: 0.7 },
     { url: `${BASE_URL}/dubbed`,  changeFrequency: "weekly", priority: 0.7 },
     { url: `${BASE_URL}/hindi-dub-schedule`,  changeFrequency: "daily", priority: 0.8 },
+    { url: `${BASE_URL}/hindi-dub`,  changeFrequency: "daily", priority: 0.9 },
+    { url: `${BASE_URL}/hindi-dub/schedule`,  changeFrequency: "daily", priority: 0.9 },
+    { url: `${BASE_URL}/hindi-dub/series`,  changeFrequency: "daily", priority: 0.8 },
+    { url: `${BASE_URL}/hindi-dub/movies`,  changeFrequency: "daily", priority: 0.8 },
     { url: `${BASE_URL}/hindi-dub-schedule/muse-india`,  changeFrequency: "daily", priority: 0.8 },
     { url: `${BASE_URL}/hindi-dub-schedule/ani-one-india`,  changeFrequency: "daily", priority: 0.8 },
     { url: `${BASE_URL}/hindi-dub-schedule/crunchyroll`,  changeFrequency: "daily", priority: 0.8 },
@@ -307,6 +311,24 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.8,
   }));
 
+  // Imported Hindi / regional dub catalogue: only the hub, schedule, series,
+  // movies and per-language landing pages are indexable. The 1,200+ title
+  // cards deep-link to the source site, so there is no ZyniVerse page per title.
+  const dubLanguagePages: MetadataRoute.Sitemap = [
+    "hindi",
+    "tamil",
+    "telugu",
+    "bengali",
+    "malayalam",
+    "kannada",
+    "english",
+    "japanese",
+  ].map((slug) => ({
+    url: `${BASE_URL}/hindi-dub/languages/${slug}`,
+    changeFrequency: "daily" as const,
+    priority: 0.7,
+  }));
+
   // Toon detail pages (static, original India-focused content: Chhota Bheem,
   // Motu Patlu, Hindi-dubbed imports). These were indexable and linked from the
   // footer/nav but missing from the sitemap entirely. No `lastModified`: the
@@ -353,6 +375,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...newsPages,
     ...alternativePages,
     ...indianDubGuidePages,
+    ...dubLanguagePages,
     ...toonPages,
     ...mangaReleasePages,
     ...newsDeskPages,
