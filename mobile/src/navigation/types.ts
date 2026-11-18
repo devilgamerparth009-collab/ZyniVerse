@@ -49,7 +49,7 @@ export type RootStackParamList = {
   LiveDubs: undefined;
   Wordle: undefined;
   DailyDubSchedule: undefined;
-  HindiDub: undefined;
+  HindiDub: { tab?: 'all' | 'series' | 'movies' | 'schedule' | 'languages' | 'genres' | 'sources' } | undefined;
   Update: undefined;
   Messages: undefined;
   Chat: {
@@ -62,6 +62,7 @@ export type RootStackParamList = {
   UserProfile: { username: string };
   Feed: undefined;
   Hub: { kind: string; title?: string };
+  AllFeatures: undefined;
   Web: { title?: string; path?: string; url?: string; auth?: boolean };
 };
 

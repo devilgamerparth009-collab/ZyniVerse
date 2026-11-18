@@ -45,7 +45,7 @@ export interface ListingResult {
   lastPage: number;
 }
 
-const LANGUAGE_SLUGS: Record<string, string> = {
+export const LANGUAGE_SLUGS: Record<string, string> = {
   hindi: "Hindi",
   tamil: "Tamil",
   telugu: "Telugu",
@@ -135,6 +135,25 @@ export function titleCase(slug: string): string {
     .join(" ");
 }
 
+/** Known messy variants seen on the source sites → one canonical genre name. */
+const GENRE_ALIASES: Record<string, string> = {
+  "sci-fi": "Sci-Fi",
+  "sci-fi-fantasy": "Sci-Fi",
+  "sci-fi-amp-fantasy": "Sci-Fi",
+  "sci-fi-and-fantasy": "Sci-Fi",
+  "action-amp-adventure": "Action",
+  "action-and-adventure": "Action",
+  "slice-of-life": "Slice of Life",
+  "slice-of-life-amp-fantasy": "Slice of Life",
+};
+
+/** Decodes double-encoded HTML entities and folds common spelling variants. */
+export function normalizeGenreName(raw: string): string {
+  const decoded = cheerio.load(raw).root().text().replace(/\s+/g, " ").trim();
+  const key = slugify(decoded);
+  return GENRE_ALIASES[key] || titleCase(key) || decoded;
+}
+
 function decodeSlug(value: string): string {
   try {
     return decodeURIComponent(value);
@@ -156,17 +175,17 @@ export function normalizePoster(url: string | undefined | null): string | null {
   return raw.replace(/&amp;/g, "&");
 }
 
-function parseYear(text: string): number | null {
+export function parseYear(text: string): number | null {
   const m = text.match(/\b(19|20)\d{2}\b/);
   return m ? Number(m[0]) : null;
 }
 
-function extractSeason(title: string): string | null {
+export function extractSeason(title: string): string | null {
   const m = title.match(/\b(?:season|s)\s*(\d{1,2})\b/i);
   return m ? `Season ${Number(m[1])}` : null;
 }
 
-function extractEpisodeInfo(title: string): string | null {
+export function extractEpisodeInfo(title: string): string | null {
   const range = title.match(/\bep(?:isode)?s?\.?\s*(\d{1,4})\s*(?:-|–|to)\s*(\d{1,4})\b/i);
   if (range) return `EP ${range[1]}-${range[2]}`;
   const single = title.match(/\bep(?:isode)?s?\.?\s*(\d{1,4})\b/i);
@@ -221,7 +240,7 @@ function splitCategories(classes: string): { languages: string[]; genres: string
       continue;
     }
     if (NON_GENRE.has(slug) || /^\d+$/.test(slug)) continue;
-    genres.push(titleCase(slug));
+    genres.push(normalizeGenreName(slug));
   }
 
   return { languages: sortLanguages(languages), genres: [...new Set(genres)], kind };
@@ -476,7 +495,7 @@ export function parseDesiAnimeDetail(html: string, url: string): Partial<DubItem
     kind: ld?.["@type"] === "Movie" ? "movie" : /movie/i.test(title) ? "movie" : "series",
     posterUrl: poster,
     languages: sortLanguages(tags),
-    genres: [...new Set(genres.map((g: string) => titleCase(slugify(g))))],
+    genres: [...new Set(genres.map((g: string) => normalizeGenreName(g)))],
     season: extractSeason(title),
     episodeInfo: episodeCount ? `${episodeCount} EP` : extractEpisodeInfo(title),
     description,

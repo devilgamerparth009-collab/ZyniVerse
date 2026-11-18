@@ -312,9 +312,9 @@ export default function HomeScreen() {
               paddingVertical: 7,
               borderRadius: 20,
             }}
-            onPress={() => navigation.navigate('Schedule')}
+            onPress={() => navigation.navigate('HindiDub', { tab: 'schedule' })}
           >
-            <Text style={{ color: colors.text, fontSize: 12, fontWeight: '700' }}>🗓 Timetable</Text>
+            <Text style={{ color: colors.text, fontSize: 12, fontWeight: '700' }}>🗓 Dub Timetable</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -601,10 +601,10 @@ export default function HomeScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.quickAction}
-            onPress={() => navigation.navigate('Schedule')}
+            onPress={() => navigation.navigate('HindiDub', { tab: 'schedule' })}
           >
             <Text style={styles.quickIcon}>🕒</Text>
-            <Text style={styles.quickLabel}>Schedule</Text>
+            <Text style={styles.quickLabel}>Dub Schedule</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.quickAction}
@@ -623,10 +623,10 @@ export default function HomeScreen() {
           contentContainerStyle={{ paddingHorizontal: spacing.md, gap: spacing.sm, marginBottom: spacing.lg }}
         >
           {[
-            { icon: '📺', label: 'TV Guide', sub: 'Live channels', route: 'TVGuide', tint: '#ef4444' },
+            { icon: '📺', label: 'Live TV', sub: 'Channels & OTT', route: 'TVGuide', tint: '#ef4444' },
             { icon: '🎬', label: 'Reels', sub: 'Clips & edits', route: 'Reels', tint: '#f472b6' },
-            { icon: '🎙️', label: 'Fresh Dubs', sub: 'Hindi drops', route: 'LiveDubs', tint: '#ff9933' },
-            { icon: '📅', label: 'Dub Calendar', sub: 'Daily timings', route: 'DailyDubSchedule', tint: '#3b82f6' },
+            { icon: '🇮🇳', label: 'Dub Hub', sub: 'Series · Movies · Schedule', route: 'HindiDub', params: { tab: 'all' }, tint: '#ff9933' },
+            { icon: '🧰', label: 'All Features', sub: 'Website ka har option', route: 'AllFeatures', tint: '#a78bfa' },
             { icon: '🟩', label: 'Wordle', sub: 'Daily puzzle', route: 'Wordle', tint: '#22c55e' },
           ].map((item: any) => (
             <TouchableOpacity

@@ -40,6 +40,7 @@ import FriendsScreen from '../screens/FriendsScreen';
 import UserProfileScreen from '../screens/UserProfileScreen';
 import FeedScreen from '../screens/FeedScreen';
 import HubScreen from '../screens/HubScreen';
+import AllFeaturesScreen from '../screens/AllFeaturesScreen';
 import WebScreen from '../screens/WebScreen';
 import SplashScreen from '../screens/SplashScreen';
 import { useTheme } from '../hooks/useTheme';
@@ -174,6 +175,7 @@ export default function AppNavigator() {
       <Stack.Screen name="UserProfile" component={UserProfileScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Feed" component={FeedScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Hub" component={HubScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="AllFeatures" component={AllFeaturesScreen} options={{ headerShown: false }} />
       <Stack.Screen
         name="Web"
         component={WebScreen}

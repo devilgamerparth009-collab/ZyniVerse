@@ -451,7 +451,7 @@ export default function FunZoneScreen() {
             {[
               {
                 key: 'tv',
-                title: 'TV Guide',
+                title: 'Live TV',
                 sub: 'Channels · DTH · EPG',
                 emoji: '📺',
                 tint: '#ef4444',
@@ -468,21 +468,12 @@ export default function FunZoneScreen() {
                 live: false,
               },
               {
-                key: 'dubs',
-                title: 'Fresh Dub Drops',
-                sub: 'Hindi · Tamil · Telugu',
-                emoji: '🎙️',
+                key: 'dub-hub',
+                title: 'Dub Hub',
+                sub: 'Series · Movies · Schedule',
+                emoji: '🇮🇳',
                 tint: '#ff9933',
-                onPress: () => navigation.navigate('LiveDubs'),
-                live: true,
-              },
-              {
-                key: 'dub-calendar',
-                title: 'Daily Dub Schedule',
-                sub: 'Release times (IST)',
-                emoji: '📅',
-                tint: '#3b82f6',
-                onPress: () => navigation.navigate('DailyDubSchedule'),
+                onPress: () => navigation.navigate('HindiDub', { tab: 'all' }),
                 live: true,
               },
             ].map((card) => (

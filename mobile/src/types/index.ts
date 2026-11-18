@@ -953,3 +953,44 @@ export interface DubLanguagesResponse {
   languages: DubLanguageStat[];
 }
 
+export interface DubGenreStat {
+  genre: string;
+  slug: string;
+  total: number;
+  series: number;
+  movies: number;
+}
+
+export interface DubGenresResponse {
+  success: boolean;
+  total: number;
+  genres: DubGenreStat[];
+}
+
+export interface DubSourceInfo {
+  id: string;
+  name: string;
+  shortName: string;
+  description: string;
+  accent: string;
+  baseUrl: string;
+  status: string;
+  lastSyncAt: string | null;
+  itemCount: number;
+  redirectPath: string;
+}
+
+export interface DubOverviewResponse {
+  success: boolean;
+  total: number;
+  series: number;
+  movies: number;
+  scheduleCount: number;
+  languageCount: number;
+  languages: DubLanguageStat[];
+  sources: DubSourceInfo[];
+  genres: DubGenreStat[];
+  updatedAt: string | null;
+  schedule: { days: string[]; endpoint: string };
+}
+

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getDubCatalog, getDubLanguages, getDubSchedule, getDubStats } from "@/lib/dub-import/queries";
+import { getDubCatalog, getDubGenreStats, getDubLanguages, getDubSchedule, getDubStats } from "@/lib/dub-import/queries";
 import { DubTitleGrid } from "@/components/hindi-dub/DubTitleCard";
 import NativeBannerAd from "@/components/NativeBannerAd";
 
@@ -42,9 +42,10 @@ function formatAiring(iso: string | null): string | null {
 }
 
 export default async function HindiDubHubPage() {
-  const [stats, languages, recentSeries, recentMovies, schedule] = await Promise.all([
+  const [stats, languages, genres, recentSeries, recentMovies, schedule] = await Promise.all([
     getDubStats(),
     getDubLanguages(),
+    getDubGenreStats(undefined, 21),
     getDubCatalog({ kind: "series", sort: "recent", limit: 12 }),
     getDubCatalog({ kind: "movie", sort: "recent", limit: 12 }),
     getDubSchedule({ limit: 200 }),
@@ -137,6 +138,29 @@ export default async function HindiDubHubPage() {
           ))}
         </div>
       </section>
+
+      {genres.length > 0 && (
+        <section className="mt-6 rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-sm font-bold uppercase tracking-wide text-[var(--color-ink)]">Browse by genre</h2>
+            <Link href="/hindi-dub/series" className="text-xs text-[var(--color-cyan)] hover:underline">
+              All genres →
+            </Link>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {genres.map((genre) => (
+              <Link
+                key={genre.slug}
+                href={`/hindi-dub/series?genre=${encodeURIComponent(genre.genre)}`}
+                className="rounded-full border border-[var(--color-line)] bg-black/20 px-3 py-1.5 text-xs font-medium text-[var(--color-ink)] transition hover:border-[var(--color-magenta)]/60"
+              >
+                {genre.genre}
+                <span className="ml-1.5 text-[10px] text-[var(--color-mute)]">{genre.total}</span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {upcoming.length > 0 && (
         <section className="mt-6 rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5">

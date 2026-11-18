@@ -14,13 +14,15 @@ import {
   Linking,
   useWindowDimensions,
 } from 'react-native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useTheme } from '../hooks/useTheme';
 import { api } from '../services/api';
 import {
   DubAiring,
   DubCatalogTitle,
+  DubGenreStat,
   DubLanguageStat,
+  DubSourceInfo,
 } from '../types';
 import ScreenHeader from '../components/ScreenHeader';
 import { colors, themed, spacing, fontSize, borderRadius } from '../theme';
@@ -43,13 +45,16 @@ const SORTS: { key: 'recent' | 'title' | 'rating' | 'year'; label: string }[] = 
   { key: 'year', label: 'Year' },
 ];
 
-type TabKey = 'series' | 'movies' | 'schedule' | 'languages';
+type TabKey = 'all' | 'series' | 'movies' | 'schedule' | 'languages' | 'genres' | 'sources';
 
-const TABS: { key: TabKey; label: string }[] = [
-  { key: 'series', label: 'Series' },
-  { key: 'movies', label: 'Movies' },
-  { key: 'schedule', label: 'Schedule' },
-  { key: 'languages', label: 'Languages' },
+const TABS: { key: TabKey; label: string; emoji: string }[] = [
+  { key: 'all', label: 'All', emoji: '✨' },
+  { key: 'series', label: 'Series', emoji: '📺' },
+  { key: 'movies', label: 'Movies', emoji: '🎬' },
+  { key: 'schedule', label: 'Schedule', emoji: '🗓' },
+  { key: 'languages', label: 'Languages', emoji: '🌐' },
+  { key: 'genres', label: 'Genres', emoji: '🎭' },
+  { key: 'sources', label: 'Sources', emoji: '🔗' },
 ];
 
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
@@ -70,12 +75,16 @@ function istLabel(iso: string): string {
   return `${ist.getUTCDate()} ${MONTHS[ist.getUTCMonth()]} · ${hours}:${pad(ist.getUTCMinutes())} ${suffix}`;
 }
 
+function todayLabel(): string {
+  return DAY_NAMES[new Date(Date.now() + IST_OFFSET_MS).getUTCDay()];
+}
+
 function languageTint(language: string): string {
   return LANG_TINT[language] ?? '#8b5cf6';
 }
 
 /* ------------------------------------------------------------------ */
-/* Catalogue tab (series / movies)                                     */
+/* Catalogue tab (all / series / movies)                                */
 /* ------------------------------------------------------------------ */
 
 function CatalogCard({
@@ -141,13 +150,17 @@ function CatalogCard({
 function CatalogTab({
   kind,
   languages,
+  genres,
   initialLanguage,
-  onClearInitialLanguage,
+  initialGenre,
+  onClearInitial,
 }: {
-  kind: 'series' | 'movie';
+  kind?: 'series' | 'movie';
   languages: DubLanguageStat[];
+  genres: DubGenreStat[];
   initialLanguage?: string;
-  onClearInitialLanguage: () => void;
+  initialGenre?: string;
+  onClearInitial: () => void;
 }) {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
@@ -161,19 +174,21 @@ function CatalogTab({
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [language, setLanguage] = useState<string | undefined>(initialLanguage);
+  const [genre, setGenre] = useState<string | undefined>(initialGenre);
   const [sort, setSort] = useState<'recent' | 'title' | 'rating' | 'year'>('recent');
   const [search, setSearch] = useState('');
   const [appliedSearch, setAppliedSearch] = useState('');
   const requestId = useRef(0);
 
   useEffect(() => {
-    if (initialLanguage) {
+    if (initialLanguage || initialGenre) {
       setLanguage(initialLanguage);
-      onClearInitialLanguage();
+      setGenre(initialGenre);
+      onClearInitial();
     }
-    // Only react to an explicit browse request from the Languages tab.
+    // Only react to explicit browse requests from the Languages / Genres tabs.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialLanguage]);
+  }, [initialLanguage, initialGenre]);
 
   const load = useCallback(
     async (nextPage: number, mode: 'replace' | 'append' = 'replace') => {
@@ -187,6 +202,7 @@ function CatalogTab({
         const data = await api.dub.catalog({
           kind,
           language,
+          genre,
           q: appliedSearch || undefined,
           sort,
           page: nextPage,
@@ -208,13 +224,13 @@ function CatalogTab({
         }
       }
     },
-    [kind, language, appliedSearch, sort, refreshing]
+    [kind, language, genre, appliedSearch, sort, refreshing]
   );
 
   useEffect(() => {
     load(1, 'replace');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kind, language, appliedSearch, sort]);
+  }, [kind, language, genre, appliedSearch, sort]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -233,7 +249,7 @@ function CatalogTab({
           style={styles.searchInput}
           value={search}
           onChangeText={setSearch}
-          placeholder={`Search ${kind === 'movie' ? 'movies' : 'series'}…`}
+          placeholder={`Search ${kind === 'movie' ? 'movies' : kind === 'series' ? 'series' : 'dubs'}…`}
           placeholderTextColor={colors.textDim}
           returnKeyType="search"
           onSubmitEditing={() => setAppliedSearch(search.trim())}
@@ -263,11 +279,7 @@ function CatalogTab({
         </View>
       ) : null}
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.chipRow}
-      >
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
         <TouchableOpacity
           style={[styles.chip, !language && styles.chipActive]}
           onPress={() => setLanguage(undefined)}
@@ -284,6 +296,29 @@ function CatalogTab({
             >
               <Text style={[styles.chipText, active && styles.chipTextActive]}>
                 {item.language} {item.total}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+        <TouchableOpacity
+          style={[styles.chip, !genre && styles.chipActive]}
+          onPress={() => setGenre(undefined)}
+        >
+          <Text style={[styles.chipText, !genre && styles.chipTextActive]}>All genres</Text>
+        </TouchableOpacity>
+        {genres.map((item) => {
+          const active = genre === item.genre;
+          return (
+            <TouchableOpacity
+              key={item.genre}
+              style={[styles.chip, active && styles.chipActive]}
+              onPress={() => setGenre(active ? undefined : item.genre)}
+            >
+              <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                {item.genre} {item.total}
               </Text>
             </TouchableOpacity>
           );
@@ -341,8 +376,7 @@ function CatalogTab({
         ) : (
           <View style={styles.loadingBox}>
             <Text style={styles.emptyText}>
-              {kind === 'movie' ? 'Koi dub movie nahi mili' : 'Koi dub series nahi mili'} — filter
-              change karke dekho.
+              Koi dub title nahi mila — language ya genre filter change karke dekho.
             </Text>
           </View>
         )
@@ -371,7 +405,7 @@ function CatalogTab({
 }
 
 /* ------------------------------------------------------------------ */
-/* Weekly schedule tab                                                 */
+/* Weekly schedule tab — Week + Tonight in one place                    */
 /* ------------------------------------------------------------------ */
 
 function AiringRow({ item }: { item: DubAiring }) {
@@ -417,15 +451,18 @@ function AiringRow({ item }: { item: DubAiring }) {
         {item.releaseAt ? (
           <Text style={styles.airingDate}>{istLabel(item.releaseAt)}</Text>
         ) : (
-          <Text style={styles.airingDate}>IST</Text>
+          <Text style={styles.airingDate}>{item.dayLabel ?? 'TBA'} · IST</Text>
         )}
       </View>
     </TouchableOpacity>
   );
 }
 
+type ScheduleView = 'week' | 'tonight';
+
 function ScheduleTab() {
   const insets = useSafeAreaInsets();
+  const [view, setView] = useState<ScheduleView>('week');
   const [sections, setSections] = useState<{ title: string; data: DubAiring[] }[]>([]);
   const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -436,21 +473,23 @@ function ScheduleTab() {
     try {
       setError(null);
       const data = await api.dub.weeklySchedule();
+      const tonight = todayLabel();
       const groups = (data?.groups || [])
         .filter((group) => group.items.length > 0)
+        .filter((group) => view !== 'tonight' || group.day === tonight || group.day === 'Daily')
         .map((group) => ({ title: group.day, data: group.items }));
-      if (data?.unscheduled?.length) {
+      if (view === 'week' && data?.unscheduled?.length) {
         groups.push({ title: 'Unscheduled', data: data.unscheduled });
       }
       setSections(groups);
-      setCount(data?.total || 0);
+      setCount(groups.reduce((sum, group) => sum + group.data.length, 0));
     } catch (e: any) {
       setError(e?.message || 'Could not load the dub schedule');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [view]);
 
   useEffect(() => {
     load();
@@ -479,8 +518,24 @@ function ScheduleTab() {
       ListHeaderComponent={
         <View style={styles.tabHeader}>
           <Text style={styles.scheduleIntro}>
-            Weekly Hindi &amp; regional dub airings, IST timings ke saath. {count} airings tracked.
+            Hindi &amp; regional dub airings, source schedule se seedha — IST timings.{' '}
+            {error ? 'Schedule API abhi live nahi hai.' : `${count} airings.`}
           </Text>
+          <View style={styles.viewToggle}>
+            {(['week', 'tonight'] as ScheduleView[]).map((option) => (
+              <TouchableOpacity
+                key={option}
+                style={[styles.viewChip, view === option && styles.viewChipActive]}
+                onPress={() => setView(option)}
+              >
+                <Text
+                  style={[styles.viewChipText, view === option && styles.viewChipTextActive]}
+                >
+                  {option === 'week' ? 'Full week' : `Tonight · ${todayLabel()}`}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
           {error ? (
             <TouchableOpacity style={styles.errorBox} onPress={load}>
               <Text style={styles.errorText}>{error} — tap to retry</Text>
@@ -491,7 +546,11 @@ function ScheduleTab() {
       ListEmptyComponent={
         <View style={styles.loadingBox}>
           <Text style={styles.emptyText}>
-            Is hafte koi airing track nahi hui. Next sync ke baad yahan schedule aa jayega.
+            {error
+              ? 'Server update pending — naya schedule API deploy hone par 28 airings yahin dikh jayenge.'
+              : view === 'tonight'
+                ? 'Aaj ke liye koi airing nahi — Full week dekho.'
+                : 'Is hafte koi airing track nahi hui. Next sync ke baad schedule aa jayega.'}
           </Text>
         </View>
       }
@@ -516,7 +575,7 @@ function ScheduleTab() {
 }
 
 /* ------------------------------------------------------------------ */
-/* Languages tab                                                       */
+/* Languages / Genres / Sources tabs                                    */
 /* ------------------------------------------------------------------ */
 
 function LanguagesTab({
@@ -524,7 +583,7 @@ function LanguagesTab({
   onBrowse,
 }: {
   languages: DubLanguageStat[];
-  onBrowse: (language: string, kind: 'series' | 'movie') => void;
+  onBrowse: (language: string) => void;
 }) {
   const insets = useSafeAreaInsets();
 
@@ -542,19 +601,15 @@ function LanguagesTab({
               {item.movies.toLocaleString()} movies
             </Text>
           </View>
-          <TouchableOpacity style={styles.languageAction} onPress={() => onBrowse(item.language, 'series')}>
-            <Text style={styles.languageActionText}>Series</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.languageAction} onPress={() => onBrowse(item.language, 'movie')}>
-            <Text style={styles.languageActionText}>Movies</Text>
+          <TouchableOpacity style={styles.languageAction} onPress={() => onBrowse(item.language)}>
+            <Text style={styles.languageActionText}>Browse</Text>
           </TouchableOpacity>
         </View>
       )}
       ListHeaderComponent={
         <View style={styles.tabHeader}>
           <Text style={styles.scheduleIntro}>
-            Har language ke saare dubbed titles. Source sites par naya dub aate hi count update hota
-            hai.
+            Har language ke saare dubbed titles. Source sites par naya dub aate hi count update hota hai.
           </Text>
         </View>
       }
@@ -572,45 +627,180 @@ function LanguagesTab({
   );
 }
 
+function GenresTab({
+  genres,
+  onBrowse,
+}: {
+  genres: DubGenreStat[];
+  onBrowse: (genre: string) => void;
+}) {
+  const insets = useSafeAreaInsets();
+
+  return (
+    <FlatList
+      data={genres}
+      keyExtractor={(item) => item.genre}
+      numColumns={2}
+      columnWrapperStyle={styles.columnWrap}
+      renderItem={({ item }) => (
+        <TouchableOpacity style={styles.genreCard} activeOpacity={0.85} onPress={() => onBrowse(item.genre)}>
+          <View style={styles.genreIcon}>
+            <Text style={styles.genreIconText}>{item.genre.slice(0, 1)}</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.genreName} numberOfLines={1}>{item.genre}</Text>
+            <Text style={styles.genreMeta}>
+              {item.total} titles · {item.series} series · {item.movies} movies
+            </Text>
+          </View>
+        </TouchableOpacity>
+      )}
+      ListHeaderComponent={
+        <View style={styles.tabHeader}>
+          <Text style={styles.scheduleIntro}>
+            Source site ke genres — direct API se imported. Kisi bhi genre par tap karke uske titles dekho.
+          </Text>
+        </View>
+      }
+      ListEmptyComponent={
+        <View style={styles.loadingBox}>
+          <Text style={styles.emptyText}>Genres load ho rahe hain…</Text>
+        </View>
+      }
+      contentContainerStyle={{
+        paddingHorizontal: spacing.md,
+        paddingBottom: insets.bottom + spacing.xxl,
+      }}
+      showsVerticalScrollIndicator={false}
+    />
+  );
+}
+
+function SourcesTab({ sources }: { sources: DubSourceInfo[] }) {
+  const insets = useSafeAreaInsets();
+
+  return (
+    <FlatList
+      data={sources}
+      keyExtractor={(item) => item.id}
+      renderItem={({ item }) => (
+        <View style={styles.sourceCard}>
+          <View style={[styles.sourceDot, { backgroundColor: item.accent || colors.primary }]} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.sourceName}>{item.name}</Text>
+            <Text style={styles.sourceMeta}>{item.description}</Text>
+            <Text style={styles.sourceCount}>
+              {item.itemCount.toLocaleString()} titles · {item.status}
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={styles.sourceAction}
+            onPress={() =>
+              Linking.openURL(`https://zyverse.in${item.redirectPath}`).catch(() => {})
+            }
+          >
+            <Text style={styles.sourceActionText}>Open</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+      ListHeaderComponent={
+        <View style={styles.tabHeader}>
+          <Text style={styles.scheduleIntro}>
+            Do sources, ek hi list. Domain badalne par bhi ZyniVerse ka redirect working host par le jata hai.
+          </Text>
+        </View>
+      }
+      ListEmptyComponent={
+        <View style={styles.loadingBox}>
+          <Text style={styles.emptyText}>Sources load ho rahe hain…</Text>
+        </View>
+      }
+      contentContainerStyle={{
+        paddingHorizontal: spacing.md,
+        paddingBottom: insets.bottom + spacing.xxl,
+      }}
+      showsVerticalScrollIndicator={false}
+    />
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /* Screen                                                              */
 /* ------------------------------------------------------------------ */
 
 export default function HindiDubScreen() {
-  const [tab, setTab] = useState<TabKey>('series');
+  const navigation = useNavigation<any>();
+  const route = useRoute<any>();
+  const [tab, setTab] = useState<TabKey>(route.params?.tab ?? 'all');
   const [languages, setLanguages] = useState<DubLanguageStat[]>([]);
-  const [browseLanguage, setBrowseLanguage] = useState<string | undefined>(undefined);
-  const { colors: themeColors } = useTheme();
+  const [genres, setGenres] = useState<DubGenreStat[]>([]);
+  const [sources, setSources] = useState<DubSourceInfo[]>([]);
+  const [stats, setStats] = useState<{ total: number; languageCount: number } | null>(null);
+  const [browse, setBrowse] = useState<{ language?: string; genre?: string }>({});
 
   useEffect(() => {
     let active = true;
-    api.dub
-      .languages()
-      .then((list) => {
-        if (active) setLanguages(list);
-      })
-      .catch(() => {});
+    (async () => {
+      const overview = await api.dub.overview().catch(() => null);
+      if (!active) return;
+      if (overview) {
+        setLanguages(overview.languages || []);
+        setGenres(overview.genres || []);
+        setSources(overview.sources || []);
+        setStats({ total: overview.total, languageCount: overview.languageCount });
+        return;
+      }
+      const [langs, gnrs] = await Promise.all([
+        api.dub.languages().catch(() => []),
+        api.dub.genres().catch(() => []),
+      ]);
+      if (!active) return;
+      setLanguages(langs);
+      setGenres(gnrs);
+    })();
     return () => {
       active = false;
     };
   }, []);
 
   const subtitle = useMemo(() => {
-    if (!languages.length) return 'Series, movies & weekly airings';
+    if (stats) return `${stats.total.toLocaleString()} titles · ${stats.languageCount} languages · 7 options`;
+    if (!languages.length) return 'Series, movies, schedule, languages & genres';
     const total = languages.reduce((sum, item) => sum + item.total, 0);
     return `${total.toLocaleString()} titles · ${languages.length} languages`;
-  }, [languages]);
+  }, [languages, stats]);
 
-  const browse = useCallback((language: string, kind: 'series' | 'movie') => {
-    setBrowseLanguage(language);
-    setTab(kind === 'movie' ? 'movies' : 'series');
+  const browseLanguage = useCallback((language: string) => {
+    setBrowse({ language, genre: undefined });
+    setTab('all');
   }, []);
 
-  return (
-    <View style={[styles.container, { backgroundColor: themeColors.background }]}>
-      <ScreenHeader title="Hindi Dub Library" subtitle={subtitle} emoji="🇮🇳" />
+  const browseGenre = useCallback((genre: string) => {
+    setBrowse({ language: undefined, genre });
+    setTab('all');
+  }, []);
 
-      <View style={styles.tabBar}>
+  const clearBrowse = useCallback(() => setBrowse({}), []);
+
+  const headerRight = (
+    <TouchableOpacity
+      style={styles.profileButton}
+      activeOpacity={0.85}
+      onPress={() => navigation.navigate('MainTabs', { screen: 'Profile' })}
+    >
+      <Text style={styles.profileButtonText}>Profile</Text>
+    </TouchableOpacity>
+  );
+
+  return (
+    <View style={styles.container}>
+      <ScreenHeader title="Dub Hub" subtitle={subtitle} emoji="🇮🇳" right={headerRight} />
+
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.tabBar}
+      >
         {TABS.map((item) => {
           const active = tab === item.key;
           return (
@@ -620,30 +810,28 @@ export default function HindiDubScreen() {
               onPress={() => setTab(item.key)}
               activeOpacity={0.85}
             >
-              <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{item.label}</Text>
+              <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>
+                {item.emoji} {item.label}
+              </Text>
             </TouchableOpacity>
           );
         })}
-      </View>
+      </ScrollView>
 
-      {tab === 'series' ? (
+      {tab === 'all' || tab === 'series' || tab === 'movies' ? (
         <CatalogTab
-          kind="series"
+          kind={tab === 'series' ? 'series' : tab === 'movies' ? 'movie' : undefined}
           languages={languages}
-          initialLanguage={browseLanguage}
-          onClearInitialLanguage={() => setBrowseLanguage(undefined)}
-        />
-      ) : null}
-      {tab === 'movies' ? (
-        <CatalogTab
-          kind="movie"
-          languages={languages}
-          initialLanguage={browseLanguage}
-          onClearInitialLanguage={() => setBrowseLanguage(undefined)}
+          genres={genres}
+          initialLanguage={browse.language}
+          initialGenre={browse.genre}
+          onClearInitial={clearBrowse}
         />
       ) : null}
       {tab === 'schedule' ? <ScheduleTab /> : null}
-      {tab === 'languages' ? <LanguagesTab languages={languages} onBrowse={browse} /> : null}
+      {tab === 'languages' ? <LanguagesTab languages={languages} onBrowse={browseLanguage} /> : null}
+      {tab === 'genres' ? <GenresTab genres={genres} onBrowse={browseGenre} /> : null}
+      {tab === 'sources' ? <SourcesTab sources={sources} /> : null}
     </View>
   );
 }
@@ -662,8 +850,8 @@ const styles = themed(() => ({
     borderBottomColor: colors.border,
   },
   tabButton: {
-    flex: 1,
     alignItems: 'center',
+    paddingHorizontal: spacing.sm + 2,
     paddingVertical: spacing.xs + 2,
     borderRadius: borderRadius.full,
     borderWidth: 1,
@@ -681,6 +869,18 @@ const styles = themed(() => ({
   },
   tabLabelActive: {
     color: '#0a0a0f',
+    fontWeight: '800',
+  },
+  profileButton: {
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderRadius: borderRadius.full,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+  },
+  profileButtonText: {
+    color: colors.primary,
+    fontSize: 10,
     fontWeight: '800',
   },
   tabHeader: {
@@ -913,6 +1113,31 @@ const styles = themed(() => ({
     fontSize: fontSize.xs,
     lineHeight: 18,
   },
+  viewToggle: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+    marginTop: spacing.sm,
+  },
+  viewChip: {
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: 5,
+  },
+  viewChipActive: {
+    borderColor: colors.secondary,
+    backgroundColor: `${colors.secondary}22`,
+  },
+  viewChipText: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  viewChipTextActive: {
+    color: colors.secondary,
+    fontWeight: '800',
+  },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1015,6 +1240,85 @@ const styles = themed(() => ({
     paddingVertical: 4,
   },
   languageActionText: {
+    color: colors.primary,
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  genreCard: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.md,
+    padding: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  genreIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: borderRadius.sm,
+    backgroundColor: `${colors.primary}22`,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  genreIconText: {
+    color: colors.primary,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  genreName: {
+    color: colors.text,
+    fontSize: fontSize.xs,
+    fontWeight: '800',
+  },
+  genreMeta: {
+    color: colors.textDim,
+    fontSize: 9,
+    marginTop: 1,
+  },
+  sourceCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.md,
+    padding: spacing.sm + 4,
+    marginBottom: spacing.sm,
+  },
+  sourceDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  sourceName: {
+    color: colors.text,
+    fontSize: fontSize.sm,
+    fontWeight: '800',
+  },
+  sourceMeta: {
+    color: colors.textDim,
+    fontSize: 10,
+    marginTop: 1,
+  },
+  sourceCount: {
+    color: colors.secondary,
+    fontSize: 10,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  sourceAction: {
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderRadius: borderRadius.full,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+  },
+  sourceActionText: {
     color: colors.primary,
     fontSize: 10,
     fontWeight: '700',

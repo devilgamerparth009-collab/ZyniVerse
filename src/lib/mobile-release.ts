@@ -30,8 +30,8 @@ export interface MobileRelease {
   minSupportedVersionCode: number;
 }
 
-const FALLBACK_VERSION_NAME = "1.7.0";
-const FALLBACK_VERSION_CODE = 170000;
+const FALLBACK_VERSION_NAME = "1.8.0";
+const FALLBACK_VERSION_CODE = 180000;
 
 /**
  * Verified metadata for builds we have actually published. Keeping it keyed by
@@ -43,6 +43,14 @@ const PUBLISHED_BUILDS: Record<string, { sha256: string; sizeBytes: number }> = 
     sha256: "8b0199df768fa396104133cd789d536ad851296ac33cd223707d4dbc03d6a498",
     sizeBytes: 42052121,
   },
+  "1.7.0": {
+    sha256: "0346c395508130386b7eaa41e65c3e196cfc835d3642eda30b6f4c61cf592ba7",
+    sizeBytes: 42062329,
+  },
+  "1.8.0": {
+    sha256: "4c238f61e449ab161273d10c8a56b72bfba0a94f13373bc58c81f6497369ca11",
+    sizeBytes: 42072829,
+  },
 };
 
 function envNumber(value: string | undefined): number | undefined {
@@ -51,8 +59,8 @@ function envNumber(value: string | undefined): number | undefined {
   return Number.isFinite(n) ? n : undefined;
 }
 
-function githubAsset(versionName: string): string {
-  return `https://github.com/ParthGupta062/ZyniVerse/releases/download/v${versionName}/ZyniVerse-${versionName}.apk`;
+function websiteAsset(versionName: string): string {
+  return `https://zyverse.in/ZyniVerse-${versionName}.apk`;
 }
 
 const versionName = process.env.MOBILE_VERSION_NAME || FALLBACK_VERSION_NAME;
@@ -62,21 +70,21 @@ const published = PUBLISHED_BUILDS[versionName];
 export const MOBILE_RELEASE: MobileRelease = {
   versionName,
   versionCode,
-  apkUrl: process.env.MOBILE_APK_URL || githubAsset(versionName),
+  apkUrl: process.env.MOBILE_APK_URL || websiteAsset(versionName),
   sha256: process.env.MOBILE_APK_SHA256 || published?.sha256,
   sizeBytes: envNumber(process.env.MOBILE_APK_SIZE) || published?.sizeBytes,
   notes: (process.env.MOBILE_RELEASE_NOTES
     ? process.env.MOBILE_RELEASE_NOTES.split("|")
     : [
-        "New: Hindi Dub Library — 1,200+ Hindi/regional dub series and movies.",
-        "Weekly Hindi dub airing schedule with IST timings.",
-        "Filter dubs by Hindi, Tamil, Telugu, Bengali, Malayalam, Kannada and more.",
-        "Auto-synced daily from animedubhindi.link and desidubanime.me.",
-        "Source links stay valid when the source site changes its domain.",
-        "Faster catalogue browsing with search, sorting and pull-to-refresh.",
+        "Dub Hub: series, movies, full-week schedule + Tonight, languages, genres and sources in one place.",
+        "Direct WordPress REST API sync from animedubhindi.link — 663 ADH titles with clean genres.",
+        "No more duplicate TV/schedule entries — one unified dub timetable.",
+        "Profile: Reviews, custom lists, moments, history, import/export, API keys, delete and profile colour.",
+        "New All Features screen: every website option grouped in one searchable place.",
+        "Domain auto-heal keeps source links working if a dub site moves.",
       ]
   ).map((line) => line.trim()).filter(Boolean),
   mandatory: process.env.MOBILE_RELEASE_MANDATORY === "true",
-  publishedAt: process.env.MOBILE_RELEASE_PUBLISHED_AT || "2026-11-16T00:00:00.000Z",
+  publishedAt: process.env.MOBILE_RELEASE_PUBLISHED_AT || "2026-11-18T00:00:00.000Z",
   minSupportedVersionCode: envNumber(process.env.MOBILE_MIN_SUPPORTED_VERSION_CODE) || 140020,
 };

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   StyleSheet,
   RefreshControl,
   Alert,
+  Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -33,13 +34,22 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorView from '../components/ErrorView';
 import FadeInView from '../components/FadeInView';
 
-type TabKey = 'lists' | 'stats' | 'achievements' | 'activity';
+type TabKey = 'lists' | 'stats' | 'achievements' | 'activity' | 'reviews' | 'more';
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'lists', label: 'Lists' },
+  { key: 'reviews', label: 'Reviews' },
   { key: 'stats', label: 'Stats' },
   { key: 'achievements', label: 'Badges' },
   { key: 'activity', label: 'Activity' },
+  { key: 'more', label: 'More' },
 ];
+
+const PROFILE_COLORS = ['emerald', 'violet', 'amber', 'rose', 'cyan'];
+const WEB_HOST = 'https://zyverse.in';
+
+function openWeb(path: string) {
+  Linking.openURL(`${WEB_HOST}${path}`).catch(() => {});
+}
 
 const STATUS_FILTERS = ['ALL', 'CURRENT', 'COMPLETED', 'PLANNING', 'PAUSED', 'DROPPED'];
 
@@ -49,6 +59,190 @@ async function mediaMapFor(entries: ProfileEntry[]): Promise<Map<number, Anime>>
   for (let i = 0; i < ids.length; i += 50) chunks.push(ids.slice(i, i + 50));
   const results = await Promise.all(chunks.map((c) => api.batch(c).catch(() => [] as Anime[])));
   return new Map(results.flat().map((m) => [m.id, m]));
+}
+
+/** One place for every website profile/account option that exists in the APK. */
+function MoreTab({
+  profile,
+  onChanged,
+  onShowReviews,
+}: {
+  profile: ProfileResponse;
+  onChanged: () => void;
+  onShowReviews: () => void;
+}) {
+  const navigation = useNavigation<any>();
+  const { user } = profile;
+  const [lists, setLists] = useState<any[]>([]);
+  const [moments, setMoments] = useState<any[]>([]);
+  const [economy, setEconomy] = useState<any>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const [customLists, userMoments, wallet] = await Promise.allSettled([
+        api.account.customLists(user.id),
+        api.account.moments(user.id),
+        api.account.economy(),
+      ]);
+      if (!active) return;
+      if (customLists.status === 'fulfilled') setLists(customLists.value);
+      if (userMoments.status === 'fulfilled') setMoments(userMoments.value);
+      if (wallet.status === 'fulfilled') setEconomy(wallet.value);
+    })();
+    return () => {
+      active = false;
+    };
+  }, [user.id]);
+
+  const changeColor = async () => {
+    const current = PROFILE_COLORS.indexOf(user.themeColor || 'emerald');
+    const next = PROFILE_COLORS[(current + 1) % PROFILE_COLORS.length];
+    setBusy(true);
+    try {
+      await api.profile.update({ themeColor: next });
+      onChanged();
+    } catch (e: any) {
+      Alert.alert('Could not save colour', e?.message || 'Try again.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const claimDaily = async () => {
+    setBusy(true);
+    try {
+      const result = await api.account.claimDaily();
+      Alert.alert(
+        'Daily reward',
+        result?.message || `Claimed ${result?.coins ?? 0} coins and ${result?.xp ?? 0} XP. Streak: ${result?.streak ?? 1} day(s).`
+      );
+      setEconomy(await api.account.economy());
+      onChanged();
+    } catch (e: any) {
+      Alert.alert('Could not claim', e?.message || 'Try again later.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const confirmDelete = () => {
+    Alert.alert(
+      'Delete account',
+      'This permanently removes your lists, reviews, moments and progress. Continue?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete forever',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.account.delete();
+              await api.auth.logout();
+              onChanged();
+            } catch (e: any) {
+              Alert.alert('Could not delete', e?.message || 'Try again.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const recent = useMemo(
+    () => [...user.entries].sort((a, b) => (b.updatedAt > a.updatedAt ? 1 : -1)).slice(0, 6),
+    [user.entries]
+  );
+
+  const rows: { title: string; items: { icon: string; label: string; sub: string; onPress: () => void; tint?: string }[] }[] = [
+    {
+      title: 'Account',
+      items: [
+        { icon: '✏️', label: 'Edit profile', sub: 'Name, bio, avatar, banner, password', onPress: () => navigation.navigate('EditProfile') },
+        { icon: '🎨', label: 'Profile colour', sub: `Current: ${user.themeColor || 'emerald'} · tap to change`, onPress: changeColor },
+        { icon: '⚙️', label: 'App settings', sub: 'Theme, notifications, dub language, legal', onPress: () => navigation.navigate('Settings') },
+        { icon: '🧩', label: 'All features', sub: 'Har website feature, ek hi jagah', onPress: () => navigation.navigate('AllFeatures') },
+      ],
+    },
+    {
+      title: 'Your content',
+      items: [
+        { icon: '📚', label: 'Custom lists', sub: `${lists.length} list${lists.length === 1 ? '' : 's'} · create & edit on website`, onPress: () => openWeb('/lists') },
+        { icon: '✨', label: 'Moments', sub: `${moments.length} moment${moments.length === 1 ? '' : 's'} · share anime quotes`, onPress: () => openWeb('/moments') },
+        { icon: '⭐', label: 'Reviews', sub: `${user.reviews.length} written · tap to read`, onPress: onShowReviews },
+        { icon: '🕘', label: 'Watch history', sub: `${recent.length} recent entries from your list`, onPress: () => openWeb('/profile?tab=history') },
+      ],
+    },
+    {
+      title: 'Data & privacy',
+      items: [
+        { icon: '📥', label: 'Import from AniList', sub: 'Bring your anime list over', onPress: () => openWeb('/profile?tab=api') },
+        { icon: '📄', label: 'Import from MAL', sub: 'Upload your MAL XML export', onPress: () => openWeb('/profile?tab=api') },
+        { icon: '🔑', label: 'API keys', sub: 'Personal access tokens', onPress: () => openWeb('/profile?tab=api') },
+        { icon: '📤', label: 'Export data', sub: 'Download your watchlist as CSV', onPress: () => openWeb('/api/watchlist/export?format=csv') },
+        { icon: '🗑️', label: 'Delete account', sub: 'Permanently remove all your data', onPress: confirmDelete, tint: colors.error },
+      ],
+    },
+    {
+      title: 'Rewards',
+      items: [
+        {
+          icon: '🪙',
+          label: 'Daily login reward',
+          sub: economy?.authenticated
+            ? `Wallet: ${economy.coins ?? 0} coins · ${economy.points ?? 0} pts`
+            : 'Sign in to claim coins and XP',
+          onPress: claimDaily,
+          tint: colors.warning,
+        },
+        { icon: '🏆', label: 'Leaderboard', sub: 'Top fans this season', onPress: () => navigation.navigate('Leaderboard') },
+      ],
+    },
+  ];
+
+  return (
+    <View style={styles.tabBody}>
+      {busy ? <Text style={styles.moreBusy}>Saving…</Text> : null}
+      {rows.map((section) => (
+        <View key={section.title} style={styles.moreSection}>
+          <Text style={styles.sectionTitle}>{section.title}</Text>
+          {section.items.map((item) => (
+            <TouchableOpacity key={item.label} style={styles.moreRow} activeOpacity={0.8} onPress={item.onPress}>
+              <Text style={styles.moreIcon}>{item.icon}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.moreLabel, item.tint ? { color: item.tint } : undefined]}>{item.label}</Text>
+                <Text style={styles.moreSub} numberOfLines={2}>{item.sub}</Text>
+              </View>
+              <Text style={styles.moreChevron}>›</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      ))}
+
+      {recent.length > 0 ? (
+        <View style={styles.moreSection}>
+          <Text style={styles.sectionTitle}>Recently updated</Text>
+          {recent.map((entry) => (
+            <TouchableOpacity
+              key={`${entry.mediaId}-${entry.status}`}
+              style={styles.moreRow}
+              onPress={() => navigation.navigate('AnimeDetail', { id: entry.mediaId })}
+            >
+              <Text style={styles.moreIcon}>🎬</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.moreLabel}>Anime #{entry.mediaId}</Text>
+                <Text style={styles.moreSub}>
+                  {entry.status} · {entry.progress || 0}/{entry.total || '?'} episodes
+                </Text>
+              </View>
+              <Text style={styles.moreChevron}>›</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      ) : null}
+    </View>
+  );
 }
 
 export default function ProfileScreen() {
@@ -514,29 +708,35 @@ export default function ProfileScreen() {
               </View>
             )}
 
-            {user.reviews.length > 0 && (
-              <>
-                <Text style={styles.sectionTitle}>Your Reviews</Text>
-                {user.reviews.slice(0, 5).map((review: ReviewItem) => (
-                  <TouchableOpacity
-                    key={review.id}
-                    style={styles.reviewCard}
-                    onPress={() =>
-                      navigation.navigate('AnimeDetail', { id: review.mediaId })
-                    }
-                  >
-                    <View style={styles.reviewHeader}>
-                      <Text style={styles.reviewScore}>★ {review.rating}/10</Text>
-                      <Text style={styles.reviewTime}>{timeAgo(review.createdAt)}</Text>
-                    </View>
-                    {review.comment ? (
-                      <Text style={styles.reviewText} numberOfLines={3}>
-                        {review.comment}
-                      </Text>
-                    ) : null}
-                  </TouchableOpacity>
-                ))}
-              </>
+          </FadeInView>
+        )}
+
+        {tab === 'reviews' && (
+          <FadeInView key="reviews" style={styles.tabBody} offset={10} duration={320}>
+            <Text style={styles.sectionTitle}>Your Reviews</Text>
+            {user.reviews.length === 0 ? (
+              <View style={styles.emptyBox}>
+                <Text style={styles.emptyIcon}>⭐</Text>
+                <Text style={styles.emptyText}>No reviews yet</Text>
+                <Text style={styles.emptyHint}>Rate an anime from its detail page to see it here.</Text>
+              </View>
+            ) : (
+              user.reviews.map((review: ReviewItem) => (
+                <TouchableOpacity
+                  key={review.id}
+                  style={styles.reviewCard}
+                  onPress={() => navigation.navigate('AnimeDetail', { id: review.mediaId })}
+                >
+                  <View style={styles.reviewHeader}>
+                    <Text style={styles.reviewScore}>★ {review.rating}/10</Text>
+                    <Text style={styles.reviewTime}>{timeAgo(review.createdAt)}</Text>
+                  </View>
+                  <Text style={styles.reviewMeta}>Anime #{review.mediaId}</Text>
+                  {review.comment ? (
+                    <Text style={styles.reviewText} numberOfLines={4}>{review.comment}</Text>
+                  ) : null}
+                </TouchableOpacity>
+              ))
             )}
           </FadeInView>
         )}
@@ -587,6 +787,14 @@ export default function ProfileScreen() {
               ))
             )}
           </FadeInView>
+        )}
+
+        {tab === 'more' && (
+          <MoreTab
+            profile={profile}
+            onChanged={load}
+            onShowReviews={() => setTab('reviews')}
+          />
         )}
       </ScrollView>
     </View>
@@ -985,6 +1193,49 @@ const styles = themed(() => ({
     color: colors.textMuted,
     fontSize: fontSize.sm,
     lineHeight: 19,
+  },
+  reviewMeta: {
+    color: colors.textDim,
+    fontSize: 10,
+    marginTop: 2,
+  },
+  moreBusy: {
+    color: colors.textDim,
+    fontSize: fontSize.xs,
+    textAlign: 'center',
+    marginBottom: spacing.sm,
+  },
+  moreSection: {
+    marginBottom: spacing.lg,
+  },
+  moreRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+    paddingVertical: spacing.sm + 2,
+  },
+  moreIcon: {
+    width: 30,
+    fontSize: 18,
+    textAlign: 'center',
+  },
+  moreLabel: {
+    color: colors.text,
+    fontSize: fontSize.sm,
+    fontWeight: '700',
+  },
+  moreSub: {
+    color: colors.textDim,
+    fontSize: 10,
+    marginTop: 2,
+    lineHeight: 14,
+  },
+  moreChevron: {
+    color: colors.textDim,
+    fontSize: 20,
+    marginLeft: spacing.xs,
   },
   activityRow: {
     flexDirection: 'row',

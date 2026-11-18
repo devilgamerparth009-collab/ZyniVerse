@@ -17,7 +17,6 @@ import {
   DubItem,
   ListingResult,
   parseAnimeDubHindiListing,
-  parseAnimeDubHindiPost,
   parseAnimeDubHindiSchedule,
   parseDesiAnimeDetail,
   parseDesiListing,
@@ -26,6 +25,7 @@ import {
   extractDesiAnimeUrl,
 } from "./parsers";
 import { DUB_SOURCES, DubSourceId, fetchText, resolveSourceBase } from "./sources";
+import { fetchWpCategories, fetchWpPostsPage } from "./wp-api";
 
 export interface SyncOptions {
   mode?: "full" | "incremental";
@@ -150,67 +150,99 @@ async function refreshItemCount(source: DubSourceId): Promise<number> {
 /* Anime Dub Hindi                                                     */
 /* ------------------------------------------------------------------ */
 
-const ADH_KINDS: DubKind[] = ["series", "movie"];
+/** Number of REST pages handled in one serverless invocation. */
+const ADH_API_PAGES = 12;
 
-function adhCategoryUrl(baseUrl: string, kind: DubKind, page: number): string {
-  const slug = kind === "movie" ? "movie" : "series";
-  return page <= 1
-    ? `${baseUrl}/category/${slug}/`
-    : `${baseUrl}/category/${slug}/page/${page}/`;
+function adhCursorPage(cursor: string | null | undefined): number {
+  const tail = (cursor || "").split(":").pop() || "";
+  return Math.max(1, Number(tail) || 1);
 }
 
+/**
+ * Full import straight from `/wp-json/wp/v2/posts`. Categories are read once
+ * per chunk and used to classify every post as language / genre / kind, so no
+ * HTML guessing is involved. The HTML listing parser stays as a fallback for
+ * hosts that temporarily disable the REST API.
+ */
 async function syncAnimeDubHindiFull(
   baseUrl: string,
   options: SyncOptions
 ): Promise<{ fetched: number; upserted: number; errors: string[]; nextQuery: string | null }> {
-  const pageBudget = Math.max(1, Math.min(options.limit ?? 6, 20));
-  const [kindRaw, pageRaw] = (options.cursor || "series:1").split(":");
-  let kindIndex = Math.max(0, ADH_KINDS.indexOf(kindRaw as DubKind));
-  let page = Math.max(1, Number(pageRaw) || 1);
+  const pageBudget = Math.max(1, Math.min(options.limit ?? ADH_API_PAGES, ADH_API_PAGES));
+  let page = adhCursorPage(options.cursor);
 
   let fetched = 0;
   let upserted = 0;
   const errors: string[] = [];
   let pagesDone = 0;
+  let categoryMap: Awaited<ReturnType<typeof fetchWpCategories>> | null = null;
 
-  while (kindIndex < ADH_KINDS.length && pagesDone < pageBudget) {
-    const kind = ADH_KINDS[kindIndex];
-    const url = adhCategoryUrl(baseUrl, kind, page);
-    let listing: ListingResult;
-    try {
-      listing = parseAnimeDubHindiListing(await fetchText(url), baseUrl);
-    } catch (error) {
-      errors.push(`${kind} page ${page}: ${(error as Error).message}`);
-      pagesDone += 1;
-      page += 1;
-      continue;
+  while (pagesDone < pageBudget) {
+    if (!categoryMap) {
+      try {
+        categoryMap = await fetchWpCategories(baseUrl);
+      } catch (error) {
+        errors.push(`taxonomy: ${(error as Error).message}`);
+        break;
+      }
     }
 
-    fetched += listing.items.length;
-    upserted += await upsertItems("animedubhindi", listing.items);
+    let items: DubItem[];
+    let totalPages = page;
+    try {
+      const result = await fetchWpPostsPage(baseUrl, categoryMap, page);
+      items = result.items;
+      totalPages = result.totalPages;
+    } catch (error) {
+      errors.push(`api page ${page}: ${(error as Error).message}`);
+      try {
+        const listing = parseAnimeDubHindiListing(
+          await fetchText(
+            page <= 1 ? `${baseUrl}/category/series/` : `${baseUrl}/category/series/page/${page}/`
+          ),
+          baseUrl
+        );
+        items = listing.items;
+        totalPages = Math.min(listing.lastPage || 1, MAX_PAGES);
+      } catch (fallbackError) {
+        errors.push(`html fallback page ${page}: ${(fallbackError as Error).message}`);
+        break;
+      }
+    }
+
+    fetched += items.length;
+    if (items.length) upserted += await upsertItems("animedubhindi", items);
     pagesDone += 1;
 
-    const lastPage = Math.min(listing.lastPage || 1, MAX_PAGES);
-    if (page >= lastPage || listing.items.length === 0) {
-      kindIndex += 1;
-      page = 1;
-    } else {
-      page += 1;
+    if (page >= totalPages || items.length === 0) {
+      return { fetched, upserted, errors, nextQuery: "source=animedubhindi&mode=full&cursor=schedule" };
     }
+    page += 1;
   }
 
-  const nextQuery =
-    kindIndex < ADH_KINDS.length
-      ? `source=animedubhindi&mode=full&cursor=${ADH_KINDS[kindIndex]}:${page}`
-      : "source=animedubhindi&mode=full&cursor=schedule";
-
-  return { fetched, upserted, errors, nextQuery };
+  return { fetched, upserted, errors, nextQuery: `source=animedubhindi&mode=full&cursor=api:${page}` };
 }
 
 async function syncAnimeDubHindiSchedule(baseUrl: string): Promise<{ fetched: number; upserted: number; errors: string[] }> {
   const errors: string[] = [];
   try {
     const rows = parseAnimeDubHindiSchedule(await fetchText(`${baseUrl}/schedule.php`), baseUrl);
+
+    // The schedule page has no per-show links. Resolve each title against the
+    // catalogue so tapping an airing opens the real show page, not the table.
+    const keys = rows.map((r) => normalizeTitleKey(r.title).slice(0, 18)).filter(Boolean);
+    const matches = keys.length
+      ? await prisma.dubCatalogTitle.findMany({
+          where: { source: "animedubhindi" },
+          select: { title: true, sourceUrl: true },
+        })
+      : [];
+    for (const row of rows) {
+      const key = normalizeTitleKey(row.title).slice(0, 18);
+      const match = matches.find((m) => normalizeTitleKey(m.title).startsWith(key));
+      if (match) row.sourceUrl = match.sourceUrl;
+    }
+
     const ids = rows.map((r) => r.sourceId);
     if (ids.length) {
       await prisma.dubScheduleEntry.deleteMany({
@@ -256,80 +288,34 @@ async function syncAnimeDubHindiIncremental(
   options: SyncOptions
 ): Promise<{ fetched: number; upserted: number; errors: string[]; nextQuery: string | null }> {
   const errors: string[] = [];
-  const budget = Math.max(1, Math.min(options.limit ?? 20, 40));
+  const budget = Math.max(1, Math.min(options.limit ?? ADH_API_PAGES, ADH_API_PAGES));
+  const page = adhCursorPage(options.cursor);
 
-  const index = await fetchText(`${baseUrl}/sitemap_index.xml`, { accept: "application/xml" });
-  const postSitemaps = sitemapUrls(index).filter((u) => /post-sitemap\d*\.xml$/.test(u));
-  if (!postSitemaps.length) throw new Error("No post sitemaps found");
-
-  const since = options.mode === "incremental" ? new Date(Date.now() - 8 * 24 * 3600 * 1000) : null;
   const state = await prisma.dubSourceState.findUnique({ where: { source: "animedubhindi" } });
-  const cutoff = state?.lastSyncAt ? new Date(state.lastSyncAt.getTime() - 6 * 3600 * 1000) : since;
+  // A small overlap avoids missing a post edited while the previous chunk ran.
+  const cutoff = state?.lastSyncAt ? new Date(state.lastSyncAt.getTime() - 6 * 3600 * 1000) : null;
+  const modifiedAfter = cutoff ? cutoff.toISOString().slice(0, 19) : null;
 
-  const entries = (
-    await Promise.all(
-      postSitemaps.map(async (url) => {
-        try {
-          return parseSitemap(await fetchText(url, { accept: "application/xml" }));
-        } catch {
-          return [];
-        }
-      })
-    )
-  )
-    .flat()
-    .filter((e) => e.loc.includes("/") && !/\/(category|author|page|tag|privacy|contact|dmca|about)\//i.test(e.loc))
-    .filter((e) => (cutoff && e.lastmod ? e.lastmod >= cutoff : true))
-    .sort((a, b) => (b.lastmod?.getTime() ?? 0) - (a.lastmod?.getTime() ?? 0));
-
-  const start = Math.max(0, Number(options.cursor) || 0);
-  const slice = entries.slice(start, start + budget);
-
-  let upserted = 0;
-  for (let i = 0; i < slice.length; i += 4) {
-    const chunk = slice.slice(i, i + 4);
-    const items = await Promise.all(
-      chunk.map(async (entry) => {
-        try {
-          return parseAnimeDubHindiPost(await fetchText(entry.loc), entry.loc);
-        } catch (error) {
-          errors.push(`${entry.loc}: ${(error as Error).message}`);
-          return null;
-        }
-      })
-    );
-    const valid = items.filter((item): item is Partial<DubItem> & { sourceId: string; sourceUrl: string; slug: string; title: string } =>
-      Boolean(item?.sourceId && item?.sourceUrl && item?.slug && item?.title)
-    );
-    upserted += await upsertItems(
-      "animedubhindi",
-      valid.map((item) => ({
-        sourceId: item.sourceId!,
-        sourceUrl: item.sourceUrl!,
-        slug: item.slug!,
-        title: item.title!,
-        kind: (item.kind as DubKind) ?? "series",
-        posterUrl: item.posterUrl ?? null,
-        languages: item.languages ?? [],
-        genres: item.genres ?? [],
-        season: item.season ?? null,
-        episodeInfo: item.episodeInfo ?? null,
-        description: item.description ?? null,
-        year: item.year ?? null,
-        rating: item.rating ?? null,
-        lastModified: item.lastModified ?? null,
-        detailFetched: true,
-      }))
-    );
+  let categoryMap: Awaited<ReturnType<typeof fetchWpCategories>>;
+  try {
+    categoryMap = await fetchWpCategories(baseUrl);
+  } catch (error) {
+    errors.push(`taxonomy: ${(error as Error).message}`);
+    return { fetched: 0, upserted: 0, errors, nextQuery: null };
   }
 
-  const next = start + budget;
-  const nextQuery =
-    next < entries.length
-      ? `source=animedubhindi&mode=incremental&cursor=${next}`
-      : "source=animedubhindi&mode=incremental&cursor=schedule";
+  const result = await fetchWpPostsPage(baseUrl, categoryMap, page, { modifiedAfter });
+  const upserted = result.items.length ? await upsertItems("animedubhindi", result.items) : 0;
 
-  return { fetched: slice.length, upserted, errors, nextQuery };
+  return {
+    fetched: result.items.length,
+    upserted,
+    errors,
+    nextQuery:
+      page < result.totalPages
+        ? `source=animedubhindi&mode=incremental&cursor=${page + 1}`
+        : "source=animedubhindi&mode=incremental&cursor=schedule",
+  };
 }
 
 /* ------------------------------------------------------------------ */

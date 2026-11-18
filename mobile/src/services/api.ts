@@ -12,6 +12,9 @@ import {
   DubScheduleListResponse,
   DubLanguageStat,
   DubLanguagesResponse,
+  DubGenreStat,
+  DubGenresResponse,
+  DubOverviewResponse,
   FillerData,
   ForumCategory,
   ForumPost,
@@ -745,8 +748,10 @@ async function getDubSchedule(language: DubScheduleLanguage): Promise<DubSchedul
 }
 
 export interface DubCatalogQuery {
-  kind: 'series' | 'movie';
+  kind?: 'series' | 'movie';
   language?: string;
+  genre?: string;
+  source?: string;
   q?: string;
   sort?: 'recent' | 'title' | 'rating' | 'year';
   page?: number;
@@ -761,8 +766,10 @@ export interface DubCatalogQuery {
 async function getDubCatalog(query: DubCatalogQuery): Promise<DubCatalogResponse> {
   const key = [
     'dub_catalog',
-    query.kind,
+    query.kind || 'all',
     query.language || 'all',
+    query.genre || 'all',
+    query.source || 'all',
     query.sort || 'recent',
     query.q || '',
     query.page || 1,
@@ -773,6 +780,8 @@ async function getDubCatalog(query: DubCatalogQuery): Promise<DubCatalogResponse
       buildUrl('/dub/catalog', {
         kind: query.kind,
         language: query.language,
+        genre: query.genre,
+        source: query.source,
         q: query.q,
         sort: query.sort,
         page: query.page ?? 1,
@@ -793,6 +802,24 @@ async function getDubLanguageStats(): Promise<DubLanguageStat[]> {
     requestJson<DubLanguagesResponse>(`${WEB_API}/dub/languages`)
   );
   return Array.isArray(data?.languages) ? data.languages : [];
+}
+
+async function getDubGenres(kind?: 'series' | 'movie'): Promise<DubGenreStat[]> {
+  const data = await fetchWithCache(`dub_genres_${kind || 'all'}`, () =>
+    requestJson<DubGenresResponse>(buildUrl('/dub/genres', { kind }))
+  );
+  return Array.isArray(data?.genres) ? data.genres : [];
+}
+
+/** One request for the unified Dub Hub: stats, languages, genres and sources. */
+async function getDubOverview(): Promise<DubOverviewResponse | null> {
+  try {
+    return await fetchWithCache('dub_overview', () =>
+      requestJson<DubOverviewResponse>(`${WEB_API}/dub/overview`)
+    );
+  } catch {
+    return null;
+  }
 }
 
 async function getSchedule(): Promise<ScheduleItem[]> {
@@ -922,6 +949,30 @@ async function updateProfile(patch: {
   newPassword?: string;
 }): Promise<void> {
   await authedPost('/profile', patch, 'PATCH');
+}
+
+/** Custom lists owned by the signed-in user (private rows included). */
+async function getCustomLists(userId: string): Promise<any[]> {
+  const data = await authedGet<{ lists?: any[] }>('/lists', { mine: 1, userId, limit: 50 });
+  return Array.isArray(data?.lists) ? data.lists : [];
+}
+
+/** Moments created by a specific user. */
+async function getMoments(userId: string): Promise<any[]> {
+  const data = await requestJson<{ moments?: any[] }>(buildUrl('/moments', { userId, limit: 20 }));
+  return Array.isArray(data?.moments) ? data.moments : [];
+}
+
+async function getEconomy(): Promise<any> {
+  return authedGet<any>('/economy');
+}
+
+async function claimDailyLogin(): Promise<any> {
+  return authedGet<any>('/daily-login/claim');
+}
+
+async function deleteAccount(): Promise<void> {
+  await authedPost('/account/delete', { confirm: 'DELETE' });
 }
 
 /**
@@ -1787,6 +1838,8 @@ export const api = {
     catalog: getDubCatalog,
     weeklySchedule: getDubWeeklySchedule,
     languages: getDubLanguageStats,
+    genres: getDubGenres,
+    overview: getDubOverview,
   },
   schedule: { get: getSchedule },
   search,
@@ -1814,6 +1867,13 @@ export const api = {
     rate: rateAnime,
   },
   profile: { get: getProfile, update: updateProfile, uploadImage },
+  account: {
+    customLists: getCustomLists,
+    moments: getMoments,
+    economy: getEconomy,
+    claimDaily: claimDailyLogin,
+    delete: deleteAccount,
+  },
   track: { episode: trackEpisode, untrack: untrackEpisode },
   reviews: { list: getReviews, submit: submitReview },
   achievements: { get: getAchievements },

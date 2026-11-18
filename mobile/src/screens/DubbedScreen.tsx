@@ -240,39 +240,18 @@ export default function DubbedScreen() {
         <TouchableOpacity
           style={[
             styles.dailyScheduleBanner,
-            { borderColor: `${primaryAccent}66`, backgroundColor: colors.surface },
-          ]}
-          activeOpacity={0.85}
-          onPress={() => navigation.navigate('DailyDubSchedule')}
-        >
-          <Text style={{ fontSize: 24 }}>📅</Text>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.dailyScheduleTitle, { color: colors.text }]}>
-              Daily Dub Release Timetable
-            </Text>
-            <Text style={[styles.dailyScheduleSub, { color: primaryAccent }]}>
-              Exact airtimes for Hindi, Tamil & Telugu releases today →
-            </Text>
-          </View>
-        </TouchableOpacity>
-      </FadeInView>
-
-      <FadeInView delay={85}>
-        <TouchableOpacity
-          style={[
-            styles.dailyScheduleBanner,
             { borderColor: `${colors.secondary}66`, backgroundColor: colors.surface },
           ]}
           activeOpacity={0.85}
-          onPress={() => navigation.navigate('HindiDub')}
+          onPress={() => navigation.navigate('HindiDub', { tab: 'all' })}
         >
           <Text style={{ fontSize: 24 }}>🇮🇳</Text>
           <View style={{ flex: 1 }}>
             <Text style={[styles.dailyScheduleTitle, { color: colors.text }]}>
-              Hindi Dub Library
+              Dub Hub — sab kuch ek jagah
             </Text>
             <Text style={[styles.dailyScheduleSub, { color: colors.secondary }]}>
-              Auto-synced series, movies, languages & weekly airings →
+              Series · Movies · Weekly schedule · Languages · Genres · Sources →
             </Text>
           </View>
         </TouchableOpacity>

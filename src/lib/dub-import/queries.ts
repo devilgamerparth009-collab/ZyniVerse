@@ -231,7 +231,8 @@ export function groupScheduleByDay(rows: DubScheduleDTO[]) {
   };
 }
 
-export async function getDubLanguages() {  const rows = await prisma.dubCatalogTitle.findMany({
+export async function getDubLanguages() {
+  const rows = await prisma.dubCatalogTitle.findMany({
     select: { languages: true, kind: true, source: true },
   });
 
@@ -271,6 +272,64 @@ export async function getDubGenres(kind?: string, limit = 14) {
     .sort((a, b) => b[1] - a[1])
     .slice(0, limit)
     .map(([genre]) => genre);
+}
+
+export interface DubGenreStat {
+  genre: string;
+  slug: string;
+  total: number;
+  series: number;
+  movies: number;
+}
+
+/** All genres with counts, for the native app's single "Genres" tab. */
+export async function getDubGenreStats(kind?: string, limit = 40): Promise<DubGenreStat[]> {
+  const rows = await prisma.dubCatalogTitle.findMany({
+    where: kind ? { kind } : {},
+    select: { genres: true, kind: true },
+  });
+
+  const counts = new Map<string, { total: number; series: number; movies: number }>();
+  for (const row of rows) {
+    for (const genre of row.genres) {
+      const entry = counts.get(genre) ?? { total: 0, series: 0, movies: 0 };
+      entry.total += 1;
+      if (row.kind === "movie") entry.movies += 1;
+      else entry.series += 1;
+      counts.set(genre, entry);
+    }
+  }
+
+  return [...counts.entries()]
+    .sort((a, b) => b[1].total - a[1].total || a[0].localeCompare(b[0]))
+    .slice(0, limit)
+    .map(([genre, value]) => ({
+      genre,
+      slug: genre.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
+      ...value,
+    }));
+}
+
+/** One response for the app's unified Dub Hub: stats + every browse option. */
+export async function getDubOverview() {
+  const [stats, languages, genres, sources] = await Promise.all([
+    getDubStats(),
+    getDubLanguages(),
+    getDubGenreStats(undefined, 60),
+    getDubSources(),
+  ]);
+
+  return {
+    ...stats,
+    languageCount: stats.languages,
+    languages,
+    genres,
+    sources,
+    schedule: {
+      days: WEEKDAY_ORDER,
+      endpoint: "/api/dub/schedule",
+    },
+  };
 }
 
 export async function getDubSources() {
