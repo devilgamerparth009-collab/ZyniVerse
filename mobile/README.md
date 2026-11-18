@@ -65,7 +65,7 @@ and the app crashes the moment it is launched from the launcher icon.
 
 To add push notifications later:
 
-1. Create a Firebase project with Android package `app.zyniverse.mobile`.
+1. Create a Firebase project with Android package `app.zyverse.mobile`.
 2. Put `google-services.json` in `mobile/` and add
    `"google-app.json"`-equivalent config (or set
    `android.googleServicesFile` in `app.json`).
