@@ -707,55 +707,118 @@ async function batchMedia(ids: number[]): Promise<Anime[]> {
   }).then((d) => (d?.media || []).map(normalizeAnime));
 }
 
-interface FillerLookup {
-  found: boolean;
-  data?: FillerData;
+export interface FillerLookupInput {
+  anilistId?: number;
+  malId?: number;
+  title?: string;
+  aliases?: string[];
 }
 
+interface FillerApiResponse {
+  found: boolean;
+  reason?: string;
+  error?: string;
+  total?: number;
+  title?: string;
+  fillerPercent?: number;
+  episodes?: Array<{ episode: number; type: string; title?: string }>;
+}
+
+function parseFillerResponse(
+  data: FillerApiResponse,
+  anilistId: number,
+  fallbackTitle?: string
+): FillerData | null {
+  // `found:false` (miss) and error payloads are both represented as null by
+  // the app. The caller distinguishes them because errors throw in requestJson.
+  if (!data || data.found !== true || !Array.isArray(data.episodes)) return null;
+  const episodes = data.episodes.map((e) => {
+    const rawType = String(e.type || '').toLowerCase();
+    const type: FillerData['episodes'][number]['type'] =
+      rawType === 'filler' ? 'filler' : rawType.includes('mixed') ? 'mixed' : 'canon';
+    return { episode: Number(e.episode), type, title: e.title };
+  });
+  const totalFillers = episodes.filter((e) => e.type === 'filler').length;
+  const total = Number(data.total) || episodes.length;
+  return {
+    animeId: anilistId,
+    title: data.title || fallbackTitle || 'Unknown',
+    totalEpisodes: total,
+    totalFillers,
+    fillerPercentage:
+      data.fillerPercent != null
+        ? Number(data.fillerPercent)
+        : total > 0
+          ? Math.round((totalFillers / total) * 100)
+          : 0,
+    episodes,
+  } as FillerData;
+}
+
+const fillerInFlight = new Map<string, Promise<FillerData | null>>();
+
 /**
- * Filler guides are keyed by the shared media id. The title is sent as a fallback so a
- * newly added show can still be matched; `null` means "no guide for this title"
- * while a thrown error means the request itself failed.
+ * Shared filler lookup. Every identifier we know is sent so the website API
+ * can fall back from a strict AniList id to a MAL id and then to normalised
+ * title aliases. `null` means "no guide"; a rejected promise means the request
+ * itself failed (the screen shows Retry). Only real results enter the cache —
+ * misses and errors are never cached, so a newly published guide is visible
+ * immediately and a transient failure can be retried.
  */
-async function getFiller(id: number, title?: string): Promise<FillerData | null> {
-  const lookupKey = `filler_${id}_${(title || '').trim().toLowerCase()}`;
-  const lookup = await fetchWithCache<FillerLookup>(
-    lookupKey,
-    async () => {
-      const data = await requestJson<any>(
-        buildUrl(`/filler/${id}`, { title: title?.trim() || undefined })
-      );
-      if (data?.found === false || !data || !Array.isArray(data.episodes)) {
-        return { found: false };
-      }
-      const episodes = (data.episodes as any[]).map((e) => {
-        const rawType = String(e.type || '').toLowerCase();
-        const type: FillerData['episodes'][number]['type'] =
-          rawType === 'filler' ? 'filler' : rawType.includes('mixed') ? 'mixed' : 'canon';
-        return { episode: Number(e.episode), type, title: e.title };
+async function getFiller(
+  input: number | FillerLookupInput,
+  legacyTitle?: string
+): Promise<FillerData | null> {
+  const options: FillerLookupInput =
+    typeof input === 'number' ? { anilistId: input, title: legacyTitle } : input || {};
+  const anilistId = Number(options.anilistId);
+  if (!Number.isFinite(anilistId) || anilistId <= 0) return null;
+
+  const title = options.title?.trim() || undefined;
+  const malRaw = Number(options.malId);
+  const malId = Number.isFinite(malRaw) && malRaw > 0 ? malRaw : undefined;
+  const aliases = (options.aliases || [])
+    .map((a) => String(a).trim())
+    .filter(Boolean)
+    .slice(0, 8);
+
+  const lookupKey = `filler_${anilistId}_${malId || 0}_${[title || '', ...aliases].join('|').toLowerCase()}`;
+  const cached = await cacheGet<FillerData>(lookupKey, FILLER_CACHE_TTL_MS);
+
+  let url = buildUrl(`/filler/${anilistId}`, { title, malId });
+  if (aliases.length) {
+    url += `${url.includes('?') ? '&' : '?'}${aliases
+      .map((a) => `alias=${encodeURIComponent(a)}`)
+      .join('&')}`;
+  }
+
+  let network = fillerInFlight.get(lookupKey) as Promise<FillerData | null> | undefined;
+  if (!network) {
+    network = (async () => {
+      const data = await requestJson<FillerApiResponse>(url);
+      const parsed = parseFillerResponse(data, anilistId, title);
+      if (parsed) await cacheSet(lookupKey, parsed, FILLER_CACHE_TTL_MS);
+      return parsed;
+    })();
+    fillerInFlight.set(lookupKey, network);
+    network
+      .catch(() => {})
+      .finally(() => {
+        if (fillerInFlight.get(lookupKey) === network) fillerInFlight.delete(lookupKey);
       });
-      const totalFillers = episodes.filter((e) => e.type === 'filler').length;
-      const total = Number(data.total) || episodes.length;
-      return {
-        found: true,
-        data: {
-          animeId: id,
-          title: data.title || title || 'Unknown',
-          totalEpisodes: total,
-          totalFillers,
-          fillerPercentage:
-            data.fillerPercent != null
-              ? Number(data.fillerPercent)
-              : total > 0
-                ? Math.round((totalFillers / total) * 100)
-                : 0,
-          episodes,
-        } as FillerData,
-      };
-    },
-    FILLER_CACHE_TTL_MS
-  );
-  return lookup.found && lookup.data ? lookup.data : null;
+  }
+
+  if (!cached) return network;
+
+  // Paint the last good guide while a slow request finishes in the background.
+  const first = await Promise.race([
+    network.then(
+      (value) => ({ kind: 'fresh' as const, value }),
+      () => ({ kind: 'error' as const })
+    ),
+    wait(CACHE_FIRST_GRACE_MS).then(() => ({ kind: 'slow' as const })),
+  ]);
+  return first.kind === 'fresh' ? first.value : cached;
 }
 
 async function getDubStatus(malId: number): Promise<DubStatus> {

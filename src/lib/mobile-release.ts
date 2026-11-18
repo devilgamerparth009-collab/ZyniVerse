@@ -40,8 +40,8 @@ const FALLBACK_VERSION_CODE = 140000;
  */
 const PUBLISHED_BUILDS: Record<string, { sha256: string; sizeBytes: number }> = {
   "1.4.0": {
-    sha256: "7acd3613cbf93cb5166209eb2652c8241f7e71e74135e47d7dd849c7218d13fc",
-    sizeBytes: 42082269,
+    sha256: "c9178820be0b777850d187abfd5f70ff2e314aec9fa4eeb2a2d7565fc86bddd9",
+    sizeBytes: 42093909,
   },
   "1.6.0": {
     sha256: "8b0199df768fa396104133cd789d536ad851296ac33cd223707d4dbc03d6a498",

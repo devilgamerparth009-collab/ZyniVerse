@@ -4,6 +4,7 @@ import {
   Text,
   TouchableOpacity,
   FlatList,
+  ScrollView,
   StyleSheet,
   RefreshControl,
   Animated,
@@ -18,6 +19,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorView from '../components/ErrorView';
 import AdBanner from '../components/AdBanner';
 import FadeInView from '../components/FadeInView';
+import PressableScale from '../components/PressableScale';
 
 const STATUS_META: Record<string, { label: string; color: string; badge: string }> = {
   active: { label: 'LIVE BATTLE', color: '#ff007f', badge: '🔥' },
@@ -26,6 +28,21 @@ const STATUS_META: Record<string, { label: string; color: string; badge: string 
   completed: { label: 'HALL OF FAME', color: '#22c55e', badge: '👑' },
   cancelled: { label: 'CLOSED', color: '#ef4444', badge: '⛔' },
 };
+
+/** Related features fans can jump to straight from the arena. */
+const EXPLORE_ITEMS: {
+  key: string;
+  icon: string;
+  label: string;
+  sub: string;
+  tint: string;
+  route: string;
+  tab?: boolean;
+}[] = [
+  { key: 'leaderboard', icon: '🏆', label: 'Leaderboard', sub: 'See the top fans this season', tint: '#eab308', route: 'Leaderboard' },
+  { key: 'polls', icon: '🗳️', label: 'Fan Polls', sub: 'Vote on community picks', tint: '#22c55e', route: 'Polls' },
+  { key: 'fun', icon: '🎮', label: 'Fun Zone', sub: 'Games, quizzes and more', tint: '#a855f7', route: 'FunZone', tab: true },
+];
 
 function countdownLabel(endsAt?: string | null): string | null {
   if (!endsAt) return null;
@@ -208,6 +225,45 @@ export default function TournamentsScreen() {
             );
           })}
         </View>
+
+        {/* Explore this feature */}
+        <View style={styles.exploreSection}>
+          <Text style={[styles.exploreTitle, { color: primaryColor }]}>EXPLORE THIS FEATURE</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.exploreRow}
+          >
+            {EXPLORE_ITEMS.map((item) => (
+              <PressableScale
+                key={item.key}
+                accessibilityLabel={`Explore ${item.label}`}
+                onPress={() =>
+                  item.tab
+                    ? navigation.navigate('MainTabs', { screen: item.route })
+                    : navigation.navigate(item.route)
+                }
+                style={[
+                  styles.exploreCard,
+                  { backgroundColor: colors.surface, borderColor: `${item.tint}55` },
+                ]}
+              >
+                <View style={[styles.exploreIcon, { backgroundColor: `${item.tint}22` }]}>
+                  <Text style={styles.exploreEmoji}>{item.icon}</Text>
+                </View>
+                <View style={styles.exploreCopy}>
+                  <Text style={[styles.exploreLabel, { color: colors.text }]} numberOfLines={1}>
+                    {item.label}
+                  </Text>
+                  <Text style={[styles.exploreSub, { color: colors.textMuted }]} numberOfLines={2}>
+                    {item.sub}
+                  </Text>
+                </View>
+                <Text style={[styles.exploreArrow, { color: primaryColor }]}>›</Text>
+              </PressableScale>
+            ))}
+          </ScrollView>
+        </View>
       </FadeInView>
 
       {/* Adsterra Ad Banner */}
@@ -293,6 +349,39 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
   },
+  exploreSection: {
+    marginTop: 12,
+  },
+  exploreTitle: {
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.2,
+    marginBottom: 8,
+  },
+  exploreRow: {
+    gap: 10,
+  },
+  exploreCard: {
+    width: 200,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 10,
+  },
+  exploreIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  exploreEmoji: { fontSize: 19 },
+  exploreCopy: { flex: 1 },
+  exploreLabel: { fontSize: 13, fontWeight: '800' },
+  exploreSub: { fontSize: 10, marginTop: 2, lineHeight: 14 },
+  exploreArrow: { fontSize: 20, fontWeight: '700' },
   card: {
     marginHorizontal: 16,
     marginBottom: 12,

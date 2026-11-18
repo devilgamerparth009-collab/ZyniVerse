@@ -30,6 +30,7 @@ import {
 } from '../utils/helpers';
 import LoadingSpinner from '../components/LoadingSpinner';
 import FadeInView from '../components/FadeInView';
+import PressableScale from '../components/PressableScale';
 import ProfileAvatar from '../components/profile/ProfileAvatar';
 import ProfileThumb from '../components/profile/ProfileThumb';
 
@@ -53,6 +54,21 @@ function openWeb(path: string) {
 }
 
 const STATUS_FILTERS = ['ALL', 'CURRENT', 'COMPLETED', 'PLANNING', 'PAUSED', 'DROPPED'];
+
+/** Personal features that pair naturally with your profile and lists. */
+const EXPLORE_ITEMS: {
+  key: string;
+  icon: string;
+  label: string;
+  sub: string;
+  tint: string;
+  route: string;
+  params?: Record<string, any>;
+}[] = [
+  { key: 'recommendations', icon: '✨', label: 'Recommendations', sub: 'Picks based on your list', tint: '#a855f7', route: 'Recommendations' },
+  { key: 'taste', icon: '🧬', label: 'Taste Profile', sub: 'See what anime fits you', tint: '#22d3ee', route: 'TasteProfile' },
+  { key: 'watchlist', icon: '📌', label: 'Watchlist', sub: 'Plan what to watch next', tint: '#f43f5e', route: 'Hub', params: { kind: 'watchlist', title: 'Watchlist' } },
+];
 
 function isSessionError(message?: string | null): boolean {
   return !!message && /unauthor|401|403|session|sign in|expired|logged in/i.test(message);
@@ -586,6 +602,41 @@ export default function ProfileScreen() {
           })}
         </FadeInView>
 
+        {/* Explore this feature */}
+        <FadeInView delay={200} style={styles.exploreSection}>
+          <Text style={[styles.exploreTitle, { color: colors.primary }]}>EXPLORE THIS FEATURE</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.exploreRow}
+          >
+            {EXPLORE_ITEMS.map((item) => (
+              <PressableScale
+                key={item.key}
+                accessibilityLabel={`Explore ${item.label}`}
+                onPress={() => navigation.navigate(item.route, item.params)}
+                style={[
+                  styles.exploreCard,
+                  { backgroundColor: colors.surface, borderColor: `${item.tint}55` },
+                ]}
+              >
+                <View style={[styles.exploreIcon, { backgroundColor: `${item.tint}22` }]}>
+                  <Text style={styles.exploreEmoji}>{item.icon}</Text>
+                </View>
+                <View style={styles.exploreCopy}>
+                  <Text style={[styles.exploreLabel, { color: colors.text }]} numberOfLines={1}>
+                    {item.label}
+                  </Text>
+                  <Text style={[styles.exploreSub, { color: colors.textMuted }]} numberOfLines={2}>
+                    {item.sub}
+                  </Text>
+                </View>
+                <Text style={[styles.exploreArrow, { color: colors.primary }]}>›</Text>
+              </PressableScale>
+            ))}
+          </ScrollView>
+        </FadeInView>
+
         {tab === 'lists' && (
           <FadeInView key="lists" style={styles.tabBody} offset={10} duration={320}>
             <ScrollView
@@ -989,6 +1040,42 @@ const styles = themed(() => ({
   tabTextActive: {
     color: '#0a0a0f',
   },
+  exploreSection: {
+    marginTop: spacing.md,
+  },
+  exploreTitle: {
+    color: colors.text,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.2,
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  exploreRow: {
+    paddingHorizontal: spacing.md,
+    gap: spacing.sm,
+  },
+  exploreCard: {
+    width: 210,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 1,
+    borderRadius: borderRadius.lg,
+    padding: spacing.sm + 2,
+  },
+  exploreIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  exploreEmoji: { fontSize: 19 },
+  exploreCopy: { flex: 1 },
+  exploreLabel: { fontSize: 13, fontWeight: '800' },
+  exploreSub: { fontSize: 10, marginTop: 2, lineHeight: 14 },
+  exploreArrow: { fontSize: 20, fontWeight: '700' },
   tabBody: {
     padding: spacing.md,
   },

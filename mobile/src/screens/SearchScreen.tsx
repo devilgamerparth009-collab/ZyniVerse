@@ -20,6 +20,7 @@ import AnimeCard, { GRID_CARD_WIDTH } from '../components/AnimeCard';
 import ErrorView from '../components/ErrorView';
 import AdBanner from '../components/AdBanner';
 import FadeInView from '../components/FadeInView';
+import PressableScale from '../components/PressableScale';
 import { useTheme } from '../hooks/useTheme';
 
 const HISTORY_KEY = 'zt_search_history_v1';
@@ -31,6 +32,21 @@ const CATEGORIES: { key: string; label: string; mode: string }[] = [
   { key: 'top-rated', label: '🏆 Top Rated', mode: 'top-rated' },
   { key: 'seasonal', label: '🌸 This Season', mode: 'seasonal' },
   { key: 'upcoming', label: '⏳ Upcoming', mode: 'upcoming' },
+];
+
+/** Related discovery features that deserve a visible shortcut. */
+const EXPLORE_ITEMS: {
+  key: string;
+  icon: string;
+  label: string;
+  sub: string;
+  tint: string;
+  route: string;
+  params?: Record<string, any>;
+}[] = [
+  { key: 'dubhub', icon: '🎬', label: 'Dub Hub', sub: 'Dubbed series, movies and schedule', tint: '#ff9933', route: 'HindiDub', params: { tab: 'all' } },
+  { key: 'taste', icon: '🧬', label: 'Taste Profile', sub: 'Find anime matched to you', tint: '#a78bfa', route: 'TasteProfile' },
+  { key: 'manga', icon: '📚', label: 'Manga', sub: 'Explore manga and light novels', tint: '#f87171', route: 'Manga' },
 ];
 
 export default function SearchScreen() {
@@ -345,6 +361,40 @@ export default function SearchScreen() {
             </View>
           </FadeInView>
 
+          <FadeInView delay={140} style={styles.exploreSection}>
+            <Text style={[styles.exploreTitle, { color: primaryColor }]}>EXPLORE THIS FEATURE</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.exploreRow}
+            >
+              {EXPLORE_ITEMS.map((item) => (
+                <PressableScale
+                  key={item.key}
+                  accessibilityLabel={`Explore ${item.label}`}
+                  onPress={() => navigation.navigate(item.route, item.params)}
+                  style={[
+                    styles.exploreCard,
+                    { backgroundColor: colors.surface, borderColor: `${item.tint}55` },
+                  ]}
+                >
+                  <View style={[styles.exploreIcon, { backgroundColor: `${item.tint}22` }]}>
+                    <Text style={styles.exploreEmoji}>{item.icon}</Text>
+                  </View>
+                  <View style={styles.exploreCopy}>
+                    <Text style={[styles.exploreLabel, { color: colors.text }]} numberOfLines={1}>
+                      {item.label}
+                    </Text>
+                    <Text style={[styles.exploreSub, { color: colors.textMuted }]} numberOfLines={2}>
+                      {item.sub}
+                    </Text>
+                  </View>
+                  <Text style={[styles.exploreArrow, { color: colors.primary }]}>›</Text>
+                </PressableScale>
+              ))}
+            </ScrollView>
+          </FadeInView>
+
           {genres.length > 0 && (
             <FadeInView delay={160} style={styles.section}>
               <Text style={styles.sectionTitle}>Genres</Text>
@@ -531,6 +581,40 @@ const styles = themed(() => ({
     fontSize: fontSize.sm,
     fontWeight: '700',
   },
+  exploreSection: {
+    marginTop: spacing.lg,
+  },
+  exploreTitle: {
+    color: colors.text,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.2,
+    marginBottom: spacing.sm,
+  },
+  exploreRow: {
+    gap: spacing.sm,
+  },
+  exploreCard: {
+    width: 210,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 1,
+    borderRadius: borderRadius.lg,
+    padding: spacing.sm + 2,
+  },
+  exploreIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  exploreEmoji: { fontSize: 19 },
+  exploreCopy: { flex: 1 },
+  exploreLabel: { fontSize: 13, fontWeight: '800' },
+  exploreSub: { fontSize: 10, marginTop: 2, lineHeight: 14 },
+  exploreArrow: { fontSize: 20, fontWeight: '700' },
   genreChip: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs + 2,

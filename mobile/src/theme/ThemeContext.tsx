@@ -8,6 +8,7 @@ import {
   LIGHT_THEME,
   ThemeConfig,
   isChristmasWindow,
+  isDiwaliWindow,
   storeTheme,
 } from '../utils/themeUtils';
 import { colors } from './index';
@@ -86,7 +87,7 @@ const THEME_MODE_KEY = 'zt_theme_mode';
 function seasonalModeForToday(): ThemeMode | null {
   const now = new Date();
   if (isChristmasWindow(now)) return 'christmas';
-  if (now.getMonth() === 10) return 'diwali';
+  if (isDiwaliWindow(now)) return 'diwali';
   return null;
 }
 
@@ -187,7 +188,7 @@ const THEME_CONFIG_KEY: Record<Exclude<ThemeMode, 'default'>, string> = {
 /** A seasonal skin is only valid inside its own window. */
 function isSeasonalModeActive(mode: ThemeMode, date = new Date()): boolean {
   if (mode === 'christmas') return isChristmasWindow(date);
-  if (mode === 'diwali') return date.getMonth() === 10;
+  if (mode === 'diwali') return isDiwaliWindow(date);
   return true;
 }
 

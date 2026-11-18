@@ -17,11 +17,27 @@ import { formatAirDate } from '../utils/helpers';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorView from '../components/ErrorView';
 import FadeInView from '../components/FadeInView';
+import PressableScale from '../components/PressableScale';
 import AdBanner from '../components/AdBanner';
 import { api } from '../services/api';
 import { ScheduleItem } from '../types';
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+/** Other places to catch up with airing and dubbed anime. */
+const EXPLORE_ITEMS: {
+  key: string;
+  icon: string;
+  label: string;
+  sub: string;
+  tint: string;
+  route: string;
+  params?: Record<string, any>;
+}[] = [
+  { key: 'tv', icon: '📺', label: 'Live TV Guide', sub: 'Channels and streaming times', tint: '#ef4444', route: 'TVGuide' },
+  { key: 'dubhub', icon: '🎬', label: 'Dub Hub Schedule', sub: 'Dubbed series and movies', tint: '#ff9933', route: 'HindiDub', params: { tab: 'schedule' } },
+  { key: 'daily', icon: '🗓️', label: 'Daily Dub Schedule', sub: "Today's dubbed episodes", tint: '#60a5fa', route: 'DailyDubSchedule' },
+];
 
 function dayKey(date: Date): string {
   return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
@@ -222,6 +238,41 @@ export default function ScheduleScreen() {
           <Text style={[styles.epCount, { color: colors.textMuted }]}>
             {dayItems.length} Episodes Scheduled
           </Text>
+        </FadeInView>
+
+        {/* Explore this feature */}
+        <FadeInView delay={90} style={styles.exploreSection}>
+          <Text style={[styles.exploreTitle, { color: primaryColor }]}>EXPLORE THIS FEATURE</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.exploreRow}
+          >
+            {EXPLORE_ITEMS.map((item) => (
+              <PressableScale
+                key={item.key}
+                accessibilityLabel={`Explore ${item.label}`}
+                onPress={() => navigation.navigate(item.route, item.params)}
+                style={[
+                  styles.exploreCard,
+                  { backgroundColor: colors.surface, borderColor: `${item.tint}55` },
+                ]}
+              >
+                <View style={[styles.exploreIcon, { backgroundColor: `${item.tint}22` }]}>
+                  <Text style={styles.exploreEmoji}>{item.icon}</Text>
+                </View>
+                <View style={styles.exploreCopy}>
+                  <Text style={[styles.exploreLabel, { color: colors.text }]} numberOfLines={1}>
+                    {item.label}
+                  </Text>
+                  <Text style={[styles.exploreSub, { color: colors.textMuted }]} numberOfLines={2}>
+                    {item.sub}
+                  </Text>
+                </View>
+                <Text style={[styles.exploreArrow, { color: primaryColor }]}>›</Text>
+              </PressableScale>
+            ))}
+          </ScrollView>
         </FadeInView>
 
         {/* Adsterra Sponsored Ad */}
@@ -434,6 +485,42 @@ const styles = StyleSheet.create({
   epCount: {
     fontSize: 12,
   },
+  exploreSection: {
+    marginTop: 6,
+    marginBottom: 10,
+  },
+  exploreTitle: {
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.2,
+    paddingHorizontal: 18,
+    marginBottom: 8,
+  },
+  exploreRow: {
+    paddingHorizontal: 16,
+    gap: 10,
+  },
+  exploreCard: {
+    width: 210,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 10,
+  },
+  exploreIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  exploreEmoji: { fontSize: 19 },
+  exploreCopy: { flex: 1 },
+  exploreLabel: { fontSize: 13, fontWeight: '800' },
+  exploreSub: { fontSize: 10, marginTop: 2, lineHeight: 14 },
+  exploreArrow: { fontSize: 20, fontWeight: '700' },
   itemCard: {
     flexDirection: 'row',
     marginHorizontal: 16,

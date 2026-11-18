@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -27,13 +27,22 @@ type GuideState =
 
 export default function FillerGuideScreen() {
   const route = useRoute<any>();
-  const { id, title: animeTitle, image } = route.params || {};
+  const { id, title: animeTitle, image, malId: routeMalId, aliases: routeAliases } = route.params || {};
   const { colors, isDiwali } = useTheme();
   const primaryAccent = isDiwali ? '#f59e0b' : colors.primary;
 
   const fillerId = Number(id);
   const hasTitle = typeof animeTitle === 'string' && animeTitle.trim().length > 0;
   const displayTitle = hasTitle ? (animeTitle as string).trim() : 'This title';
+  const malId = Number(routeMalId);
+  const validMalId = Number.isFinite(malId) && malId > 0 ? malId : undefined;
+  const aliases = useMemo(
+    () =>
+      Array.isArray(routeAliases)
+        ? routeAliases.filter((a: any) => typeof a === 'string' && a.trim())
+        : [],
+    [routeAliases]
+  );
 
   const [state, setState] = useState<GuideState>({ kind: 'loading' });
   const [refreshing, setRefreshing] = useState(false);
@@ -48,7 +57,12 @@ export default function FillerGuideScreen() {
         });
         return;
       }
-      const result = await api.filler.get(fillerId, hasTitle ? displayTitle : undefined);
+      const result = await api.filler.get({
+        anilistId: fillerId,
+        malId: validMalId,
+        title: hasTitle ? displayTitle : undefined,
+        aliases,
+      });
       if (!result) {
         setState({ kind: 'no-data' });
         return;
@@ -67,7 +81,7 @@ export default function FillerGuideScreen() {
     } finally {
       setRefreshing(false);
     }
-  }, [displayTitle, fillerId, hasTitle]);
+  }, [displayTitle, fillerId, hasTitle, validMalId, aliases]);
 
   useEffect(() => {
     fetchData();
@@ -90,7 +104,7 @@ export default function FillerGuideScreen() {
             <View style={[styles.noticeCard, { borderColor: `${colors.success}66` }]}>
               <Text style={styles.noticeIcon}>✅</Text>
               <Text style={[styles.noticeTitle, { color: colors.text }]}>
-                No filler episodes found
+                No filler episodes listed — all episodes are canon
               </Text>
               <Text style={[styles.noticeText, { color: colors.textMuted }]}>
                 Every listed episode for this title is canon or mixed. You can watch straight through.

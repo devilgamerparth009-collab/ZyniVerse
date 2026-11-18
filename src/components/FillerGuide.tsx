@@ -16,6 +16,8 @@ interface FillerEpisode {
 
 interface FillerData {
   found: boolean;
+  reason?: string;
+  error?: string;
   slug?: string;
   title?: string;
   total?: number;
@@ -35,7 +37,35 @@ interface EpisodeVotes {
 
 const CONSENSUS_THRESHOLD = 5;
 
-const fillerFetchCache = new Map<string, Promise<FillerData>>();
+interface FillerFetchEntry {
+  at: number;
+  promise: Promise<FillerData>;
+}
+
+// Short TTL for real results only. Misses and failures are never cached: a
+// guide published after a miss must appear on the next mount/retry.
+const FILLER_CLIENT_TTL_MS = 5 * 60 * 1000;
+const fillerFetchCache = new Map<string, FillerFetchEntry>();
+
+function fetchFiller(url: string, cacheKey: string): Promise<FillerData> {
+  const now = Date.now();
+  const existing = fillerFetchCache.get(cacheKey);
+  if (existing && now - existing.at < FILLER_CLIENT_TTL_MS) return existing.promise;
+  if (existing) fillerFetchCache.delete(cacheKey);
+
+  const promise = fetch(url)
+    .then((r) => r.json() as Promise<FillerData>)
+    .then((data) => {
+      if (!data?.found || data.error) fillerFetchCache.delete(cacheKey);
+      return data;
+    })
+    .catch((error) => {
+      fillerFetchCache.delete(cacheKey);
+      throw error;
+    });
+  fillerFetchCache.set(cacheKey, { at: now, promise });
+  return promise;
+}
 
 const TYPE_COLORS: Record<string, string> = {
   "manga-canon": "#22c55e",
@@ -97,10 +127,21 @@ function matchesFilter(ep: FillerEpisode, consensusType: string | null, filter: 
   return effectiveType === filter;
 }
 
-export default function FillerGuide({ anilistId, animeTitle }: { anilistId: number; animeTitle?: string }) {
+export default function FillerGuide({
+  anilistId,
+  animeTitle,
+  malId,
+  aliases,
+}: {
+  anilistId: number;
+  animeTitle?: string;
+  malId?: number;
+  aliases?: string[];
+}) {
   const { data: session } = useSession();
   const [data, setData] = useState<FillerData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [retryKey, setRetryKey] = useState(0);
   const [showAll, setShowAll] = useState(false);
   const [filter, setFilter] = useState<string | null>(null);
   const [showTitles, setShowTitles] = useState(true);
@@ -112,24 +153,31 @@ export default function FillerGuide({ anilistId, animeTitle }: { anilistId: numb
   const reportRef = useRef<HTMLDivElement>(null);
   const jumpRef = useRef<HTMLDivElement>(null);
 
-  const cacheKey = useMemo(() => `${anilistId}:${animeTitle || ""}`, [anilistId, animeTitle]);
+  const cacheKey = useMemo(
+    () => `${anilistId}:${malId || 0}:${[animeTitle, ...(aliases || [])].join("|")}`,
+    [anilistId, malId, animeTitle, aliases]
+  );
 
   useEffect(() => {
     let cancelled = false;
     const params = new URLSearchParams();
     if (animeTitle) params.set("title", animeTitle);
-    const url = `/api/filler/${anilistId}?${params.toString()}`;
-    if (!fillerFetchCache.has(cacheKey)) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setLoading(true);
-      fillerFetchCache.set(cacheKey, fetch(url).then((r) => r.json()));
+    if (malId && Number.isFinite(malId) && malId > 0) params.set("malId", String(malId));
+    for (const alias of aliases || []) {
+      if (alias?.trim()) params.append("alias", alias.trim());
     }
-    fillerFetchCache.get(cacheKey)!
-      .then((d) => !cancelled && setData(d as FillerData))
-      .catch(() => !cancelled && setData({ found: false } as FillerData))
+    // A retry changes the URL, which also busts the CDN's cached miss/error.
+    if (retryKey > 0) params.set("retry", String(retryKey));
+    const url = `/api/filler/${anilistId}?${params.toString()}`;
+    if (retryKey > 0) fillerFetchCache.delete(cacheKey);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLoading(true);
+    fetchFiller(url, cacheKey)
+      .then((d) => !cancelled && setData(d))
+      .catch(() => !cancelled && setData({ found: false, error: "Failed to load the filler guide" }))
       .finally(() => !cancelled && setLoading(false));
     return () => { cancelled = true; };
-  }, [cacheKey, anilistId, animeTitle]);
+  }, [cacheKey, anilistId, animeTitle, malId, aliases, retryKey]);
 
   useEffect(() => {
     let cancelled = false;
@@ -237,6 +285,13 @@ export default function FillerGuide({ anilistId, animeTitle }: { anilistId: numb
 
   const overriddenCount = Object.keys(consensusOverrides).length;
 
+  const retry = () => {
+    fillerFetchCache.delete(cacheKey);
+    setData(null);
+    setLoading(true);
+    setRetryKey((key) => key + 1);
+  };
+
   if (loading) {
     return (
       <div className="rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5">
@@ -248,7 +303,8 @@ export default function FillerGuide({ anilistId, animeTitle }: { anilistId: numb
     );
   }
 
-  if (!data?.found || !data.episodes) {
+  if (!data?.found || data.error || !data.episodes) {
+    const isError = !!data?.error;
     return (
       <div className="rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5">
         <h3 className="font-display text-sm font-bold flex items-center gap-2 mb-2">
@@ -256,7 +312,35 @@ export default function FillerGuide({ anilistId, animeTitle }: { anilistId: numb
           Filler Guide
         </h3>
         <p className="text-xs text-[var(--color-mute)] leading-relaxed">
-          Filler guide not available for this anime.
+          {isError
+            ? "Could not load the filler guide. Please try again."
+            : "Filler guide not available for this anime."}
+        </p>
+        <div className="mt-2 flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={retry}
+            className="inline-flex text-xs text-[var(--color-cyan)] hover:underline"
+          >{isError ? "Retry" : "Check again"}</button>
+          <Link href="/filler"
+            className="inline-flex text-xs text-[var(--color-cyan)] hover:underline"
+          >Search all filler guides →</Link>
+        </div>
+      </div>
+    );
+  }
+
+  // A curated guide with no filler episodes is still a guide, not a miss.
+  if (data.episodes.length === 0) {
+    return (
+      <div className="rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5">
+        <h3 className="font-display text-sm font-bold flex items-center gap-2 mb-2">
+          <span className="h-3 w-1 rounded-full bg-[var(--color-magenta)]" />
+          Filler Guide
+        </h3>
+        <p className="text-xs text-[var(--color-mute)] leading-relaxed">
+          No filler episodes listed — all episodes are canon.
+          {data.title ? ` Episodes for ${data.title} are listed as canon.` : ""}
         </p>
         <Link href="/filler"
           className="mt-2 inline-flex text-xs text-[var(--color-cyan)] hover:underline"

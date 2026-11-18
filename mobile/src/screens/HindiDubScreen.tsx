@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   View,
   Text,
@@ -179,6 +179,7 @@ function CatalogTab({
   initialLanguage,
   initialGenre,
   onClearInitial,
+  header,
 }: {
   kind?: 'series' | 'movie';
   languages: DubLanguageStat[];
@@ -187,6 +188,7 @@ function CatalogTab({
   initialLanguage?: string;
   initialGenre?: string;
   onClearInitial: () => void;
+  header?: ReactNode;
 }) {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
@@ -268,7 +270,7 @@ function CatalogTab({
     load(page + 1, 'append');
   }, [loading, loadingMore, page, totalPages, load]);
 
-  const header = (
+  const filters = (
     <View style={styles.tabHeader}>
       <View style={styles.searchRow}>
         <TextInput
@@ -392,13 +394,19 @@ function CatalogTab({
 
   return (
     <FlatList
+      style={styles.list}
       data={items}
       keyExtractor={(item) => item.id}
       numColumns={3}
       renderItem={({ item, index }) => (
         <CatalogCard item={item} width={cardWidth} index={index} onPress={() => openExternal(item.sourceUrl)} />
       )}
-      ListHeaderComponent={header}
+      ListHeaderComponent={
+        <>
+          {header}
+          {filters}
+        </>
+      }
       ListEmptyComponent={
         loading ? (
           <CatalogListSkeleton />
@@ -455,54 +463,111 @@ function ScheduleSkeleton() {
   );
 }
 
-function AiringRow({ item, tint, index }: { item: DubAiring; tint: string; index: number }) {
-  const meta =
-    [item.season, item.episodeInfo].filter(Boolean).join(' · ') ||
-    (item.timeLabel ? 'Scheduled this week' : 'Time to be announced');
+function countdownFrom(releaseAt: string | null, now: number) {
+  if (!releaseAt) return null;
+  const release = new Date(releaseAt).getTime();
+  if (!Number.isFinite(release)) return null;
+  const distance = Math.max(0, release - now);
+  return {
+    released: distance === 0,
+    parts: [
+      { label: 'Days', value: Math.floor(distance / 86_400_000) },
+      { label: 'Hrs', value: Math.floor((distance % 86_400_000) / 3_600_000) },
+      { label: 'Min', value: Math.floor((distance % 3_600_000) / 60_000) },
+      { label: 'Sec', value: Math.floor((distance % 60_000) / 1000) },
+    ],
+  };
+}
+
+function AiringRow({
+  item,
+  tint,
+  index,
+  now,
+}: {
+  item: DubAiring;
+  tint: string;
+  index: number;
+  now: number;
+}) {
+  const countdown = countdownFrom(item.releaseAt, now);
+  const meta = [item.season, item.episodeInfo].filter(Boolean).join(' · ');
 
   return (
     <FadeInView delay={Math.min(index, 10) * 40} offset={8}>
       <PressableScale
-        scaleTo={0.98}
+        scaleTo={0.99}
         onPress={() => openExternal(item.sourceUrl)}
         accessibilityLabel={item.title}
-        style={styles.airingRow}
+        style={styles.airingCard}
       >
-        <SafeImage
-          uri={item.posterUrl}
-          fallbackLabel={item.title}
-          style={styles.airingPosterWrap}
-          accessibilityLabel={item.title}
-        />
+        <View style={styles.airingTop}>
+          <SafeImage
+            uri={item.posterUrl}
+            fallbackLabel={item.title}
+            style={styles.airingPosterWrap}
+            accessibilityLabel={item.title}
+          />
 
-        <View style={styles.airingBody}>
-          <Text style={styles.airingTitle} numberOfLines={2}>
-            {item.title}
-          </Text>
-          <Text style={styles.airingMeta} numberOfLines={1}>
-            {meta}
-          </Text>
-          <View style={styles.langRow}>
-            {item.languages.slice(0, 3).map((language) => (
-              <View
-                key={language}
-                style={[styles.langBadge, { borderColor: `${languageTint(language)}88` }]}
-              >
-                <Text style={[styles.langBadgeText, { color: languageTint(language) }]}>
-                  {language}
-                </Text>
+          <View style={styles.airingBody}>
+            <Text style={styles.airingTitle} numberOfLines={2}>
+              {item.title}
+            </Text>
+            {meta ? (
+              <View style={styles.airingMetaRow}>
+                {item.season ? (
+                  <View style={[styles.metaPill, { borderColor: `${tint}55` }]}>
+                    <Text style={[styles.metaPillText, { color: tint }]}>{item.season}</Text>
+                  </View>
+                ) : null}
+                {item.episodeInfo ? (
+                  <View style={styles.metaPill}>
+                    <Text style={styles.metaPillText}>{item.episodeInfo}</Text>
+                  </View>
+                ) : null}
               </View>
-            ))}
+            ) : null}
+            <Text style={styles.airingMeta} numberOfLines={1}>
+              {item.dayLabel ?? 'This week'} · {item.timeLabel ?? 'TBA'} · IST
+            </Text>
+            <View style={styles.langRow}>
+              {item.languages.slice(0, 3).map((language) => (
+                <View
+                  key={language}
+                  style={[styles.langBadge, { borderColor: `${languageTint(language)}88` }]}
+                >
+                  <Text style={[styles.langBadgeText, { color: languageTint(language) }]}>
+                    {language}
+                  </Text>
+                </View>
+              ))}
+            </View>
           </View>
         </View>
 
-        <View style={styles.airingTime}>
-          <Text style={[styles.airingTimeText, { color: tint }]}>{item.timeLabel ?? 'TBA'}</Text>
-          {item.releaseAt ? (
-            <Text style={styles.airingDate}>{istLabel(item.releaseAt)}</Text>
+        <View style={[styles.airingCountdownPanel, { borderColor: `${tint}33` }]}>
+          <Text style={[styles.airingCountdownLabel, { color: tint }]}>
+            {countdown ? (countdown.released ? 'AIRING NOW' : 'NEXT EPISODE') : 'TIME TBA'}
+          </Text>
+          {countdown && !countdown.released ? (
+            <View style={styles.countdownRow}>
+              {countdown.parts.map((part) => (
+                <View key={part.label} style={styles.countdownBox}>
+                  <Text style={styles.countdownValue}>{pad(part.value)}</Text>
+                  <Text style={styles.countdownLabel}>{part.label}</Text>
+                </View>
+              ))}
+            </View>
           ) : (
-            <Text style={styles.airingDate}>{item.dayLabel ?? 'This week'} · IST</Text>
+            <Text style={styles.airingTba}>
+              {countdown?.released
+                ? 'Released — open for details'
+                : 'Unscheduled — time to be announced'}
+            </Text>
           )}
+          <Text style={styles.airingDate}>
+            {item.releaseAt ? istLabel(item.releaseAt) : item.dayLabel ?? 'This week'}
+          </Text>
         </View>
       </PressableScale>
     </FadeInView>
@@ -511,7 +576,7 @@ function AiringRow({ item, tint, index }: { item: DubAiring; tint: string; index
 
 type ScheduleView = 'week' | 'tonight';
 
-function ScheduleTab({ tint }: { tint: string }) {
+function ScheduleTab({ tint, header }: { tint: string; header?: ReactNode }) {
   const insets = useSafeAreaInsets();
   const [view, setView] = useState<ScheduleView>('week');
   const [sections, setSections] = useState<{ title: string; data: DubAiring[] }[]>([]);
@@ -519,6 +584,12 @@ function ScheduleTab({ tint }: { tint: string }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -549,7 +620,8 @@ function ScheduleTab({ tint }: { tint: string }) {
   const headerContent = (
     <>
       <Text style={styles.scheduleIntro}>
-        Hindi and regional dub airings across the week, shown in IST.{' '}
+        Hindi and regional dub airings across the week, shown in IST. Times and new episodes
+        refresh automatically from the published schedule.{' '}
         {error ? 'Schedule updates are temporarily unavailable.' : `${count} airings tracked.`}
       </Text>
       <View style={styles.viewToggle}>
@@ -578,22 +650,26 @@ function ScheduleTab({ tint }: { tint: string }) {
       ) : null}
     </>
   );
-  const header = <View style={styles.tabHeader}>{headerContent}</View>;
+  const scheduleHeader = <View style={styles.tabHeader}>{headerContent}</View>;
 
   if (loading) {
     return (
-      <View style={{ flex: 1 }}>
+      <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
+        {header}
         <View style={[styles.tabHeader, { paddingHorizontal: spacing.md }]}>{headerContent}</View>
         <ScheduleSkeleton />
-      </View>
+      </ScrollView>
     );
   }
 
   return (
     <SectionList
+      style={styles.list}
       sections={sections}
       keyExtractor={(item) => item.id}
-      renderItem={({ item, index }) => <AiringRow item={item} tint={tint} index={index} />}
+      renderItem={({ item, index }) => (
+        <AiringRow item={item} tint={tint} index={index} now={now} />
+      )}
       renderSectionHeader={({ section }) => (
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>{section.title}</Text>
@@ -601,7 +677,12 @@ function ScheduleTab({ tint }: { tint: string }) {
           <Text style={styles.sectionCount}>{section.data.length}</Text>
         </View>
       )}
-      ListHeaderComponent={header}
+      ListHeaderComponent={
+        <>
+          {header}
+          {scheduleHeader}
+        </>
+      }
       ListEmptyComponent={
         <View style={styles.loadingBox}>
           <Text style={styles.emptyText}>
@@ -642,17 +723,20 @@ function LanguagesTab({
   tint,
   loading,
   onBrowse,
+  header,
 }: {
   languages: DubLanguageStat[];
   tint: string;
   loading: boolean;
   onBrowse: (language: string) => void;
+  header?: ReactNode;
 }) {
   const insets = useSafeAreaInsets();
 
   if (loading) {
     return (
-      <View style={{ flex: 1 }}>
+      <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
+        {header}
         <View style={[styles.tabHeader, { paddingHorizontal: spacing.md }]}>
           <Text style={styles.scheduleIntro}>
             Browse every dubbed title by language. Counts update as new dubs are added.
@@ -663,12 +747,13 @@ function LanguagesTab({
             <SkeletonBlock key={item} height={64} radius={borderRadius.md} />
           ))}
         </View>
-      </View>
+      </ScrollView>
     );
   }
 
   return (
     <FlatList
+      style={styles.list}
       data={languages}
       keyExtractor={(item) => item.slug}
       renderItem={({ item, index }) => (
@@ -693,11 +778,14 @@ function LanguagesTab({
         </FadeInView>
       )}
       ListHeaderComponent={
-        <View style={styles.tabHeader}>
-          <Text style={styles.scheduleIntro}>
-            Browse every dubbed title by language. Counts update as new dubs are added.
-          </Text>
-        </View>
+        <>
+          {header}
+          <View style={styles.tabHeader}>
+            <Text style={styles.scheduleIntro}>
+              Browse every dubbed title by language. Counts update as new dubs are added.
+            </Text>
+          </View>
+        </>
       }
       ListEmptyComponent={
         <View style={styles.loadingBox}>
@@ -718,17 +806,20 @@ function GenresTab({
   tint,
   loading,
   onBrowse,
+  header,
 }: {
   genres: DubGenreStat[];
   tint: string;
   loading: boolean;
   onBrowse: (genre: string) => void;
+  header?: ReactNode;
 }) {
   const insets = useSafeAreaInsets();
 
   if (loading) {
     return (
-      <View style={{ flex: 1 }}>
+      <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
+        {header}
         <View style={[styles.tabHeader, { paddingHorizontal: spacing.md }]}>
           <Text style={styles.scheduleIntro}>
             Explore titles by genre. Tap any genre to see everything in it.
@@ -739,12 +830,13 @@ function GenresTab({
             <SkeletonBlock key={item} height={64} radius={borderRadius.md} style={styles.skeletonTile} />
           ))}
         </View>
-      </View>
+      </ScrollView>
     );
   }
 
   return (
     <FlatList
+      style={styles.list}
       data={genres}
       keyExtractor={(item) => item.genre}
       numColumns={2}
@@ -772,11 +864,14 @@ function GenresTab({
         </FadeInView>
       )}
       ListHeaderComponent={
-        <View style={styles.tabHeader}>
-          <Text style={styles.scheduleIntro}>
-            Explore titles by genre. Tap any genre to see everything in it.
-          </Text>
-        </View>
+        <>
+          {header}
+          <View style={styles.tabHeader}>
+            <Text style={styles.scheduleIntro}>
+              Explore titles by genre. Tap any genre to see everything in it.
+            </Text>
+          </View>
+        </>
       }
       ListEmptyComponent={
         <View style={styles.loadingBox}>
@@ -914,10 +1009,10 @@ export default function HindiDubScreen() {
     ],
   };
 
-  return (
-    <View style={styles.container}>
-      <ScreenHeader title="Dub Hub" subtitle={subtitle} emoji="🇮🇳" accent={tint} right={headerRight} />
-
+  // The hero and tabs live inside each tab's scrollable header, so they scroll
+  // away naturally instead of staying pinned while the list moves underneath.
+  const sharedHeader = (
+    <>
       <FadeInView delay={20}>
         <View style={[styles.heroCard, { backgroundColor: colors.surface, borderColor: `${tint}44` }]}>
           <Animated.View
@@ -956,6 +1051,12 @@ export default function HindiDubScreen() {
         scroll
         contentContainerStyle={{ marginTop: spacing.sm, paddingBottom: spacing.xs }}
       />
+    </>
+  );
+
+  return (
+    <View style={styles.container}>
+      <ScreenHeader title="Dub Hub" subtitle={subtitle} emoji="🇮🇳" accent={tint} right={headerRight} />
 
       {tab === 'all' || tab === 'series' || tab === 'movies' ? (
         <CatalogTab
@@ -966,15 +1067,17 @@ export default function HindiDubScreen() {
           initialLanguage={browse.language}
           initialGenre={browse.genre}
           onClearInitial={clearBrowse}
+          header={sharedHeader}
         />
       ) : null}
-      {tab === 'schedule' ? <ScheduleTab tint={tint} /> : null}
+      {tab === 'schedule' ? <ScheduleTab tint={tint} header={sharedHeader} /> : null}
       {tab === 'languages' ? (
         <LanguagesTab
           languages={languages}
           tint={tint}
           loading={overviewLoading}
           onBrowse={browseLanguage}
+          header={sharedHeader}
         />
       ) : null}
       {tab === 'genres' ? (
@@ -983,6 +1086,7 @@ export default function HindiDubScreen() {
           tint={tint}
           loading={overviewLoading}
           onBrowse={browseGenre}
+          header={sharedHeader}
         />
       ) : null}
     </View>
@@ -1359,48 +1463,115 @@ const styles = themed(() => ({
     fontSize: 11,
     fontWeight: '800',
   },
-  airingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  list: {
+    flex: 1,
+  },
+  airingCard: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
+    padding: spacing.sm + 2,
+    marginBottom: spacing.md,
     gap: spacing.sm + 2,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-    paddingVertical: spacing.sm + 2,
+  },
+  airingTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm + 2,
   },
   airingPosterWrap: {
-    width: 48,
-    height: 68,
-    borderRadius: borderRadius.sm,
+    width: 58,
+    height: 84,
+    borderRadius: borderRadius.md,
     overflow: 'hidden',
-    backgroundColor: colors.surface,
+    backgroundColor: colors.background,
   },
   airingBody: {
     flex: 1,
   },
   airingTitle: {
     color: colors.text,
-    fontSize: fontSize.sm,
+    fontSize: fontSize.md,
+    fontWeight: '900',
+    lineHeight: 21,
+  },
+  airingMetaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: spacing.xs + 2,
+  },
+  metaPill: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: borderRadius.full,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  metaPillText: {
+    color: colors.textMuted,
+    fontSize: 10,
     fontWeight: '800',
-    lineHeight: 19,
   },
   airingMeta: {
     color: colors.textDim,
     fontSize: 11.5,
+    marginTop: spacing.xs + 2,
+  },
+  airingCountdownPanel: {
+    borderWidth: 1,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.background,
+    paddingVertical: spacing.sm + 2,
+    paddingHorizontal: spacing.sm,
+    alignItems: 'center',
+  },
+  airingCountdownLabel: {
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+  },
+  countdownRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: spacing.sm,
+  },
+  countdownBox: {
+    width: 58,
+    borderRadius: borderRadius.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingVertical: 6,
+    alignItems: 'center',
+  },
+  countdownValue: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  countdownLabel: {
+    color: colors.textDim,
+    fontSize: 9,
+    fontWeight: '700',
+    textTransform: 'uppercase',
     marginTop: 2,
   },
-  airingTime: {
-    alignItems: 'flex-end',
-    maxWidth: 112,
-  },
-  airingTimeText: {
-    fontSize: fontSize.sm,
-    fontWeight: '900',
+  airingTba: {
+    color: colors.warning,
+    fontSize: 11.5,
+    fontWeight: '800',
+    textAlign: 'center',
+    marginTop: spacing.sm,
   },
   airingDate: {
     color: colors.textDim,
     fontSize: 10,
-    marginTop: 3,
-    textAlign: 'right',
+    marginTop: spacing.sm,
+    textAlign: 'center',
   },
   languageCard: {
     flexDirection: 'row',

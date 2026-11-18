@@ -34,37 +34,45 @@ Stable rollback release. Version `1.4.0` / versionCode `140000`. The interim
 ## Verified build
 
 - **APK:** `dist/ZyniVerse-1.4.0.apk` (also hosted at `public/ZyniVerse-1.4.0.apk`)
-- **Size:** 42,082,269 bytes (~40.1 MB)
-- **SHA-256:** `7acd3613cbf93cb5166209eb2652c8241f7e71e74135e47d7dd849c7218d13fc`
+- **Size:** 42,093,909 bytes (~40.1 MB)
+- **SHA-256:** `c9178820be0b777850d187abfd5f70ff2e314aec9fa4eeb2a2d7565fc86bddd9`
 - **Package / version:** `app.zyverse.mobile`, `1.4.0 / 140000` (confirmed with `aapt dump badging`)
-- **Build:** `assembleRelease --no-daemon` — `BUILD SUCCESSFUL in 3m 20s`
-- **Checks:** root `npx tsc --noEmit` clean; mobile `npx tsc --noEmit` clean;
-  `63` vitest tests passed (`sw-freshness`, `offline-policy`); targeted ESLint
-  on all changed website files clean. Full lint remains red only from
-  pre-existing, out-of-scope files.
+- **Build:** `assembleRelease --no-daemon` — `BUILD SUCCESSFUL in 56s`
+- **Checks:** root `npx tsc --noEmit --incremental false` clean; mobile
+  `npx tsc --noEmit` clean; `npx vitest run src/__tests__/filler.test.ts`
+  passed (`1` file, `6` tests); `npm run build` succeeded after the Next.js
+  security-nudge retry. Full lint remains red only from pre-existing,
+  out-of-scope files.
 - **Direct APK URL:** `https://zyverse.in/ZyniVerse-1.4.0.apk` with an Android
   browser UA → HTTP `200`, `application/vnd.android.package-archive`,
-  42,082,269 bytes, SHA-256 exactly as above.
-- **Device:** installed on `192.168.1.46:38343`. Android refuses a version
-  downgrade of a non-debuggable release even with `adb install -d`, so the
-  interim `1.8.0` build was uninstalled first (app data lives on the server).
-  `dumpsys package` reports `1.4.0 / 140000`; launch produced no
-  FATAL / ReactNativeJS crash and the app process stayed alive.
+  42,093,909 bytes, SHA-256 exactly as above. A ranged request returns HTTP
+  `206` with `Content-Range: bytes 0-1023/42093909`.
+- **Device:** installed on `192.168.1.46:38343` with `adb install -r` →
+  `Success`. Android refuses a version downgrade of a non-debuggable release
+  even with `adb install -d`, so the earlier interim `1.8.0` build had to be
+  uninstalled first (app data lives on the server). The current device was
+  already on `1.4.0 / 140000`; launch produced no FATAL / ReactNativeJS crash
+  and the app process stayed alive. The Home `Explore ZyniVerse` row,
+  announcement card and schedule cross-links were visible in the native UI.
 
 ## Production deployment
 
-- **Deploy:** `dpl_J4Lhg29cZjQ4jnZPBM4nVsUeegpc` — `READY`, aliased to
+- **Deploy:** `dpl_256uWSkrjCEGXNTVyGwzVTvuatzb` — `READY`, aliased to
   `https://zyverse.in`.
 - **Verified 200:** `/api/mobile/version` (`140000` and `180000`),
-  `/api/dub/overview`, `/api/dub/schedule?limit=200`, `/api/dub/sources`,
-  `/hindi-dub`, `/hindi-dub-schedule`, `/genres`, `/studios`, `/watch`, `/dubbed`.
+  `/api/dub/overview`, `/api/dub/schedule?limit=200`, `/api/filler/21`,
+  `/api/dub/sources`, `/hindi-dub`, `/hindi-dub-schedule`, `/genres`,
+  `/studios`, `/watch`, `/dubbed`.
 - **Version API:** `140000` → `update=False, rollback=False`; `180000` →
   `update=True, rollback=True, mandatory=False`, size/hash/URL matching the
   published APK above.
+- **Filler API:** `/api/filler/21` returns `found=true` with real One Piece
+  guide data; misses and upstream errors stay `no-store` so a newly published
+  guide is never hidden by a cached miss.
 - **Production data:** `1,219` titles, `10` languages, `60` genres, `2`
-  catalogues labelled `Dub Hub`; `28` airings across `8` groups plus `2`
-  unscheduled rows. Earlier WordPress sync: `fetched 691`, `upserted 691`,
-  `errors []`.
+  catalogues labelled `Dub Hub`; `28` airings across `8` groups, `21` future
+  releases and `5` unscheduled rows. Earlier WordPress sync: `fetched 691`,
+  `upserted 691`, `errors []`.
 - **Cron:** single daily Vercel cron `30 20 * * *` on `/api/cron/dub-sync`.
   Production `CRON_SECRET` was set to a known value and the site redeployed;
   a Bearer-triggered call now returns HTTP `200` (previously `401`).
@@ -85,5 +93,5 @@ Stable rollback release. Version `1.4.0` / versionCode `140000`. The interim
 | Play Console upload | Manual store listing/signing step remains. |
 | Dead DNS record | Delete `ws.zyverse.in` (`153.52.255.71`). |
 | Upstream vs Vercel egress | Watch the next daily cron; the resolver self-heals when the source answers again. No code change needed for a third-party block. |
-| Device tap-through | Device was PIN-locked after install; native launch was verified crash-free, but a fresh manual in-app click-through was not possible. |
-| Security upgrade | Separate worktree `C:\Users\ParthGupta\ZyniVerse-security`, branch `security-upgrade`, commit `0a09868` (Next.js `16.4.2` → `16.4.6`). Website fixes were selectively merged into main; the upgrade itself stays separate. PR not publishable while GitHub is suspended. |
+| Device tap-through | Partial: Home explore row, announcement card and schedule cross-links were verified in the native UI. `uiautomator dump` then went stale because the November Diwali animation never lets the view hierarchy idle, so Dub Hub tab scroll/labels, the live countdown, filler guide and the removed mobile AniList button still need a manual tap-through. |
+| Security upgrade | `npm run build` warns that Next.js `16.4.2` has a known vulnerability and suggests the security upgrade command. The upgrade remains separate in `C:\Users\ParthGupta\ZyniVerse-security`, branch `security-upgrade`, commit `0a09868` (Next.js `16.4.2` → `16.4.6`); website fixes were selectively merged into main. PR not publishable while GitHub is suspended. |

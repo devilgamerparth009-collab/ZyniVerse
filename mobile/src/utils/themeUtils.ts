@@ -44,6 +44,9 @@ export const DIWALI_THEME: ThemeConfig = {
   notification: '#f59e0b',
 };
 
+/** Warm gold/amber/orange sparks shared by the Diwali firework overlay. */
+export const DIWALI_SPARK_COLORS = ['#fcd34d', '#fbbf24', '#f59e0b', '#ea580c'] as const;
+
 /**
  * 🎄 Christmas Anime Wonderland (icy blue, snow white & neon pink)
  *
@@ -128,6 +131,11 @@ export function getThemeName(theme: ThemeConfig): string {
   if (theme.primary === NIGHT_THEME.primary) return 'Night';
   if (theme.primary === LIGHT_THEME.primary) return 'Light';
   return 'Cyberpunk Dark';
+}
+
+/** Seasonal window for the Diwali skin: the whole of November (local time). */
+export function isDiwaliWindow(date = new Date()): boolean {
+  return date.getMonth() === 10;
 }
 
 /** Seasonal window for the Christmas skin: 1–25 December (local time). */

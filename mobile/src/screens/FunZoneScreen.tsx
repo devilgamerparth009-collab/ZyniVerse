@@ -55,6 +55,24 @@ const FEATURES: Feature[] = [
   { key: 'tvguide', label: 'TV & Streaming', sub: 'Live TV', emoji: '📺', route: 'TVGuide', tint: '#60a5fa' },
 ];
 
+/** Small contextual shortcuts to related features that are easy to miss. */
+type ExploreItem = {
+  key: string;
+  icon: string;
+  label: string;
+  sub: string;
+  tint: string;
+  route: string;
+  params?: Record<string, any>;
+  tab?: boolean;
+};
+
+const EXPLORE_ITEMS: ExploreItem[] = [
+  { key: 'arena', icon: '⚔️', label: 'Anime Battles', sub: 'Vote in character tournaments', tint: '#f472b6', route: 'Tournaments', tab: true },
+  { key: 'wordle', icon: '🟩', label: 'Anime Wordle', sub: 'Six tries to guess the title', tint: '#22c55e', route: 'Wordle' },
+  { key: 'forum', icon: '💬', label: 'Community Forum', sub: 'Talk anime with other fans', tint: '#38bdf8', route: 'Forum', tab: true },
+];
+
 type WebFeature = {
   key: string;
   label: string;
@@ -217,6 +235,47 @@ export default function FunZoneScreen() {
             Daily picks, games, polls and anime art — all in one place.
           </Text>
         </View>
+
+        {/* Explore this feature */}
+        <FadeInView delay={90}>
+          <View style={styles.exploreSection}>
+            <Text style={[styles.exploreTitle, { color: tint }]}>EXPLORE THIS FEATURE</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.exploreRow}
+            >
+              {EXPLORE_ITEMS.map((item) => (
+                <PressableScale
+                  key={item.key}
+                  accessibilityLabel={`Explore ${item.label}`}
+                  onPress={() =>
+                    item.tab
+                      ? navigation.navigate('MainTabs', { screen: item.route })
+                      : navigation.navigate(item.route, item.params)
+                  }
+                  style={[
+                    styles.exploreCard,
+                    { backgroundColor: colors.surface, borderColor: `${item.tint}55` },
+                  ]}
+                >
+                  <View style={[styles.exploreIcon, { backgroundColor: `${item.tint}22` }]}>
+                    <Text style={styles.exploreEmoji}>{item.icon}</Text>
+                  </View>
+                  <View style={styles.exploreCopy}>
+                    <Text style={[styles.exploreLabel, { color: colors.text }]} numberOfLines={1}>
+                      {item.label}
+                    </Text>
+                    <Text style={[styles.exploreSub, { color: colors.textMuted }]} numberOfLines={2}>
+                      {item.sub}
+                    </Text>
+                  </View>
+                  <Text style={[styles.exploreArrow, { color: tint }]}>›</Text>
+                </PressableScale>
+              ))}
+            </ScrollView>
+          </View>
+        </FadeInView>
 
         {/* Anime of the day */}
         {hero && (
@@ -587,6 +646,42 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
     lineHeight: 19,
   },
+  exploreSection: {
+    marginTop: spacing.xs,
+    marginBottom: spacing.sm,
+  },
+  exploreTitle: {
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.2,
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  exploreRow: {
+    paddingHorizontal: spacing.md,
+    gap: spacing.sm,
+  },
+  exploreCard: {
+    width: 210,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 1,
+    borderRadius: borderRadius.lg,
+    padding: spacing.sm + 2,
+  },
+  exploreIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  exploreEmoji: { fontSize: 19 },
+  exploreCopy: { flex: 1 },
+  exploreLabel: { fontSize: 13, fontWeight: '800' },
+  exploreSub: { fontSize: 10, marginTop: 2, lineHeight: 14 },
+  exploreArrow: { fontSize: 20, fontWeight: '700' },
   livePill: {
     flexDirection: 'row',
     alignItems: 'center',

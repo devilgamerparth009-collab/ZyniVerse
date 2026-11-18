@@ -75,62 +75,87 @@ export function getFillerDataFromCache(): FillerShow[] {
   return fillerCache.data;
 }
 
-function slugify(text: string) {
-  return text
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
+export interface FillerLookupOptions {
+  /** AniList media id — the strictest, preferred identifier. */
+  anilistId?: number;
+  /** MyAnimeList id — present on almost every AniFiller row. */
+  malId?: number;
+  /** Primary title supplied by the caller. */
+  title?: string;
+  /** Alternate titles (romaji / english / native) supplied by the caller. */
+  aliases?: string[];
 }
 
-async function scrapeFillerFromSite(slug: string): Promise<FillerShow | null> {
-  try {
-    const res = await fetch(`https://www.animefillerlist.com/shows/${slug}`, {
-      signal: AbortSignal.timeout(5000),
-    });
-    if (!res.ok) return null;
-    const html = await res.text();
+/*
+ * The old animefillerlist.com scraper is retired. Its selector expected
+ * `class="episode"`, while the live site renders `class="Number"` /
+ * `class="Title"` / `class="Type"` cells (verified against a real fetch).
+ * Worse, it fabricated rows with `mappings: { 0, 0 }` and defaulted unknown
+ * types to "filler", so a broken parse could become a plausible-looking guide.
+ * The curated AniFiller release is now the single source of truth: a miss is
+ * reported honestly instead of silently turning into an empty/invented guide.
+ */
 
-    const titleMatch = html.match(/<h1[^>]*>([^<]+)<\/h1>/);
-    const title = titleMatch ? titleMatch[1].trim() : slug;
+function normalizeTitle(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
-    const episodeRegex = /<tr[^>]*>[\s\S]*?<td[^>]*class="[^"]*episode[^"]*"[^>]*>(\d+)<\/td>[\s\S]*?<td[^>]*class="[^"]*title[^"]*"[^>]*>([^<]*)<\/td>[\s\S]*?<td[^>]*class="[^"]*type[^"]*"[^>]*>([^<]*)<\/td>[\s\S]*?<td[^>]*class="[^"]*date[^"]*"[^>]*>([^<]*)<\/td>/gi;
-    const episodes: FillerEpisode[] = [];
-    let match;
-
-    while ((match = episodeRegex.exec(html)) !== null) {
-      const epNum = parseInt(match[1]);
-      const epTitle = match[2].trim();
-      const epType = match[3].trim().toLowerCase().replace(/\s+/g, "-");
-      const epDate = match[4].trim();
-      const typeMap: Record<string, "manga-canon" | "filler" | "mixed-manga" | "anime-canon"> = {
-        "manga-canon": "manga-canon",
-        "manga canon": "manga-canon",
-        filler: "filler",
-        "mixed-canon": "mixed-manga",
-        "mixed-manga": "mixed-manga",
-        "mixed canon": "mixed-manga",
-        "anime-canon": "anime-canon",
-        "anime canon": "anime-canon",
-      };
-      episodes.push({
-        episode: epNum,
-        title: epTitle || `Episode ${epNum}`,
-        type: typeMap[epType] || "filler",
-        aired_date: epDate,
-      });
+/** Every string we are willing to compare. Only derived from real rows. */
+function titleCandidates(...values: (string | undefined)[]): string[] {
+  const candidates: string[] = [];
+  for (const value of values) {
+    if (!value) continue;
+    const raw = value.trim();
+    if (!raw) continue;
+    const normalized = normalizeTitle(raw);
+    if (normalized) candidates.push(normalized);
+    // "Frieren: Beyond Journey's End" -> "frieren"; slugs use dashes.
+    for (const variant of [raw.split(":")[0], raw.replace(/[-_]+/g, " ")]) {
+      const extra = normalizeTitle(variant || "");
+      if (extra && !candidates.includes(extra)) candidates.push(extra);
     }
-
-    if (episodes.length === 0) return null;
-
-    return {
-      slug,
-      title,
-      mappings: { anilist_id: 0, mal_id: 0 },
-      episodes,
-    };
-  } catch {
-    return null;
   }
+  return [...new Set(candidates)];
+}
+
+function showCandidates(show: FillerShow): string[] {
+  return titleCandidates(show.title, show.slug);
+}
+
+function isSafePrefix(a: string, b: string): boolean {
+  if (a === b) return true;
+  const shorter = a.length <= b.length ? a : b;
+  const longer = a.length <= b.length ? b : a;
+  if (shorter.length < 5) return false; // "one", "s" etc. are too ambiguous
+  if (!longer.startsWith(`${shorter} `)) return false;
+  // Require the shared prefix to be a meaningful part of the longer title.
+  return shorter.length / longer.length >= 0.35;
+}
+
+function matchByTitle(all: FillerShow[], query: FillerLookupOptions): FillerShow | null {
+  const wanted = titleCandidates(query.title, ...(query.aliases || []));
+  if (wanted.length === 0) return null;
+
+  // Tier 3a: exact normalised title / alias / slug equality.
+  const exact = all.filter((show) =>
+    showCandidates(show).some((candidate) => wanted.includes(candidate))
+  );
+  if (exact.length === 1) return exact[0];
+
+  // Tier 3b: distinctive leading title ("Frieren" -> "Frieren: Beyond
+  // Journey's End"). Ambiguous matches are rejected rather than guessed.
+  const prefix = all.filter((show) =>
+    showCandidates(show).some((candidate) =>
+      wanted.some((wantedCandidate) => isSafePrefix(wantedCandidate, candidate))
+    )
+  );
+  return prefix.length === 1 ? prefix[0] : null;
 }
 
 function computeQuickList(episodes: FillerEpisode[]): Record<string, string[]> {
@@ -160,29 +185,49 @@ function computeQuickList(episodes: FillerEpisode[]): Record<string, string[]> {
   return result;
 }
 
-export async function getFillerForAnime(anilistId: number, animeTitle?: string) {
+/**
+ * Resolve a guide with the strictest identifier available:
+ *   1. AniList id  2. MAL id  3. normalised title / alias / slug.
+ * Only rows from the curated dataset are ever returned — nothing is invented.
+ * The legacy `(anilistId, title)` call shape is preserved for existing callers.
+ */
+export async function getFillerForAnime(
+  lookup: number | FillerLookupOptions,
+  legacy?: string | Omit<FillerLookupOptions, "anilistId">
+) {
+  const options: FillerLookupOptions =
+    typeof lookup === "number"
+      ? {
+          anilistId: lookup,
+          ...(typeof legacy === "string" ? { title: legacy } : legacy || {}),
+        }
+      : { ...lookup };
+
   const all = await getFillerData();
+  const anilistId = Number(options.anilistId);
+  const malId = Number(options.malId);
 
-  let show: FillerShow | null = all.find((s) => s.mappings.anilist_id === anilistId) || null;
+  let show: FillerShow | null = null;
 
-  if (!show && animeTitle) {
-    const slugs = [
-      slugify(animeTitle),
-      slugify(animeTitle.replace(/[^a-z0-9 ]/gi, "")),
-    ];
-    for (const s of slugs) {
-      const scraped = await scrapeFillerFromSite(s);
-      if (scraped) { show = scraped; break; }
-    }
+  if (Number.isFinite(anilistId) && anilistId > 0) {
+    show = all.find((s) => s.mappings?.anilist_id === anilistId) || null;
   }
-
+  if (!show && Number.isFinite(malId) && malId > 0) {
+    show = all.find((s) => s.mappings?.mal_id === malId) || null;
+  }
+  if (!show) {
+    show = matchByTitle(all, options);
+  }
   if (!show) return null;
 
-  const total = show.episodes.length;
-  const filler = show.episodes.filter((e) => e.type === "filler").length;
-  const mangaCanon = show.episodes.filter((e) => e.type === "manga-canon").length;
-  const animeCanon = show.episodes.filter((e) => e.type === "anime-canon").length;
-  const mixed = show.episodes.filter((e) => e.type === "mixed-manga").length;
+  // A legitimately empty episode list is still a found guide. The UI decides
+  // how to present "no filler episodes listed"; it must not become a miss.
+  const episodes = show.episodes ?? [];
+  const total = episodes.length;
+  const filler = episodes.filter((e) => e.type === "filler").length;
+  const mangaCanon = episodes.filter((e) => e.type === "manga-canon").length;
+  const animeCanon = episodes.filter((e) => e.type === "anime-canon").length;
+  const mixed = episodes.filter((e) => e.type === "mixed-manga").length;
 
   return {
     slug: show.slug,
@@ -193,8 +238,8 @@ export async function getFillerForAnime(anilistId: number, animeTitle?: string) 
     animeCanon,
     mixed,
     fillerPercent: total > 0 ? Math.round((filler / total) * 100) : 0,
-    episodes: show.episodes,
-    quickList: computeQuickList(show.episodes),
+    episodes,
+    quickList: computeQuickList(episodes),
   };
 }
 

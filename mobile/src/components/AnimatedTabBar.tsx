@@ -29,6 +29,17 @@ interface TabRect {
   height: number;
 }
 
+/** Keeps the active label readable on both light and dark accent colours. */
+function readableTextColor(hex: string): string {
+  const value = hex.replace('#', '');
+  if (value.length !== 6) return '#ffffff';
+  const r = parseInt(value.slice(0, 2), 16) / 255;
+  const g = parseInt(value.slice(2, 4), 16) / 255;
+  const b = parseInt(value.slice(4, 6), 16) / 255;
+  const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return luminance > 0.48 ? '#080810' : '#ffffff';
+}
+
 interface Props<T extends string> {
   tabs: readonly AnimatedTabItem<T>[];
   active: T;
@@ -95,7 +106,7 @@ function TabButton<T extends string>({
       >
         <Text
           numberOfLines={1}
-          style={[styles.label, { color: active ? '#080810' : muted }]}
+          style={[styles.label, { color: active ? readableTextColor(tint) : muted }]}
         >
           {text}
         </Text>

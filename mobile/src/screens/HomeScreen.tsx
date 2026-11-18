@@ -24,9 +24,25 @@ import PressableScale from '../components/PressableScale';
 import AdBanner from '../components/AdBanner';
 import Snowfall from '../components/Snowfall';
 import ChristmasBanner from '../components/ChristmasBanner';
+import DiwaliFireworks from '../components/DiwaliFireworks';
 import { useTheme } from '../hooks/useTheme';
 
 const FEED_DISMISSED_KEY = 'zv_feed_dismissed';
+
+/** Compact shortcuts to features that already exist in the app. */
+const EXPLORE_ITEMS: {
+  icon: string;
+  title: string;
+  sub: string;
+  route: string;
+  tint: string;
+  params?: Record<string, string>;
+}[] = [
+  { icon: '🎙️', title: 'Dub Hub', sub: 'Series, movies & schedule', route: 'HindiDub', params: { tab: 'all' }, tint: '#f59e0b' },
+  { icon: '🧰', title: 'All Features', sub: 'Everything in one place', route: 'AllFeatures', tint: '#a78bfa' },
+  { icon: '🎮', title: 'Fun Zone', sub: 'Games, quizzes & polls', route: 'FunZone', tint: '#22d3ee' },
+  { icon: '🗓️', title: 'Schedule', sub: 'Never miss a release', route: 'Schedule', tint: '#fb7185' },
+];
 
 interface MobileFeed {
   updatedAt?: string;
@@ -55,7 +71,7 @@ interface MobileFeed {
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
-  const { colors, isDiwali, isChristmas } = useTheme();
+  const { colors, isDiwali, isChristmas, isDiwaliSeason } = useTheme();
   const primaryColor = isDiwali ? '#FF8C00' : isChristmas ? '#7dd3fc' : colors.primary;
 
   const [trending, setTrending] = useState<Anime[]>([]);
@@ -345,6 +361,42 @@ export default function HomeScreen() {
             <Text style={{ color: colors.text, fontSize: 12, fontWeight: '700' }}>✨ For You</Text>
           </TouchableOpacity>
         </ScrollView>
+
+        {/* Explore row: compact paths into the rest of the app */}
+        <View style={styles.exploreSection}>
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Explore ZyniVerse</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('AllFeatures')}>
+              <Text style={[styles.seeAll, { color: primaryColor }]}>See all →</Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingHorizontal: spacing.md, gap: spacing.sm }}
+          >
+            {EXPLORE_ITEMS.map((item) => (
+              <PressableScale
+                key={item.title}
+                onPress={() => navigation.navigate(item.route, item.params)}
+                accessibilityLabel={`Explore ${item.title}`}
+                style={[
+                  styles.exploreCard,
+                  { backgroundColor: colors.surface, borderColor: `${item.tint}55` },
+                ]}
+              >
+                <View style={[styles.exploreIcon, { backgroundColor: `${item.tint}1f` }]}>
+                  <Text style={{ fontSize: 19 }}>{item.icon}</Text>
+                </View>
+                <Text style={[styles.exploreTitle, { color: colors.text }]}>{item.title}</Text>
+                <Text style={[styles.exploreSub, { color: item.tint }]} numberOfLines={2}>
+                  {item.sub}
+                </Text>
+                <Text style={[styles.exploreArrow, { color: item.tint }]}>→</Text>
+              </PressableScale>
+            ))}
+          </ScrollView>
+        </View>
 
         {/* Server-driven announcement. Edited in src/content/mobile-feed.json,
             so it appears in every installed app without an APK update. */}
@@ -792,6 +844,7 @@ export default function HomeScreen() {
       </ScrollView>
 
       {isChristmas && <Snowfall />}
+      {isDiwaliSeason && <DiwaliFireworks />}
     </View>
   );
 }
@@ -976,6 +1029,43 @@ const styles = themed(() => ({
     color: colors.textMuted,
     fontSize: 11,
     fontWeight: '600',
+  },
+  exploreSection: {
+    marginBottom: spacing.lg,
+  },
+  exploreCard: {
+    width: 138,
+    minHeight: 118,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    padding: spacing.sm + 2,
+    overflow: 'hidden',
+  },
+  exploreIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.sm,
+  },
+  exploreTitle: {
+    fontSize: fontSize.sm,
+    fontWeight: '800',
+  },
+  exploreSub: {
+    fontSize: 10,
+    fontWeight: '600',
+    lineHeight: 13,
+    marginTop: 3,
+    paddingRight: 12,
+  },
+  exploreArrow: {
+    position: 'absolute',
+    right: 10,
+    bottom: 8,
+    fontSize: 14,
+    fontWeight: '800',
   },
   section: {
     marginBottom: spacing.lg,

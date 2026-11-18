@@ -22,6 +22,22 @@ import { formatCount, stripMarkdown, timeAgo } from '../utils/helpers';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorView from '../components/ErrorView';
 import AdBanner from '../components/AdBanner';
+import FadeInView from '../components/FadeInView';
+import PressableScale from '../components/PressableScale';
+
+/** Social features that pair naturally with forum discussions. */
+const EXPLORE_ITEMS: {
+  key: string;
+  icon: string;
+  label: string;
+  sub: string;
+  tint: string;
+  route: string;
+}[] = [
+  { key: 'messages', icon: '💬', label: 'Messages', sub: 'Chat with other fans', tint: '#22d3ee', route: 'Messages' },
+  { key: 'friends', icon: '🤝', label: 'Friends', sub: 'Find people to follow', tint: '#ec4899', route: 'Friends' },
+  { key: 'watchparty', icon: '👥', label: 'Watch Party', sub: 'Watch anime together', tint: '#38bdf8', route: 'WatchParty' },
+];
 
 type SortKey = 'recent' | 'popular' | 'top';
 const SORTS: { key: SortKey; label: string; icon: string }[] = [
@@ -239,6 +255,41 @@ export default function ForumScreen() {
             )}
           </View>
         </Animated.View>
+
+        {/* Explore this feature */}
+        <FadeInView delay={110} style={styles.exploreSection}>
+          <Text style={[styles.exploreTitle, { color: primaryColor }]}>EXPLORE THIS FEATURE</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.exploreRow}
+          >
+            {EXPLORE_ITEMS.map((item) => (
+              <PressableScale
+                key={item.key}
+                accessibilityLabel={`Explore ${item.label}`}
+                onPress={() => navigation.navigate(item.route)}
+                style={[
+                  styles.exploreCard,
+                  { backgroundColor: colors.surface, borderColor: `${item.tint}55` },
+                ]}
+              >
+                <View style={[styles.exploreIcon, { backgroundColor: `${item.tint}22` }]}>
+                  <Text style={styles.exploreEmoji}>{item.icon}</Text>
+                </View>
+                <View style={styles.exploreCopy}>
+                  <Text style={[styles.exploreLabel, { color: colors.text }]} numberOfLines={1}>
+                    {item.label}
+                  </Text>
+                  <Text style={[styles.exploreSub, { color: colors.textMuted }]} numberOfLines={2}>
+                    {item.sub}
+                  </Text>
+                </View>
+                <Text style={[styles.exploreArrow, { color: primaryColor }]}>›</Text>
+              </PressableScale>
+            ))}
+          </ScrollView>
+        </FadeInView>
 
         {/* Category Pill Carousel */}
         <View style={styles.catSection}>
@@ -585,6 +636,42 @@ const styles = StyleSheet.create({
     fontSize: 14,
     padding: 0,
   },
+  exploreSection: {
+    marginTop: 2,
+    marginBottom: 12,
+  },
+  exploreTitle: {
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.2,
+    paddingHorizontal: 18,
+    marginBottom: 8,
+  },
+  exploreRow: {
+    paddingHorizontal: 16,
+    gap: 10,
+  },
+  exploreCard: {
+    width: 200,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 10,
+  },
+  exploreIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  exploreEmoji: { fontSize: 19 },
+  exploreCopy: { flex: 1 },
+  exploreLabel: { fontSize: 13, fontWeight: '800' },
+  exploreSub: { fontSize: 10, marginTop: 2, lineHeight: 14 },
+  exploreArrow: { fontSize: 20, fontWeight: '700' },
   catSection: {
     marginBottom: 12,
   },

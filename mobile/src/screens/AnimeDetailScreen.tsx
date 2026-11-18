@@ -104,6 +104,14 @@ export default function AnimeDetailScreen() {
   const malId = anime?.idMal || anime?.malId || undefined;
   const title =
     anime?.title?.english || anime?.title?.romaji || anime?.title?.userPreferred || 'Anime';
+  // Alternate titles are sent to the shared filler API so a title-only fallback
+  // can still find a guide when ids differ between catalogues.
+  const fillerAliases = useMemo(
+    () =>
+      [anime?.title?.romaji, anime?.title?.english, anime?.title?.native, anime?.title?.userPreferred]
+        .filter((value): value is string => typeof value === 'string' && value.trim().length > 0),
+    [anime]
+  );
   const poster =
     anime?.coverImage?.extraLarge || anime?.coverImage?.large || anime?.coverImage?.medium;
   const totalEpisodes = anime?.episodes || 0;
@@ -135,11 +143,13 @@ export default function AnimeDetailScreen() {
 
   useEffect(() => {
     if (!anime) return;
-    // Filler guides are keyed by the media id used across the app, with the
-    // title as a fallback match. This keeps newer titles from losing their
-    // guide just because an alternate id exists.
-    api.filler.get(id, title).then(setFiller).catch(() => setFiller(null));
-  }, [id, anime, title]);
+    // Pass every identifier we know so the shared API can try strict AniList
+    // id, then MAL id, then normalised title/alias matching.
+    api.filler
+      .get({ anilistId: id, malId, title, aliases: fillerAliases })
+      .then(setFiller)
+      .catch(() => setFiller(null));
+  }, [id, anime, title, malId, fillerAliases]);
 
   // Genre-based recommendations once the anime (and its genres) load.
   useEffect(() => {
@@ -492,7 +502,13 @@ export default function AnimeDetailScreen() {
         <TouchableOpacity
           style={styles.actionCard}
           onPress={() =>
-            navigation.navigate('FillerGuide', { id: anime.id, title, image: poster })
+            navigation.navigate('FillerGuide', {
+              id: anime.id,
+              title,
+              image: poster,
+              malId,
+              aliases: fillerAliases,
+            })
           }
         >
           <Text style={styles.actionIcon}>⚡</Text>
@@ -507,15 +523,6 @@ export default function AnimeDetailScreen() {
           <Text style={styles.actionIcon}>💬</Text>
           <Text style={styles.actionLabel}>Discuss</Text>
         </TouchableOpacity>
-        {anime.siteUrl ? (
-          <TouchableOpacity
-            style={styles.actionCard}
-            onPress={() => Linking.openURL(anime.siteUrl!).catch(() => {})}
-          >
-            <Text style={styles.actionIcon}>🔗</Text>
-            <Text style={styles.actionLabel}>More info</Text>
-          </TouchableOpacity>
-        ) : null}
       </View>
 
       {filler && filler.episodes.length > 0 && filler.totalFillers > 0 ? (
@@ -524,7 +531,13 @@ export default function AnimeDetailScreen() {
             <Text style={styles.sectionTitle}>Filler</Text>
             <TouchableOpacity
               onPress={() =>
-                navigation.navigate('FillerGuide', { id: anime.id, title, image: poster })
+                navigation.navigate('FillerGuide', {
+                  id: anime.id,
+                  title,
+                  image: poster,
+                  malId,
+                  aliases: fillerAliases,
+                })
               }
             >
               <Text style={styles.seeAll}>Full guide →</Text>
