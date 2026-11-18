@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { NativeModules } from 'react-native';
+import { absoluteAvatarUrl } from '../utils/helpers';
 import {
   Anime,
   CharacterEdge,
@@ -38,7 +39,7 @@ import {
   WatchlistItem,
 } from '../types';
 
-const WEB_HOST = 'https://zyverse.in';
+export const WEB_HOST = 'https://zyverse.in';
 const WEB_API = `${WEB_HOST}/api`;
 const ANILIST_GQL = 'https://graphql.anilist.co';
 
@@ -51,21 +52,24 @@ let cachedDevice: string | null = null;
 // the app usable offline instead of showing a bare error screen.
 const CACHE_PREFIX = 'zt_cache_v2';
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
+// Filler lists change as episodes air; keep that cache short so a freshly
+// published guide is not hidden behind a stale copy for hours.
+const FILLER_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const REQUEST_TIMEOUT_MS = 25 * 1000;
 
-async function cacheGet<T>(key: string): Promise<T | null> {
+async function cacheGet<T>(key: string, ttlMs = CACHE_TTL_MS): Promise<T | null> {
   try {
     const raw = await AsyncStorage.getItem(`${CACHE_PREFIX}_${key}`);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as { t: number; v: T };
-    if (Date.now() - parsed.t > CACHE_TTL_MS) return null;
+    if (Date.now() - parsed.t > ttlMs) return null;
     return parsed.v;
   } catch {
     return null;
   }
 }
 
-async function cacheSet<T>(key: string, value: T): Promise<void> {
+async function cacheSet<T>(key: string, value: T, ttlMs = CACHE_TTL_MS): Promise<void> {
   try {
     await AsyncStorage.setItem(
       `${CACHE_PREFIX}_${key}`,
@@ -80,7 +84,7 @@ async function cacheSet<T>(key: string, value: T): Promise<void> {
  * How long a cached copy may hold the screen while the network request keeps
  * running. The CDN answers a warm route in ~50 ms, so a fast network always
  * wins the race and the user still sees live data. Only a genuinely slow
- * request (cold scrape, AniList hiccup, weak mobile signal) falls back to the
+ * request (cold scrape, upstream hiccup, weak mobile signal) falls back to the
  * last known copy — which is far better than a spinner.
  */
 const CACHE_FIRST_GRACE_MS = 600;
@@ -92,12 +96,16 @@ function wait(ms: number): Promise<void> {
 /** De-duplicates concurrent requests for the same key (e.g. Home + Browse). */
 const inFlightReads = new Map<string, Promise<unknown>>();
 
-async function fetchWithCache<T>(key: string, fetcher: () => Promise<T>): Promise<T> {
+async function fetchWithCache<T>(
+  key: string,
+  fetcher: () => Promise<T>,
+  ttlMs = CACHE_TTL_MS
+): Promise<T> {
   let network = inFlightReads.get(key) as Promise<T> | undefined;
   if (!network) {
     network = (async () => {
       const live = await fetcher();
-      await cacheSet(key, live);
+      await cacheSet(key, live, ttlMs);
       return live;
     })();
     inFlightReads.set(key, network);
@@ -108,7 +116,7 @@ async function fetchWithCache<T>(key: string, fetcher: () => Promise<T>): Promis
       });
   }
 
-  const cached = await cacheGet<T>(key);
+  const cached = await cacheGet<T>(key, ttlMs);
   if (cached === null) return network;
 
   const first = await Promise.race([
@@ -135,6 +143,29 @@ function buildUrl(path: string, params?: Record<string, string | number | undefi
     .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
     .join('&');
   return query ? `${base}?${query}` : base;
+}
+
+/**
+ * Absolute, carrier-friendly URL for any artwork shown in the app.
+ *
+ * Known artwork hosts are routed through the site's cached image proxy so
+ * mobile networks do not hit upstream rate limits or hotlink blocks. Already
+ * proxied paths, relative uploads, data/blob URIs and unknown hosts are kept
+ * usable as-is. Returns null for empty or unusable values so callers can show
+ * their branded placeholder instead of a blank image.
+ */
+export function mediaImageUrl(value?: string | null): string | null {
+  if (typeof value !== 'string') return null;
+  let raw = value.trim();
+  if (!raw) return null;
+  if (raw.startsWith('//')) raw = `https:${raw}`;
+  // Tolerate CDN URLs pasted without a scheme.
+  else if (!/^[a-z][a-z\d+.-]*:/i.test(raw) && !raw.startsWith('/') && raw.includes('.')) {
+    raw = `https://${raw}`;
+  }
+  // The proxy only accepts HTTPS upstreams.
+  if (/^http:\/\//i.test(raw)) raw = `https://${raw.slice('http://'.length)}`;
+  return absoluteAvatarUrl(raw) || null;
 }
 
 async function fetchWithTimeout(
@@ -514,7 +545,7 @@ export async function getWebBridgeToken(): Promise<string | null> {
 }
 
 /* ------------------------------------------------------------------ */
-/* AniList / public media                                              */
+/* Public media catalogue                                              */
 /* ------------------------------------------------------------------ */
 
 const ANIME_DETAIL_QUERY = `
@@ -676,31 +707,55 @@ async function batchMedia(ids: number[]): Promise<Anime[]> {
   }).then((d) => (d?.media || []).map(normalizeAnime));
 }
 
-async function getFiller(id: number): Promise<FillerData> {
-  return fetchWithCache(`filler_${id}`, async () => {
-    const data = await requestJson<any>(`${WEB_API}/filler/${id}`);
-    const episodes = ((data?.episodes || []) as any[]).map((e) => {
-      const rawType = String(e.type || '').toLowerCase();
-      const type: FillerData['episodes'][number]['type'] =
-        rawType === 'filler' ? 'filler' : rawType.includes('mixed') ? 'mixed' : 'canon';
-      return { episode: e.episode, type, title: e.title };
-    });
-    const totalFillers = episodes.filter((e) => e.type === 'filler').length;
-    const total = Number(data?.total) || episodes.length;
-    return {
-      animeId: id,
-      title: data?.title || 'Unknown',
-      totalEpisodes: total,
-      totalFillers,
-      fillerPercentage:
-        data?.fillerPercent != null
-          ? Number(data.fillerPercent)
-          : total > 0
-            ? Math.round((totalFillers / total) * 100)
-            : 0,
-      episodes,
-    };
-  });
+interface FillerLookup {
+  found: boolean;
+  data?: FillerData;
+}
+
+/**
+ * Filler guides are keyed by the shared media id. The title is sent as a fallback so a
+ * newly added show can still be matched; `null` means "no guide for this title"
+ * while a thrown error means the request itself failed.
+ */
+async function getFiller(id: number, title?: string): Promise<FillerData | null> {
+  const lookupKey = `filler_${id}_${(title || '').trim().toLowerCase()}`;
+  const lookup = await fetchWithCache<FillerLookup>(
+    lookupKey,
+    async () => {
+      const data = await requestJson<any>(
+        buildUrl(`/filler/${id}`, { title: title?.trim() || undefined })
+      );
+      if (data?.found === false || !data || !Array.isArray(data.episodes)) {
+        return { found: false };
+      }
+      const episodes = (data.episodes as any[]).map((e) => {
+        const rawType = String(e.type || '').toLowerCase();
+        const type: FillerData['episodes'][number]['type'] =
+          rawType === 'filler' ? 'filler' : rawType.includes('mixed') ? 'mixed' : 'canon';
+        return { episode: Number(e.episode), type, title: e.title };
+      });
+      const totalFillers = episodes.filter((e) => e.type === 'filler').length;
+      const total = Number(data.total) || episodes.length;
+      return {
+        found: true,
+        data: {
+          animeId: id,
+          title: data.title || title || 'Unknown',
+          totalEpisodes: total,
+          totalFillers,
+          fillerPercentage:
+            data.fillerPercent != null
+              ? Number(data.fillerPercent)
+              : total > 0
+                ? Math.round((totalFillers / total) * 100)
+                : 0,
+          episodes,
+        } as FillerData,
+      };
+    },
+    FILLER_CACHE_TTL_MS
+  );
+  return lookup.found && lookup.data ? lookup.data : null;
 }
 
 async function getDubStatus(malId: number): Promise<DubStatus> {
@@ -811,7 +866,7 @@ async function getDubGenres(kind?: 'series' | 'movie'): Promise<DubGenreStat[]> 
   return Array.isArray(data?.genres) ? data.genres : [];
 }
 
-/** One request for the unified Dub Hub: stats, languages, genres and sources. */
+/** One request for the unified Dub Hub: stats, languages and genres. */
 async function getDubOverview(): Promise<DubOverviewResponse | null> {
   try {
     return await fetchWithCache('dub_overview', () =>
@@ -1329,7 +1384,7 @@ async function peekTvSchedule(day?: string): Promise<import('../types').TvSchedu
 }
 
 /**
- * The live TV grid is scraped from epg.pw at request time and can be slow.
+ * The live TV grid is fetched from the upstream schedule at request time and can be slow.
  * It is therefore best-effort: a timeout simply means "no live grid right now".
  */
 async function getTvScheduleLive(day?: string): Promise<import('../types').TvScheduleResponse | null> {

@@ -192,10 +192,9 @@ export default function LiveDubsScreen() {
             <View style={[styles.heroGlow, { backgroundColor: `${tint}22` }]} />
             <Text style={styles.heroEmoji}>📡</Text>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.heroTitle, { color: colors.text }]}>Official Indian Anime Drops</Text>
+              <Text style={[styles.heroTitle, { color: colors.text }]}>Indian Anime Drops</Text>
               <Text style={[styles.heroText, { color: colors.textMuted }]}>
-                Newly uploaded Hindi, Tamil and Telugu episodes straight from the official YouTube
-                channels of Muse India, Ani-One Asia, Crunchyroll India and more.
+                New Hindi, Tamil and Telugu episodes as soon as they are announced.
               </Text>
             </View>
           </View>
@@ -210,10 +209,6 @@ export default function LiveDubsScreen() {
                 <Text style={[styles.statLabel, { color: colors.textDim }]}>Drops</Text>
               </View>
               <View style={[styles.statBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                <Text style={[styles.statValue, { color: tint }]}>{sources.length}</Text>
-                <Text style={[styles.statLabel, { color: colors.textDim }]}>Channels</Text>
-              </View>
-              <View style={[styles.statBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                 <Text style={[styles.statValue, { color: tint }]}>{languages.length}</Text>
                 <Text style={[styles.statLabel, { color: colors.textDim }]}>Languages</Text>
               </View>
@@ -221,59 +216,6 @@ export default function LiveDubsScreen() {
           </FadeInView>
         )}
 
-        {/* Source chips */}
-        {sources.length > 0 && (
-          <FadeInView delay={90}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-              <TouchableOpacity
-                onPress={() => setActiveSource('all')}
-                style={[
-                  styles.chip,
-                  {
-                    backgroundColor: activeSource === 'all' ? tint : colors.surface,
-                    borderColor: activeSource === 'all' ? tint : colors.border,
-                  },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.chipText,
-                    { color: activeSource === 'all' ? '#0b0b10' : colors.textMuted, fontWeight: '800' },
-                  ]}
-                >
-                  All platforms
-                </Text>
-              </TouchableOpacity>
-              {sources.map((s) => {
-                const active = activeSource === s.id;
-                return (
-                  <TouchableOpacity
-                    key={s.id}
-                    onPress={() => setActiveSource(s.id)}
-                    style={[
-                      styles.chip,
-                      { backgroundColor: active ? tint : colors.surface, borderColor: active ? tint : colors.border },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.chipText,
-                        { color: active ? '#0b0b10' : colors.textMuted, fontWeight: '700' },
-                      ]}
-                    >
-                      {s.name}
-                    </Text>
-                    <View style={[styles.countPill, { backgroundColor: active ? '#0b0b1033' : `${tint}22` }]}>
-                      <Text style={[styles.countText, { color: active ? '#0b0b10' : tint }]}>
-                        {s.entries.length}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          </FadeInView>
-        )}
 
         {/* Language filters */}
         {languages.length > 0 && (
@@ -348,7 +290,7 @@ export default function LiveDubsScreen() {
                           </View>
                         )}
                         <Text style={[styles.sourceText, { color: colors.textDim }]} numberOfLines={1}>
-                          {(entry as any).sourceName || 'Streaming'}
+                          {entry.language || 'Streaming'}
                         </Text>
                       </View>
                       <View style={styles.bottomRow}>

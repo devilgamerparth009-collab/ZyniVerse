@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
   ScrollView,
-  TouchableOpacity,
   StyleSheet,
   RefreshControl,
 } from 'react-native';
@@ -12,158 +11,227 @@ import { colors, themed, spacing, fontSize, borderRadius } from '../theme';
 import { useTheme } from '../hooks/useTheme';
 import { getEpisodeTypeColor } from '../utils/helpers';
 import FillerProgress from '../components/FillerProgress';
-import LoadingSpinner from '../components/LoadingSpinner';
-import ErrorView from '../components/ErrorView';
 import FadeInView from '../components/FadeInView';
+import PressableScale from '../components/PressableScale';
+import SafeImage from '../components/SafeImage';
+import { SkeletonBlock } from '../components/Skeletons';
 import { api } from '../services/api';
+import type { FillerData } from '../types';
 
-interface FillerEpisode {
-  episode: number;
-  type: 'canon' | 'filler' | 'mixed';
-  title?: string;
-  score?: number;
-}
-
-interface FillerData {
-  totalEpisodes: number;
-  totalFillers: number;
-  fillerPercentage: number;
-  episodes: FillerEpisode[];
-}
+type GuideState =
+  | { kind: 'loading' }
+  | { kind: 'error'; message: string }
+  | { kind: 'no-data' }
+  | { kind: 'no-fillers'; data: FillerData }
+  | { kind: 'ready'; data: FillerData };
 
 export default function FillerGuideScreen() {
   const route = useRoute<any>();
-  const { id, title: animeTitle } = route.params;
+  const { id, title: animeTitle, image } = route.params || {};
   const { colors, isDiwali } = useTheme();
   const primaryAccent = isDiwali ? '#f59e0b' : colors.primary;
 
-  const [data, setData] = useState<FillerData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const fillerId = Number(id);
+  const hasTitle = typeof animeTitle === 'string' && animeTitle.trim().length > 0;
+  const displayTitle = hasTitle ? (animeTitle as string).trim() : 'This title';
+
+  const [state, setState] = useState<GuideState>({ kind: 'loading' });
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+    setState({ kind: 'loading' });
     try {
-      const result = await api.filler.get(id);
-      if (result && result.episodes && result.episodes.length > 0) {
-        setData({
-          totalEpisodes: result.totalEpisodes,
-          totalFillers: result.totalFillers,
-          fillerPercentage: result.fillerPercentage,
-          episodes: result.episodes,
+      if (!Number.isFinite(fillerId) || fillerId <= 0) {
+        setState({
+          kind: 'error',
+          message: 'This title could not be looked up. Please open it again from its detail page.',
         });
-      } else {
-        setData(null);
+        return;
       }
-    } catch {
-      setError('Could not load filler data');
+      const result = await api.filler.get(fillerId, hasTitle ? displayTitle : undefined);
+      if (!result) {
+        setState({ kind: 'no-data' });
+        return;
+      }
+      const hasFillerEpisodes = result.episodes.some((ep) => ep.type === 'filler');
+      if (!hasFillerEpisodes || result.totalFillers === 0) {
+        setState({ kind: 'no-fillers', data: result });
+        return;
+      }
+      setState({ kind: 'ready', data: result });
+    } catch (e: any) {
+      setState({
+        kind: 'error',
+        message: e?.message || 'Network error. Please try again when you are back online.',
+      });
+    } finally {
+      setRefreshing(false);
     }
-    setLoading(false);
-    setRefreshing(false);
-  }, [id]);
+  }, [displayTitle, fillerId, hasTitle]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
-  const onRefresh = () => { setRefreshing(true); fetchData(); };
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchData();
+  }, [fetchData]);
 
-  const canonCount = data?.episodes?.filter((e) => e.type === 'canon').length || 0;
-  const mixedCount = data?.episodes?.filter((e) => e.type === 'mixed').length || 0;
-  const fillerCount = data?.episodes?.filter((e) => e.type === 'filler').length || 0;
+  const renderGuide = (data: FillerData, zeroFillers: boolean) => {
+    const canonCount = data.episodes.filter((ep) => ep.type === 'canon').length;
+    const mixedCount = data.episodes.filter((ep) => ep.type === 'mixed').length;
+    const fillerCount = data.episodes.filter((ep) => ep.type === 'filler').length;
+
+    return (
+      <>
+        {zeroFillers ? (
+          <FadeInView delay={40}>
+            <View style={[styles.noticeCard, { borderColor: `${colors.success}66` }]}>
+              <Text style={styles.noticeIcon}>✅</Text>
+              <Text style={[styles.noticeTitle, { color: colors.text }]}>
+                No filler episodes found
+              </Text>
+              <Text style={[styles.noticeText, { color: colors.textMuted }]}>
+                Every listed episode for this title is canon or mixed. You can watch straight through.
+              </Text>
+            </View>
+          </FadeInView>
+        ) : null}
+
+        <FadeInView delay={80}>
+          <FillerProgress
+            totalEpisodes={data.totalEpisodes}
+            totalFillers={data.totalFillers}
+            fillerPercentage={data.fillerPercentage}
+          />
+        </FadeInView>
+
+        <FadeInView delay={120} style={styles.summaryRow}>
+          <View style={[styles.summaryBox, { borderColor: colors.success }]}>
+            <Text style={[styles.summaryCount, { color: colors.success }]}>{canonCount}</Text>
+            <Text style={styles.summaryLabel}>Canon</Text>
+          </View>
+          <View style={[styles.summaryBox, { borderColor: colors.warning }]}>
+            <Text style={[styles.summaryCount, { color: colors.warning }]}>{mixedCount}</Text>
+            <Text style={styles.summaryLabel}>Mixed</Text>
+          </View>
+          <View style={[styles.summaryBox, { borderColor: colors.error }]}>
+            <Text style={[styles.summaryCount, { color: colors.error }]}>{fillerCount}</Text>
+            <Text style={styles.summaryLabel}>Filler</Text>
+          </View>
+        </FadeInView>
+
+        <FadeInView delay={160} style={styles.legend}>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: colors.success }]} />
+            <Text style={styles.legendText}>Canon</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: colors.warning }]} />
+            <Text style={styles.legendText}>Mixed</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: colors.error }]} />
+            <Text style={styles.legendText}>Filler</Text>
+          </View>
+        </FadeInView>
+
+        <View style={styles.episodeList}>
+          <FadeInView delay={190}>
+            <Text style={styles.sectionTitle}>Episodes</Text>
+          </FadeInView>
+          {data.episodes.map((ep, index) => (
+            <FadeInView
+              key={ep.episode}
+              delay={Math.min(210 + (index % 12) * 20, 520)}
+              duration={300}
+              offset={10}
+            >
+              <View style={[styles.episodeItem, { borderLeftColor: getEpisodeTypeColor(ep.type) }]}>
+                <View style={styles.episodeInfo}>
+                  <Text style={styles.episodeNumber}>Ep. {ep.episode}</Text>
+                  {!!ep.title ? <Text style={styles.episodeTitle}>{ep.title}</Text> : null}
+                </View>
+                <View
+                  style={[
+                    styles.episodeTypeBadge,
+                    { backgroundColor: `${getEpisodeTypeColor(ep.type)}33` },
+                  ]}
+                >
+                  <Text style={[styles.episodeTypeText, { color: getEpisodeTypeColor(ep.type) }]}>
+                    {ep.type}
+                  </Text>
+                </View>
+              </View>
+            </FadeInView>
+          ))}
+        </View>
+      </>
+    );
+  };
 
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
       showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={primaryAccent} />}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={primaryAccent} />
+      }
     >
       <FadeInView duration={360}>
-        <Text style={styles.title}>{animeTitle}</Text>
+        <View style={[styles.hero, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <SafeImage
+            uri={image}
+            fallbackLabel={displayTitle}
+            style={styles.heroPoster}
+            accessibilityLabel={displayTitle}
+          />
+          <View style={styles.heroText}>
+            <Text style={[styles.eyebrow, { color: primaryAccent }]}>FILLER GUIDE</Text>
+            <Text style={[styles.title, { color: colors.text }]} numberOfLines={3}>
+              {displayTitle}
+            </Text>
+            <Text style={[styles.heroSub, { color: colors.textMuted }]}>
+              Skip the filler. Keep the story.
+            </Text>
+          </View>
+        </View>
       </FadeInView>
 
-      {loading ? (
-        <LoadingSpinner />
-      ) : error ? (
-        <ErrorView message={error} onRetry={fetchData} />
-      ) : data ? (
-        <>
-          <FadeInView delay={60}>
-            <FillerProgress
-              totalEpisodes={data.totalEpisodes}
-              totalFillers={data.totalFillers}
-              fillerPercentage={data.fillerPercentage}
-            />
-          </FadeInView>
-
-          {/* Summary */}
-          <FadeInView delay={120} style={styles.summaryRow}>
-            <View style={[styles.summaryBox, { borderColor: colors.success }]}>
-              <Text style={[styles.summaryCount, { color: colors.success }]}>{canonCount}</Text>
-              <Text style={styles.summaryLabel}>Canon</Text>
-            </View>
-            <View style={[styles.summaryBox, { borderColor: colors.warning }]}>
-              <Text style={[styles.summaryCount, { color: colors.warning }]}>{mixedCount}</Text>
-              <Text style={styles.summaryLabel}>Mixed</Text>
-            </View>
-            <View style={[styles.summaryBox, { borderColor: colors.error }]}>
-              <Text style={[styles.summaryCount, { color: colors.error }]}>{fillerCount}</Text>
-              <Text style={styles.summaryLabel}>Filler</Text>
-            </View>
-          </FadeInView>
-
-          {/* Legend */}
-          <FadeInView delay={170} style={styles.legend}>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: colors.success }]} />
-              <Text style={styles.legendText}>Canon</Text>
-            </View>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: colors.warning }]} />
-              <Text style={styles.legendText}>Mixed</Text>
-            </View>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: colors.error }]} />
-              <Text style={styles.legendText}>Filler</Text>
-            </View>
-          </FadeInView>
-
-          {/* Episode List */}
-          <View style={styles.episodeList}>
-            <FadeInView delay={210}>
-              <Text style={styles.sectionTitle}>Episodes</Text>
-            </FadeInView>
-            {data.episodes.map((ep, index) => (
-              <FadeInView
-                key={ep.episode}
-                delay={Math.min(230 + (index % 12) * 22, 520)}
-                duration={300}
-                offset={10}
-              >
-                <View
-                  style={[
-                    styles.episodeItem,
-                    { borderLeftColor: getEpisodeTypeColor(ep.type) },
-                  ]}
-                >
-                  <View style={styles.episodeInfo}>
-                    <Text style={styles.episodeNumber}>Ep. {ep.episode}</Text>
-                    {ep.title ? <Text style={styles.episodeTitle}>{ep.title}</Text> : null}
-                  </View>
-                  <View style={[styles.episodeTypeBadge, { backgroundColor: getEpisodeTypeColor(ep.type) + '33' }]}>
-                    <Text style={[styles.episodeTypeText, { color: getEpisodeTypeColor(ep.type) }]}>
-                      {ep.type}
-                    </Text>
-                  </View>
-                </View>
-              </FadeInView>
-            ))}
-          </View>
-        </>
-      ) : (
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyText}>No filler data available for this anime</Text>
+      {state.kind === 'loading' ? (
+        <View style={styles.skeletonWrap}>
+          <SkeletonBlock height={70} radius={borderRadius.lg} />
+          <SkeletonBlock height={54} style={styles.skeletonGap} radius={borderRadius.md} />
+          {[0, 1, 2, 3, 4].map((i) => (
+            <SkeletonBlock key={i} height={38} style={styles.skeletonGap} radius={borderRadius.md} />
+          ))}
         </View>
+      ) : state.kind === 'error' ? (
+        <View style={styles.stateCard}>
+          <Text style={styles.stateIcon}>⚠️</Text>
+          <Text style={[styles.stateTitle, { color: colors.text }]}>Could not load the guide</Text>
+          <Text style={[styles.stateText, { color: colors.textMuted }]}>{state.message}</Text>
+          <PressableScale onPress={fetchData} style={[styles.retryBtn, { backgroundColor: primaryAccent }]}>
+            <Text style={[styles.retryText, { color: '#0a0a0f' }]}>Try again</Text>
+          </PressableScale>
+        </View>
+      ) : state.kind === 'no-data' ? (
+        <View style={styles.stateCard}>
+          <Text style={styles.stateIcon}>📭</Text>
+          <Text style={[styles.stateTitle, { color: colors.text }]}>
+            No guide available for this title
+          </Text>
+          <Text style={[styles.stateText, { color: colors.textMuted }]}>
+            We do not have a filler list for “{displayTitle}” yet. Check back after the next update or
+            try another title.
+          </Text>
+          <PressableScale onPress={fetchData} style={[styles.retryBtn, { backgroundColor: primaryAccent }]}>
+            <Text style={[styles.retryText, { color: '#0a0a0f' }]}>Check again</Text>
+          </PressableScale>
+        </View>
+      ) : (
+        renderGuide(state.data, state.kind === 'no-fillers')
       )}
 
       <View style={{ height: spacing.xxl }} />
@@ -177,16 +245,107 @@ const styles = themed(() => ({
     backgroundColor: colors.background,
     paddingHorizontal: spacing.md,
   },
+  hero: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    borderWidth: 1,
+    borderRadius: borderRadius.lg,
+    padding: spacing.sm + 4,
+    marginTop: spacing.md,
+  },
+  heroPoster: {
+    width: 66,
+    height: 92,
+    borderRadius: borderRadius.md,
+  },
+  heroText: {
+    flex: 1,
+  },
+  eyebrow: {
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.4,
+  },
   title: {
     color: colors.text,
-    fontSize: fontSize.xl,
-    fontWeight: '700',
-    marginBottom: spacing.md,
+    fontSize: fontSize.lg,
+    fontWeight: '800',
+    lineHeight: 23,
+    marginTop: 3,
+  },
+  heroSub: {
+    color: colors.textMuted,
+    fontSize: fontSize.xs,
+    marginTop: 4,
+  },
+  skeletonWrap: {
     marginTop: spacing.md,
+  },
+  skeletonGap: {
+    marginTop: spacing.sm,
+  },
+  stateCard: {
+    alignItems: 'center',
+    paddingVertical: spacing.xl,
+    paddingHorizontal: spacing.lg,
+    marginTop: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: borderRadius.lg,
+    backgroundColor: colors.surface,
+  },
+  stateIcon: {
+    fontSize: 34,
+  },
+  stateTitle: {
+    fontSize: fontSize.lg,
+    fontWeight: '800',
+    textAlign: 'center',
+    marginTop: spacing.sm,
+  },
+  stateText: {
+    fontSize: fontSize.sm,
+    lineHeight: 20,
+    textAlign: 'center',
+    marginTop: spacing.xs + 2,
+  },
+  retryBtn: {
+    marginTop: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm + 2,
+    borderRadius: borderRadius.full,
+  },
+  retryText: {
+    fontSize: fontSize.sm,
+    fontWeight: '800',
+  },
+  noticeCard: {
+    borderWidth: 1,
+    borderRadius: borderRadius.lg,
+    backgroundColor: colors.surface,
+    padding: spacing.md,
+    marginTop: spacing.md,
+    alignItems: 'center',
+  },
+  noticeIcon: {
+    fontSize: 26,
+  },
+  noticeTitle: {
+    fontSize: fontSize.md,
+    fontWeight: '800',
+    marginTop: spacing.xs,
+  },
+  noticeText: {
+    fontSize: fontSize.sm,
+    lineHeight: 19,
+    textAlign: 'center',
+    marginTop: spacing.xs,
   },
   summaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginTop: spacing.md,
     marginBottom: spacing.md,
     gap: spacing.sm,
   },
@@ -266,13 +425,5 @@ const styles = themed(() => ({
     fontSize: fontSize.xs,
     fontWeight: '600',
     textTransform: 'uppercase',
-  },
-  emptyState: {
-    paddingVertical: spacing.xxl,
-    alignItems: 'center',
-  },
-  emptyText: {
-    color: colors.textDim,
-    fontSize: fontSize.md,
   },
 }));

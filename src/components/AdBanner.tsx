@@ -23,33 +23,75 @@ interface ApiPlacement {
 }
 
 /**
+ * One probe result is shared by every AdBanner on the page. Previously each
+ * slot fired its own cross-origin request and waited up to 4s, so a page with
+ * five ad slots paid that cost five times and showed five empty boxes while the
+ * blockers stalled the requests.
+ */
+const AD_PROBE_TIMEOUT_MS = 1800;
+const adProbeCache = new Map<string, boolean | Promise<boolean>>();
+
+function probeAdNetwork(url: string): Promise<boolean> {
+  const cached = adProbeCache.get(url);
+  if (typeof cached === "boolean") return Promise.resolve(cached);
+  if (cached) return cached;
+
+  const pending = new Promise<boolean>((resolve) => {
+    let settled = false;
+    const controller =
+      typeof AbortController === "undefined" ? null : new AbortController();
+    const timer = setTimeout(() => finish(false), AD_PROBE_TIMEOUT_MS);
+
+    function finish(value: boolean) {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      controller?.abort();
+      adProbeCache.set(url, value);
+      resolve(value);
+    }
+
+    fetch(url, {
+      mode: "no-cors",
+      cache: "no-store",
+      signal: controller?.signal,
+    })
+      .then(() => finish(true))
+      .catch(() => finish(false));
+  });
+
+  adProbeCache.set(url, pending);
+  return pending;
+}
+
+/**
  * Detects whether the ad network is reachable. On PCs running an ad blocker
  * (uBlock, Brave Shields, DNS-level blockers) the invoke.js request fails or
  * hangs — in that case we collapse the slot instead of leaving an empty
- * "Advertisement" box.
+ * "Advertisement" box. The result is process-wide, not per slot.
  */
 function useAdNetworkAvailable(code: string): boolean | null {
   const invokeUrl = code.match(/https:\/\/[^"'<\s]+invoke\.js/)?.[0] ??
     code.match(/https:\/\/[^"'<\s]+\.js/)?.[0];
   const key = invokeUrl ?? "";
-  const [available, setAvailable] = useState<boolean | null>(null);
+  const cached = key ? adProbeCache.get(key) : undefined;
+  const [available, setAvailable] = useState<boolean | null>(
+    typeof cached === "boolean" ? cached : null
+  );
 
   useEffect(() => {
-    if (!key) return;
-    let settled = false;
-    const settle = (v: boolean) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      setAvailable(v);
-    };
-    // Abort fast on hosts that stall (blockers): assume blocked after 4s.
-    const timer = setTimeout(() => settle(false), 4000);
-    fetch(key, { mode: "no-cors", cache: "no-store" })
-      .then(() => settle(true))
-      .catch(() => settle(false));
+    if (!key) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setAvailable(true);
+      return;
+    }
+    let cancelled = false;
+    setAvailable(typeof adProbeCache.get(key) === "boolean" ? (adProbeCache.get(key) as boolean) : null);
+    probeAdNetwork(key).then((result) => {
+      if (!cancelled) setAvailable(result);
+    });
     return () => {
-      clearTimeout(timer);
+      cancelled = true;
     };
   }, [key]);
 

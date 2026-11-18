@@ -10,7 +10,7 @@ export const metadata: Metadata = {
     "hindi dubbed anime", "tamil dubbed anime", "telugu dubbed anime",
     "anime in hindi", "anime in tamil", "anime in telugu",
     "indian dubbed anime list", "dubbed anime schedule india",
-    "hindi anime episodes", "sony yay hungama cartoon network anime",
+    "hindi anime episodes", "indian anime broadcast guide",
   ],
   openGraph: {
     images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "ZyniVerse — anime filler guides, watch orders and dub tracking" }],

@@ -68,8 +68,8 @@ export default async function VibePage() {
           Vibe
         </h1>
         <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-[var(--color-mute)]">
-          Poore fandom ka mood ek jagah — kaun kya dekh raha hai abhi, kaunse rooms live hain, aur
-          kaunse titles sabse zyada chal rahe hain. Sirf counts, kabhi naam nahi. 🔒
+          The whole fandom's mood in one place — what everyone is watching, which rooms are live and
+          which titles are trending. Counts only, never names. 🔒
         </p>
       </section>
 
@@ -161,7 +161,7 @@ export default async function VibePage() {
                     The room is quiet
                   </p>
                   <p className="mt-1 text-sm text-[var(--color-mute)]">
-                    Jab fans apni lists update karenge, pulse yahan light up ho jayega.
+                    This pulse will light up as fans update their lists.
                   </p>
                 </div>
               ) : (
@@ -217,8 +217,8 @@ export default async function VibePage() {
             <div className="mt-10 rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)]/60 p-4">
               <p className="text-sm font-bold text-[var(--color-ink)]">🔒 Privacy first</p>
               <p className="mt-1 text-xs leading-relaxed text-[var(--color-mute)]">
-                Vibe sirf counts dikhata hai. Koi username, user id ya kisi ki personal watchlist
-                kabhi return nahi hoti — bas fandom ka shape.
+                Vibe shows counts only. No usernames, user IDs or personal watchlists are ever returned —
+                just the shape of the fandom.
               </p>
             </div>
           </FadeIn>

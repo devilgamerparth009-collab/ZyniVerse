@@ -34,7 +34,7 @@ export interface RailData {
 }
 
 function formatCountdown(minutes: number): string {
-  if (minutes <= 0) return "jaise abhi";
+  if (minutes <= 0) return "right now";
   if (minutes < 60) return `${minutes}m`;
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
@@ -216,7 +216,7 @@ export default function NowNextRail({ data }: { data: RailData | null }) {
   if (!data || rows.length === 0) {
     return (
       <div className="glass-panel rounded-2xl p-4 text-center font-mono text-xs text-[var(--color-mute)]">
-        EPG data load ho raha hai — thodi der me now/next yahaan dikhega…
+        Loading the live guide — now and next will appear shortly…
       </div>
     );
   }
@@ -264,7 +264,7 @@ export default function NowNextRail({ data }: { data: RailData | null }) {
         </div>
 
         <p className="mt-3 font-mono text-[9px] uppercase tracking-wider text-[var(--color-mute)]/70">
-          Row pe click karke channel ke full schedule me jump karo · updated {new Date(data.updatedAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
+          Select a row to open the channel's full schedule · updated {new Date(data.updatedAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
         </p>
       </div>
     </motion.section>

@@ -106,6 +106,7 @@ export default function UpdateScreen() {
   };
 
   const updateAvailable = !!release?.updateAvailable && !ready;
+  const rollback = !!release?.rollback;
   const hasReady = !!ready;
   const installedCode = currentVersionCode();
   const installedName = currentVersionName();
@@ -182,14 +183,18 @@ export default function UpdateScreen() {
                   {hasReady
                     ? `Version ${release.latestVersionName} is ready`
                     : release.updateAvailable
-                      ? `Version ${release.latestVersionName} available`
+                      ? rollback
+                        ? `Stable build ${release.latestVersionName} available`
+                        : `Version ${release.latestVersionName} available`
                       : 'You are up to date'}
                 </Text>
                 <Text style={[styles.muted, { color: colors.textMuted }]}>
                   {hasReady
                     ? 'Tap Install to open Android’s installer. Your data and lists stay intact.'
                     : release.updateAvailable
-                      ? 'Download it here — no browser, no Play Store.'
+                      ? rollback
+                        ? 'This is the recommended stable build. Android may ask you to remove the newer build first.'
+                        : 'Download it here — no browser, no Play Store.'
                       : `Latest release is ${release.latestVersionName}. We will let you know when something new ships.`}
                 </Text>
 
@@ -256,7 +261,8 @@ export default function UpdateScreen() {
                 <ActivityIndicator color="#0a0a0f" />
               ) : (
                 <Text style={styles.primaryText}>
-                  Download {release?.sizeBytes ? formatBytes(release.sizeBytes) : 'update'}
+                  {rollback ? 'Download stable build' : 'Download'}{' '}
+                  {release?.sizeBytes ? formatBytes(release.sizeBytes) : 'update'}
                 </Text>
               )}
             </TouchableOpacity>
@@ -292,8 +298,9 @@ export default function UpdateScreen() {
         </FadeInView>
 
         <Text style={[styles.footnote, { color: colors.textDim }]}>
-          Updates are signed with the same key as your current app, so Android installs them
-          over the top. Nothing is deleted.
+          {rollback
+            ? 'This build uses the same app key. If Android blocks a version downgrade, remove the newer build first — your account data is stored on the server.'
+            : 'Updates are signed with the same key as your current app, so Android installs them over the top. Nothing is deleted.'}
         </Text>
       </ScrollView>
     </View>

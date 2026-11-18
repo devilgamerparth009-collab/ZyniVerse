@@ -581,7 +581,7 @@ function MixerCard({ results, mood }: { results: MediaCardItem[]; mood: string }
         {!pkg ? (
           <div className="flex items-center justify-between gap-3">
             <p className="text-xs text-[var(--color-mute)]">
-              <span className="font-semibold text-[var(--color-ink)]">{top?.title}</span> ke liye ek viral short-edits package banayein — hook, caption, song, scene &amp; hashtags.
+              Create a viral short-edit package for <span className="font-semibold text-[var(--color-ink)]">{top?.title}</span> — hook, caption, song, scene and hashtags.
             </p>
             <button
               onClick={() => void gen()}

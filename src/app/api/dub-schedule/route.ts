@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
-import { withPublicCache } from "@/lib/api-cache";
 import { getDubbedEntries } from "@/lib/editorial";
+import { withoutProviderFields } from "@/lib/dub-import/public-fields";
+import {
+  DUB_SCHEDULE_CACHE_META,
+  scheduleJson,
+} from "@/lib/dub-import/schedule-cache";
 export const dynamic = "force-dynamic";
 
 interface DubAnime {
@@ -23,7 +27,7 @@ async function GET_inner(request: Request) {
   const { searchParams } = new URL(request.url);
   const language = searchParams.get("language") || "all";
 
-  const { entries: dubbedEntries, lastUpdated: dubbedUpdatedAt } = await getDubbedEntries();
+  const { entries: dubbedEntries } = await getDubbedEntries();
 
   const allDubs: DubAnime[] = dubbedEntries.map((d) => ({
     mal_id: d.mal_id,
@@ -54,30 +58,33 @@ async function GET_inner(request: Request) {
   const comingSoon = filtered.filter((d) => d.comingSoonLanguages.length > 0);
   const recent = filtered.filter((d) => d.isCurrentSeason);
 
-  return NextResponse.json({
-    success: true,
-    source: dubbedUpdatedAt ? "editorial" : "bundled",
-    counts: {
-      total: filtered.length,
-      hindi: allDubs.filter((d) => d.hasHindi).length,
-      tamil: allDubs.filter((d) => d.hasTamil).length,
-      telugu: allDubs.filter((d) => d.hasTelugu).length,
-      english: allDubs.filter((d) => d.hasEnglish).length,
-      currentSeason: currentSeason.length,
-      available: available.length,
-      comingSoon: comingSoon.length,
-      recent: recent.length,
-    },
-    data: {
-      currentSeason,
-      available,
-      comingSoon,
-      recent,
-    },
-  });
+  return scheduleJson(
+    withoutProviderFields({
+      success: true,
+      // `source` (editorial/bundled) was a public field name that leaked the
+      // upstream provider concept; omit it rather than rename it.
+      counts: {
+        total: filtered.length,
+        hindi: allDubs.filter((d) => d.hasHindi).length,
+        tamil: allDubs.filter((d) => d.hasTamil).length,
+        telugu: allDubs.filter((d) => d.hasTelugu).length,
+        english: allDubs.filter((d) => d.hasEnglish).length,
+        currentSeason: currentSeason.length,
+        available: available.length,
+        comingSoon: comingSoon.length,
+        recent: recent.length,
+      },
+      data: {
+        currentSeason,
+        available,
+        comingSoon,
+        recent,
+      },
+      cache: DUB_SCHEDULE_CACHE_META,
+    })
+  );
 }
 
 export async function GET(...args: Parameters<typeof GET_inner>) {
-  const res = await GET_inner(...args);
-  return withPublicCache(res);
+  return GET_inner(...args);
 }

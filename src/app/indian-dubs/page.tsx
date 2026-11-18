@@ -423,7 +423,7 @@ export default async function IndianDubsPage() {
           <p className="font-display text-lg font-bold text-white">Clocks in IST</p>
           <p className="mt-2 text-sm leading-relaxed text-[var(--color-mute)]">
             No timezone math anywhere. Every window, board and countdown is set to Indian Standard Time — from the
-            Egghead arc&apos;s Monday 1:30 AM One Piece batches to Muse India&apos;s 8:15 PM daily Attack on Titan drops.
+            late-night One Piece batches to daily Attack on Titan drops on official channels.
             When an official date is announced, we start the countdown.
           </p>
         </div>

@@ -67,7 +67,7 @@ export default function AccountDataManager() {
       <section className="rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5">
         <h3 className="font-display font-bold">Download my data</h3>
         <p className="mt-1 text-sm text-[var(--color-mute)]">
-          Watchlist, progress, reviews, moments, reels, achievements aur bahut kuch — sab ek JSON file mein.
+          Watchlist, progress, reviews, moments, reels, achievements and more — all in one JSON file.
         </p>
         <button
           onClick={handleExport}
@@ -81,7 +81,7 @@ export default function AccountDataManager() {
       <section className="rounded-xl border border-red-500/30 bg-red-500/5 p-5">
         <h3 className="font-display font-bold text-red-400">Delete my account</h3>
         <p className="mt-1 text-sm text-[var(--color-mute)]">
-          Yeh permanent hai. Saara data, lists, reviews, achievements — sab delete ho jayega. Isse wapas nahi la sakte.
+          This is permanent. All data, lists, reviews and achievements will be deleted. You cannot restore them later.
         </p>
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <input

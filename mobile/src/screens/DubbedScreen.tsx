@@ -232,7 +232,7 @@ export default function DubbedScreen() {
       <FadeInView delay={0} style={styles.intro}>
         <Text style={styles.heading}>Anime Dubs</Text>
         <Text style={styles.subheading}>
-          Track English, Hindi, Tamil & Telugu dubs from official sources.
+          Track English, Hindi, Tamil and Telugu dubs in one place.
         </Text>
       </FadeInView>
 
@@ -248,10 +248,10 @@ export default function DubbedScreen() {
           <Text style={{ fontSize: 24 }}>🇮🇳</Text>
           <View style={{ flex: 1 }}>
             <Text style={[styles.dailyScheduleTitle, { color: colors.text }]}>
-              Dub Hub — sab kuch ek jagah
+              Dub Hub — everything in one place
             </Text>
             <Text style={[styles.dailyScheduleSub, { color: colors.secondary }]}>
-              Series · Movies · Weekly schedule · Languages · Genres · Sources →
+              Series · Movies · Weekly schedule · Languages · Genres →
             </Text>
           </View>
         </TouchableOpacity>

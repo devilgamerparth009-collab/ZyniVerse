@@ -58,7 +58,7 @@ export default function OnboardingWizard() {
           Let&apos;s tune your <span className="text-[var(--color-magenta)]">ZyniVerse</span>
         </h1>
         <p className="mt-2 text-[var(--color-mute)]">
-          Chuno kya pasand hai — recommendations har session mein tumhare taste ke hisaab se banengi.
+          Choose what you like — recommendations improve every session as your taste profile grows.
         </p>
       </div>
 

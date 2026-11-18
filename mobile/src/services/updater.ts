@@ -28,6 +28,8 @@ export interface UpdateRelease {
   latestVersionCode: number;
   minSupportedVersionCode: number;
   updateAvailable: boolean;
+  /** Server explicitly asks newer interim builds to move back to this stable release. */
+  rollback?: boolean;
   mandatory: boolean;
   apkUrl: string;
   sha256?: string | null;
@@ -54,16 +56,16 @@ export interface DownloadState {
   error?: string;
 }
 
-/** Build number baked into the installed APK (e.g. 160000). */
+/** Build number baked into the installed APK (e.g. 140000). */
 export function currentVersionCode(): number {
   const raw = Application.nativeBuildVersion;
   const n = raw ? Number.parseInt(raw, 10) : NaN;
   return Number.isFinite(n) ? n : 0;
 }
 
-/** Marketing version baked into the installed APK (e.g. "1.6.0"). */
+/** Marketing version baked into the installed APK (e.g. "1.4.0"). */
 export function currentVersionName(): string {
-  return Application.nativeApplicationVersion || '1.8.0';
+  return Application.nativeApplicationVersion || '1.4.0';
 }
 
 export function formatBytes(bytes?: number | null): string {
@@ -104,8 +106,10 @@ export async function checkForUpdate(): Promise<UpdateRelease | null> {
     if (!res.ok) return null;
     const json = (await res.json()) as UpdateRelease;
     if (!json?.latestVersionCode || !json?.apkUrl) return null;
-    // Guard against a bad deploy advertising an older build.
-    return { ...json, updateAvailable: json.latestVersionCode > code };
+    // Only accept an older build when the server explicitly marks it as a
+    // rollback. This still guards against a misconfigured deploy.
+    const rollback = json.rollback === true && json.latestVersionCode < code;
+    return { ...json, rollback, updateAvailable: json.latestVersionCode > code || rollback };
   } catch {
     return null;
   }

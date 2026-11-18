@@ -4,7 +4,6 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  Image,
   StyleSheet,
   RefreshControl,
   Alert,
@@ -23,7 +22,6 @@ import {
   ReviewItem,
 } from '../types';
 import {
-  absoluteAvatarUrl,
   formatCount,
   formatDate,
   getStatusColorForCode,
@@ -31,10 +29,13 @@ import {
   timeAgo,
 } from '../utils/helpers';
 import LoadingSpinner from '../components/LoadingSpinner';
-import ErrorView from '../components/ErrorView';
 import FadeInView from '../components/FadeInView';
+import ProfileAvatar from '../components/profile/ProfileAvatar';
+import ProfileThumb from '../components/profile/ProfileThumb';
 
 type TabKey = 'lists' | 'stats' | 'achievements' | 'activity' | 'reviews' | 'more';
+type SessionIssue = 'none' | 'expired' | 'error';
+
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'lists', label: 'Lists' },
   { key: 'reviews', label: 'Reviews' },
@@ -53,6 +54,64 @@ function openWeb(path: string) {
 
 const STATUS_FILTERS = ['ALL', 'CURRENT', 'COMPLETED', 'PLANNING', 'PAUSED', 'DROPPED'];
 
+function isSessionError(message?: string | null): boolean {
+  return !!message && /unauthor|401|403|session|sign in|expired|logged in/i.test(message);
+}
+
+function AuthState({
+  icon,
+  title,
+  message,
+  primaryLabel,
+  onPrimary,
+  secondaryLabel,
+  onSecondary,
+  tertiaryLabel,
+  onTertiary,
+}: {
+  icon: string;
+  title: string;
+  message: string;
+  primaryLabel: string;
+  onPrimary: () => void;
+  secondaryLabel?: string;
+  onSecondary?: () => void;
+  tertiaryLabel?: string;
+  onTertiary?: () => void;
+}) {
+  const insets = useSafeAreaInsets();
+  const { colors, isDiwali } = useTheme();
+  const primaryAccent = isDiwali ? '#f59e0b' : colors.primary;
+
+  return (
+    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+      <View style={styles.authCenter}>
+        <Text style={styles.authIcon}>{icon}</Text>
+        <Text style={[styles.authTitle, { color: colors.text }]}>{title}</Text>
+        <Text style={[styles.authSubtitle, { color: colors.textMuted }]}>{message}</Text>
+        <TouchableOpacity
+          style={[styles.authButton, { backgroundColor: primaryAccent }]}
+          onPress={onPrimary}
+        >
+          <Text style={styles.authButtonText}>{primaryLabel}</Text>
+        </TouchableOpacity>
+        {secondaryLabel && onSecondary ? (
+          <TouchableOpacity onPress={onSecondary}>
+            <Text style={[styles.authSettings, { color: colors.textDim }]}>{secondaryLabel}</Text>
+          </TouchableOpacity>
+        ) : null}
+        {tertiaryLabel && onTertiary ? (
+          <TouchableOpacity onPress={onTertiary}>
+            <Text style={[styles.authSettings, styles.authTertiary, { color: colors.textDim }]}>
+              {tertiaryLabel}
+            </Text>
+          </TouchableOpacity>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
 async function mediaMapFor(entries: ProfileEntry[]): Promise<Map<number, Anime>> {
   const ids = [...new Set(entries.map((e) => e.mediaId))];
   const chunks: number[][] = [];
@@ -65,11 +124,9 @@ async function mediaMapFor(entries: ProfileEntry[]): Promise<Map<number, Anime>>
 function MoreTab({
   profile,
   onChanged,
-  onShowReviews,
 }: {
   profile: ProfileResponse;
   onChanged: () => void;
-  onShowReviews: () => void;
 }) {
   const navigation = useNavigation<any>();
   const { user } = profile;
@@ -104,7 +161,7 @@ function MoreTab({
       await api.profile.update({ themeColor: next });
       onChanged();
     } catch (e: any) {
-      Alert.alert('Could not save colour', e?.message || 'Try again.');
+      Alert.alert('Could not save color', e?.message || 'Try again.');
     } finally {
       setBusy(false);
     }
@@ -159,27 +216,23 @@ function MoreTab({
     {
       title: 'Account',
       items: [
-        { icon: '✏️', label: 'Edit profile', sub: 'Name, bio, avatar, banner, password', onPress: () => navigation.navigate('EditProfile') },
-        { icon: '🎨', label: 'Profile colour', sub: `Current: ${user.themeColor || 'emerald'} · tap to change`, onPress: changeColor },
-        { icon: '⚙️', label: 'App settings', sub: 'Theme, notifications, dub language, legal', onPress: () => navigation.navigate('Settings') },
-        { icon: '🧩', label: 'All features', sub: 'Har website feature, ek hi jagah', onPress: () => navigation.navigate('AllFeatures') },
+        { icon: '🎨', label: 'Profile color', sub: `Current: ${user.themeColor || 'emerald'} · tap to change`, onPress: changeColor },
+        { icon: '🧩', label: 'All features', sub: 'Every feature in one place', onPress: () => navigation.navigate('AllFeatures') },
       ],
     },
     {
       title: 'Your content',
       items: [
-        { icon: '📚', label: 'Custom lists', sub: `${lists.length} list${lists.length === 1 ? '' : 's'} · create & edit on website`, onPress: () => openWeb('/lists') },
+        { icon: '📚', label: 'Custom lists', sub: `${lists.length} list${lists.length === 1 ? '' : 's'} · create & edit on the website`, onPress: () => openWeb('/lists') },
         { icon: '✨', label: 'Moments', sub: `${moments.length} moment${moments.length === 1 ? '' : 's'} · share anime quotes`, onPress: () => openWeb('/moments') },
-        { icon: '⭐', label: 'Reviews', sub: `${user.reviews.length} written · tap to read`, onPress: onShowReviews },
         { icon: '🕘', label: 'Watch history', sub: `${recent.length} recent entries from your list`, onPress: () => openWeb('/profile?tab=history') },
+        { icon: '💾', label: 'Saved items', sub: 'Things you bookmarked on the website', onPress: () => openWeb('/saved') },
       ],
     },
     {
       title: 'Data & privacy',
       items: [
-        { icon: '📥', label: 'Import from AniList', sub: 'Bring your anime list over', onPress: () => openWeb('/profile?tab=api') },
-        { icon: '📄', label: 'Import from MAL', sub: 'Upload your MAL XML export', onPress: () => openWeb('/profile?tab=api') },
-        { icon: '🔑', label: 'API keys', sub: 'Personal access tokens', onPress: () => openWeb('/profile?tab=api') },
+        { icon: '📥', label: 'Import & API access', sub: 'Bring in your history and manage personal tokens', onPress: () => openWeb('/profile?tab=api') },
         { icon: '📤', label: 'Export data', sub: 'Download your watchlist as CSV', onPress: () => openWeb('/api/watchlist/export?format=csv') },
         { icon: '🗑️', label: 'Delete account', sub: 'Permanently remove all your data', onPress: confirmDelete, tint: colors.error },
       ],
@@ -197,6 +250,13 @@ function MoreTab({
           tint: colors.warning,
         },
         { icon: '🏆', label: 'Leaderboard', sub: 'Top fans this season', onPress: () => navigation.navigate('Leaderboard') },
+        { icon: '⚔️', label: 'Challenges', sub: 'Join community challenges', onPress: () => openWeb('/challenges') },
+      ],
+    },
+    {
+      title: 'Help',
+      items: [
+        { icon: '📖', label: 'Docs & FAQ', sub: 'Guides and common questions', onPress: () => openWeb('/docs') },
       ],
     },
   ];
@@ -248,42 +308,82 @@ function MoreTab({
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
-  const { colors, isDiwali } = useTheme();
-  const primaryAccent = isDiwali ? '#f59e0b' : colors.primary;
+  const { colors } = useTheme();
 
   const [profile, setProfile] = useState<ProfileResponse | null>(null);
   const [mediaMap, setMediaMap] = useState<Map<number, Anime>>(new Map());
-  const [loggedIn, setLoggedIn] = useState(true);
+  // Never trust a cached user. This only flips to true after the profile API
+  // confirms the stored session is still valid.
+  const [loggedIn, setLoggedIn] = useState(false);
+  const [sessionIssue, setSessionIssue] = useState<SessionIssue>('none');
+  const [authMessage, setAuthMessage] = useState<string | null>(null);
   const [tab, setTab] = useState<TabKey>('lists');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  // Tracks which avatar URL failed so we can fall back to the initial. Using the
-  // URL (not a boolean) means a newly saved picture retries automatically.
-  const [failedAvatar, setFailedAvatar] = useState<string | null>(null);
-  const [failedAvatarAt, setFailedAvatarAt] = useState<number | null>(null);
+
+  const clearSession = useCallback(async () => {
+    try {
+      await api.auth.logout();
+    } catch {
+      /* storage may be unavailable; local state still resets */
+    }
+    setProfile(null);
+    setMediaMap(new Map());
+    setLoggedIn(false);
+    setSessionIssue('none');
+    setAuthMessage(null);
+  }, []);
 
   const load = useCallback(async () => {
+    setSessionIssue('none');
+    setAuthMessage(null);
     try {
-      setError(null);
-      const user = await getCurrentUser();
-      setLoggedIn(!!user);
-      if (!user) {
+      const [hasSession, cachedUser] = await Promise.all([
+        api.auth.isLoggedIn(),
+        getCurrentUser(),
+      ]);
+
+      // A cached user without a stored session is stale data, not a sign-in.
+      if (!hasSession) {
+        if (cachedUser) await clearSession();
         setProfile(null);
+        setMediaMap(new Map());
+        setLoggedIn(false);
         return;
       }
+
+      // The profile request is the verification step. Cached user details are
+      // never rendered as a half-logged-in profile.
       const data = await api.profile.get();
       setProfile(data);
+      setLoggedIn(true);
       const map = await mediaMapFor(data.user.entries);
       setMediaMap(map);
     } catch (e: any) {
-      setError(e?.message || 'Could not load your profile');
+      const message = e?.message || 'Could not load your profile';
+      setProfile(null);
+      setMediaMap(new Map());
+      setLoggedIn(false);
+      if (isSessionError(message)) {
+        try {
+          await api.auth.logout();
+        } catch {
+          /* ignore storage failures while clearing a stale session */
+        }
+        setSessionIssue('expired');
+        setAuthMessage(
+          'Your saved session was no longer valid, so we cleared it. Sign in again to continue.'
+        );
+      } else {
+        setSessionIssue('error');
+        setAuthMessage(message);
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [clearSession]);
 
   useFocusEffect(
     useCallback(() => {
@@ -303,9 +403,7 @@ export default function ProfileScreen() {
         text: 'Sign Out',
         style: 'destructive',
         onPress: async () => {
-          await api.auth.logout();
-          setProfile(null);
-          setLoggedIn(false);
+          await clearSession();
         },
       },
     ]);
@@ -326,58 +424,49 @@ export default function ProfileScreen() {
 
   if (loading) return <LoadingSpinner fullScreen />;
 
-  // A stale session shows up as "Unauthorized" / 401 from /api/profile even
-  // though a cached user was returned locally. Treat that as signed-out instead
-  // of dead-ending on an error screen.
-  const needsSignIn = !loggedIn || (!!error && /unauthor|401|session|sign in|expired/i.test(error));
-
-  if (needsSignIn) {
+  if (!loggedIn || !profile) {
+    if (sessionIssue === 'expired') {
+      return (
+        <AuthState
+          icon="🔒"
+          title="Session expired"
+          message={authMessage || 'Your saved session is no longer valid. Sign in again.'}
+          primaryLabel="Sign In / Sign Up"
+          onPrimary={() => navigation.navigate('Login')}
+          secondaryLabel="Try Again"
+          onSecondary={load}
+          tertiaryLabel="Sign Out"
+          onTertiary={clearSession}
+        />
+      );
+    }
+    if (sessionIssue === 'error') {
+      return (
+        <AuthState
+          icon="📡"
+          title="Profile unavailable"
+          message={authMessage || 'We could not reach your profile. Check your connection.'}
+          primaryLabel="Try Again"
+          onPrimary={load}
+          secondaryLabel="Sign Out"
+          onSecondary={clearSession}
+          tertiaryLabel="App Settings"
+          onTertiary={() => navigation.navigate('Settings')}
+        />
+      );
+    }
     return (
-      <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
-        <View style={styles.authCenter}>
-          <Text style={styles.authIcon}>👤</Text>
-          <Text style={[styles.authTitle, { color: colors.text }]}>Your anime universe awaits</Text>
-          <Text style={[styles.authSubtitle, { color: colors.textMuted }]}>
-            Sign in to build lists, track episodes, earn badges, and see your stats.
-          </Text>
-          <TouchableOpacity
-            style={[styles.authButton, { backgroundColor: primaryAccent }]}
-            onPress={() => navigation.navigate('Login')}
-          >
-            <Text style={styles.authButtonText}>Sign In / Sign Up</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate('Settings')}>
-            <Text style={[styles.authSettings, { color: colors.textDim }]}>App Settings</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  }
-
-  if (error && !profile) {
-    return <ErrorView message={error} onRetry={load} />;
-  }
-
-  if (!profile) {
-    return (
-      <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
-        <View style={styles.authCenter}>
-          <Text style={styles.authIcon}>📡</Text>
-          <Text style={[styles.authTitle, { color: colors.text }]}>Profile unavailable</Text>
-          <Text style={[styles.authSubtitle, { color: colors.textMuted }]}>
-            We could not reach your profile. Check your connection and try again.
-          </Text>
-          <TouchableOpacity
-            style={[styles.authButton, { backgroundColor: primaryAccent }]}
-            onPress={load}
-          >
-            <Text style={styles.authButtonText}>Try Again</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate('Settings')}>
-            <Text style={[styles.authSettings, { color: colors.textDim }]}>App Settings</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+      <AuthState
+        icon="👤"
+        title="Your anime universe awaits"
+        message="Sign in to build lists, track episodes, earn badges, and see your stats."
+        primaryLabel="Sign In / Sign Up"
+        onPrimary={() => navigation.navigate('Login')}
+        secondaryLabel="Try Again"
+        onSecondary={load}
+        tertiaryLabel="App Settings"
+        onTertiary={() => navigation.navigate('Settings')}
+      />
     );
   }
 
@@ -410,12 +499,10 @@ export default function ProfileScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.iconButton}
-              onPress={() =>
-                navigation.navigate('UserProfile', { username: user.username })
-              }
-              accessibilityLabel="Public profile"
+              onPress={() => navigation.navigate('Notifications')}
+              accessibilityLabel="Notifications"
             >
-              <Text style={styles.iconText}>👤</Text>
+              <Text style={styles.iconText}>🔔</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.iconButton}
@@ -428,25 +515,13 @@ export default function ProfileScreen() {
 
           <FadeInView duration={380}>
             <View style={styles.identity}>
-              <View style={[styles.avatarWrap, { backgroundColor: colors.surfaceLight, borderColor: colors.primary, borderWidth: 2 }]}>
-                {user.avatar && user.avatar !== failedAvatar && user !== null ? (
-                  <Image
-                    source={{ uri: absoluteAvatarUrl(user.avatar) }}
-                    style={styles.avatar}
-                    onError={() => {
-                      if (user.avatar !== failedAvatar) {
-                        setFailedAvatar(user.avatar || null);
-                        setFailedAvatarAt(Date.now());
-                      }
-                    }}
-                  />
-                ) : (
-                  <View style={[styles.avatarWrap, { backgroundColor: colors.surfaceLight, borderColor: colors.primary, borderWidth: 2 }]}>
-                    <Text style={[styles.avatarLetter, { color: colors.primary, fontWeight: '900', fontSize: 24 }]}>
-                      {(user.username || '?').charAt(0).toUpperCase()}
-                    </Text>
-                  </View>
-                )}
+              <View style={styles.avatarSlot}>
+                <ProfileAvatar
+                  uri={user.avatar}
+                  name={user.username}
+                  size={64}
+                  accent={colors.primary}
+                />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.username}>{user.username}</Text>
@@ -572,13 +647,7 @@ export default function ProfileScreen() {
                       navigation.navigate('AnimeDetail', { id: entry.mediaId, title })
                     }
                   >
-                    {poster ? (
-                      <Image source={{ uri: poster }} style={styles.listPoster} />
-                    ) : (
-                      <View style={[styles.listPoster, styles.listPosterPlaceholder]}>
-                        <Text style={styles.placeholderText}>?</Text>
-                      </View>
-                    )}
+                    <ProfileThumb uri={poster} style={styles.listPoster} />
                     <View style={{ flex: 1 }}>
                       <Text style={styles.listTitle} numberOfLines={2}>
                         {title}
@@ -664,14 +733,7 @@ export default function ProfileScreen() {
                   }
                 >
                   <Text style={styles.topRank}>#{index + 1}</Text>
-                  {item.anime?.coverImage?.medium ? (
-                    <Image
-                      source={{ uri: item.anime.coverImage.medium }}
-                      style={styles.topPoster}
-                    />
-                  ) : (
-                    <View style={[styles.topPoster, styles.listPosterPlaceholder]} />
-                  )}
+                  <ProfileThumb uri={item.anime?.coverImage?.medium} style={styles.topPoster} />
                   <Text style={styles.topTitle} numberOfLines={2}>
                     {item.anime?.title?.english || item.anime?.title?.romaji}
                   </Text>
@@ -765,13 +827,7 @@ export default function ProfileScreen() {
                     }
                   }}
                 >
-                  {activity.mediaImage ? (
-                    <Image source={{ uri: activity.mediaImage }} style={styles.activityImage} />
-                  ) : (
-                    <View style={[styles.activityImage, styles.listPosterPlaceholder]}>
-                      <Text style={styles.placeholderText}></Text>
-                    </View>
-                  )}
+                  <ProfileThumb uri={activity.mediaImage} style={styles.activityImage} />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.activityTitle} numberOfLines={2}>
                       {activity.mediaTitle || activity.message || activity.type}
@@ -790,11 +846,7 @@ export default function ProfileScreen() {
         )}
 
         {tab === 'more' && (
-          <MoreTab
-            profile={profile}
-            onChanged={load}
-            onShowReviews={() => setTab('reviews')}
-          />
+          <MoreTab profile={profile} onChanged={load} />
         )}
       </ScrollView>
     </View>
@@ -835,24 +887,8 @@ const styles = themed(() => ({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  avatarWrap: {
-    width: 64,
-    height: 64,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
+  avatarSlot: {
     marginRight: spacing.md,
-    overflow: 'hidden',
-  },
-  avatar: {
-    width: '100%',
-    height: '100%',
-  },
-  avatarLetter: {
-    color: colors.primary,
-    fontSize: fontSize.xxl,
-    fontWeight: '800',
   },
   username: {
     color: colors.text,
@@ -997,14 +1033,6 @@ const styles = themed(() => ({
     borderRadius: borderRadius.sm,
     backgroundColor: colors.surfaceLight,
     marginRight: spacing.sm,
-  },
-  listPosterPlaceholder: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  placeholderText: {
-    color: colors.textDim,
-    fontSize: fontSize.md,
   },
   listTitle: {
     color: colors.text,
@@ -1336,5 +1364,9 @@ const styles = themed(() => ({
     color: colors.textDim,
     fontSize: fontSize.sm,
     marginTop: spacing.lg,
+  },
+  authTertiary: {
+    marginTop: spacing.sm,
+    textDecorationLine: 'underline',
   },
 }));

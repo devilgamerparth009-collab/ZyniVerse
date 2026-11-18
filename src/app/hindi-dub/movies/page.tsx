@@ -35,7 +35,7 @@ export default async function HindiDubMoviesPage({
     <CatalogScreen
       kind="movie"
       title="Hindi & regional dub movies"
-      subtitle="Dubbed anime films, source pages ke direct link ke saath."
+      subtitle="Dubbed anime films, with quick links to each title."
       searchParams={params}
     />
   );

@@ -207,7 +207,7 @@ export default async function CreatorPage({ params }: PageProps) {
             </p>
           </div>
           <a
-            href={`https://wa.me/?text=${encodeURIComponent(`🎬 Anime reels publish karo ZyniVerse pe — apne edits stream pe chahiye? Yahan join karo:\n\nhttps://zyverse.in/register?ref=${user.referralCode}`)}`}
+            href={`https://wa.me/?text=${encodeURIComponent(`🎬 Publish anime reels on ZyniVerse — want your edits featured? Join here:\n\nhttps://zyverse.in/register?ref=${user.referralCode}`)}`}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#25d366]/15 border border-[#25d366]/40 px-4 py-2 text-xs font-bold text-[#25d366] hover:bg-[#25d366]/25 transition-colors"

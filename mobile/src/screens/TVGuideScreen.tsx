@@ -344,7 +344,7 @@ export default function TVGuideScreen() {
         subtitle={
           updatedLabel
             ? `${channels.length} channels · ${totalSlots} airings · ${updatedLabel}`
-            : 'Live EPG · DTH numbers · OTT drops'
+            : 'Live TV · Channel numbers · New drops'
         }
         emoji="📺"
         accent={tint}
@@ -385,9 +385,9 @@ export default function TVGuideScreen() {
             <Text style={[styles.heroSub, { color: colors.textMuted }]}>
               {totalSlots > 0
                 ? `${channels.length} channels · ${totalSlots} airings · ${
-                    offline ? 'offline guide' : 'live EPG'
+                    offline ? 'offline guide' : 'Live TV'
                   }`
-                : 'Loading the electronic programme guide…'}
+                : 'Loading the live guide…'}
             </Text>
             <View style={styles.heroStats}>
               {[
@@ -784,7 +784,7 @@ export default function TVGuideScreen() {
                       <Text style={styles.emptyEmoji}>📡</Text>
                       <Text style={[styles.emptyTitle, { color: colors.text }]}>No listings for this day</Text>
                       <Text style={[styles.emptyText, { color: colors.textMuted }]}>
-                        The EPG feed only carries today and tomorrow. Pick another day or refresh.
+                        The live guide only carries today and tomorrow. Pick another day or refresh.
                       </Text>
                     </View>
                   )}

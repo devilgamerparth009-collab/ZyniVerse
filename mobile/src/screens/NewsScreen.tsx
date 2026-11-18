@@ -145,7 +145,7 @@ export default function NewsScreen() {
                     <View style={styles.heroBody}>
                       <View style={[styles.sourceTag, { backgroundColor: `${tint}1f` }]}>
                         <Text style={[styles.sourceText, { color: tint }]}>
-                          {String(hero.source || 'ZyniVerse').toUpperCase()}
+                          ZYNIVERSE
                         </Text>
                       </View>
                       <Text style={[styles.heroTitle, { color: colors.text }]} numberOfLines={3}>
@@ -183,7 +183,7 @@ export default function NewsScreen() {
                         {truncate(n.summary || '', 110)}
                       </Text>
                       <Text style={[styles.time, { color: colors.textDim }]}>
-                        {n.source} · {timeAgo(n.publishedAt)}
+                        {timeAgo(n.publishedAt)}
                       </Text>
                     </View>
                   </View>

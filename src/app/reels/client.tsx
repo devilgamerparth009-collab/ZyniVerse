@@ -652,7 +652,7 @@ function ReelsFeed({
       );
     } catch (e) {
       logError(e);
-      showToast("Comment post nahi hua");
+      showToast("Could not post the comment");
     }
   };
 

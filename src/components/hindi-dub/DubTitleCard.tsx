@@ -16,7 +16,7 @@ export function DubTitleCard({ item }: { item: DubTitleDTO }) {
       target="_blank"
       rel="noopener noreferrer"
       className="group flex flex-col"
-      title={`${item.title} — watch on ${item.sourceName}`}
+      title={`View ${item.title}`}
     >
       <div className="relative aspect-[3/4] overflow-hidden rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)]">
         {item.posterUrl ? (
@@ -45,7 +45,7 @@ export function DubTitleCard({ item }: { item: DubTitleDTO }) {
 
         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent p-2 pt-8">
           <span className="text-[10px] font-medium uppercase tracking-wide text-white/60">
-            {item.sourceName}
+            {item.languages[0] ? `${item.languages[0]} dub` : "Dubbed"}
           </span>
         </div>
       </div>
@@ -85,7 +85,7 @@ export function DubTitleGrid({ items }: { items: DubTitleDTO[] }) {
   if (!items.length) {
     return (
       <p className="rounded-xl border border-dashed border-[var(--color-line)] p-8 text-center text-sm text-[var(--color-mute)]">
-        Abhi koi title import nahi hua. Sync chalne ke baad yahan dub catalogue dikhega.
+        No titles yet. The dub catalogue will appear here after the next refresh.
       </p>
     );
   }

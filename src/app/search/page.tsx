@@ -1513,7 +1513,7 @@ function SearchInner() {
                               description={
                                 smartResults.length > 0 || smartLoading
                                   ? "But here's what matches your meaning — if this looks right, it means you were describing the vibe, not the title."
-                                  : 'Try a natural-language search like "anime jisme MC weak hai par strong ban jata hai" — Smart Search can understand sentences.'
+                                  : 'Try a natural-language search like "anime where the weak main character becomes strong" — Smart Search understands sentences.'
                               }
                               actionLabel="Clear Filters"
                               onAction={clearFilters}

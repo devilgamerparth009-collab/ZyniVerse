@@ -272,12 +272,12 @@ export default function FeedClient({ initialItems }: { initialItems: FeedItem[] 
             <span className="text-5xl">{mode === "following" ? "🤝" : "✨"}</span>
           </div>
           <p className="font-display text-xl font-bold text-white">
-            {mode === "following" ? "Koi follow kar na?" : "Feed abhi khaali hai"}
+            {mode === "following" ? "Not following anyone yet?" : "Your feed is empty"}
           </p>
           <p className="mt-2 max-w-sm text-sm text-[var(--color-mute)]">
             {mode === "following"
-              ? "Apne favourite creators ko follow karo — unki posts, memes, reels aur moments sab yahaan dikhenge."
-              : "Abhi kuch nahi hai — thodi der baad wapas aa, ya discover explore kar."}
+              ? "Follow your favourite creators — their posts, memes, reels and moments will show up here."
+              : "Nothing here yet — check back soon, or explore Discover."}
           </p>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
             {mode === "following" && (
@@ -320,7 +320,7 @@ export default function FeedClient({ initialItems }: { initialItems: FeedItem[] 
       )}
       {!hasMore && items.length > 0 && (
         <p className="py-6 text-center font-mono text-xs text-[var(--color-mute)]">
-          — Yehi tha sab kuch 🎌 —
+          — That's everything for now 🎌 —
         </p>
       )}
     </div>

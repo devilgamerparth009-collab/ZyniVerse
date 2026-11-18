@@ -12,9 +12,9 @@ interface Msg {
 
 const SUGGESTIONS = [
   "Who are you?",
-  "Kaise ho?",
-  "Sach batao, tum kya karte rehte ho?",
-  "Tumhara favourite moment kya hai?",
+  "How are you?",
+  "What do you usually do?",
+  "What is your favourite moment?",
 ];
 
 export default function CharacterChat({
@@ -43,7 +43,7 @@ export default function CharacterChat({
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
-    u.lang = "hi-IN";
+    u.lang = "en-US";
     u.pitch = 1;
     u.rate = 1;
     window.speechSynthesis.speak(u);
@@ -59,7 +59,7 @@ export default function CharacterChat({
     const rec = new SR();
     rec.continuous = false;
     rec.interimResults = true;
-    rec.lang = "hi-IN";
+    rec.lang = "en-US";
     rec.onresult = (e) => {
       const ev = e as { results: { length: number; [i: number]: { [j: number]: { transcript: string } | undefined; isFinal?: boolean } } };
       let text = "";
@@ -152,7 +152,7 @@ export default function CharacterChat({
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-bold" style={{ color: accent }}>{characterName}</p>
                 <p className="text-[9px] text-[var(--color-mute)]">
-                  {busy ? "thinking…" : <>✨ talk to me in Hinglish</>}
+                  {busy ? "thinking…" : <>✨ talk to me in English</>}
                 </p>
               </div>
               <button
@@ -171,7 +171,7 @@ export default function CharacterChat({
                 {/* Messages */}
                 <div ref={boxRef} className="max-h-56 min-h-[120px] space-y-2 overflow-y-auto px-3 py-3">
                   {messages.length === 0 && (
-                    <p className="text-xs text-[var(--color-mute)]">Hi! I&apos;m {characterName}. Ask me anything — main in hi character me jawab dungi/unga. 👇</p>
+                    <p className="text-xs text-[var(--color-mute)]">Hi! I&apos;m {characterName}. Ask me anything — I&apos;ll reply in character. 👇</p>
                   )}
                   {messages.map((m, i) => (
                     <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>

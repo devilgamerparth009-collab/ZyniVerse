@@ -1,11 +1,17 @@
 name: ZyniVerse crons
 
 # Vercel Hobby allows only 2 cron jobs, each running at most once per day, so
-# the 8 schedules this app needs could not live in vercel.json (a Hobby deploy
-# with more than 2 crons fails config validation outright). GitHub Actions has
-# no per-job count or frequency limit, so the same schedules run here instead.
+# most of the schedules this app needs cannot live in vercel.json (a Hobby
+# deploy with more than 2 crons fails config validation outright). The dub
+# sync is the exception: it is configured as the single daily Vercel cron in
+# vercel.json at `30 20 * * *`, which matches the dub-sync entry below. The
+# GitHub entry is kept as a harmless backup — this workflow may still be
+# unpushed / suspended, and the Vercel cron does not depend on it. Both callers
+# are idempotent (upserts + per-stage cursors).
 #
-# The /api/cron/* routes authenticate with `Authorization: Bearer $CRON_SECRET`.
+# The /api/cron/* routes authenticate with `Authorization: Bearer $CRON_SECRET`
+# (Vercel's native header); the dub route also accepts the older `?secret=` and
+# `x-cron-secret` patterns.
 #
 # Vercel Hobby caps a function at 60s, so the heavier jobs (refresh-schedules,
 # analytics, character-tournaments) are chunked: each invocation reports a
@@ -32,7 +38,7 @@ on:
     - cron: "0 2 1 * *" # refresh-awards (1st, 02:00)
     - cron: "0 4 1 * *" # refresh-posters (1st, 04:00)
     - cron: "0 6 1 * *" # analytics (1st, 06:00)
-    - cron: "30 20 * * *" # dub-sync (daily, 02:00 IST)
+    - cron: "30 20 * * *" # dub-sync (daily, 02:00 IST) — mirrors the Vercel cron
   workflow_dispatch:
     inputs:
       endpoint:

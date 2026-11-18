@@ -421,7 +421,7 @@ export default function TournamentDetailPage({
   const { tournament } = data;
 
   const shareUrl = `${process.env.NEXT_PUBLIC_BASE_URL || "https://zyverse.in"}/character-tournaments/${id}`;
-  const shareLine = `⚔️ ${tournament.title} — ${tournament.size}-player anime character tournament by @${tournament.creator.username} on ZyniVerse! Apna fav vote karo.`;
+  const shareLine = `⚔️ ${tournament.title} — ${tournament.size}-player anime character tournament by @${tournament.creator.username} on ZyniVerse! Vote for your favourite.`;
 
   async function copyShare() {
     try {

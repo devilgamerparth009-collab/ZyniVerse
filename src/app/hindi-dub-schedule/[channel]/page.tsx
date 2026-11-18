@@ -23,6 +23,13 @@ const CHANNEL_ORDER: DubChannel[] = [
   "Crunchyroll",
 ];
 
+/** Public labels stay neutral; channel ids remain internal to data loading. */
+const CHANNEL_LABELS: Record<DubChannel, string> = {
+  "Muse India (YouTube)": "Hindi uploads",
+  "Ani-One India (YouTube)": "Regional uploads",
+  Crunchyroll: "Streaming",
+};
+
 export function generateStaticParams() {
   return CHANNEL_ORDER.map((c) => ({ channel: CHANNEL_SLUGS[c] }));
 }
@@ -38,16 +45,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const ch = channelFromSlug(channel);
   const week = getThisWeekRange();
   if (!ch) return { title: "Hindi Dub Schedule" };
+  const label = CHANNEL_LABELS[ch];
   return {
-    title: `${ch} Hindi Dub Schedule This Week — ${week.label}`,
+    title: `${label} Hindi Dub Schedule This Week — ${week.label}`,
     description:
-      `${ch} new Hindi, Tamil & Telugu dub releases this week (${week.label}) with IST times. Every upload and schedule update for ${ch} in India.`,
+      `${label} new Hindi, Tamil & Telugu dub releases this week (${week.label}) with IST times. Every public upload and schedule update in India.`,
     keywords: [
-      `${ch.toLowerCase()} hindi dub schedule`,
-      `${ch.toLowerCase()} schedule`,
-      `${ch.toLowerCase()} new episodes this week`,
+      `${label.toLowerCase()} hindi dub schedule`,
       "hindi dub schedule",
-      `${ch.toLowerCase()} india schedule`,
+      "indian anime dub uploads",
+      "regional anime dub schedule",
+      "hindi dub new episodes this week",
     ],
     alternates: { canonical: `${BASE_URL}/hindi-dub-schedule/${channel}` },
     robots: { index: true, follow: true },
@@ -66,11 +74,12 @@ export default async function HindiDubChannelPage({ params }: Props) {
     // Feed outage — render the page honestly with an empty state instead of failing.
   }
 
+  const label = CHANNEL_LABELS[ch];
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Article",
-    headline: `${ch} — Hindi Dub Schedule This Week (${week.label})`,
-    description: `${ch} Hindi, Tamil and Telugu release schedule for the week of ${week.label} with IST times.`,
+    headline: `${label} — Hindi Dub Schedule This Week (${week.label})`,
+    description: `${label} Hindi, Tamil and Telugu release schedule for the week of ${week.label} with IST times.`,
     url: `${BASE_URL}/hindi-dub-schedule/${channel}`,
     dateModified: new Date().toISOString().slice(0, 10),
     author: { "@type": "Organization", name: "ZyniVerse", url: BASE_URL },
@@ -78,7 +87,7 @@ export default async function HindiDubChannelPage({ params }: Props) {
     mainEntityOfPage: `${BASE_URL}/hindi-dub-schedule/${channel}`,
   };
 
-  const chName = ch.replace(" (YouTube)", "");
+  const chName = CHANNEL_LABELS[ch];
 
   return (
     <>
@@ -116,15 +125,15 @@ export default async function HindiDubChannelPage({ params }: Props) {
           <h2 className="font-display text-lg font-bold mb-4">This week on {chName}</h2>
           {ch === "Crunchyroll" ? (
             <p className="rounded-xl neon-rgb-border bg-[var(--color-panel)] p-6 text-sm text-[var(--color-mute)]">
-              Crunchyroll India does not publish a machine-readable dub schedule, so we don&apos;t show
-              one here. Check{" "}
+              This platform does not publish a machine-readable dub schedule, so we don&apos;t show
+              one here. Visit the{" "}
               <a
                 href="https://www.crunchyroll.com/"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-[var(--color-cyan)] hover:underline"
               >
-                crunchyroll.com
+                official site
               </a>{" "}
               for the latest regional-dub releases.
             </p>

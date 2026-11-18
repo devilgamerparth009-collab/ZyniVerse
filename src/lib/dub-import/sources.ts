@@ -7,6 +7,13 @@
  * then probes a list of known candidates, validates the page with a marker
  * string, and remembers whichever answered. A stale domain therefore heals
  * itself on the next sync — no redeploy, no code change.
+ *
+ * For sources with a schedule endpoint the homepage marker is no longer
+ * enough: a host that serves the homepage but 404s on `/schedule.php` is a
+ * broken host for this app. Such hosts are quarantined for a short while and
+ * deprioritised, and the first candidate that answers BOTH checks is written
+ * back to DubSourceState. `.link` is simply one of several candidates (it is
+ * listed first); nothing here assumes it is the only valid public host.
  */
 import { prisma } from "@/lib/prisma";
 
@@ -23,6 +30,8 @@ export interface DubSourceConfig {
   candidates: string[];
   /** A substring that must appear on the homepage for the host to count. */
   marker: string;
+  /** Path that must also answer for sources whose schedule we import. */
+  schedulePath?: string;
 }
 
 export const DUB_SOURCES: Record<DubSourceId, DubSourceConfig> = {
@@ -42,6 +51,7 @@ export const DUB_SOURCES: Record<DubSourceId, DubSourceConfig> = {
       "https://animedubhindi.com",
     ],
     marker: "Anime Dub Hindi",
+    schedulePath: "/schedule.php",
   },
   desidubanime: {
     id: "desidubanime",
@@ -87,14 +97,64 @@ export async function fetchText(
 }
 
 const MEMORY_TTL_MS = 5 * 60 * 1000;
-const memory = new Map<string, { baseUrl: string; at: number }>();
+const QUARANTINE_TTL_MS = 30 * 60 * 1000;
 
-async function probe(baseUrl: string, marker: string): Promise<boolean> {
+/** Cache is keyed by strictness so a schedule-only winner cannot be reused by the catalogue stage. */
+const memory = new Map<string, { baseUrl: string; at: number }>();
+/** Hosts whose homepage works but whose schedule endpoint does not. */
+const quarantine = new Map<string, number>();
+
+interface HostProbe {
+  homepage: boolean;
+  /** null when the source has no schedule endpoint to validate. */
+  schedule: boolean | null;
+}
+
+function quarantineKey(source: DubSourceId, baseUrl: string): string {
+  return `${source}:${baseUrl}`;
+}
+
+/**
+ * Homepage marker plus, for schedule-capable sources, a real `/schedule.php`
+ * response. A 404/placeholder counts as a failure (fetchText throws on !ok),
+ * so the stored `.org` host that only passes the homepage cannot win.
+ */
+async function probeHost(baseUrl: string, cfg: DubSourceConfig): Promise<HostProbe> {
+  let html: string;
   try {
-    const html = await fetchText(`${baseUrl}/`, { timeoutMs: 9000 });
-    return html.includes(marker);
+    html = await fetchText(`${baseUrl}/`, { timeoutMs: 9000 });
   } catch {
-    return false;
+    return { homepage: false, schedule: false };
+  }
+  if (!html.includes(cfg.marker)) return { homepage: false, schedule: false };
+  if (!cfg.schedulePath) return { homepage: true, schedule: null };
+
+  try {
+    const scheduleHtml = await fetchText(`${baseUrl}${cfg.schedulePath}`, { timeoutMs: 9000 });
+    const looksLikeSchedule =
+      scheduleHtml.includes("date-block") ||
+      scheduleHtml.includes("time-block") ||
+      scheduleHtml.includes("data-release") ||
+      /class=["'][^"']*\bcard\b/.test(scheduleHtml);
+    return { homepage: true, schedule: looksLikeSchedule };
+  } catch {
+    return { homepage: true, schedule: false };
+  }
+}
+
+function remember(cacheKey: string, baseUrl: string): void {
+  memory.set(cacheKey, { baseUrl, at: Date.now() });
+}
+
+async function persistWinner(source: DubSourceId, baseUrl: string): Promise<void> {
+  try {
+    await prisma.dubSourceState.upsert({
+      where: { source },
+      create: { source, baseUrl, status: "ok", lastCheckedAt: new Date() },
+      update: { baseUrl, status: "ok", lastCheckedAt: new Date(), lastError: null },
+    });
+  } catch {
+    // Non-fatal: resolution still works for this run.
   }
 }
 
@@ -103,13 +163,21 @@ async function probe(baseUrl: string, marker: string): Promise<boolean> {
  *   1. in-memory cache (5 min)
  *   2. last known good host from the database
  *   3. probe every candidate in parallel-ish batches
+ *
+ * Hosts answering both checks are always preferred and are written back to
+ * DubSourceState, which is what heals a stale stored host. When
+ * `scheduleCritical` is true (the schedule stage), a homepage-only host is
+ * never accepted; other callers may fall back to one so a temporary schedule
+ * outage does not break catalogue browsing or source redirects.
  */
 export async function resolveSourceBase(
   source: DubSourceId,
-  { force = false }: { force?: boolean } = {}
+  { force = false, scheduleCritical = false }: { force?: boolean; scheduleCritical?: boolean } = {}
 ): Promise<string> {
   const cfg = DUB_SOURCES[source];
-  const hit = memory.get(source);
+  const needsSchedule = Boolean(cfg.schedulePath);
+  const cacheKey = `${source}:${scheduleCritical && needsSchedule ? "schedule" : "any"}`;
+  const hit = memory.get(cacheKey);
   if (!force && hit && Date.now() - hit.at < MEMORY_TTL_MS) return hit.baseUrl;
 
   let stored: string | null = null;
@@ -120,38 +188,80 @@ export async function resolveSourceBase(
     // Table might not exist yet on a fresh environment; fall through to probes.
   }
 
-  const ordered = stored
-    ? [stored, ...cfg.candidates.filter((c) => c !== stored)]
-    : [...cfg.candidates];
+  const now = Date.now();
+  const isQuarantined = (url: string): boolean => {
+    const until = quarantine.get(quarantineKey(source, url));
+    return typeof until === "number" && until > now;
+  };
 
-  // Probe in small batches so a dead host never eats the whole budget.
+  // Stored host first (unless quarantined), then candidates; quarantined hosts
+  // go last so they can still heal after the TTL without a redeploy.
+  const unq = cfg.candidates.filter((c) => !isQuarantined(c));
+  const q = cfg.candidates.filter(isQuarantined);
+  const ordered = [
+    ...(stored && !isQuarantined(stored) ? [stored] : []),
+    ...unq.filter((c) => c !== stored),
+    ...q.filter((c) => c !== stored),
+  ];
+
+  let homepageFallback: string | null = null;
+
   for (let i = 0; i < ordered.length; i += 3) {
     const batch = ordered.slice(i, i + 3);
-    const results = await Promise.all(batch.map((base) => probe(base, cfg.marker)));
-    const winner = batch[results.indexOf(true)];
-    if (winner) {
-      memory.set(source, { baseUrl: winner, at: Date.now() });
-      try {
-        await prisma.dubSourceState.upsert({
-          where: { source },
-          create: { source, baseUrl: winner, status: "ok", lastCheckedAt: new Date() },
-          update: { baseUrl: winner, status: "ok", lastCheckedAt: new Date(), lastError: null },
-        });
-      } catch {
-        // Non-fatal: resolution still works for this run.
+    const results = await Promise.all(batch.map((base) => probeHost(base, cfg)));
+
+    // A host that fails the schedule check is quarantined even when it is the
+    // stored one, so the next resolution prefers a working candidate.
+    results.forEach((result, index) => {
+      if (result.homepage && result.schedule === false) {
+        quarantine.set(quarantineKey(source, batch[index]), now + QUARANTINE_TTL_MS);
       }
+    });
+
+    const strictIndex = results.findIndex(
+      (result) => result.homepage && (!needsSchedule || result.schedule === true)
+    );
+    if (strictIndex >= 0) {
+      const winner = batch[strictIndex];
+      quarantine.delete(quarantineKey(source, winner));
+      remember(cacheKey, winner);
+      if (winner !== stored) await persistWinner(source, winner);
       return winner;
+    }
+
+    if (!scheduleCritical) {
+      const fallbackIndex = results.findIndex((result) => result.homepage);
+      if (fallbackIndex >= 0) homepageFallback = batch[fallbackIndex];
     }
   }
 
-  if (stored) {
-    memory.set(source, { baseUrl: stored, at: Date.now() });
+  if (homepageFallback) {
+    // Do not persist a fallback over a known schedule-capable host: the next
+    // strict resolution still gets a chance to heal DubSourceState.
+    remember(cacheKey, homepageFallback);
+    return homepageFallback;
+  }
+
+  if (stored && !scheduleCritical) {
+    memory.set(cacheKey, { baseUrl: stored, at: Date.now() });
     return stored;
   }
-  throw new Error(`No working domain found for ${cfg.name}.`);
+
+  throw new Error(
+    `No working ${needsSchedule && scheduleCritical ? "schedule-capable " : ""}domain found for ${cfg.name}.`
+  );
 }
 
 export function clearDomainCache(source?: DubSourceId): void {
-  if (source) memory.delete(source);
-  else memory.clear();
+  if (source) {
+    for (const key of [...memory.keys()]) {
+      if (key.startsWith(`${source}:`)) memory.delete(key);
+    }
+    for (const key of [...quarantine.keys()]) {
+      if (key.startsWith(`${source}:`)) quarantine.delete(key);
+    }
+    return;
+  }
+  memory.clear();
+  quarantine.clear();
 }

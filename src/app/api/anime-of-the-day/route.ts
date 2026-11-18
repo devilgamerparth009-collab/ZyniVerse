@@ -49,7 +49,7 @@ export async function GET() {
       status: anime.status || "",
       synopsis: anime.description || "",
     },
-    why: `Today ka pick hai — ${title}. Stream yeh trending anime aur apna mood match karo.`,
+    why: `Today's pick is ${title}. Watch this trending anime and see if it matches your mood.`,
   }, {
     headers: {
       "Cache-Control": "public, s-maxage=86400, stale-while-revalidate=86400",

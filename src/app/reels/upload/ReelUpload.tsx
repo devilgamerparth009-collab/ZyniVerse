@@ -494,13 +494,13 @@ export default function ReelUpload() {
               )}
               {urlStatus === "page" && (
                 <p className="text-xs text-amber-400">
-                  🔗 Page link mila — Publish karne par server ise download kar
-                  ke reel bana dega (30–60s).
+                  🔗 Page link detected — when you publish, the server will download it
+                  and create a 30–60 second reel.
                 </p>
               )}
               {urlStatus === "idle" && urlValid && (
                 <p className="text-xs text-[var(--color-mute)]/70">
-                  Link check ho raha hai…
+                  Checking the link…
                 </p>
               )}
               {urlError && <p className="text-xs text-red-400">{urlError}</p>}

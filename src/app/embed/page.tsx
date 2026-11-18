@@ -5,7 +5,7 @@ import WidgetGenerator from "@/components/WidgetGenerator";
 export const metadata: Metadata = {
   title: "Free Anime Embed Widgets — Add Filler Guides & Badges to Your Site",
   description:
-    "Add ZyniVerse filler guides, dub status badges & anime widgets to your website for free. iframe & script embeds. Works with WordPress, Blogger, Ghost & more.",
+    "Add ZyniVerse filler guides, dub status badges and anime widgets to your website for free. Simple iframe and script embeds.",
   keywords: ["anime widget", "embed anime badge", "filler guide widget", "hindi dub badge", "anime embed code", "free anime widget"],
   openGraph: {
     title: "Free Anime Embed Widgets — Filler Guides & Badges",
@@ -74,7 +74,7 @@ export default function EmbedPage() {
             <h3 className="font-semibold text-[var(--color-ink)] mb-1">iframe Embed</h3>
             <p>
               The simplest way. Copy the iframe snippet and paste it into your HTML.
-              Works everywhere — WordPress, Blogger, Ghost, etc.
+              Works on most websites and blogs.
             </p>
           </div>
           <div>

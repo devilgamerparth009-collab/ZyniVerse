@@ -11,10 +11,10 @@ const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "https://zyverse.in";
 export const metadata: Metadata = {
   title: "Hindi Dub Anime Schedule This Week (2026) — What Airing Now in India",
   description:
-    "Live Hindi, Tamil and Telugu dub uploads from Muse India and Ani-One India, pulled straight from the official YouTube channels. See what's new in India right now.",
+    "Live Hindi, Tamil and Telugu dub uploads from official anime channels, with real IST publish times. See what's new in India right now.",
   keywords: [
     "hindi dub schedule", "hindi dub anime schedule", "anime hindi schedule", "this week hindi dub",
-    "muse india schedule", "ani one india schedule", "crunchyroll hindi dub new episodes",
+    "indian anime dub uploads", "regional anime dub schedule", "hindi dub new episodes",
     "hindi dub release date", "dubbed anime schedule india", "indian anime schedule", "hindi anime this week",
   ],
   openGraph: {
@@ -43,7 +43,7 @@ export default async function HindiDubSchedulePage() {
       "@context": "https://schema.org",
       "@type": "Article",
       headline: "Hindi Dub Anime Schedule This Week — What's Airing in India",
-      description: `The latest Hindi, Tamil and Telugu anime dub uploads in India (week of ${week.label}), pulled live from the official Muse India and Ani-One India YouTube channels.`,
+      description: `The latest Hindi, Tamil and Telugu anime dub uploads in India (week of ${week.label}), pulled live from official channel feeds.`,
       url: `${BASE_URL}/hindi-dub-schedule`,
       dateModified: new Date().toISOString().slice(0, 10),
       author: { "@type": "Organization", name: "ZyniVerse", url: BASE_URL },
@@ -59,7 +59,7 @@ export default async function HindiDubSchedulePage() {
           name: "Who airs new Hindi dub anime in India?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "The main free destinations are the Muse India and Ani-One India YouTube channels, which upload Hindi, Tamil and Telugu dubs on a rolling schedule. Crunchyroll India also releases regional dubs, but does not publish a machine-readable schedule.",
+            text: "Official anime channels upload Hindi, Tamil and Telugu dubs on a rolling schedule. Some platforms release regional dubs too, but do not publish a machine-readable schedule.",
           },
         },
         {
@@ -67,15 +67,15 @@ export default async function HindiDubSchedulePage() {
           name: "How up to date is this schedule?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "This page is built live from the official Muse India and Ani-One India YouTube feeds, so each row is a real upload with its actual publish time in IST.",
+            text: "This page is built live from official channel feeds, so each row is a real upload with its actual publish time in IST.",
           },
         },
         {
           "@type": "Question",
-          name: "Is Muse India's Hindi dub schedule free?",
+          name: "Are Hindi dub schedules free to watch?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "Yes. Muse India streams its Hindi, Tamil and Telugu dubs free on YouTube, and every upload shows up in this schedule as it goes live.",
+            text: "Yes. Official channels stream many Hindi, Tamil and Telugu dubs for free, and every public upload shows up in this schedule as it goes live.",
           },
         },
         {
@@ -114,8 +114,8 @@ export default async function HindiDubSchedulePage() {
           </div>
           <p className="mt-3 max-w-2xl text-[var(--color-mute)] leading-relaxed">
             The latest Hindi, Tamil and Telugu anime dub uploads in India{" "}
-            <strong className="text-[var(--color-ink)]">({week.label})</strong> — pulled live from the
-            official Muse India and Ani-One India YouTube channels.
+            <strong className="text-[var(--color-ink)]">({week.label})</strong> — pulled live from
+            official channel feeds with real publish times.
           </p>
         </div>
 

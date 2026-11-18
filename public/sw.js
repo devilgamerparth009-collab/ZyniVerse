@@ -2,7 +2,7 @@
 // Source: src/lib/offline-policy.ts + scripts/build-sw.ts
 // Regenerate: npm run build:sw
 // A test fails if this file drifts from that source.
-const VERSION = "v6";
+const VERSION = "v7";
 const CACHES = {
   pages: "pages-" + VERSION,
   assets: "assets-" + VERSION,
@@ -18,6 +18,10 @@ const PRECACHE = ["/offline","/manifest.json","/logo.png","/icons/icon-192.png",
 const STATIC_PREFIXES = ["/_next/static/", "/icons/", "/_next/image", "/images/", "/fonts/"];
 const EXACT_STATIC = ["/manifest.json", "/offline", "/logo.png", "/favicon.ico"];
 const NAV_TIMEOUT_MS = 4000;
+// Transport-level guard in addition to classify()'s API allowlist. Account,
+// auth and inbox pages may contain one user's private HTML; the browser must
+// handle them directly, with nothing written to the Cache Storage API.
+const PROTECTED_PAGE_PREFIXES = ["/login", "/logout", "/register", "/signin", "/signup", "/account", "/profile", "/admin", "/dashboard", "/settings", "/messages", "/notifications", "/watchlist"];
 
 function classify(request, url, selfOrigin) {
   const sameOrigin = url.origin === selfOrigin;
@@ -182,6 +186,38 @@ function networkFirst(request, cacheName, isNavigation) {
     });
 }
 
+/**
+ * Navigations are stale-first: return the saved page shell immediately and
+ * refresh it in the background. The old network-first policy waited up to 4s
+ * for the network before showing anything, which is why every cold navigation
+ * felt frozen. Private pages never reach this function (see the fetch handler).
+ */
+function staleWhileRevalidate(request, cacheName, event, isNavigation) {
+  var refresh = fetch(request)
+    .then(function (response) {
+      store(cacheName, request, response);
+      return response;
+    })
+    .catch(function () {
+      return null;
+    });
+  // Keep the worker alive until the background write finishes even after the
+  // cached response has been handed to the page.
+  event.waitUntil(refresh);
+
+  return caches.match(request).then(function (cached) {
+    if (cached) return cached;
+    return refresh.then(function (response) {
+      if (response) return response;
+      if (isNavigation) return offlineFallback(request);
+      return new Response(JSON.stringify({ ok: false, offline: true }), {
+        status: 503,
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+  });
+}
+
 function cacheFirst(request, cacheName) {
   return caches.match(request).then(function (cached) {
     if (cached) return cached;
@@ -210,6 +246,14 @@ self.addEventListener("fetch", function (event) {
 
   if (request.method !== "GET" && CACHEABLE_HOSTS.indexOf(url.hostname) === -1) return;
 
+  if (
+    url.origin === self.location.origin &&
+    PROTECTED_PAGE_PREFIXES.some(function (p) { return url.pathname === p || url.pathname.indexOf(p + "/") === 0; })
+  ) {
+    // Auth/account/inbox HTML is per-user. Never intercept, never store.
+    return;
+  }
+
   var decision = classify(request, url, self.location.origin);
 
   // Flip to true when a request is not being cached and it is not obvious why.
@@ -220,11 +264,15 @@ self.addEventListener("fetch", function (event) {
 
   if (decision.strategy === "passthrough") return;
 
-  event.respondWith(
-    decision.strategy === "cache-first"
-      ? cacheFirst(request, CACHES[decision.cache])
-      : networkFirst(request, CACHES[decision.cache], request.mode === "navigate")
-  );
+  if (decision.strategy === "cache-first") {
+    event.respondWith(cacheFirst(request, CACHES[decision.cache]));
+  } else if (request.mode === "navigate" && decision.cache === "pages") {
+    event.respondWith(
+      staleWhileRevalidate(request, CACHES[decision.cache], event, true)
+    );
+  } else {
+    event.respondWith(networkFirst(request, CACHES[decision.cache], false));
+  }
 });
 
 self.addEventListener("message", function (event) {

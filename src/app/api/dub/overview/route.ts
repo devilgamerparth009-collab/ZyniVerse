@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
 import { withPublicCache } from "@/lib/api-cache";
 import { getDubOverview } from "@/lib/dub-import/queries";
+import { withoutProviderFields } from "@/lib/dub-import/public-fields";
 
 export const dynamic = "force-dynamic";
 
-async function handler() {
+async function handler(): Promise<Response> {
   try {
-    return NextResponse.json({ success: true, ...(await getDubOverview()) });
+    return withPublicCache(
+      NextResponse.json(withoutProviderFields({ success: true, ...(await getDubOverview()) }))
+    );
   } catch (error) {
     return NextResponse.json(
       { success: false, error: "Failed to load dub overview", details: String(error) },
@@ -15,6 +18,6 @@ async function handler() {
   }
 }
 
-export async function GET() {
-  return withPublicCache(await handler());
+export async function GET(): Promise<Response> {
+  return handler();
 }

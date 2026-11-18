@@ -573,7 +573,7 @@ function ChannelScheduleCard({
                     {nextDayWithSlots ? (
                       <p className="text-[10px] text-cyan-400/80 mt-1 font-semibold">Next new episodes: {nextDayWithSlots}</p>
                     ) : (
-                      <p className="text-[10px] text-[var(--color-mute)]/60 mt-1">EPG data pending — check back later</p>
+                      <p className="text-[10px] text-[var(--color-mute)]/60 mt-1">Live guide pending — check back later</p>
                     )}
                   </div>
                 </div>
@@ -810,8 +810,8 @@ function TvSchedulePage() {
           >
             <span className="text-sm leading-5">📡</span>
             <p className="text-[11px] leading-5 text-amber-200/80">
-              Live EPG is unreachable right now, so Indian TV channels show the curated offline
-              guide. Streaming listings below are still live.
+              Live TV data is unavailable right now, so Indian TV channels show the offline guide.
+              Streaming listings below are still live.
             </p>
           </motion.div>
         )}

@@ -53,7 +53,7 @@ export default function NewPostComposer() {
       router.refresh();
     } catch (e) {
       logError(e);
-      setError(e instanceof Error ? e.message : "Post nahi bana, dobara try karo.");
+      setError(e instanceof Error ? e.message : "Could not create the post. Please try again.");
     } finally {
       setSubmitting(false);
     }

@@ -431,7 +431,7 @@ export default function DiscoverFeed() {
           <p className="font-display text-xl font-bold text-white">Nothing here yet</p>
           <p className="mt-2 max-w-sm text-sm text-[var(--color-mute)]">
             {isFiltered
-              ? "Try adjusting your search or filters — feed ishn category me kuch nahi mila."
+              ? "Try adjusting your search or filters — nothing matched in this category."
               : "The feed is empty. Check back soon for fresh anime content!"}
           </p>
           {isFiltered && (

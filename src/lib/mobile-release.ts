@@ -6,11 +6,11 @@
  * Everything is overridable through environment variables so a release can be
  * rolled out from Vercel without touching code:
  *
- *   MOBILE_VERSION_NAME=1.6.1
- *   MOBILE_VERSION_CODE=160001
- *   MOBILE_APK_URL=https://.../ZyniVerse-1.6.1.apk
+ *   MOBILE_VERSION_NAME=1.4.0
+ *   MOBILE_VERSION_CODE=140000
+ *   MOBILE_APK_URL=https://.../ZyniVerse-1.4.0.apk
  *   MOBILE_APK_SHA256=...
- *   MOBILE_APK_SIZE=41663245
+ *   MOBILE_APK_SIZE=...
  *   MOBILE_RELEASE_NOTES=One|Two|Three
  *   MOBILE_RELEASE_MANDATORY=true
  */
@@ -30,8 +30,8 @@ export interface MobileRelease {
   minSupportedVersionCode: number;
 }
 
-const FALLBACK_VERSION_NAME = "1.8.0";
-const FALLBACK_VERSION_CODE = 180000;
+const FALLBACK_VERSION_NAME = "1.4.0";
+const FALLBACK_VERSION_CODE = 140000;
 
 /**
  * Verified metadata for builds we have actually published. Keeping it keyed by
@@ -39,6 +39,10 @@ const FALLBACK_VERSION_CODE = 180000;
  * can never make the app check a new APK against an old hash/size.
  */
 const PUBLISHED_BUILDS: Record<string, { sha256: string; sizeBytes: number }> = {
+  "1.4.0": {
+    sha256: "7acd3613cbf93cb5166209eb2652c8241f7e71e74135e47d7dd849c7218d13fc",
+    sizeBytes: 42082269,
+  },
   "1.6.0": {
     sha256: "8b0199df768fa396104133cd789d536ad851296ac33cd223707d4dbc03d6a498",
     sizeBytes: 42052121,
@@ -76,15 +80,14 @@ export const MOBILE_RELEASE: MobileRelease = {
   notes: (process.env.MOBILE_RELEASE_NOTES
     ? process.env.MOBILE_RELEASE_NOTES.split("|")
     : [
-        "Dub Hub: series, movies, full-week schedule + Tonight, languages, genres and sources in one place.",
-        "Direct WordPress REST API sync from animedubhindi.link — 663 ADH titles with clean genres.",
-        "No more duplicate TV/schedule entries — one unified dub timetable.",
-        "Profile: Reviews, custom lists, moments, history, import/export, API keys, delete and profile colour.",
-        "New All Features screen: every website option grouped in one searchable place.",
-        "Domain auto-heal keeps source links working if a dub site moves.",
+        "Dub Hub: series, movies, full-week schedule, languages and genres in one polished place.",
+        "Live TV timings refresh automatically and show TBA when a slot has not been announced.",
+        "Faster, clearer screens with reliable image fallbacks and a working filler guide.",
+        "Profile fixes, fewer duplicate options, and dedicated destinations for every feature.",
+        "Smoother animations and a lighter website experience.",
       ]
   ).map((line) => line.trim()).filter(Boolean),
   mandatory: process.env.MOBILE_RELEASE_MANDATORY === "true",
   publishedAt: process.env.MOBILE_RELEASE_PUBLISHED_AT || "2026-11-18T00:00:00.000Z",
-  minSupportedVersionCode: envNumber(process.env.MOBILE_MIN_SUPPORTED_VERSION_CODE) || 140020,
+  minSupportedVersionCode: envNumber(process.env.MOBILE_MIN_SUPPORTED_VERSION_CODE) || 130000,
 };

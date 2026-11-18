@@ -397,7 +397,7 @@ function LinkBuilder() {
               className="mt-2 w-full rounded-lg bg-[var(--color-surface1)] px-4 py-3 text-sm text-[var(--color-text)] border border-[var(--color-line)] placeholder:text-[var(--color-mute)] focus:outline-none transition-colors"
             />
             {input && !asin && (
-              <p className="mt-2 text-xs text-red-400">ASIN nahi mila. Amazon.in product page ka URL paste karo (URL me /dp/ASIN/ hona chahiye).</p>
+              <p className="mt-2 text-xs text-red-400">Could not find an ASIN. Paste an Amazon.in product URL (it should contain /dp/ASIN/).</p>
             )}
             {asin && (
               <div className="mt-3 flex items-center gap-2 rounded-lg bg-[var(--color-surface1)] px-4 py-3 text-sm">
@@ -498,13 +498,13 @@ function LinkBuilder() {
 
           <div className="mt-6 grid gap-2 text-xs text-[var(--color-mute)] sm:grid-cols-2">
             <div className="rounded-lg neon-rgb-border bg-[var(--color-void)]/50 px-3 py-2.5">
-              <span className="font-semibold text-[var(--color-text)]">ASIN</span> — Amazon.in product pages pe <span className="font-mono text-[var(--color-cyan)]">/dp/XXXXXX</span> wala part
+              <span className="font-semibold text-[var(--color-text)]">ASIN</span> — the <span className="font-mono text-[var(--color-cyan)]">/dp/XXXXXX</span> part of an Amazon.in product URL
             </div>
             <div className="rounded-lg neon-rgb-border bg-[var(--color-void)]/50 px-3 py-2.5">
               <span className="font-semibold text-[var(--color-text)]">Image</span> — product page pe image pe right-click → <span className="font-mono">Copy image link</span>
             </div>
             <div className="rounded-lg neon-rgb-border bg-[var(--color-void)]/50 px-3 py-2.5 sm:col-span-2">
-              <span className="font-semibold text-[var(--color-text)]">Entry</span> — copy karke <span className="font-mono">src/components/MerchStore.tsx</span> ke <span className="font-mono">MERCH_ITEMS</span> array me paste karo
+              <span className="font-semibold text-[var(--color-text)]">Entry</span> — copy it into the <span className="font-mono">MERCH_ITEMS</span> array in <span className="font-mono">src/components/MerchStore.tsx</span>
             </div>
           </div>
         </div>

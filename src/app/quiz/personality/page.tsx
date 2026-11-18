@@ -13,11 +13,11 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   const n = sp.n ? `&n=${encodeURIComponent(sp.n)}` : "";
 
   const title = p
-    ? `Tumhara anime personality: ${p.name} ${p.emoji}`
-    : "Anime Personality Test — Tum kaunse anime character ho?";
+    ? `Your anime personality: ${p.name} ${p.emoji}`
+    : "Anime Personality Test — Which anime character are you?";
   const description = p
     ? `${p.name} (${p.anime}) — ${p.line}`
-    : "6 sawaal, apna anime personality jano aur dosto ke saath WhatsApp pe share karo!";
+    : "6 questions to discover your anime personality, then share it with friends on WhatsApp!";
 
   return {
     title,

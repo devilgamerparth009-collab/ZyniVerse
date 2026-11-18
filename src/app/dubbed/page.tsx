@@ -1,14 +1,16 @@
-"use client";
+import { unstable_cache } from "next/cache";
+import { getDubbedEntries } from "@/lib/editorial";
+import DubbedClient from "./DubbedClient";
 
-import { useState, useEffect, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import Link from "next/link";
-import { PageTransition } from "@/components/PageTransition";
-import { ErrorState } from "@/components/Loader";
-import DubExpandingCard from "@/components/DubExpandingCard";
-import NativeBannerAd from "@/components/NativeBannerAd";
+/**
+ * The client still handles language switching, but the first paint is now
+ * server-rendered from the same editorial source the API reads. The old page
+ * shipped an empty shell and waited for a client fetch before showing anything,
+ * which is why /dubbed felt slow on a cold visit.
+ */
+export const revalidate = 300;
 
-type LangKey = "english" | "hindi" | "tamil" | "telugu";
+export type LangKey = "english" | "hindi" | "tamil" | "telugu";
 
 export interface DubAnime {
   mal_id: number;
@@ -26,238 +28,78 @@ export interface DubAnime {
   score: string;
 }
 
-const LANG_TABS: { key: LangKey; label: string; accent: string }[] = [
-  { key: "english", label: "English", accent: "#3b82f6" },
-  { key: "hindi", label: "Hindi", accent: "#ff9933" },
-  { key: "tamil", label: "Tamil", accent: "#e84a5f" },
-  { key: "telugu", label: "Telugu", accent: "#6c63ff" },
-];
+export interface DubScheduleData {
+  available: DubAnime[];
+  comingSoon: DubAnime[];
+  currentSeason: DubAnime[];
+  recent: DubAnime[];
+}
 
-export default function DubbedPage() {
-  const [language, setLanguage] = useState<LangKey>("hindi");
-  const [data, setData] = useState<{ available: DubAnime[]; comingSoon: DubAnime[]; currentSeason: DubAnime[]; recent: DubAnime[] } | null>(null);
-  const [counts, setCounts] = useState<Record<string, number> | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+export interface DubSchedulePayload {
+  data: DubScheduleData;
+  counts: Record<string, number>;
+  updatedAt: string | null;
+}
 
-  useEffect(() => {
-    let cancelled = false;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setLoading(true);
-    setError(null);
-    fetch(`/api/dub-schedule?language=${language}`)
-      .then((r) => r.json())
-      .then((d) => {
-        if (cancelled) return;
-        if (!d.success) throw new Error(d.error || "Failed to fetch");
-        setData(d.data);
-        setCounts(d.counts);
-      })
-      .catch((e) => { if (!cancelled) setError(e.message); })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
-  }, [language]);
+const getCachedDubSchedule = unstable_cache(
+  async (language: string): Promise<DubSchedulePayload> => {
+    const { entries, lastUpdated } = await getDubbedEntries();
 
-  const available = useMemo(() => data?.available || [], [data]);
-  const comingSoon = useMemo(() => data?.comingSoon || [], [data]);
-  const currentSeason = useMemo(() => data?.currentSeason || [], [data]);
-  const recent = useMemo(() => data?.recent || [], [data]);
-  const total = counts?.[language] || counts?.total || 0;
+    const allDubs: DubAnime[] = entries
+      .map((d) => ({
+        mal_id: d.mal_id,
+        title: d.title,
+        displayTitle: d.displayTitle,
+        image: d.image,
+        synopsis: d.synopsis,
+        genres: d.genres,
+        hasHindi: d.hasHindi,
+        hasTamil: d.hasTamil,
+        hasTelugu: d.hasTelugu,
+        hasEnglish: d.hasEnglish,
+        comingSoonLanguages: d.comingSoonLanguages,
+        isCurrentSeason: d.isCurrentSeason,
+        score: d.score,
+      }))
+      .filter((item, index, list) => list.findIndex((other) => other.mal_id === item.mal_id) === index);
 
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  function toggleExpand(section: string) {
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(section)) next.delete(section);
-      else next.add(section);
-      return next;
-    });
-  }
+    let filtered = allDubs;
+    if (language === "hindi") filtered = allDubs.filter((d) => d.hasHindi);
+    else if (language === "tamil") filtered = allDubs.filter((d) => d.hasTamil);
+    else if (language === "telugu") filtered = allDubs.filter((d) => d.hasTelugu);
+    else if (language === "english") filtered = allDubs.filter((d) => d.hasEnglish);
 
-  const SECTION_LIMIT = 8;
-  function sectionItems(all: DubAnime[], key: string) {
-    return expanded.has(key) ? all : all.slice(0, SECTION_LIMIT);
-  }
+    const currentSeason = filtered.filter((d) => d.isCurrentSeason);
+    const available = filtered.filter((d) => !d.isCurrentSeason && !d.comingSoonLanguages.length);
+    const comingSoon = filtered.filter((d) => d.comingSoonLanguages.length > 0);
 
-  return (
-    <PageTransition>
-      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="mb-8">
-          <div className="neon-rgb-border rounded-xl px-5 py-3 inline-block">
-            <p className="font-mono text-xs uppercase tracking-[0.2em] text-[var(--color-cyan)]">Regional Dubbed Hub</p>
-            <h1 className="font-display text-3xl font-black sm:text-4xl md:text-5xl tracking-tight mt-1">
-              Anime Dubs
-            </h1>
-            <p className="mt-2 text-sm text-[var(--color-mute)]">
-              Track English, Hindi, Tamil & Telugu dubbed anime from official sources.
-            </p>
-          </div>
-        </motion.div>
+    return {
+      data: {
+        currentSeason,
+        // The API still returns `recent`; it is the same set as currentSeason,
+        // so keep the field for compatibility but do not render it twice.
+        recent: currentSeason,
+        available,
+        comingSoon,
+      },
+      counts: {
+        total: filtered.length,
+        hindi: allDubs.filter((d) => d.hasHindi).length,
+        tamil: allDubs.filter((d) => d.hasTamil).length,
+        telugu: allDubs.filter((d) => d.hasTelugu).length,
+        english: allDubs.filter((d) => d.hasEnglish).length,
+        currentSeason: currentSeason.length,
+        available: available.length,
+        comingSoon: comingSoon.length,
+      },
+      updatedAt: lastUpdated,
+    };
+  },
+  ["dubbed-schedule-v1"],
+  { revalidate: 300, tags: ["dub-schedule"] }
+);
 
-        {/* Language tabs */}
-        <div className="flex flex-wrap gap-2 mb-8">
-          {LANG_TABS.map((tab) => (
-            <button key={tab.key} onClick={() => setLanguage(tab.key)}
-              className={`relative rounded-full px-5 py-2 text-sm font-bold transition-all ${
-                language === tab.key
-                  ? "text-black shadow-lg"
-                  : "text-[var(--color-mute)] neon-rgb-border"
-              }`}
-              style={language === tab.key ? { backgroundColor: tab.accent } : {}}
-            >
-              {tab.label}
-              {counts && <span className="ml-1.5 opacity-70">({counts[tab.key] || 0})</span>}
-            </button>
-          ))}
-        </div>
-
-        {/* Stats */}
-        {counts && (
-          <div className="flex flex-wrap items-center gap-4 text-xs text-[var(--color-mute)] mb-8 pb-6 rounded-xl px-4 py-3 neon-rgb-border">
-            {currentSeason.length > 0 && (
-              <span className="flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-[var(--color-cyan)]" style={{ animation: "pulse 1.5s ease-in-out infinite" }} />
-                {currentSeason.length} Current Season
-              </span>
-            )}
-            {recent.length > 0 && (
-              <span className="flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-[var(--color-magenta)]" />
-                {recent.length} Recently Added
-              </span>
-            )}
-            {comingSoon.length > 0 && (
-              <span className="flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-[var(--color-amber)]" />
-                {comingSoon.length} Coming Soon
-              </span>
-            )}
-            <span className="font-mono">{total} Total</span>
-          </div>
-        )}
-
-        {/* Content */}
-        {loading ? (
-          <div className="space-y-4">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="h-20 rounded-xl bg-[var(--color-panel)] animate-pulse neon-rgb-border" />
-            ))}
-          </div>
-        ) : error ? (
-          <ErrorState message={error} onRetry={() => setLanguage(language)} />
-        ) : (
-          <div className="space-y-8">
-            {currentSeason.length > 0 && (
-              <section>
-                <h2 className="font-display text-lg font-bold flex items-center gap-2 mb-4 rounded-xl px-4 py-2 inline-flex neon-rgb-border">
-                  <span className="h-3 w-1 rounded-full bg-[var(--color-cyan)]" />
-                  Current Season ({currentSeason.length})
-                </h2>
-                <AnimatePresence mode="wait">
-                  <motion.div key={language} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                    <DubExpandingCard items={sectionItems(currentSeason, "cs")} />
-                    {currentSeason.length > SECTION_LIMIT && (
-                      <button onClick={() => toggleExpand("cs")}
-                        className="mt-3 w-full rounded-xl py-2.5 text-xs font-semibold text-[var(--color-mute)] hover:text-[var(--color-cyan)] transition-all"
-                      >
-                        {expanded.has("cs") ? "Show less ↑" : `View all ${currentSeason.length} →`}
-                      </button>
-                    )}
-                  </motion.div>
-                </AnimatePresence>
-              </section>
-            )}
-
-            {recent.length > 0 && (
-              <section>
-                <h2 className="font-display text-lg font-bold flex items-center gap-2 mb-4 rounded-xl px-4 py-2 inline-flex neon-rgb-border">
-                  <span className="h-3 w-1 rounded-full bg-[var(--color-magenta)]" />
-                  Recently Added ({recent.length})
-                </h2>
-                <AnimatePresence mode="wait">
-                  <motion.div key={language} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                    <DubExpandingCard items={sectionItems(recent, "re")} />
-                    {recent.length > SECTION_LIMIT && (
-                      <button onClick={() => toggleExpand("re")}
-                        className="mt-3 w-full rounded-xl py-2.5 text-xs font-semibold text-[var(--color-mute)] hover:text-[var(--color-cyan)] transition-all"
-                      >
-                        {expanded.has("re") ? "Show less ↑" : `View all ${recent.length} →`}
-                      </button>
-                    )}
-                  </motion.div>
-                </AnimatePresence>
-              </section>
-            )}
-
-            {comingSoon.length > 0 && (
-              <section>
-                <h2 className="font-display text-lg font-bold flex items-center gap-2 mb-4 rounded-xl px-4 py-2 inline-flex neon-rgb-border">
-                  <span className="h-3 w-1 rounded-full bg-[var(--color-amber)]" />
-                  Coming Soon ({comingSoon.length})
-                </h2>
-                <AnimatePresence mode="wait">
-                  <motion.div key={language} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                    <DubExpandingCard items={sectionItems(comingSoon, "co")} />
-                    {comingSoon.length > SECTION_LIMIT && (
-                      <button onClick={() => toggleExpand("co")}
-                        className="mt-3 w-full rounded-xl py-2.5 text-xs font-semibold text-[var(--color-mute)] hover:text-[var(--color-cyan)] transition-all"
-                      >
-                        {expanded.has("co") ? "Show less ↑" : `View all ${comingSoon.length} →`}
-                      </button>
-                    )}
-                  </motion.div>
-                </AnimatePresence>
-              </section>
-            )}
-
-            {available.length > 0 && (
-              <section>
-                <h2 className="font-display text-lg font-bold flex items-center gap-2 mb-4 rounded-xl px-4 py-2 inline-flex neon-rgb-border">
-                  <span className="h-3 w-1 rounded-full bg-[var(--color-cyan)]" />
-                  Available Now ({available.length})
-                </h2>
-                <AnimatePresence mode="wait">
-                  <motion.div key={language} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                    <DubExpandingCard items={sectionItems(available, "av")} />
-                    {available.length > SECTION_LIMIT && (
-                      <button onClick={() => toggleExpand("av")}
-                        className="mt-3 w-full rounded-xl py-2.5 text-xs font-semibold text-[var(--color-mute)] hover:text-[var(--color-cyan)] transition-all"
-                      >
-                        {expanded.has("av") ? "Show less ↑" : `View all ${available.length} →`}
-                      </button>
-                    )}
-                  </motion.div>
-                </AnimatePresence>
-              </section>
-            )}
-
-            {currentSeason.length === 0 && available.length === 0 && comingSoon.length === 0 && recent.length === 0 && (
-              <div className="py-16 text-center neon-rgb-border rounded-xl">
-                <p className="text-lg font-display text-[var(--color-mute)]">No dubbed anime found</p>
-                <p className="mt-1 text-sm text-[var(--color-mute)]">Try selecting a different language.</p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Indian Voice Actors (shown when Indian language is selected) */}
-        {(language === "hindi" || language === "tamil" || language === "telugu") && (
-          <div className="mt-10 rounded-xl neon-rgb-border bg-[var(--color-panel)] p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-display text-lg font-bold">Indian Voice Actors</h3>
-                <p className="text-xs text-[var(--color-mute)] mt-1">Meet the talented artists behind Indian anime dubs.</p>
-              </div>
-              <Link href="/voice-actors/indian"
-                className="text-xs font-semibold text-[var(--color-cyan)] hover:underline shrink-0"
-              >View all →</Link>
-            </div>
-          </div>
-        )}
-      </div>
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 pb-6">
-        <NativeBannerAd />
-      </div>
-    </PageTransition>
-  );
+export default async function DubbedPage() {
+  const initial = await getCachedDubSchedule("hindi");
+  return <DubbedClient initialLanguage="hindi" initialPayload={initial} />;
 }

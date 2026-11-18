@@ -405,8 +405,8 @@ export default function DailyDubScheduleScreen() {
             <View style={{ flex: 1 }}>
               <Text style={[styles.heroTitle, { color: colors.text }]}>India Dub Release Tracker</Text>
               <Text style={[styles.heroText, { color: colors.textMuted }]}>
-                Every row is a real upload or TV airing pulled live from the official Muse India,
-                Ani-One India and epg.pw feeds — no invented times.
+                Every row is a real upload or TV airing with live timings. Unannounced slots are
+                shown as TBA instead of invented times.
               </Text>
             </View>
           </View>
@@ -503,44 +503,7 @@ export default function DailyDubScheduleScreen() {
               </ScrollView>
             </FadeInView>
 
-            {/* Channel + language filters */}
-            <FadeInView delay={90}>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-                <TouchableOpacity
-                  onPress={() => setSelectedSource('all')}
-                  style={[
-                    styles.filterChip,
-                    {
-                      borderColor: selectedSource === 'all' ? tint : colors.border,
-                      backgroundColor: selectedSource === 'all' ? `${tint}18` : 'transparent',
-                    },
-                  ]}
-                >
-                  <Text style={[styles.filterText, { color: selectedSource === 'all' ? tint : colors.textMuted }]}>
-                    All channels
-                  </Text>
-                </TouchableOpacity>
-                {sources.map((s) => {
-                  const active = selectedSource === s.name;
-                  return (
-                    <TouchableOpacity
-                      key={s.id}
-                      onPress={() => setSelectedSource(s.name)}
-                      style={[
-                        styles.filterChip,
-                        {
-                          borderColor: active ? tint : colors.border,
-                          backgroundColor: active ? `${tint}18` : 'transparent',
-                        },
-                      ]}
-                    >
-                      <Text style={[styles.filterText, { color: active ? tint : colors.textMuted }]}>{s.name}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-            </FadeInView>
-
+            {/* Language filters */}
             {languages.length > 0 && (
               <FadeInView delay={110}>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
@@ -601,8 +564,8 @@ export default function DailyDubScheduleScreen() {
                   {selectedDay === 'Today' ? 'No drops today yet' : 'No uploads for this filter'}
                 </Text>
                 <Text style={[styles.centerText, { color: colors.textMuted }]}>
-                  The official channels publish on a rolling schedule. Try “All” to see every real
-                  upload from the past week.
+                  New episodes are published on a rolling schedule. Try “All” to see every upload
+                  from the past week.
                 </Text>
                 <TouchableOpacity style={[styles.ghostCta, { borderColor: colors.border }]} onPress={() => { setSelectedDay('All'); setSelectedSource('all'); setSelectedLang('all'); }}>
                   <Text style={[styles.ghostCtaText, { color: colors.textMuted }]}>Show all uploads</Text>
@@ -650,7 +613,7 @@ export default function DailyDubScheduleScreen() {
                                 {prettyTitle(item.entry.title)}
                               </Text>
                               <Text style={[styles.cardMeta, { color: colors.textDim }]} numberOfLines={1}>
-                                {item.sourceName} · {item.ist.timeLabel} IST
+                                {item.ist.timeLabel} IST
                               </Text>
                               <View style={styles.cardBottom}>
                                 {ep ? (
@@ -712,7 +675,7 @@ export default function DailyDubScheduleScreen() {
                 <Text style={{ fontSize: 38 }}>📺</Text>
                 <Text style={[styles.emptyTitle, { color: colors.text }]}>No TV airings for this day</Text>
                 <Text style={[styles.centerText, { color: colors.textMuted }]}>
-                  {tvError || 'The EPG feed only carries today and tomorrow. Try the other day or refresh.'}
+                  {tvError || 'The live guide only carries today and tomorrow. Try the other day or refresh.'}
                 </Text>
                 <TouchableOpacity style={[styles.cta, { backgroundColor: tint }]} onPress={() => loadTv(tvDay)}>
                   <Text style={styles.ctaText}>Refresh</Text>

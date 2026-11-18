@@ -101,13 +101,13 @@ function Skeleton() {
   );
 }
 
-function SourceSection({ source }: { source: DubFeedSource }) {
+function SourceSection({ source, index }: { source: DubFeedSource; index: number }) {
   return (
-    <section className="min-w-0" aria-label={`${source.name} auto-fetched feed`}>
+    <section className="min-w-0" aria-label={`Live dub feed ${index + 1}`}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2.5">
           <span className="flex h-2 w-2 rounded-full bg-[var(--color-magenta)] pulse-dot" />
-          <h3 className="font-display text-lg font-bold text-white">{source.name}</h3>
+          <h3 className="font-display text-lg font-bold text-white">Live feed {index + 1}</h3>
           <span className="font-mono text-[10px] uppercase tracking-widest text-[var(--color-mute)]">
             Official YouTube
           </span>
@@ -124,14 +124,14 @@ function SourceSection({ source }: { source: DubFeedSource }) {
           <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-center">
             <p className="font-display text-sm font-bold text-white">Feed temporarily unavailable</p>
             <p className="mt-1 text-xs text-[var(--color-mute)]">
-              {source.name}&apos;s feed didn&apos;t respond this time — next sync in a few minutes.
+              This feed didn&apos;t respond this time — next sync is in a few minutes.
             </p>
           </div>
         ) : source.entries.length === 0 ? (
           <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-center">
             <p className="font-display text-sm font-bold text-white">No recent dub uploads</p>
             <p className="mt-1 text-xs text-[var(--color-mute)]">
-              {source.name}&apos;s latest feed is live, but there are no new Indian-dub titles to show.
+              This feed is live, but there are no new Indian-dub titles to show.
             </p>
           </div>
         ) : (
@@ -144,14 +144,13 @@ function SourceSection({ source }: { source: DubFeedSource }) {
       </div>
 
       <div className="mt-2.5 text-[11px] text-[var(--color-mute)]">
-        Source:{" "}
         <Link
           href={source.channelUrl}
           target="_blank"
           rel="noopener noreferrer"
           className="text-[var(--color-cyan)] hover:underline"
         >
-          {source.channelName} — official YouTube channel
+          Open official channel →
         </Link>
       </div>
     </section>
@@ -228,9 +227,9 @@ export default function LiveDubFeeds() {
           <Skeleton />
         ) : (
           <div className="grid gap-6 lg:grid-cols-2">
-            {data.sources.map((source) => (
+            {data.sources.map((source, index) => (
               <div key={source.id} className="rounded-2xl border border-white/5 bg-white/[0.02] p-4">
-                <SourceSection source={source} />
+                <SourceSection source={source} index={index} />
               </div>
             ))}
           </div>
@@ -238,8 +237,7 @@ export default function LiveDubFeeds() {
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-2 text-[11px] text-[var(--color-mute)]">
-        <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-white/60">Sources</span>
-        <span>Muse India · Ani-One India</span>
+        <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-white/60">Live feeds</span>
         <span className="text-white/25">·</span>
         <span>auto-synced every ~6 minutes</span>
       </div>

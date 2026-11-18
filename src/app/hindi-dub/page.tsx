@@ -11,11 +11,11 @@ const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "https://zyverse.in";
 export const metadata: Metadata = {
   title: "Hindi Dub Anime Library — Series, Movies & Weekly Schedule (2026)",
   description:
-    "Complete Hindi, Tamil, Telugu, Bengali, Malayalam and Kannada dub catalogue: anime series, movies and the weekly Hindi dub airing schedule, imported and auto-updated from Indian dub sources.",
+    "Hindi, Tamil, Telugu, Bengali, Malayalam and Kannada dub catalogue: anime series, movies and the weekly airing schedule, built from public catalogue metadata.",
   keywords: [
     "hindi dub anime", "hindi dubbed anime list", "anime in hindi", "hindi dub schedule",
     "tamil dub anime", "telugu dub anime", "regional dub anime india", "hindi dub movies",
-    "anime hindi me", "dubbed anime india", "hindi dub catalogue",
+    "dubbed anime india", "hindi dub catalogue",
   ],
   openGraph: {
     images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "ZyniVerse — anime filler guides, watch orders and dub tracking" }],
@@ -73,12 +73,12 @@ export default async function HindiDubHubPage() {
           Hindi &amp; regional dub library
         </p>
         <h1 className="mt-2 max-w-3xl text-3xl font-black leading-tight text-[var(--color-ink)] sm:text-5xl">
-          Har Hindi dub, ek hi jagah — series, movies aur weekly schedule.
+          Every Hindi dub in one place — series, movies and the weekly schedule.
         </h1>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[var(--color-mute)] sm:text-base">
-          ZyniVerse Indian dub sources se sirf catalogue metadata import karta hai (title, languages, poster,
-          air time) aur original page ka link deta hai. Naya episode ya title source par aate hi yahan
-          automatically update ho jata hai.
+          ZyniVerse imports catalogue metadata only — titles, languages, artwork and air times — and links
+          back to the original listing. New episodes and titles appear here automatically as the catalogue
+          updates.
         </p>
 
         <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -215,34 +215,35 @@ export default async function HindiDubHubPage() {
       </section>
 
       <section className="mt-8 rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5">
-        <h2 className="text-sm font-bold uppercase tracking-wide text-[var(--color-ink)]">Sources we track</h2>
+        <h2 className="text-sm font-bold uppercase tracking-wide text-[var(--color-ink)]">Catalogue coverage</h2>
         <p className="mt-1 text-xs text-[var(--color-mute)]">
-          Domain change hone par bhi links kaam karte hain — ZyniVerse har run par working host detect karta hai.
+          Links keep working even when a catalogue host changes address — a working destination is resolved
+          automatically.
         </p>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          {stats.sources.map((source) => (
-            <a
-              key={source.id}
-              href={source.redirectPath}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-xl border border-[var(--color-line)] bg-black/20 p-4 transition hover:border-[var(--color-violet)]/60"
-            >
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-semibold text-[var(--color-ink)]">{source.name}</p>
-                <span
-                  className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${
-                    source.status === "ok" ? "bg-emerald-400/15 text-emerald-300" : "bg-rose-400/15 text-rose-300"
-                  }`}
-                >
-                  {source.status}
-                </span>
-              </div>
-              <p className="mt-1 text-xs text-[var(--color-mute)]">{source.description}</p>
-              <p className="mt-2 text-[11px] text-[var(--color-mute)]">
-                {source.itemCount.toLocaleString("en-IN")} titles · {new URL(source.baseUrl).hostname}
-              </p>
-            </a>
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {[
+            { label: "Catalogues indexed", value: stats.sources.length.toLocaleString("en-IN") },
+            {
+              label: "Connected",
+              value: stats.sources.filter((source) => source.status === "ok").length.toLocaleString("en-IN"),
+            },
+            {
+              label: "Titles tracked",
+              value: stats.sources
+                .reduce((sum, source) => sum + source.itemCount, 0)
+                .toLocaleString("en-IN"),
+            },
+            {
+              label: "Last sync",
+              value: stats.updatedAt
+                ? new Date(stats.updatedAt).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })
+                : "—",
+            },
+          ].map((item) => (
+            <div key={item.label} className="rounded-xl border border-[var(--color-line)] bg-black/20 p-4">
+              <p className="text-lg font-black text-[var(--color-ink)]">{item.value}</p>
+              <p className="mt-1 text-[10px] uppercase tracking-wide text-[var(--color-mute)]">{item.label}</p>
+            </div>
           ))}
         </div>
       </section>

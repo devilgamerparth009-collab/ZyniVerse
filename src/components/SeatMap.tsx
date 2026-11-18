@@ -97,8 +97,8 @@ export default function SeatMap({ classes }: SeatMapProps) {
           })}
         </div>
         <p className="text-[10px] leading-relaxed text-[var(--color-mute)]/80">
-          Representative layout only — actual seat rows, prices aur availability booking platform par dekho
-          (BookMyShow / PVR / District) showtime select karte waqt.
+          Representative layout only — check actual seat rows, prices and availability on the booking
+          platform (BookMyShow / PVR / District) when you select a showtime.
         </p>
       </div>
     </div>

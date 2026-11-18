@@ -419,7 +419,7 @@ export default function MangaScreen() {
                 <Text style={{ fontSize: 34 }}>📚</Text>
                 <Text style={[styles.centerTitle, { color: colors.text }]}>Nothing here yet</Text>
                 <Text style={[styles.centerText, { color: colors.textMuted }]}>
-                  Try a different filter — AniList may be rate-limiting right now.
+                  Try a different filter — the catalogue may be busy right now.
                 </Text>
               </View>
             ) : (

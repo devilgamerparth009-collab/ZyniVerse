@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
-import { withPublicCache } from "@/lib/api-cache";
 import { getDubSchedule, groupScheduleByDay, WEEKDAY_ORDER } from "@/lib/dub-import/queries";
+import { withoutProviderFields } from "@/lib/dub-import/public-fields";
+import {
+  DUB_SCHEDULE_CACHE_META,
+  scheduleJson,
+} from "@/lib/dub-import/schedule-cache";
 
 export const dynamic = "force-dynamic";
 
-async function handler(request: Request) {
+async function handler(request: Request): Promise<Response> {
   const { searchParams } = new URL(request.url);
   try {
     const rows = await getDubSchedule({
@@ -14,14 +18,17 @@ async function handler(request: Request) {
     });
     const grouped = groupScheduleByDay(rows);
 
-    return NextResponse.json({
-      success: true,
-      total: rows.length,
-      days: WEEKDAY_ORDER,
-      groups: grouped.groups,
-      unscheduled: grouped.other,
-      items: rows,
-    });
+    return scheduleJson(
+      withoutProviderFields({
+        success: true,
+        total: rows.length,
+        days: WEEKDAY_ORDER,
+        groups: grouped.groups,
+        unscheduled: grouped.other,
+        items: rows,
+        cache: DUB_SCHEDULE_CACHE_META,
+      })
+    );
   } catch (error) {
     return NextResponse.json(
       { success: false, error: "Failed to load dub schedule", details: String(error) },
@@ -30,6 +37,6 @@ async function handler(request: Request) {
   }
 }
 
-export async function GET(request: Request) {
-  return withPublicCache(await handler(request));
+export async function GET(request: Request): Promise<Response> {
+  return handler(request);
 }

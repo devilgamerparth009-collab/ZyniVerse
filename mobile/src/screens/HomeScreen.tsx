@@ -626,7 +626,7 @@ export default function HomeScreen() {
             { icon: '📺', label: 'Live TV', sub: 'Channels & OTT', route: 'TVGuide', tint: '#ef4444' },
             { icon: '🎬', label: 'Reels', sub: 'Clips & edits', route: 'Reels', tint: '#f472b6' },
             { icon: '🇮🇳', label: 'Dub Hub', sub: 'Series · Movies · Schedule', route: 'HindiDub', params: { tab: 'all' }, tint: '#ff9933' },
-            { icon: '🧰', label: 'All Features', sub: 'Website ka har option', route: 'AllFeatures', tint: '#a78bfa' },
+            { icon: '🧰', label: 'All Features', sub: 'Every feature in one place', route: 'AllFeatures', tint: '#a78bfa' },
             { icon: '🟩', label: 'Wordle', sub: 'Daily puzzle', route: 'Wordle', tint: '#22c55e' },
           ].map((item: any) => (
             <TouchableOpacity

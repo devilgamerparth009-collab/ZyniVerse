@@ -72,9 +72,8 @@ export default async function HindiDubSchedulePage({
         Hindi dub airing schedule
       </h1>
       <p className="mt-2 max-w-2xl text-sm text-[var(--color-mute)]">
-        Har hafte ka dub schedule, IST timings ke saath. Source sites par schedule change hone par yahan
-        next sync me update ho jata hai. Times source listing par based hain — release se pehle official
-        channel confirm kar lena.
+        Weekly dub schedule with IST timings. Slots refresh automatically when a time changes.
+        Times are indicative, so confirm before a release.
       </p>
 
       <div className="mt-5 flex flex-wrap items-center gap-2">
@@ -109,7 +108,7 @@ export default async function HindiDubSchedulePage({
 
       {rows.length === 0 ? (
         <p className="mt-8 rounded-xl border border-dashed border-[var(--color-line)] p-8 text-center text-sm text-[var(--color-mute)]">
-          Is filter par abhi koi airing nahi hai. Doosra day ya language try karo.
+          No airings match this filter. Try another day or language.
         </p>
       ) : (
         <div className="mt-8 space-y-8">
@@ -146,7 +145,7 @@ export default async function HindiDubSchedulePage({
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-semibold text-[var(--color-ink)]">{row.title}</p>
                           <p className="mt-0.5 text-[11px] text-[var(--color-mute)]">
-                            {[row.season, row.episodeInfo].filter(Boolean).join(" · ") || row.sourceName}
+                            {[row.season, row.episodeInfo].filter(Boolean).join(" · ") || "Details TBA"}
                           </p>
                           <div className="mt-1 flex flex-wrap gap-1">
                             {row.languages.slice(0, 5).map((item) => (
@@ -178,8 +177,7 @@ export default async function HindiDubSchedulePage({
       </div>
 
       <p className="mt-6 text-[11px] leading-relaxed text-[var(--color-mute)]">
-        Schedule source: Indian dub listing sites. ZyniVerse sirf schedule metadata (title, season, episode,
-        air time) store karta hai aur original page par link deta hai; koi video host ya proxy nahi karta.
+        Times are indicative and may change. ZyniVerse stores schedule details only and does not host episodes.
       </p>
     </main>
   );

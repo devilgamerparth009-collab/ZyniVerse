@@ -5,13 +5,14 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Image,
   TextInput,
   Modal,
   ActivityIndicator,
   RefreshControl,
   KeyboardAvoidingView,
   Platform,
+  Animated,
+  Easing,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -21,14 +22,24 @@ import { User, WatchParty, WatchPartySearchResult } from '../types';
 import ScreenHeader from '../components/ScreenHeader';
 import PressableScale from '../components/PressableScale';
 import FadeInView from '../components/FadeInView';
+import SafeImage from '../components/SafeImage';
+import AnimatedTabBar, { type AnimatedTabItem } from '../components/AnimatedTabBar';
+import { PartyListSkeleton } from '../components/Skeletons';
 import { spacing, borderRadius } from '../theme';
-import { timeAgo, defaultAvatarFor } from '../utils/helpers';
+import { timeAgo } from '../utils/helpers';
 
 const STATUS_META: Record<string, { label: string; color: string }> = {
   waiting: { label: 'WAITING', color: '#f59e0b' },
   live: { label: 'LIVE', color: '#ef4444' },
   ended: { label: 'ENDED', color: '#64748b' },
 };
+
+type PartyTab = 'live' | 'mine';
+
+const PARTY_TABS: AnimatedTabItem<PartyTab>[] = [
+  { key: 'live', label: 'Live now' },
+  { key: 'mine', label: 'My parties' },
+];
 
 function Avatar({
   uri,
@@ -39,11 +50,17 @@ function Avatar({
   name?: string | null;
   size?: number;
 }) {
-  const src = uri || defaultAvatarFor(name);
   return (
-    <Image
-      source={{ uri: src }}
-      style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: '#1a1a2e' }}
+    <SafeImage
+      uri={uri}
+      fallbackLabel={name || 'Fan'}
+      accessibilityLabel={name || 'Fan'}
+      style={{
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        backgroundColor: '#1a1a2e',
+      }}
     />
   );
 }
@@ -54,7 +71,7 @@ export default function WatchPartyScreen() {
   const { colors, isDiwali, isChristmas } = useTheme();
   const tint = isDiwali ? '#f59e0b' : isChristmas ? '#7dd3fc' : colors.primary;
 
-  const [tab, setTab] = useState<'live' | 'mine'>('live');
+  const [tab, setTab] = useState<PartyTab>('live');
   const [live, setLive] = useState<WatchParty[]>([]);
   const [mine, setMine] = useState<WatchParty[]>([]);
   const [loading, setLoading] = useState(true);
@@ -70,6 +87,28 @@ export default function WatchPartyScreen() {
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const glow = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(glow, {
+          toValue: 1,
+          duration: 2600,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(glow, {
+          toValue: 0,
+          duration: 2600,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [glow]);
 
   const load = useCallback(async (isRefresh = false) => {
     try {
@@ -167,18 +206,40 @@ export default function WatchPartyScreen() {
 
   const list = tab === 'live' ? live : mine;
 
+  const tabsWithCounts = useMemo(
+    () =>
+      PARTY_TABS.map((item) => ({
+        ...item,
+        badge: item.key === 'live' ? live.length : mine.length,
+      })),
+    [live.length, mine.length]
+  );
+
   const headerRight = useMemo(
     () => (
-      <TouchableOpacity
+      <PressableScale
         onPress={openCreate}
+        scaleTo={0.92}
         style={[styles.newBtn, { backgroundColor: `${tint}1f`, borderColor: `${tint}66` }]}
       >
         <Text style={[styles.newBtnText, { color: tint }]}>＋ New</Text>
-      </TouchableOpacity>
+      </PressableScale>
     ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [tint, user]
   );
+
+  const glowStyle = {
+    opacity: glow.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0.85] }),
+    transform: [
+      {
+        translateX: glow.interpolate({ inputRange: [0, 1], outputRange: [-18, 18] }),
+      },
+      {
+        scale: glow.interpolate({ inputRange: [0, 1], outputRange: [1, 1.22] }),
+      },
+    ],
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
@@ -193,68 +254,68 @@ export default function WatchPartyScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: insets.bottom + 120 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(true); }} tintColor={tint} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              setRefreshing(true);
+              load(true);
+            }}
+            tintColor={tint}
+          />
+        }
       >
-        {/* Tabs */}
-        <FadeInView delay={20}>
-          <View style={styles.tabs}>
-            {([
-              { key: 'live', label: `Live now${live.length ? ` · ${live.length}` : ''}` },
-              { key: 'mine', label: `My parties${mine.length ? ` · ${mine.length}` : ''}` },
-            ] as const).map((t) => {
-              const active = tab === t.key;
-              return (
-                <TouchableOpacity
-                  key={t.key}
-                  onPress={() => setTab(t.key)}
-                  style={[
-                    styles.tab,
-                    {
-                      backgroundColor: active ? `${tint}22` : colors.surface,
-                      borderColor: active ? tint : colors.border,
-                    },
-                  ]}
-                >
-                  <Text style={[styles.tabText, { color: active ? tint : colors.textMuted }]}>{t.label}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </FadeInView>
+        <AnimatedTabBar<PartyTab>
+          tabs={tabsWithCounts}
+          active={tab}
+          onChange={setTab}
+          tint={tint}
+          surface={colors.surface}
+          border={colors.border}
+          muted={colors.textMuted}
+          equal
+          contentContainerStyle={{ paddingHorizontal: spacing.md, marginTop: spacing.md }}
+        />
 
-        {/* Hero explainer */}
         <FadeInView delay={60}>
           <View style={[styles.heroCard, { backgroundColor: colors.surface, borderColor: `${tint}44` }]}>
-            <View pointerEvents="none" style={[styles.heroGlow, { backgroundColor: `${tint}18` }]} />
+            <Animated.View
+              pointerEvents="none"
+              style={[styles.heroGlow, { backgroundColor: `${tint}22` }, glowStyle]}
+            />
+            <Text style={[styles.heroEyebrow, { color: tint }]}>TOGETHER, IN SYNC</Text>
             <Text style={[styles.heroTitle, { color: colors.text }]}>
               {user ? 'Your crew, one timeline' : 'Watch together, wherever you are'}
             </Text>
             <Text style={[styles.heroSub, { color: colors.textMuted }]}>
-              Pick an anime, invite friends, and keep every episode in sync. Chat and reactions stay in the room.
+              Pick an anime, invite friends, and keep every episode in sync. Chat and reactions stay
+              in the room.
             </Text>
-            <TouchableOpacity
+            <PressableScale
               onPress={openCreate}
+              scaleTo={0.94}
               style={[styles.heroBtn, { backgroundColor: tint }]}
-              activeOpacity={0.9}
             >
-              <Text style={styles.heroBtnText}>{user ? 'Start a watch party' : 'Sign in to host'}</Text>
-            </TouchableOpacity>
+              <Text style={styles.heroBtnText}>
+                {user ? 'Start a watch party' : 'Sign in to host'}
+              </Text>
+            </PressableScale>
           </View>
         </FadeInView>
 
         {loading ? (
-          <View style={styles.center}>
-            <ActivityIndicator color={tint} />
-            <Text style={[styles.centerText, { color: colors.textMuted }]}>Finding parties…</Text>
-          </View>
+          <PartyListSkeleton />
         ) : error ? (
           <View style={styles.center}>
             <Text style={{ fontSize: 34 }}>📡</Text>
             <Text style={[styles.centerTitle, { color: colors.text }]}>Rooms unavailable</Text>
             <Text style={[styles.centerText, { color: colors.textMuted }]}>{error}</Text>
-            <TouchableOpacity style={[styles.retryBtn, { backgroundColor: tint }]} onPress={() => load()}>
+            <PressableScale
+              style={[styles.retryBtn, { backgroundColor: tint }]}
+              onPress={() => load()}
+            >
               <Text style={styles.retryText}>Try again</Text>
-            </TouchableOpacity>
+            </PressableScale>
           </View>
         ) : list.length === 0 ? (
           <View style={styles.center}>
@@ -267,9 +328,9 @@ export default function WatchPartyScreen() {
                 ? 'Be the first to start one — it takes two taps.'
                 : 'Create a room or join a live one from the other tab.'}
             </Text>
-            <TouchableOpacity style={[styles.retryBtn, { backgroundColor: tint }]} onPress={openCreate}>
+            <PressableScale style={[styles.retryBtn, { backgroundColor: tint }]} onPress={openCreate}>
               <Text style={styles.retryText}>Start a party</Text>
-            </TouchableOpacity>
+            </PressableScale>
           </View>
         ) : (
           <View style={styles.list}>
@@ -277,20 +338,20 @@ export default function WatchPartyScreen() {
               const status = STATUS_META[party.status] || STATUS_META.waiting;
               const cover = party.coverImage || party.mediaImage;
               return (
-                <FadeInView key={party.id} delay={Math.min(i, 8) * 45} offset={12}>
+                <FadeInView key={party.id} delay={Math.min(i, 8) * 55} offset={12}>
                   <PressableScale
                     onPress={() => navigation.navigate('WatchPartyRoom', { id: party.id })}
+                    scaleTo={0.975}
                     style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
                   >
-                    <View style={[styles.coverWrap, { backgroundColor: colors.surfaceLight }]}>
-                      {cover ? (
-                        <Image source={{ uri: cover }} style={styles.cover} resizeMode="cover" />
-                      ) : (
-                        <Text style={{ fontSize: 26 }}>🎬</Text>
-                      )}
-                      <View style={[styles.statusPill, { backgroundColor: status.color }]}>
-                        <Text style={styles.statusText}>{status.label}</Text>
-                      </View>
+                    <SafeImage
+                      uri={cover}
+                      fallbackLabel={party.mediaTitle}
+                      style={styles.cover}
+                      accessibilityLabel={party.mediaTitle}
+                    />
+                    <View style={[styles.statusPill, { backgroundColor: status.color }]}>
+                      <Text style={styles.statusText}>{status.label}</Text>
                     </View>
 
                     <View style={styles.cardBody}>
@@ -336,7 +397,6 @@ export default function WatchPartyScreen() {
         )}
       </ScrollView>
 
-      {/* Create sheet */}
       <Modal visible={showCreate} animationType="slide" transparent onRequestClose={closeCreate}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -358,7 +418,7 @@ export default function WatchPartyScreen() {
                   setQuery(t);
                   setSelected(null);
                 }}
-                placeholder="Search anime…"
+                placeholder="Search anime..."
                 placeholderTextColor={colors.textDim}
                 style={[styles.searchInput, { color: colors.text }]}
                 autoCapitalize="none"
@@ -368,13 +428,12 @@ export default function WatchPartyScreen() {
 
             {selected ? (
               <View style={[styles.selectedCard, { backgroundColor: colors.surface, borderColor: `${tint}66` }]}>
-                {selected.image ? (
-                  <Image source={{ uri: selected.image }} style={styles.selectedImage} />
-                ) : (
-                  <View style={[styles.selectedImage, { backgroundColor: colors.surfaceLight, alignItems: 'center', justifyContent: 'center' }]}>
-                    <Text>🎬</Text>
-                  </View>
-                )}
+                <SafeImage
+                  uri={selected.image}
+                  fallbackLabel={selected.title}
+                  style={styles.selectedImage}
+                  accessibilityLabel={selected.title}
+                />
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.selectedTitle, { color: colors.text }]} numberOfLines={2}>
                     {selected.title}
@@ -392,20 +451,22 @@ export default function WatchPartyScreen() {
             ) : results.length > 0 ? (
               <ScrollView style={{ maxHeight: 260 }} keyboardShouldPersistTaps="handled">
                 {results.map((r) => (
-                  <TouchableOpacity
+                  <PressableScale
                     key={r.id}
                     onPress={() => {
                       setSelected(r);
                       setQuery(r.title);
                       setResults([]);
                     }}
+                    scaleTo={0.97}
                     style={[styles.resultRow, { borderColor: colors.border }]}
                   >
-                    {r.image ? (
-                      <Image source={{ uri: r.image }} style={styles.resultImage} />
-                    ) : (
-                      <View style={[styles.resultImage, { backgroundColor: colors.surfaceLight }]} />
-                    )}
+                    <SafeImage
+                      uri={r.image}
+                      fallbackLabel={r.title}
+                      style={styles.resultImage}
+                      accessibilityLabel={r.title}
+                    />
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.resultTitle, { color: colors.text }]} numberOfLines={1}>
                         {r.title}
@@ -417,7 +478,7 @@ export default function WatchPartyScreen() {
                       </Text>
                     </View>
                     <Text style={{ color: tint, fontWeight: '900' }}>›</Text>
-                  </TouchableOpacity>
+                  </PressableScale>
                 ))}
               </ScrollView>
             ) : query.trim().length >= 2 && !searching ? (
@@ -430,9 +491,10 @@ export default function WatchPartyScreen() {
               <Text style={[styles.errorText, { color: colors.error }]}>{createError}</Text>
             )}
 
-            <TouchableOpacity
+            <PressableScale
               disabled={!selected || creating}
               onPress={handleCreate}
+              scaleTo={0.97}
               style={[
                 styles.createBtn,
                 { backgroundColor: selected ? tint : colors.surfaceLight, opacity: creating ? 0.7 : 1 },
@@ -445,7 +507,7 @@ export default function WatchPartyScreen() {
                   Create party
                 </Text>
               )}
-            </TouchableOpacity>
+            </PressableScale>
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -454,65 +516,65 @@ export default function WatchPartyScreen() {
 }
 
 const styles = StyleSheet.create({
-  newBtn: { borderWidth: 1, borderRadius: borderRadius.full, paddingHorizontal: 10, paddingVertical: 5 },
-  newBtnText: { fontSize: 11, fontWeight: '900' },
-  tabs: { flexDirection: 'row', gap: 8, paddingHorizontal: spacing.md, marginTop: spacing.md },
-  tab: { flex: 1, borderWidth: 1, borderRadius: borderRadius.md, paddingVertical: 9, alignItems: 'center' },
-  tabText: { fontSize: 12, fontWeight: '800' },
+  newBtn: { borderWidth: 1, borderRadius: borderRadius.full, paddingHorizontal: 12, paddingVertical: 7 },
+  newBtnText: { fontSize: 12, fontWeight: '900' },
   heroCard: {
     marginHorizontal: spacing.md,
     marginTop: spacing.md,
     borderWidth: 1,
     borderRadius: borderRadius.lg,
-    padding: spacing.md,
+    padding: spacing.md + 2,
     overflow: 'hidden',
   },
-  heroGlow: { position: 'absolute', right: -50, top: -50, width: 160, height: 160, borderRadius: 80 },
-  heroTitle: { fontSize: 17, fontWeight: '900' },
-  heroSub: { fontSize: 12, lineHeight: 18, marginTop: 5 },
-  heroBtn: { alignSelf: 'flex-start', marginTop: 12, borderRadius: borderRadius.full, paddingHorizontal: 16, paddingVertical: 9 },
-  heroBtnText: { color: '#0a0a0f', fontSize: 12, fontWeight: '900' },
-  list: { paddingHorizontal: spacing.md, gap: 10, marginTop: spacing.md },
+  heroGlow: { position: 'absolute', right: -60, top: -70, width: 180, height: 180, borderRadius: 90 },
+  heroEyebrow: { fontSize: 10, fontWeight: '900', letterSpacing: 1.5 },
+  heroTitle: { fontSize: 20, fontWeight: '900', marginTop: 4 },
+  heroSub: { fontSize: 13.5, lineHeight: 20, marginTop: 8 },
+  heroBtn: {
+    alignSelf: 'flex-start',
+    marginTop: 14,
+    borderRadius: borderRadius.full,
+    paddingHorizontal: 20,
+    paddingVertical: 11,
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+  },
+  heroBtnText: { color: '#0a0a0f', fontSize: 13.5, fontWeight: '900' },
+  list: { paddingHorizontal: spacing.md, gap: 12, marginTop: spacing.md },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 11,
-    padding: 10,
+    gap: 12,
+    padding: 12,
     borderRadius: borderRadius.lg,
     borderWidth: 1,
   },
-  coverWrap: {
-    width: 74,
-    height: 104,
-    borderRadius: borderRadius.md,
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cover: { width: '100%', height: '100%' },
-  statusPill: { position: 'absolute', top: 5, left: 5, borderRadius: 4, paddingHorizontal: 5, paddingVertical: 2 },
-  statusText: { color: '#fff', fontSize: 7.5, fontWeight: '900', letterSpacing: 0.6 },
+  cover: { width: 78, height: 110, borderRadius: borderRadius.md },
+  statusPill: { position: 'absolute', top: 17, left: 17, borderRadius: 5, paddingHorizontal: 6, paddingVertical: 3 },
+  statusText: { color: '#fff', fontSize: 8.5, fontWeight: '900', letterSpacing: 0.7 },
   cardBody: { flex: 1 },
-  cardTitle: { fontSize: 13.5, fontWeight: '800', lineHeight: 18 },
-  cardMeta: { fontSize: 10.5, marginTop: 3 },
-  hostRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 6 },
-  hostName: { fontSize: 9.5, maxWidth: 100 },
-  dot: { fontSize: 9 },
-  memberRow: { flexDirection: 'row', alignItems: 'center', marginTop: 7 },
+  cardTitle: { fontSize: 15, fontWeight: '800', lineHeight: 20 },
+  cardMeta: { fontSize: 12, marginTop: 4 },
+  hostRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 8 },
+  hostName: { fontSize: 11, maxWidth: 100 },
+  dot: { fontSize: 10 },
+  memberRow: { flexDirection: 'row', alignItems: 'center', marginTop: 9 },
   memberAvatar: { borderWidth: 1.5, borderRadius: 14, marginRight: -6 },
-  moreMembers: { fontSize: 9, marginLeft: 10, fontWeight: '700' },
-  joinBtn: { borderWidth: 1, borderRadius: borderRadius.full, paddingHorizontal: 12, paddingVertical: 6 },
-  joinText: { fontSize: 10.5, fontWeight: '900' },
+  moreMembers: { fontSize: 10, marginLeft: 10, fontWeight: '700' },
+  joinBtn: { borderWidth: 1, borderRadius: borderRadius.full, paddingHorizontal: 14, paddingVertical: 8 },
+  joinText: { fontSize: 12, fontWeight: '900' },
   center: { alignItems: 'center', paddingVertical: 52, paddingHorizontal: 30, gap: 8 },
-  centerTitle: { fontSize: 16, fontWeight: '800', marginTop: 4, textAlign: 'center' },
-  centerText: { fontSize: 12, textAlign: 'center', lineHeight: 18 },
-  retryBtn: { marginTop: 10, paddingHorizontal: 18, paddingVertical: 9, borderRadius: borderRadius.md },
-  retryText: { color: '#0a0a0f', fontSize: 12, fontWeight: '900' },
+  centerTitle: { fontSize: 17, fontWeight: '800', marginTop: 4, textAlign: 'center' },
+  centerText: { fontSize: 13, textAlign: 'center', lineHeight: 19 },
+  retryBtn: { marginTop: 12, paddingHorizontal: 20, paddingVertical: 11, borderRadius: borderRadius.full },
+  retryText: { color: '#0a0a0f', fontSize: 13, fontWeight: '900' },
   modalWrap: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, borderWidth: 1, padding: spacing.md, paddingBottom: 26 },
   grabber: { width: 42, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 14 },
-  sheetTitle: { fontSize: 18, fontWeight: '900' },
-  sheetSub: { fontSize: 12, marginTop: 3, marginBottom: 12 },
+  sheetTitle: { fontSize: 19, fontWeight: '900' },
+  sheetSub: { fontSize: 13, marginTop: 3, marginBottom: 12 },
   searchWrap: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -520,9 +582,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: borderRadius.md,
     paddingHorizontal: 12,
-    height: 44,
+    height: 46,
   },
-  searchInput: { flex: 1, fontSize: 13, paddingVertical: 0 },
+  searchInput: { flex: 1, fontSize: 14, paddingVertical: 0 },
   selectedCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -532,21 +594,21 @@ const styles = StyleSheet.create({
     padding: 9,
     marginTop: 12,
   },
-  selectedImage: { width: 42, height: 58, borderRadius: 8 },
-  selectedTitle: { fontSize: 13, fontWeight: '800' },
-  selectedMeta: { fontSize: 10.5, marginTop: 3 },
+  selectedImage: { width: 46, height: 64, borderRadius: 8 },
+  selectedTitle: { fontSize: 14, fontWeight: '800' },
+  selectedMeta: { fontSize: 11.5, marginTop: 3 },
   resultRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    paddingVertical: 8,
+    paddingVertical: 9,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  resultImage: { width: 34, height: 46, borderRadius: 6 },
-  resultTitle: { fontSize: 12.5, fontWeight: '700' },
-  resultMeta: { fontSize: 10, marginTop: 2 },
-  noResults: { fontSize: 11.5, marginTop: 14, textAlign: 'center' },
-  errorText: { fontSize: 11.5, marginTop: 10 },
-  createBtn: { marginTop: 14, borderRadius: borderRadius.md, paddingVertical: 13, alignItems: 'center' },
-  createText: { fontSize: 13, fontWeight: '900' },
+  resultImage: { width: 38, height: 52, borderRadius: 6 },
+  resultTitle: { fontSize: 13.5, fontWeight: '700' },
+  resultMeta: { fontSize: 11, marginTop: 2 },
+  noResults: { fontSize: 12.5, marginTop: 14, textAlign: 'center' },
+  errorText: { fontSize: 12.5, marginTop: 10 },
+  createBtn: { marginTop: 14, borderRadius: borderRadius.md, paddingVertical: 14, alignItems: 'center' },
+  createText: { fontSize: 14, fontWeight: '900' },
 });

@@ -5,26 +5,26 @@ import {
   FlatList,
   SectionList,
   StyleSheet,
-  Image,
   TextInput,
-  TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
   ScrollView,
   Linking,
   useWindowDimensions,
+  Animated,
+  Easing,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from '../services/api';
-import {
-  DubAiring,
-  DubCatalogTitle,
-  DubGenreStat,
-  DubLanguageStat,
-  DubSourceInfo,
-} from '../types';
+import { DubAiring, DubCatalogTitle, DubGenreStat, DubLanguageStat } from '../types';
 import ScreenHeader from '../components/ScreenHeader';
+import PressableScale from '../components/PressableScale';
+import FadeInView from '../components/FadeInView';
+import SafeImage from '../components/SafeImage';
+import AnimatedTabBar, { type AnimatedTabItem } from '../components/AnimatedTabBar';
+import { SkeletonBlock } from '../components/Skeletons';
+import { useTheme } from '../hooks/useTheme';
 import { colors, themed, spacing, fontSize, borderRadius } from '../theme';
 
 const LANG_TINT: Record<string, string> = {
@@ -45,16 +45,15 @@ const SORTS: { key: 'recent' | 'title' | 'rating' | 'year'; label: string }[] = 
   { key: 'year', label: 'Year' },
 ];
 
-type TabKey = 'all' | 'series' | 'movies' | 'schedule' | 'languages' | 'genres' | 'sources';
+type TabKey = 'all' | 'series' | 'movies' | 'schedule' | 'languages' | 'genres';
 
-const TABS: { key: TabKey; label: string; emoji: string }[] = [
+const TABS: AnimatedTabItem<TabKey>[] = [
   { key: 'all', label: 'All', emoji: '✨' },
   { key: 'series', label: 'Series', emoji: '📺' },
   { key: 'movies', label: 'Movies', emoji: '🎬' },
   { key: 'schedule', label: 'Schedule', emoji: '🗓' },
   { key: 'languages', label: 'Languages', emoji: '🌐' },
   { key: 'genres', label: 'Genres', emoji: '🎭' },
-  { key: 'sources', label: 'Sources', emoji: '🔗' },
 ];
 
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
@@ -83,67 +82,92 @@ function languageTint(language: string): string {
   return LANG_TINT[language] ?? '#8b5cf6';
 }
 
+function openExternal(url?: string | null) {
+  if (!url) return;
+  Linking.openURL(url).catch(() => {});
+}
+
 /* ------------------------------------------------------------------ */
 /* Catalogue tab (all / series / movies)                                */
 /* ------------------------------------------------------------------ */
 
+function CatalogListSkeleton() {
+  return (
+    <View style={styles.skeletonGrid}>
+      {Array.from({ length: 9 }, (_, index) => (
+        <View key={index} style={styles.skeletonTile}>
+          <SkeletonBlock height={132} radius={borderRadius.md} />
+          <SkeletonBlock height={12} style={styles.skeletonGap} />
+          <SkeletonBlock height={10} width="65%" style={styles.skeletonTightGap} />
+        </View>
+      ))}
+    </View>
+  );
+}
+
 function CatalogCard({
   item,
   width,
+  index,
   onPress,
 }: {
   item: DubCatalogTitle;
   width: number;
+  index: number;
   onPress: () => void;
 }) {
   return (
-    <TouchableOpacity style={[styles.card, { width }]} activeOpacity={0.85} onPress={onPress}>
-      <View style={styles.posterWrap}>
-        {item.posterUrl ? (
-          <Image source={{ uri: item.posterUrl }} style={styles.poster} resizeMode="cover" />
-        ) : (
-          <View style={[styles.poster, styles.posterPlaceholder]}>
-            <Text style={styles.posterPlaceholderText} numberOfLines={3}>
-              {item.title}
-            </Text>
+    <FadeInView delay={Math.min(index, 9) * 45} offset={10}>
+      <PressableScale
+        scaleTo={0.95}
+        onPress={onPress}
+        accessibilityLabel={item.title}
+        style={[styles.card, { width }]}
+      >
+        <View style={styles.posterWrap}>
+          <SafeImage
+            uri={item.posterUrl}
+            fallbackLabel={item.title}
+            style={styles.poster}
+            accessibilityLabel={item.title}
+          />
+          <View style={styles.kindBadge}>
+            <Text style={styles.kindBadgeText}>{item.kind === 'movie' ? 'MOVIE' : 'SERIES'}</Text>
           </View>
-        )}
-        <View style={styles.kindBadge}>
-          <Text style={styles.kindBadgeText}>{item.kind === 'movie' ? 'MOVIE' : 'SERIES'}</Text>
+          {item.rating != null ? (
+            <View style={styles.ratingBadge}>
+              <Text style={styles.ratingText}>★ {item.rating.toFixed(1)}</Text>
+            </View>
+          ) : null}
         </View>
-        {item.rating != null ? (
-          <View style={styles.ratingBadge}>
-            <Text style={styles.ratingText}>★ {item.rating.toFixed(1)}</Text>
-          </View>
-        ) : null}
-      </View>
 
-      <Text style={styles.cardTitle} numberOfLines={2}>
-        {item.title}
-      </Text>
-
-      <View style={styles.langRow}>
-        {item.languages.slice(0, 2).map((language) => (
-          <View
-            key={language}
-            style={[styles.langBadge, { borderColor: `${languageTint(language)}88` }]}
-          >
-            <Text style={[styles.langBadgeText, { color: languageTint(language) }]}>
-              {language}
-            </Text>
-          </View>
-        ))}
-        {item.languages.length > 2 ? (
-          <Text style={styles.moreLangs}>+{item.languages.length - 2}</Text>
-        ) : null}
-      </View>
-
-      {item.season || item.episodeInfo ? (
-        <Text style={styles.cardMeta} numberOfLines={1}>
-          {[item.season, item.episodeInfo].filter(Boolean).join(' · ')}
+        <Text style={styles.cardTitle} numberOfLines={2}>
+          {item.title}
         </Text>
-      ) : null}
-    </TouchableOpacity>
+
+        <View style={styles.langRow}>
+          {item.languages.slice(0, 2).map((language) => (
+            <View
+              key={language}
+              style={[styles.langBadge, { borderColor: `${languageTint(language)}88` }]}
+            >
+              <Text style={[styles.langBadgeText, { color: languageTint(language) }]}>
+                {language}
+              </Text>
+            </View>
+          ))}
+          {item.languages.length > 2 ? (
+            <Text style={styles.moreLangs}>+{item.languages.length - 2}</Text>
+          ) : null}
+        </View>
+
+        {item.season || item.episodeInfo ? (
+          <Text style={styles.cardMeta} numberOfLines={1}>
+            {[item.season, item.episodeInfo].filter(Boolean).join(' · ')}
+          </Text>
+        ) : null}
+      </PressableScale>
+    </FadeInView>
   );
 }
 
@@ -151,6 +175,7 @@ function CatalogTab({
   kind,
   languages,
   genres,
+  tint,
   initialLanguage,
   initialGenre,
   onClearInitial,
@@ -158,6 +183,7 @@ function CatalogTab({
   kind?: 'series' | 'movie';
   languages: DubLanguageStat[];
   genres: DubGenreStat[];
+  tint: string;
   initialLanguage?: string;
   initialGenre?: string;
   onClearInitial: () => void;
@@ -215,7 +241,7 @@ function CatalogTab({
         setTotalPages(data.totalPages);
       } catch (e: any) {
         if (requestId.current !== id) return;
-        setError(e?.message || 'Could not load the dub catalogue');
+        setError(e?.message || 'Could not load the catalogue');
       } finally {
         if (requestId.current === id) {
           setLoading(false);
@@ -254,13 +280,13 @@ function CatalogTab({
           returnKeyType="search"
           onSubmitEditing={() => setAppliedSearch(search.trim())}
         />
-        <TouchableOpacity
-          style={styles.searchButton}
+        <PressableScale
+          scaleTo={0.92}
           onPress={() => setAppliedSearch(search.trim())}
-          activeOpacity={0.85}
+          style={[styles.searchButton, { backgroundColor: tint }]}
         >
           <Text style={styles.searchButtonText}>Search</Text>
-        </TouchableOpacity>
+        </PressableScale>
       </View>
 
       {appliedSearch ? (
@@ -268,59 +294,61 @@ function CatalogTab({
           <Text style={styles.activeSearchText} numberOfLines={1}>
             Results for “{appliedSearch}”
           </Text>
-          <TouchableOpacity
-            onPress={() => {
-              setSearch('');
-              setAppliedSearch('');
-            }}
-          >
+          <PressableScale scaleTo={0.9} onPress={() => {
+            setSearch('');
+            setAppliedSearch('');
+          }}>
             <Text style={styles.clearSearch}>Clear</Text>
-          </TouchableOpacity>
+          </PressableScale>
         </View>
       ) : null}
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-        <TouchableOpacity
+        <PressableScale
+          scaleTo={0.94}
           style={[styles.chip, !language && styles.chipActive]}
           onPress={() => setLanguage(undefined)}
         >
           <Text style={[styles.chipText, !language && styles.chipTextActive]}>All languages</Text>
-        </TouchableOpacity>
+        </PressableScale>
         {languages.map((item) => {
           const active = language === item.language;
           return (
-            <TouchableOpacity
+            <PressableScale
               key={item.slug}
-              style={[styles.chip, active && styles.chipActive]}
+              scaleTo={0.94}
+              style={[styles.chip, active && [styles.chipActive, { borderColor: tint }]]}
               onPress={() => setLanguage(active ? undefined : item.language)}
             >
-              <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                {item.language} {item.total}
+              <Text style={[styles.chipText, active && [styles.chipTextActive, { color: tint }]]}>
+                {item.language} {item.total.toLocaleString()}
               </Text>
-            </TouchableOpacity>
+            </PressableScale>
           );
         })}
       </ScrollView>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-        <TouchableOpacity
+        <PressableScale
+          scaleTo={0.94}
           style={[styles.chip, !genre && styles.chipActive]}
           onPress={() => setGenre(undefined)}
         >
           <Text style={[styles.chipText, !genre && styles.chipTextActive]}>All genres</Text>
-        </TouchableOpacity>
+        </PressableScale>
         {genres.map((item) => {
           const active = genre === item.genre;
           return (
-            <TouchableOpacity
+            <PressableScale
               key={item.genre}
-              style={[styles.chip, active && styles.chipActive]}
+              scaleTo={0.94}
+              style={[styles.chip, active && [styles.chipActive, { borderColor: tint }]]}
               onPress={() => setGenre(active ? undefined : item.genre)}
             >
-              <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                {item.genre} {item.total}
+              <Text style={[styles.chipText, active && [styles.chipTextActive, { color: tint }]]}>
+                {item.genre} {item.total.toLocaleString()}
               </Text>
-            </TouchableOpacity>
+            </PressableScale>
           );
         })}
       </ScrollView>
@@ -330,27 +358,34 @@ function CatalogTab({
         {SORTS.map((option) => {
           const active = sort === option.key;
           return (
-            <TouchableOpacity
+            <PressableScale
               key={option.key}
-              style={[styles.sortChip, active && styles.sortChipActive]}
+              scaleTo={0.92}
+              style={[styles.sortChip, active && [styles.sortChipActive, { borderColor: tint }]]}
               onPress={() => setSort(option.key)}
             >
-              <Text style={[styles.sortChipText, active && styles.sortChipTextActive]}>
+              <Text
+                style={[styles.sortChipText, active && [styles.sortChipTextActive, { color: tint }]]}
+              >
                 {option.label}
               </Text>
-            </TouchableOpacity>
+            </PressableScale>
           );
         })}
       </View>
 
       <Text style={styles.totalText}>
-        {total > 0 ? `${total.toLocaleString()} titles` : 'Loading catalogue…'}
+        {loading && items.length === 0
+          ? 'Loading catalogue…'
+          : total > 0
+            ? `${total.toLocaleString()} titles`
+            : 'No titles yet'}
       </Text>
 
       {error && !loading ? (
-        <TouchableOpacity style={styles.errorBox} onPress={() => load(1, 'replace')}>
+        <PressableScale scaleTo={0.98} style={styles.errorBox} onPress={() => load(1, 'replace')}>
           <Text style={styles.errorText}>{error} — tap to retry</Text>
-        </TouchableOpacity>
+        </PressableScale>
       ) : null}
     </View>
   );
@@ -360,31 +395,25 @@ function CatalogTab({
       data={items}
       keyExtractor={(item) => item.id}
       numColumns={3}
-      renderItem={({ item }) => (
-        <CatalogCard
-          item={item}
-          width={cardWidth}
-          onPress={() => Linking.openURL(item.sourceUrl).catch(() => {})}
-        />
+      renderItem={({ item, index }) => (
+        <CatalogCard item={item} width={cardWidth} index={index} onPress={() => openExternal(item.sourceUrl)} />
       )}
       ListHeaderComponent={header}
       ListEmptyComponent={
         loading ? (
-          <View style={styles.loadingBox}>
-            <ActivityIndicator color={colors.primary} />
-          </View>
+          <CatalogListSkeleton />
         ) : (
           <View style={styles.loadingBox}>
             <Text style={styles.emptyText}>
-              Koi dub title nahi mila — language ya genre filter change karke dekho.
+              No dubbed titles matched those filters. Try another language or genre.
             </Text>
           </View>
         )
       }
       ListFooterComponent={
-        loadingMore ? (
+        loadingMore || (loading && items.length > 0) ? (
           <View style={styles.footerBox}>
-            <ActivityIndicator color={colors.primary} size="small" />
+            <ActivityIndicator color={tint} size="small" />
           </View>
         ) : null
       }
@@ -394,7 +423,7 @@ function CatalogTab({
         paddingBottom: insets.bottom + spacing.xxl,
       }}
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={tint} />
       }
       onEndReached={onEndReached}
       onEndReachedThreshold={0.5}
@@ -405,62 +434,84 @@ function CatalogTab({
 }
 
 /* ------------------------------------------------------------------ */
-/* Weekly schedule tab — Week + Tonight in one place                    */
+/* Weekly schedule tab                                                  */
 /* ------------------------------------------------------------------ */
 
-function AiringRow({ item }: { item: DubAiring }) {
+function ScheduleSkeleton() {
   return (
-    <TouchableOpacity
-      style={styles.airingRow}
-      activeOpacity={0.85}
-      onPress={() => Linking.openURL(item.sourceUrl).catch(() => {})}
-    >
-      <View style={styles.airingPosterWrap}>
-        {item.posterUrl ? (
-          <Image source={{ uri: item.posterUrl }} style={styles.poster} resizeMode="cover" />
-        ) : (
-          <View style={[styles.poster, styles.posterPlaceholder]}>
-            <Text style={styles.posterPlaceholderText}>?</Text>
+    <View style={styles.scheduleSkeleton}>
+      {[0, 1, 2, 3, 4].map((item) => (
+        <View key={item} style={styles.scheduleSkeletonRow}>
+          <SkeletonBlock width={48} height={68} radius={borderRadius.sm} />
+          <View style={styles.scheduleSkeletonBody}>
+            <SkeletonBlock height={13} width="82%" />
+            <SkeletonBlock height={10} width="55%" style={styles.skeletonTightGap} />
+            <SkeletonBlock height={10} width="40%" style={styles.skeletonTightGap} />
           </View>
-        )}
-      </View>
-
-      <View style={styles.airingBody}>
-        <Text style={styles.airingTitle} numberOfLines={2}>
-          {item.title}
-        </Text>
-        <Text style={styles.airingMeta} numberOfLines={1}>
-          {[item.season, item.episodeInfo].filter(Boolean).join(' · ') || item.sourceName}
-        </Text>
-        <View style={styles.langRow}>
-          {item.languages.slice(0, 3).map((language) => (
-            <View
-              key={language}
-              style={[styles.langBadge, { borderColor: `${languageTint(language)}88` }]}
-            >
-              <Text style={[styles.langBadgeText, { color: languageTint(language) }]}>
-                {language}
-              </Text>
-            </View>
-          ))}
+          <SkeletonBlock height={28} width={64} radius={borderRadius.sm} />
         </View>
-      </View>
+      ))}
+    </View>
+  );
+}
 
-      <View style={styles.airingTime}>
-        <Text style={styles.airingTimeText}>{item.timeLabel ?? 'TBA'}</Text>
-        {item.releaseAt ? (
-          <Text style={styles.airingDate}>{istLabel(item.releaseAt)}</Text>
-        ) : (
-          <Text style={styles.airingDate}>{item.dayLabel ?? 'TBA'} · IST</Text>
-        )}
-      </View>
-    </TouchableOpacity>
+function AiringRow({ item, tint, index }: { item: DubAiring; tint: string; index: number }) {
+  const meta =
+    [item.season, item.episodeInfo].filter(Boolean).join(' · ') ||
+    (item.timeLabel ? 'Scheduled this week' : 'Time to be announced');
+
+  return (
+    <FadeInView delay={Math.min(index, 10) * 40} offset={8}>
+      <PressableScale
+        scaleTo={0.98}
+        onPress={() => openExternal(item.sourceUrl)}
+        accessibilityLabel={item.title}
+        style={styles.airingRow}
+      >
+        <SafeImage
+          uri={item.posterUrl}
+          fallbackLabel={item.title}
+          style={styles.airingPosterWrap}
+          accessibilityLabel={item.title}
+        />
+
+        <View style={styles.airingBody}>
+          <Text style={styles.airingTitle} numberOfLines={2}>
+            {item.title}
+          </Text>
+          <Text style={styles.airingMeta} numberOfLines={1}>
+            {meta}
+          </Text>
+          <View style={styles.langRow}>
+            {item.languages.slice(0, 3).map((language) => (
+              <View
+                key={language}
+                style={[styles.langBadge, { borderColor: `${languageTint(language)}88` }]}
+              >
+                <Text style={[styles.langBadgeText, { color: languageTint(language) }]}>
+                  {language}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.airingTime}>
+          <Text style={[styles.airingTimeText, { color: tint }]}>{item.timeLabel ?? 'TBA'}</Text>
+          {item.releaseAt ? (
+            <Text style={styles.airingDate}>{istLabel(item.releaseAt)}</Text>
+          ) : (
+            <Text style={styles.airingDate}>{item.dayLabel ?? 'This week'} · IST</Text>
+          )}
+        </View>
+      </PressableScale>
+    </FadeInView>
   );
 }
 
 type ScheduleView = 'week' | 'tonight';
 
-function ScheduleTab() {
+function ScheduleTab({ tint }: { tint: string }) {
   const insets = useSafeAreaInsets();
   const [view, setView] = useState<ScheduleView>('week');
   const [sections, setSections] = useState<{ title: string; data: DubAiring[] }[]>([]);
@@ -484,7 +535,7 @@ function ScheduleTab() {
       setSections(groups);
       setCount(groups.reduce((sum, group) => sum + group.data.length, 0));
     } catch (e: any) {
-      setError(e?.message || 'Could not load the dub schedule');
+      setError(e?.message || 'Could not load the schedule');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -495,10 +546,45 @@ function ScheduleTab() {
     load();
   }, [load]);
 
+  const headerContent = (
+    <>
+      <Text style={styles.scheduleIntro}>
+        Hindi and regional dub airings across the week, shown in IST.{' '}
+        {error ? 'Schedule updates are temporarily unavailable.' : `${count} airings tracked.`}
+      </Text>
+      <View style={styles.viewToggle}>
+        {(['week', 'tonight'] as ScheduleView[]).map((option) => {
+          const active = view === option;
+          return (
+            <PressableScale
+              key={option}
+              scaleTo={0.94}
+              style={[styles.viewChip, active && [styles.viewChipActive, { borderColor: tint }]]}
+              onPress={() => setView(option)}
+            >
+              <Text
+                style={[styles.viewChipText, active && [styles.viewChipTextActive, { color: tint }]]}
+              >
+                {option === 'week' ? 'Full week' : `Tonight · ${todayLabel()}`}
+              </Text>
+            </PressableScale>
+          );
+        })}
+      </View>
+      {error ? (
+        <PressableScale scaleTo={0.98} style={styles.errorBox} onPress={load}>
+          <Text style={styles.errorText}>{error} — tap to retry</Text>
+        </PressableScale>
+      ) : null}
+    </>
+  );
+  const header = <View style={styles.tabHeader}>{headerContent}</View>;
+
   if (loading) {
     return (
-      <View style={styles.loadingBox}>
-        <ActivityIndicator color={colors.primary} />
+      <View style={{ flex: 1 }}>
+        <View style={[styles.tabHeader, { paddingHorizontal: spacing.md }]}>{headerContent}</View>
+        <ScheduleSkeleton />
       </View>
     );
   }
@@ -507,7 +593,7 @@ function ScheduleTab() {
     <SectionList
       sections={sections}
       keyExtractor={(item) => item.id}
-      renderItem={({ item }) => <AiringRow item={item} />}
+      renderItem={({ item, index }) => <AiringRow item={item} tint={tint} index={index} />}
       renderSectionHeader={({ section }) => (
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>{section.title}</Text>
@@ -515,42 +601,15 @@ function ScheduleTab() {
           <Text style={styles.sectionCount}>{section.data.length}</Text>
         </View>
       )}
-      ListHeaderComponent={
-        <View style={styles.tabHeader}>
-          <Text style={styles.scheduleIntro}>
-            Hindi &amp; regional dub airings, source schedule se seedha — IST timings.{' '}
-            {error ? 'Schedule API abhi live nahi hai.' : `${count} airings.`}
-          </Text>
-          <View style={styles.viewToggle}>
-            {(['week', 'tonight'] as ScheduleView[]).map((option) => (
-              <TouchableOpacity
-                key={option}
-                style={[styles.viewChip, view === option && styles.viewChipActive]}
-                onPress={() => setView(option)}
-              >
-                <Text
-                  style={[styles.viewChipText, view === option && styles.viewChipTextActive]}
-                >
-                  {option === 'week' ? 'Full week' : `Tonight · ${todayLabel()}`}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-          {error ? (
-            <TouchableOpacity style={styles.errorBox} onPress={load}>
-              <Text style={styles.errorText}>{error} — tap to retry</Text>
-            </TouchableOpacity>
-          ) : null}
-        </View>
-      }
+      ListHeaderComponent={header}
       ListEmptyComponent={
         <View style={styles.loadingBox}>
           <Text style={styles.emptyText}>
             {error
-              ? 'Server update pending — naya schedule API deploy hone par 28 airings yahin dikh jayenge.'
+              ? 'Schedule updates are not available right now. Pull to refresh in a moment.'
               : view === 'tonight'
-                ? 'Aaj ke liye koi airing nahi — Full week dekho.'
-                : 'Is hafte koi airing track nahi hui. Next sync ke baad schedule aa jayega.'}
+                ? 'Nothing scheduled for tonight. Check the full week.'
+                : 'No airings tracked this week. Check back after the next update.'}
           </Text>
         </View>
       }
@@ -565,7 +624,7 @@ function ScheduleTab() {
             setRefreshing(true);
             load();
           }}
-          tintColor={colors.primary}
+          tintColor={tint}
         />
       }
       stickySectionHeadersEnabled={false}
@@ -575,47 +634,74 @@ function ScheduleTab() {
 }
 
 /* ------------------------------------------------------------------ */
-/* Languages / Genres / Sources tabs                                    */
+/* Languages / Genres tabs                                              */
 /* ------------------------------------------------------------------ */
 
 function LanguagesTab({
   languages,
+  tint,
+  loading,
   onBrowse,
 }: {
   languages: DubLanguageStat[];
+  tint: string;
+  loading: boolean;
   onBrowse: (language: string) => void;
 }) {
   const insets = useSafeAreaInsets();
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1 }}>
+        <View style={[styles.tabHeader, { paddingHorizontal: spacing.md }]}>
+          <Text style={styles.scheduleIntro}>
+            Browse every dubbed title by language. Counts update as new dubs are added.
+          </Text>
+        </View>
+        <View style={styles.simpleSkeleton}>
+          {[0, 1, 2, 3, 4].map((item) => (
+            <SkeletonBlock key={item} height={64} radius={borderRadius.md} />
+          ))}
+        </View>
+      </View>
+    );
+  }
 
   return (
     <FlatList
       data={languages}
       keyExtractor={(item) => item.slug}
-      renderItem={({ item }) => (
-        <View style={styles.languageCard}>
-          <View style={[styles.languageDot, { backgroundColor: languageTint(item.language) }]} />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.languageName}>{item.language}</Text>
-            <Text style={styles.languageMeta}>
-              {item.total.toLocaleString()} titles · {item.series.toLocaleString()} series ·{' '}
-              {item.movies.toLocaleString()} movies
-            </Text>
-          </View>
-          <TouchableOpacity style={styles.languageAction} onPress={() => onBrowse(item.language)}>
-            <Text style={styles.languageActionText}>Browse</Text>
-          </TouchableOpacity>
-        </View>
+      renderItem={({ item, index }) => (
+        <FadeInView delay={Math.min(index, 10) * 40} offset={8}>
+          <PressableScale
+            scaleTo={0.97}
+            style={styles.languageCard}
+            onPress={() => onBrowse(item.language)}
+          >
+            <View style={[styles.languageDot, { backgroundColor: languageTint(item.language) }]} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.languageName}>{item.language}</Text>
+              <Text style={styles.languageMeta}>
+                {item.total.toLocaleString()} titles · {item.series.toLocaleString()} series ·{' '}
+                {item.movies.toLocaleString()} movies
+              </Text>
+            </View>
+            <View style={[styles.languageAction, { borderColor: `${tint}66` }]}>
+              <Text style={[styles.languageActionText, { color: tint }]}>Browse</Text>
+            </View>
+          </PressableScale>
+        </FadeInView>
       )}
       ListHeaderComponent={
         <View style={styles.tabHeader}>
           <Text style={styles.scheduleIntro}>
-            Har language ke saare dubbed titles. Source sites par naya dub aate hi count update hota hai.
+            Browse every dubbed title by language. Counts update as new dubs are added.
           </Text>
         </View>
       }
       ListEmptyComponent={
         <View style={styles.loadingBox}>
-          <Text style={styles.emptyText}>Languages load ho rahi hain…</Text>
+          <Text style={styles.emptyText}>No languages available yet.</Text>
         </View>
       }
       contentContainerStyle={{
@@ -629,12 +715,33 @@ function LanguagesTab({
 
 function GenresTab({
   genres,
+  tint,
+  loading,
   onBrowse,
 }: {
   genres: DubGenreStat[];
+  tint: string;
+  loading: boolean;
   onBrowse: (genre: string) => void;
 }) {
   const insets = useSafeAreaInsets();
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1 }}>
+        <View style={[styles.tabHeader, { paddingHorizontal: spacing.md }]}>
+          <Text style={styles.scheduleIntro}>
+            Explore titles by genre. Tap any genre to see everything in it.
+          </Text>
+        </View>
+        <View style={[styles.skeletonGrid, { paddingHorizontal: spacing.md }]}>
+          {[0, 1, 2, 3].map((item) => (
+            <SkeletonBlock key={item} height={64} radius={borderRadius.md} style={styles.skeletonTile} />
+          ))}
+        </View>
+      </View>
+    );
+  }
 
   return (
     <FlatList
@@ -642,77 +749,38 @@ function GenresTab({
       keyExtractor={(item) => item.genre}
       numColumns={2}
       columnWrapperStyle={styles.columnWrap}
-      renderItem={({ item }) => (
-        <TouchableOpacity style={styles.genreCard} activeOpacity={0.85} onPress={() => onBrowse(item.genre)}>
-          <View style={styles.genreIcon}>
-            <Text style={styles.genreIconText}>{item.genre.slice(0, 1)}</Text>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.genreName} numberOfLines={1}>{item.genre}</Text>
-            <Text style={styles.genreMeta}>
-              {item.total} titles · {item.series} series · {item.movies} movies
-            </Text>
-          </View>
-        </TouchableOpacity>
-      )}
-      ListHeaderComponent={
-        <View style={styles.tabHeader}>
-          <Text style={styles.scheduleIntro}>
-            Source site ke genres — direct API se imported. Kisi bhi genre par tap karke uske titles dekho.
-          </Text>
-        </View>
-      }
-      ListEmptyComponent={
-        <View style={styles.loadingBox}>
-          <Text style={styles.emptyText}>Genres load ho rahe hain…</Text>
-        </View>
-      }
-      contentContainerStyle={{
-        paddingHorizontal: spacing.md,
-        paddingBottom: insets.bottom + spacing.xxl,
-      }}
-      showsVerticalScrollIndicator={false}
-    />
-  );
-}
-
-function SourcesTab({ sources }: { sources: DubSourceInfo[] }) {
-  const insets = useSafeAreaInsets();
-
-  return (
-    <FlatList
-      data={sources}
-      keyExtractor={(item) => item.id}
-      renderItem={({ item }) => (
-        <View style={styles.sourceCard}>
-          <View style={[styles.sourceDot, { backgroundColor: item.accent || colors.primary }]} />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.sourceName}>{item.name}</Text>
-            <Text style={styles.sourceMeta}>{item.description}</Text>
-            <Text style={styles.sourceCount}>
-              {item.itemCount.toLocaleString()} titles · {item.status}
-            </Text>
-          </View>
-          <TouchableOpacity
-            style={styles.sourceAction}
-            onPress={() =>
-              Linking.openURL(`https://zyverse.in${item.redirectPath}`).catch(() => {})
-            }
+      renderItem={({ item, index }) => (
+        <FadeInView delay={Math.min(index, 10) * 40} offset={8}>
+          <PressableScale
+            scaleTo={0.96}
+            style={styles.genreCard}
+            onPress={() => onBrowse(item.genre)}
           >
-            <Text style={styles.sourceActionText}>Open</Text>
-          </TouchableOpacity>
-        </View>
+            <View style={[styles.genreIcon, { backgroundColor: `${tint}22` }]}>
+              <Text style={[styles.genreIconText, { color: tint }]}>{item.genre.slice(0, 1)}</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.genreName} numberOfLines={1}>
+                {item.genre}
+              </Text>
+              <Text style={styles.genreMeta}>
+                {item.total.toLocaleString()} titles · {item.series.toLocaleString()} series ·{' '}
+                {item.movies.toLocaleString()} movies
+              </Text>
+            </View>
+          </PressableScale>
+        </FadeInView>
       )}
       ListHeaderComponent={
         <View style={styles.tabHeader}>
           <Text style={styles.scheduleIntro}>
-            Do sources, ek hi list. Domain badalne par bhi ZyniVerse ka redirect working host par le jata hai.
+            Explore titles by genre. Tap any genre to see everything in it.
           </Text>
         </View>
       }
       ListEmptyComponent={
         <View style={styles.loadingBox}>
-          <Text style={styles.emptyText}>Sources load ho rahe hain…</Text>
+          <Text style={styles.emptyText}>No genres available yet.</Text>
         </View>
       }
       contentContainerStyle={{
@@ -731,12 +799,39 @@ function SourcesTab({ sources }: { sources: DubSourceInfo[] }) {
 export default function HindiDubScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const [tab, setTab] = useState<TabKey>(route.params?.tab ?? 'all');
+  const { isDiwali, isChristmas } = useTheme();
+  const tint = isDiwali ? '#f59e0b' : isChristmas ? '#7dd3fc' : colors.primary;
+
+  const requestedTab = route.params?.tab as TabKey | undefined;
+  const initialTab = requestedTab && TABS.some((item) => item.key === requestedTab) ? requestedTab : 'all';
+  const [tab, setTab] = useState<TabKey>(initialTab);
   const [languages, setLanguages] = useState<DubLanguageStat[]>([]);
   const [genres, setGenres] = useState<DubGenreStat[]>([]);
-  const [sources, setSources] = useState<DubSourceInfo[]>([]);
+  const [overviewLoading, setOverviewLoading] = useState(true);
   const [stats, setStats] = useState<{ total: number; languageCount: number } | null>(null);
   const [browse, setBrowse] = useState<{ language?: string; genre?: string }>({});
+  const glow = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(glow, {
+          toValue: 1,
+          duration: 2800,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(glow, {
+          toValue: 0,
+          duration: 2800,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [glow]);
 
   useEffect(() => {
     let active = true;
@@ -746,25 +841,40 @@ export default function HindiDubScreen() {
       if (overview) {
         setLanguages(overview.languages || []);
         setGenres(overview.genres || []);
-        setSources(overview.sources || []);
         setStats({ total: overview.total, languageCount: overview.languageCount });
+        setOverviewLoading(false);
         return;
       }
       const [langs, gnrs] = await Promise.all([
-        api.dub.languages().catch(() => []),
-        api.dub.genres().catch(() => []),
+        api.dub.languages().catch(() => [] as DubLanguageStat[]),
+        api.dub.genres().catch(() => [] as DubGenreStat[]),
       ]);
       if (!active) return;
       setLanguages(langs);
       setGenres(gnrs);
+      setOverviewLoading(false);
     })();
     return () => {
       active = false;
     };
   }, []);
 
+  useEffect(() => {
+    if (requestedTab && TABS.some((item) => item.key === requestedTab)) setTab(requestedTab);
+  }, [requestedTab]);
+
+  const heroStats = useMemo(() => {
+    const total = stats?.total ?? languages.reduce((sum, item) => sum + item.total, 0);
+    const languageCount = stats?.languageCount ?? languages.length;
+    return [
+      { label: 'Titles', value: total.toLocaleString(), delay: 80 },
+      { label: 'Languages', value: languageCount.toLocaleString(), delay: 120 },
+      { label: 'Genres', value: genres.length.toLocaleString(), delay: 160 },
+    ];
+  }, [stats, languages, genres.length]);
+
   const subtitle = useMemo(() => {
-    if (stats) return `${stats.total.toLocaleString()} titles · ${stats.languageCount} languages · 7 options`;
+    if (stats) return `${stats.total.toLocaleString()} titles · ${stats.languageCount} languages`;
     if (!languages.length) return 'Series, movies, schedule, languages & genres';
     const total = languages.reduce((sum, item) => sum + item.total, 0);
     return `${total.toLocaleString()} titles · ${languages.length} languages`;
@@ -783,55 +893,98 @@ export default function HindiDubScreen() {
   const clearBrowse = useCallback(() => setBrowse({}), []);
 
   const headerRight = (
-    <TouchableOpacity
-      style={styles.profileButton}
-      activeOpacity={0.85}
+    <PressableScale
+      scaleTo={0.92}
+      style={[styles.profileButton, { borderColor: `${tint}88` }]}
       onPress={() => navigation.navigate('MainTabs', { screen: 'Profile' })}
     >
-      <Text style={styles.profileButtonText}>Profile</Text>
-    </TouchableOpacity>
+      <Text style={[styles.profileButtonText, { color: tint }]}>Profile</Text>
+    </PressableScale>
   );
+
+  const glowStyle = {
+    opacity: glow.interpolate({ inputRange: [0, 1], outputRange: [0.3, 0.85] }),
+    transform: [
+      {
+        translateX: glow.interpolate({ inputRange: [0, 1], outputRange: [-20, 20] }),
+      },
+      {
+        scale: glow.interpolate({ inputRange: [0, 1], outputRange: [1, 1.18] }),
+      },
+    ],
+  };
 
   return (
     <View style={styles.container}>
-      <ScreenHeader title="Dub Hub" subtitle={subtitle} emoji="🇮🇳" right={headerRight} />
+      <ScreenHeader title="Dub Hub" subtitle={subtitle} emoji="🇮🇳" accent={tint} right={headerRight} />
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.tabBar}
-      >
-        {TABS.map((item) => {
-          const active = tab === item.key;
-          return (
-            <TouchableOpacity
-              key={item.key}
-              style={[styles.tabButton, active && styles.tabButtonActive]}
-              onPress={() => setTab(item.key)}
-              activeOpacity={0.85}
-            >
-              <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>
-                {item.emoji} {item.label}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
+      <FadeInView delay={20}>
+        <View style={[styles.heroCard, { backgroundColor: colors.surface, borderColor: `${tint}44` }]}>
+          <Animated.View
+            pointerEvents="none"
+            style={[styles.heroGlow, { backgroundColor: `${tint}22` }, glowStyle]}
+          />
+          <Text style={[styles.heroEyebrow, { color: tint }]}>DUB HUB</Text>
+          <Text style={[styles.heroTitle, { color: colors.text }]}>
+            Dubbed favourites, all in one place
+          </Text>
+          <Text style={[styles.heroSub, { color: colors.textMuted }]}>
+            Browse series, films and weekly airings across the languages you love. Filter by
+            language, genre or release order.
+          </Text>
+          <View style={styles.heroStats}>
+            {heroStats.map((stat) => (
+              <FadeInView key={stat.label} delay={stat.delay} style={styles.heroStatWrap}>
+                <View style={[styles.heroStat, { borderColor: colors.border, backgroundColor: `${tint}0f` }]}>
+                  <Text style={[styles.heroStatValue, { color: tint }]}>{stat.value}</Text>
+                  <Text style={[styles.heroStatLabel, { color: colors.textMuted }]}>{stat.label}</Text>
+                </View>
+              </FadeInView>
+            ))}
+          </View>
+        </View>
+      </FadeInView>
+
+      <AnimatedTabBar<TabKey>
+        tabs={TABS}
+        active={tab}
+        onChange={setTab}
+        tint={tint}
+        surface={colors.surface}
+        border={colors.border}
+        muted={colors.textMuted}
+        scroll
+        contentContainerStyle={{ marginTop: spacing.sm, paddingBottom: spacing.xs }}
+      />
 
       {tab === 'all' || tab === 'series' || tab === 'movies' ? (
         <CatalogTab
           kind={tab === 'series' ? 'series' : tab === 'movies' ? 'movie' : undefined}
           languages={languages}
           genres={genres}
+          tint={tint}
           initialLanguage={browse.language}
           initialGenre={browse.genre}
           onClearInitial={clearBrowse}
         />
       ) : null}
-      {tab === 'schedule' ? <ScheduleTab /> : null}
-      {tab === 'languages' ? <LanguagesTab languages={languages} onBrowse={browseLanguage} /> : null}
-      {tab === 'genres' ? <GenresTab genres={genres} onBrowse={browseGenre} /> : null}
-      {tab === 'sources' ? <SourcesTab sources={sources} /> : null}
+      {tab === 'schedule' ? <ScheduleTab tint={tint} /> : null}
+      {tab === 'languages' ? (
+        <LanguagesTab
+          languages={languages}
+          tint={tint}
+          loading={overviewLoading}
+          onBrowse={browseLanguage}
+        />
+      ) : null}
+      {tab === 'genres' ? (
+        <GenresTab
+          genres={genres}
+          tint={tint}
+          loading={overviewLoading}
+          onBrowse={browseGenre}
+        />
+      ) : null}
     </View>
   );
 }
@@ -841,46 +994,70 @@ const styles = themed(() => ({
     flex: 1,
     backgroundColor: colors.background,
   },
-  tabBar: {
-    flexDirection: 'row',
-    gap: spacing.xs,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  tabButton: {
-    alignItems: 'center',
-    paddingHorizontal: spacing.sm + 2,
-    paddingVertical: spacing.xs + 2,
-    borderRadius: borderRadius.full,
+  heroCard: {
+    position: 'relative',
+    overflow: 'hidden',
+    marginHorizontal: spacing.md,
+    marginTop: spacing.sm,
+    padding: spacing.md + 2,
+    borderRadius: borderRadius.lg,
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
   },
-  tabButtonActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+  heroGlow: {
+    position: 'absolute',
+    top: -40,
+    right: -60,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
   },
-  tabLabel: {
-    color: colors.textMuted,
+  heroEyebrow: {
     fontSize: fontSize.xs,
-    fontWeight: '700',
+    fontWeight: '900',
+    letterSpacing: 1.6,
   },
-  tabLabelActive: {
-    color: '#0a0a0f',
-    fontWeight: '800',
+  heroTitle: {
+    fontSize: fontSize.xl,
+    fontWeight: '900',
+    lineHeight: 28,
+    marginTop: spacing.xs + 2,
+  },
+  heroSub: {
+    fontSize: fontSize.sm,
+    lineHeight: 20,
+    marginTop: spacing.xs + 2,
+  },
+  heroStats: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  heroStatWrap: {
+    flex: 1,
+  },
+  heroStat: {
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    paddingVertical: spacing.sm,
+    alignItems: 'center',
+  },
+  heroStatValue: {
+    fontSize: fontSize.lg,
+    fontWeight: '900',
+  },
+  heroStatLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 2,
   },
   profileButton: {
     borderWidth: 1,
-    borderColor: colors.primary,
     borderRadius: borderRadius.full,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: 6,
   },
   profileButtonText: {
-    color: colors.primary,
-    fontSize: 10,
+    fontSize: fontSize.xs,
     fontWeight: '800',
   },
   tabHeader: {
@@ -898,12 +1075,11 @@ const styles = themed(() => ({
     backgroundColor: colors.surface,
     borderRadius: borderRadius.md,
     paddingHorizontal: spacing.sm + 4,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.sm + 2,
     color: colors.text,
     fontSize: fontSize.sm,
   },
   searchButton: {
-    backgroundColor: colors.primary,
     borderRadius: borderRadius.md,
     paddingHorizontal: spacing.md,
     justifyContent: 'center',
@@ -911,7 +1087,7 @@ const styles = themed(() => ({
   searchButtonText: {
     color: '#0a0a0f',
     fontSize: fontSize.xs,
-    fontWeight: '800',
+    fontWeight: '900',
   },
   activeSearchRow: {
     flexDirection: 'row',
@@ -939,31 +1115,30 @@ const styles = themed(() => ({
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
-    paddingHorizontal: spacing.sm + 2,
-    paddingVertical: 5,
+    paddingHorizontal: spacing.sm + 4,
+    paddingVertical: 7,
   },
   chipActive: {
-    borderColor: colors.primary,
     backgroundColor: `${colors.primary}22`,
   },
   chipText: {
     color: colors.textMuted,
-    fontSize: 11,
-    fontWeight: '600',
+    fontSize: 12.5,
+    fontWeight: '700',
   },
   chipTextActive: {
     color: colors.text,
-    fontWeight: '800',
+    fontWeight: '900',
   },
   sortRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-    marginTop: spacing.sm,
+    marginTop: spacing.sm + 2,
   },
   sortLabel: {
     color: colors.textDim,
-    fontSize: 10,
+    fontSize: 11,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginRight: 2,
@@ -972,25 +1147,25 @@ const styles = themed(() => ({
     borderRadius: borderRadius.full,
     borderWidth: 1,
     borderColor: colors.border,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: 5,
   },
   sortChipActive: {
-    borderColor: colors.secondary,
+    backgroundColor: `${colors.secondary}18`,
   },
   sortChipText: {
     color: colors.textDim,
-    fontSize: 10,
-    fontWeight: '600',
+    fontSize: 11.5,
+    fontWeight: '700',
   },
   sortChipTextActive: {
-    color: colors.secondary,
-    fontWeight: '800',
+    fontWeight: '900',
   },
   totalText: {
-    color: colors.textDim,
-    fontSize: fontSize.xs,
-    marginTop: spacing.sm,
+    color: colors.textMuted,
+    fontSize: fontSize.sm,
+    fontWeight: '700',
+    marginTop: spacing.sm + 2,
   },
   columnWrap: {
     gap: spacing.sm,
@@ -1009,76 +1184,67 @@ const styles = themed(() => ({
     width: '100%',
     height: '100%',
   },
-  posterPlaceholder: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 6,
-  },
-  posterPlaceholderText: {
-    color: colors.textDim,
-    fontSize: 10,
-    textAlign: 'center',
-  },
   kindBadge: {
     position: 'absolute',
-    top: 4,
-    left: 4,
+    top: 6,
+    left: 6,
     borderRadius: borderRadius.sm,
-    backgroundColor: 'rgba(10,10,15,0.8)',
-    paddingHorizontal: 5,
-    paddingVertical: 1,
+    backgroundColor: 'rgba(10,10,15,0.82)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
   },
   kindBadgeText: {
     color: colors.textMuted,
-    fontSize: 8,
-    fontWeight: '800',
+    fontSize: 9,
+    fontWeight: '900',
     letterSpacing: 0.5,
   },
   ratingBadge: {
     position: 'absolute',
-    top: 4,
-    right: 4,
+    top: 6,
+    right: 6,
     borderRadius: borderRadius.sm,
-    backgroundColor: 'rgba(10,10,15,0.8)',
-    paddingHorizontal: 5,
-    paddingVertical: 1,
+    backgroundColor: 'rgba(10,10,15,0.82)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
   },
   ratingText: {
     color: colors.warning,
-    fontSize: 9,
-    fontWeight: '800',
+    fontSize: 10.5,
+    fontWeight: '900',
   },
   cardTitle: {
     color: colors.text,
-    fontSize: 11,
-    fontWeight: '700',
-    lineHeight: 15,
-    marginTop: spacing.xs,
+    fontSize: 13.5,
+    fontWeight: '800',
+    lineHeight: 18,
+    marginTop: spacing.sm,
   },
   langRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 3,
-    marginTop: 3,
+    gap: 4,
+    marginTop: 5,
   },
   langBadge: {
     borderWidth: 1,
     borderRadius: borderRadius.sm,
-    paddingHorizontal: 4,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
   },
   langBadgeText: {
-    fontSize: 8,
-    fontWeight: '700',
+    fontSize: 9.5,
+    fontWeight: '800',
   },
   moreLangs: {
     color: colors.textDim,
-    fontSize: 8,
+    fontSize: 9.5,
     alignSelf: 'center',
   },
   cardMeta: {
     color: colors.textDim,
-    fontSize: 9,
-    marginTop: 2,
+    fontSize: 11,
+    marginTop: 3,
   },
   loadingBox: {
     paddingVertical: spacing.xxl,
@@ -1093,7 +1259,7 @@ const styles = themed(() => ({
     color: colors.textMuted,
     fontSize: fontSize.sm,
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 21,
   },
   errorBox: {
     marginTop: spacing.sm,
@@ -1101,7 +1267,7 @@ const styles = themed(() => ({
     borderWidth: 1,
     borderColor: `${colors.error}66`,
     backgroundColor: `${colors.error}18`,
-    padding: spacing.sm,
+    padding: spacing.sm + 2,
   },
   errorText: {
     color: colors.error,
@@ -1110,33 +1276,64 @@ const styles = themed(() => ({
   },
   scheduleIntro: {
     color: colors.textMuted,
-    fontSize: fontSize.xs,
-    lineHeight: 18,
+    fontSize: fontSize.sm,
+    lineHeight: 20,
   },
   viewToggle: {
     flexDirection: 'row',
     gap: spacing.xs,
-    marginTop: spacing.sm,
+    marginTop: spacing.sm + 2,
   },
   viewChip: {
     borderRadius: borderRadius.full,
     borderWidth: 1,
     borderColor: colors.border,
-    paddingHorizontal: spacing.sm + 2,
-    paddingVertical: 5,
+    paddingHorizontal: spacing.sm + 4,
+    paddingVertical: 7,
   },
   viewChipActive: {
-    borderColor: colors.secondary,
-    backgroundColor: `${colors.secondary}22`,
+    backgroundColor: `${colors.secondary}18`,
   },
   viewChipText: {
     color: colors.textMuted,
-    fontSize: 11,
+    fontSize: 12.5,
     fontWeight: '700',
   },
   viewChipTextActive: {
-    color: colors.secondary,
-    fontWeight: '800',
+    fontWeight: '900',
+  },
+  scheduleSkeleton: {
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
+  },
+  scheduleSkeletonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  scheduleSkeletonBody: {
+    flex: 1,
+  },
+  skeletonGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    paddingTop: spacing.sm,
+  },
+  skeletonTile: {
+    width: '31%',
+  },
+  skeletonGap: {
+    marginTop: spacing.sm,
+  },
+  skeletonTightGap: {
+    marginTop: spacing.xs + 2,
+  },
+  simpleSkeleton: {
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -1148,7 +1345,7 @@ const styles = themed(() => ({
   sectionTitle: {
     color: colors.text,
     fontSize: fontSize.sm,
-    fontWeight: '800',
+    fontWeight: '900',
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
@@ -1159,20 +1356,20 @@ const styles = themed(() => ({
   },
   sectionCount: {
     color: colors.textDim,
-    fontSize: 10,
-    fontWeight: '700',
+    fontSize: 11,
+    fontWeight: '800',
   },
   airingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: spacing.sm + 2,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.sm + 2,
   },
   airingPosterWrap: {
-    width: 44,
-    height: 64,
+    width: 48,
+    height: 68,
     borderRadius: borderRadius.sm,
     overflow: 'hidden',
     backgroundColor: colors.surface,
@@ -1182,34 +1379,33 @@ const styles = themed(() => ({
   },
   airingTitle: {
     color: colors.text,
-    fontSize: fontSize.xs,
-    fontWeight: '700',
-    lineHeight: 16,
+    fontSize: fontSize.sm,
+    fontWeight: '800',
+    lineHeight: 19,
   },
   airingMeta: {
     color: colors.textDim,
-    fontSize: 10,
-    marginTop: 1,
+    fontSize: 11.5,
+    marginTop: 2,
   },
   airingTime: {
     alignItems: 'flex-end',
-    maxWidth: 110,
+    maxWidth: 112,
   },
   airingTimeText: {
-    color: colors.secondary,
-    fontSize: fontSize.xs,
-    fontWeight: '800',
+    fontSize: fontSize.sm,
+    fontWeight: '900',
   },
   airingDate: {
     color: colors.textDim,
-    fontSize: 9,
-    marginTop: 2,
+    fontSize: 10,
+    marginTop: 3,
     textAlign: 'right',
   },
   languageCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: spacing.sm + 2,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
@@ -1218,31 +1414,29 @@ const styles = themed(() => ({
     marginBottom: spacing.sm,
   },
   languageDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
   },
   languageName: {
     color: colors.text,
-    fontSize: fontSize.sm,
-    fontWeight: '800',
+    fontSize: fontSize.md,
+    fontWeight: '900',
   },
   languageMeta: {
     color: colors.textDim,
-    fontSize: 10,
-    marginTop: 1,
+    fontSize: 11.5,
+    marginTop: 2,
   },
   languageAction: {
     borderWidth: 1,
-    borderColor: colors.border,
     borderRadius: borderRadius.full,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: 6,
   },
   languageActionText: {
-    color: colors.primary,
-    fontSize: 10,
-    fontWeight: '700',
+    fontSize: 11.5,
+    fontWeight: '800',
   },
   genreCard: {
     flex: 1,
@@ -1253,74 +1447,28 @@ const styles = themed(() => ({
     borderColor: colors.border,
     backgroundColor: colors.surface,
     borderRadius: borderRadius.md,
-    padding: spacing.sm,
+    padding: spacing.sm + 2,
     marginBottom: spacing.sm,
   },
   genreIcon: {
-    width: 30,
-    height: 30,
+    width: 34,
+    height: 34,
     borderRadius: borderRadius.sm,
-    backgroundColor: `${colors.primary}22`,
     alignItems: 'center',
     justifyContent: 'center',
   },
   genreIconText: {
-    color: colors.primary,
-    fontSize: 14,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: '900',
   },
   genreName: {
     color: colors.text,
-    fontSize: fontSize.xs,
-    fontWeight: '800',
+    fontSize: fontSize.sm,
+    fontWeight: '900',
   },
   genreMeta: {
     color: colors.textDim,
-    fontSize: 9,
-    marginTop: 1,
-  },
-  sourceCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.md,
-    padding: spacing.sm + 4,
-    marginBottom: spacing.sm,
-  },
-  sourceDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  sourceName: {
-    color: colors.text,
-    fontSize: fontSize.sm,
-    fontWeight: '800',
-  },
-  sourceMeta: {
-    color: colors.textDim,
-    fontSize: 10,
-    marginTop: 1,
-  },
-  sourceCount: {
-    color: colors.secondary,
-    fontSize: 10,
-    fontWeight: '700',
+    fontSize: 10.5,
     marginTop: 2,
-  },
-  sourceAction: {
-    borderWidth: 1,
-    borderColor: colors.primary,
-    borderRadius: borderRadius.full,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-  },
-  sourceActionText: {
-    color: colors.primary,
-    fontSize: 10,
-    fontWeight: '700',
   },
 }));

@@ -2,18 +2,17 @@ import React, { useRef } from 'react';
 import {
   View,
   Text,
-  Image,
   TouchableOpacity,
   StyleSheet,
   Dimensions,
   Animated,
-  Easing,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../hooks/useTheme';
 import { spacing, fontSize, borderRadius } from '../theme';
 import { Anime } from '../types';
 import { animePoster, animeTitle, formatScore, getScoreColor } from '../utils/helpers';
+import SafeImage from './SafeImage';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 export const GRID_CARD_WIDTH = (SCREEN_WIDTH - spacing.md * 3) / 2;
@@ -34,7 +33,6 @@ export default function AnimeCard({ anime, width, compact = false, showScore = t
   const score = anime.averageScore;
 
   const scale = useRef(new Animated.Value(1)).current;
-  const imageOpacity = useRef(new Animated.Value(0)).current;
 
   const pressIn = () =>
     Animated.spring(scale, {
@@ -67,25 +65,12 @@ export default function AnimeCard({ anime, width, compact = false, showScore = t
             { height: cardWidth * 1.42, backgroundColor: colors.surface },
           ]}
         >
-          {imageUrl ? (
-            <Animated.Image
-              source={{ uri: imageUrl }}
-              style={[styles.image, { opacity: imageOpacity }]}
-              resizeMode="cover"
-              onLoad={() =>
-                Animated.timing(imageOpacity, {
-                  toValue: 1,
-                  duration: 320,
-                  easing: Easing.out(Easing.quad),
-                  useNativeDriver: true,
-                }).start()
-              }
-            />
-          ) : (
-            <View style={[styles.placeholder, { backgroundColor: colors.surfaceLight }]}>
-              <Text style={[styles.placeholderText, { color: colors.textDim }]}>?</Text>
-            </View>
-          )}
+          <SafeImage
+            uri={imageUrl}
+            fallbackLabel={title}
+            style={styles.image}
+            accessibilityLabel={title}
+          />
           {showScore && score ? (
             <View style={[styles.scoreBadge, { backgroundColor: getScoreColor(score) }]}>
               <Text style={styles.scoreText}>{formatScore(score)}</Text>

@@ -5,10 +5,8 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Image,
   TextInput,
   Modal,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Animated,
@@ -23,16 +21,26 @@ import { User, WatchParty, WatchPartyMessage, WatchPartySyncState } from '../typ
 import ScreenHeader from '../components/ScreenHeader';
 import PressableScale from '../components/PressableScale';
 import FadeInView from '../components/FadeInView';
+import SafeImage from '../components/SafeImage';
+import { SkeletonBlock } from '../components/Skeletons';
 import { spacing, borderRadius } from '../theme';
-import { timeAgo, defaultAvatarFor } from '../utils/helpers';
+import { timeAgo } from '../utils/helpers';
 
 const REACTIONS = ['❤️', '🔥', '😂', '👏', '😮', '🎉'];
 
 function Avatar({ uri, name, size = 30 }: { uri?: string | null; name?: string | null; size?: number }) {
+  const label = name || 'Fan';
   return (
-    <Image
-      source={{ uri: uri || defaultAvatarFor(name) }}
-      style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: '#1a1a2e' }}
+    <SafeImage
+      uri={uri}
+      fallbackLabel={label}
+      accessibilityLabel={label}
+      style={{
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        backgroundColor: '#1a1a2e',
+      }}
     />
   );
 }
@@ -143,10 +151,38 @@ export default function WatchPartyRoomScreen() {
   const scrollRef = useRef<ScrollView>(null);
   const joinedRef = useRef(false);
   const mountedRef = useRef(true);
+  const heroPulse = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(heroPulse, {
+          toValue: 1,
+          duration: 2400,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(heroPulse, {
+          toValue: 0,
+          duration: 2400,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [heroPulse]);
 
   const isHost = !!user && !!party && user.id === party.hostId;
   const status = statusMeta(party?.status);
   const cover = party?.coverImage || party?.mediaImage;
+  const heroGlowStyle = {
+    opacity: heroPulse.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0.9] }),
+    transform: [
+      { scale: heroPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.06] }) },
+    ],
+  };
 
   const loadParty = useCallback(async () => {
     try {
@@ -312,8 +348,15 @@ export default function WatchPartyRoomScreen() {
     return (
       <View style={{ flex: 1, backgroundColor: colors.background }}>
         <ScreenHeader title="Watch Party" subtitle="Joining the room…" emoji="👥" accent={tint} />
-        <View style={styles.center}>
-          <ActivityIndicator color={tint} />
+        <View style={styles.roomSkeleton}>
+          <SkeletonBlock height={196} radius={borderRadius.lg} />
+          <View style={styles.skeletonStats}>
+            {[0, 1, 2, 3].map((item) => (
+              <SkeletonBlock key={item} height={48} radius={borderRadius.md} style={styles.skeletonStat} />
+            ))}
+          </View>
+          <SkeletonBlock height={120} radius={borderRadius.lg} style={styles.skeletonBlock} />
+          <SkeletonBlock height={170} radius={borderRadius.lg} style={styles.skeletonBlock} />
         </View>
       </View>
     );
@@ -327,9 +370,13 @@ export default function WatchPartyRoomScreen() {
           <Text style={{ fontSize: 40 }}>🚫</Text>
           <Text style={[styles.centerTitle, { color: colors.text }]}>Room not found</Text>
           <Text style={[styles.centerText, { color: colors.textMuted }]}>{error}</Text>
-          <TouchableOpacity style={[styles.primaryBtn, { backgroundColor: tint }]} onPress={refreshAll}>
+          <PressableScale
+            scaleTo={0.94}
+            style={[styles.primaryBtn, { backgroundColor: tint }]}
+            onPress={refreshAll}
+          >
             <Text style={styles.primaryBtnText}>Retry</Text>
-          </TouchableOpacity>
+          </PressableScale>
         </View>
       </View>
     );
@@ -352,33 +399,40 @@ export default function WatchPartyRoomScreen() {
         >
           {/* Hero */}
           <FadeInView delay={20}>
-            <View style={[styles.hero, { borderColor: `${status.color}55`, backgroundColor: colors.surface }]}>
-              {cover ? (
-                <Image source={{ uri: cover }} style={styles.heroImage} resizeMode="cover" />
-              ) : (
-                <View style={[styles.heroImage, { backgroundColor: colors.surfaceLight }]} />
-              )}
-              <View style={styles.heroScrim} />
-              <View style={styles.heroTop}>
-                <View style={[styles.statusPill, { backgroundColor: status.color }]}>
-                  {party.status === 'live' && <View style={styles.liveDot} />}
-                  <Text style={styles.statusText}>{status.label}</Text>
+            <View style={styles.heroWrap}>
+              <Animated.View
+                pointerEvents="none"
+                style={[styles.heroGlow, { backgroundColor: `${status.color}26` }, heroGlowStyle]}
+              />
+              <View style={[styles.hero, { borderColor: `${status.color}66`, backgroundColor: colors.surface }]}>
+                <SafeImage
+                  uri={cover}
+                  fallbackLabel={party.mediaTitle}
+                  style={styles.heroImage}
+                  accessibilityLabel={party.mediaTitle}
+                />
+                <View style={styles.heroScrim} />
+                <View style={styles.heroTop}>
+                  <View style={[styles.statusPill, { backgroundColor: status.color }]}>
+                    {party.status === 'live' && <View style={styles.liveDot} />}
+                    <Text style={styles.statusText}>{status.label}</Text>
+                  </View>
+                  <View style={styles.episodePill}>
+                    <Text style={styles.episodePillText}>EP {party.episode}</Text>
+                  </View>
                 </View>
-                <View style={styles.episodePill}>
-                  <Text style={styles.episodePillText}>EP {party.episode}</Text>
-                </View>
-              </View>
-              <View style={styles.heroBottom}>
-                <Text style={styles.heroTitle} numberOfLines={2}>
-                  {party.mediaTitle}
-                </Text>
-                <View style={styles.hostRow}>
-                  <Avatar uri={party.host?.avatar} name={party.host?.username} size={24} />
-                  <Text style={styles.hostName} numberOfLines={1}>
-                    Hosted by {party.host?.username || 'a fan'}
+                <View style={styles.heroBottom}>
+                  <Text style={styles.heroTitle} numberOfLines={2}>
+                    {party.mediaTitle}
                   </Text>
-                  <Text style={styles.hostDot}>•</Text>
-                  <Text style={styles.hostName}>{timeAgo(party.createdAt)}</Text>
+                  <View style={styles.hostRow}>
+                    <Avatar uri={party.host?.avatar} name={party.host?.username} size={26} />
+                    <Text style={styles.hostName} numberOfLines={1}>
+                      Hosted by {party.host?.username || 'a fan'}
+                    </Text>
+                    <Text style={styles.hostDot}>•</Text>
+                    <Text style={styles.hostName}>{timeAgo(party.createdAt)}</Text>
+                  </View>
                 </View>
               </View>
             </View>
@@ -455,14 +509,16 @@ export default function WatchPartyRoomScreen() {
                     {party.videoUrl}
                   </Text>
                   <View style={styles.rowGap}>
-                    <TouchableOpacity
+                    <PressableScale
+                      scaleTo={0.95}
                       style={[styles.primaryBtn, { backgroundColor: tint, flex: 1 }]}
                       onPress={() => setVideoOpen(true)}
                     >
                       <Text style={styles.primaryBtnText}>▶ Open player</Text>
-                    </TouchableOpacity>
+                    </PressableScale>
                     {isHost && (
-                      <TouchableOpacity
+                      <PressableScale
+                        scaleTo={0.94}
                         style={[styles.ghostBtn, { borderColor: colors.border }]}
                         onPress={() => {
                           setVideoDraft(party.videoUrl || '');
@@ -470,7 +526,7 @@ export default function WatchPartyRoomScreen() {
                         }}
                       >
                         <Text style={[styles.ghostBtnText, { color: colors.textMuted }]}>Change</Text>
-                      </TouchableOpacity>
+                      </PressableScale>
                     )}
                   </View>
                 </>
@@ -482,12 +538,13 @@ export default function WatchPartyRoomScreen() {
                       : 'The host has not added a video source yet. Chat is open — hang tight.'}
                   </Text>
                   {isHost && (
-                    <TouchableOpacity
-                      style={[styles.primaryBtn, { backgroundColor: tint, marginTop: 10 }]}
+                    <PressableScale
+                      scaleTo={0.94}
+                      style={[styles.primaryBtn, { backgroundColor: tint, marginTop: 12 }]}
                       onPress={() => setVideoEditor(true)}
                     >
                       <Text style={styles.primaryBtnText}>＋ Add video source</Text>
-                    </TouchableOpacity>
+                    </PressableScale>
                   )}
                 </>
               )}
@@ -506,7 +563,8 @@ export default function WatchPartyRoomScreen() {
                 </View>
 
                 <View style={styles.rowGap}>
-                  <TouchableOpacity
+                  <PressableScale
+                    scaleTo={0.95}
                     disabled={party.status === 'live' || busy === 'start'}
                     onPress={startParty}
                     style={[
@@ -520,8 +578,9 @@ export default function WatchPartyRoomScreen() {
                     <Text style={[styles.primaryBtnText, { color: party.status === 'live' ? colors.textDim : '#052e16' }]}>
                       {busy === 'start' ? 'Starting…' : '▶ Start party'}
                     </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
+                  </PressableScale>
+                  <PressableScale
+                    scaleTo={0.95}
                     disabled={party.status === 'ended' || busy === 'end'}
                     onPress={endParty}
                     style={[
@@ -532,37 +591,40 @@ export default function WatchPartyRoomScreen() {
                     <Text style={[styles.primaryBtnText, { color: party.status === 'ended' ? colors.textDim : '#fff' }]}>
                       {busy === 'end' ? 'Ending…' : '■ End party'}
                     </Text>
-                  </TouchableOpacity>
+                  </PressableScale>
                 </View>
 
                 <View style={styles.stepperRow}>
                   <Text style={[styles.stepperLabel, { color: colors.textMuted }]}>Episode</Text>
                   <View style={styles.stepper}>
-                    <TouchableOpacity
+                    <PressableScale
+                      scaleTo={0.88}
                       onPress={() => stepEpisode(-1)}
                       style={[styles.stepBtn, { borderColor: colors.border, backgroundColor: colors.background }]}
                     >
                       <Text style={[styles.stepBtnText, { color: colors.text }]}>−</Text>
-                    </TouchableOpacity>
+                    </PressableScale>
                     <Text style={[styles.stepValue, { color: colors.text }]}>{party.episode}</Text>
-                    <TouchableOpacity
+                    <PressableScale
+                      scaleTo={0.88}
                       onPress={() => stepEpisode(1)}
                       style={[styles.stepBtn, { borderColor: colors.border, backgroundColor: colors.background }]}
                     >
                       <Text style={[styles.stepBtnText, { color: colors.text }]}>＋</Text>
-                    </TouchableOpacity>
+                    </PressableScale>
                   </View>
                 </View>
 
                 {!!party.videoUrl && (
-                  <TouchableOpacity
+                  <PressableScale
+                    scaleTo={0.94}
                     onPress={togglePlayback}
-                    style={[styles.ghostBtn, { borderColor: `${tint}55`, marginTop: 10, alignSelf: 'flex-start' }]}
+                    style={[styles.ghostBtn, { borderColor: `${tint}55`, marginTop: 12, alignSelf: 'flex-start' }]}
                   >
                     <Text style={[styles.ghostBtnText, { color: tint }]}>
                       {sync?.isPlaying ? '⏸ Sync pause' : '▶ Sync play'}
                     </Text>
-                  </TouchableOpacity>
+                  </PressableScale>
                 )}
 
                 {!!actionError && (
@@ -578,13 +640,14 @@ export default function WatchPartyRoomScreen() {
               <Text style={[styles.cardTitle, { color: colors.text }]}>Send a reaction</Text>
               <View style={styles.reactionRow}>
                 {REACTIONS.map((emoji) => (
-                  <TouchableOpacity
+                  <PressableScale
                     key={emoji}
+                    scaleTo={0.84}
                     onPress={() => react(emoji)}
                     style={[styles.reactionBtn, { borderColor: colors.border, backgroundColor: colors.background }]}
                   >
-                    <Text style={{ fontSize: 20 }}>{emoji}</Text>
-                  </TouchableOpacity>
+                    <Text style={{ fontSize: 22 }}>{emoji}</Text>
+                  </PressableScale>
                 ))}
               </View>
             </View>
@@ -636,7 +699,8 @@ export default function WatchPartyRoomScreen() {
                     returnKeyType="send"
                     maxLength={500}
                   />
-                  <TouchableOpacity
+                  <PressableScale
+                    scaleTo={0.9}
                     onPress={send}
                     disabled={!draft.trim() || sending}
                     style={[
@@ -647,22 +711,27 @@ export default function WatchPartyRoomScreen() {
                     <Text style={[styles.sendText, { color: draft.trim() ? '#0a0a0f' : colors.textDim }]}>
                       {sending ? '…' : 'Send'}
                     </Text>
-                  </TouchableOpacity>
+                  </PressableScale>
                 </View>
               ) : (
-                <TouchableOpacity
-                  style={[styles.primaryBtn, { backgroundColor: tint, marginTop: 10 }]}
+                <PressableScale
+                  scaleTo={0.94}
+                  style={[styles.primaryBtn, { backgroundColor: tint, marginTop: 12 }]}
                   onPress={() => navigation.navigate('Login')}
                 >
                   <Text style={styles.primaryBtnText}>Sign in to chat</Text>
-                </TouchableOpacity>
+                </PressableScale>
               )}
             </View>
           </FadeInView>
 
-          <TouchableOpacity onPress={leave} style={[styles.leaveBtn, { borderColor: `${colors.error}66` }]}>
+          <PressableScale
+            scaleTo={0.96}
+            onPress={leave}
+            style={[styles.leaveBtn, { borderColor: `${colors.error}66` }]}
+          >
             <Text style={[styles.leaveText, { color: colors.error }]}>Leave party</Text>
-          </TouchableOpacity>
+          </PressableScale>
         </ScrollView>
 
         {/* Floating reactions overlay */}
@@ -726,21 +795,22 @@ export default function WatchPartyRoomScreen() {
               autoCorrect={false}
               style={[styles.urlInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surface }]}
             />
-            <TouchableOpacity
+            <PressableScale
+              scaleTo={0.96}
               disabled={!videoDraft.trim() || busy === 'video'}
               onPress={saveVideo}
               style={[
                 styles.primaryBtn,
                 {
                   backgroundColor: videoDraft.trim() ? tint : colors.surfaceLight,
-                  marginTop: 12,
+                  marginTop: 14,
                 },
               ]}
             >
               <Text style={[styles.primaryBtnText, { color: videoDraft.trim() ? '#0a0a0f' : colors.textDim }]}>
                 {busy === 'video' ? 'Saving…' : 'Save source'}
               </Text>
-            </TouchableOpacity>
+            </PressableScale>
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -749,113 +819,141 @@ export default function WatchPartyRoomScreen() {
 }
 
 const styles = StyleSheet.create({
-  center: { alignItems: 'center', justifyContent: 'center', paddingVertical: 60, gap: 8, paddingHorizontal: 30 },
-  centerTitle: { fontSize: 17, fontWeight: '900' },
-  centerText: { fontSize: 12, textAlign: 'center', lineHeight: 18 },
-  hero: {
+  center: { alignItems: 'center', justifyContent: 'center', paddingVertical: 60, gap: 10, paddingHorizontal: 30 },
+  centerTitle: { fontSize: 18, fontWeight: '900' },
+  centerText: { fontSize: 13, textAlign: 'center', lineHeight: 19 },
+  roomSkeleton: { paddingHorizontal: spacing.md, paddingTop: spacing.md, gap: spacing.sm },
+  skeletonStats: { flexDirection: 'row', gap: spacing.sm },
+  skeletonStat: { flex: 1 },
+  skeletonBlock: { marginTop: spacing.sm },
+  heroWrap: {
     marginHorizontal: spacing.md,
     marginTop: spacing.md,
-    height: 196,
+    position: 'relative',
+  },
+  heroGlow: {
+    ...StyleSheet.absoluteFillObject,
+    top: -6,
+    left: -6,
+    right: -6,
+    bottom: -6,
+    borderRadius: borderRadius.xl,
+  },
+  hero: {
+    height: 204,
     borderRadius: borderRadius.lg,
     borderWidth: 1,
     overflow: 'hidden',
     justifyContent: 'space-between',
   },
   heroImage: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
-  heroScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(5,6,13,0.55)' },
-  heroTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 12 },
-  statusPill: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
-  liveDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: '#fff' },
-  statusText: { color: '#fff', fontSize: 8.5, fontWeight: '900', letterSpacing: 0.9 },
+  heroScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(5,6,13,0.58)' },
+  heroTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16 },
+  statusPill: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 },
+  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#fff' },
+  statusText: { color: '#fff', fontSize: 10, fontWeight: '900', letterSpacing: 0.9 },
   episodePill: {
-    backgroundColor: 'rgba(5,6,13,0.7)',
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    backgroundColor: 'rgba(5,6,13,0.72)',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.25)',
+    borderColor: 'rgba(255,255,255,0.28)',
   },
-  episodePillText: { color: '#fff', fontSize: 9, fontWeight: '900', letterSpacing: 0.6 },
-  heroBottom: { padding: 12 },
-  heroTitle: { color: '#fff', fontSize: 19, fontWeight: '900', lineHeight: 24 },
-  hostRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
-  hostName: { color: 'rgba(255,255,255,0.8)', fontSize: 10.5, maxWidth: 160 },
-  hostDot: { color: 'rgba(255,255,255,0.6)', fontSize: 9 },
-  syncStrip: { flexDirection: 'row', gap: 8, paddingHorizontal: spacing.md, marginTop: spacing.md },
-  syncCell: { flex: 1, borderWidth: 1, borderRadius: borderRadius.md, paddingVertical: 8, paddingHorizontal: 8 },
-  syncLabel: { fontSize: 7.5, fontWeight: '900', letterSpacing: 0.8 },
-  syncValue: { fontSize: 12, fontWeight: '900', marginTop: 3 },
-  section: { marginTop: spacing.md },
+  episodePillText: { color: '#fff', fontSize: 10.5, fontWeight: '900', letterSpacing: 0.6 },
+  heroBottom: { padding: 16 },
+  heroTitle: { color: '#fff', fontSize: 21, fontWeight: '900', lineHeight: 26 },
+  hostRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
+  hostName: { color: 'rgba(255,255,255,0.84)', fontSize: 12, maxWidth: 180 },
+  hostDot: { color: 'rgba(255,255,255,0.6)', fontSize: 11 },
+  syncStrip: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.md, marginTop: spacing.md },
+  syncCell: { flex: 1, borderWidth: 1, borderRadius: borderRadius.md, paddingVertical: 10, paddingHorizontal: 9 },
+  syncLabel: { fontSize: 9, fontWeight: '900', letterSpacing: 0.8 },
+  syncValue: { fontSize: 13.5, fontWeight: '900', marginTop: 4 },
+  section: { marginTop: spacing.lg },
   sectionHead: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.md,
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
-  sectionTitle: { fontSize: 14, fontWeight: '800' },
-  sectionMeta: { fontSize: 10 },
-  memberScroll: { paddingHorizontal: spacing.md, gap: 12 },
-  memberCard: { alignItems: 'center', width: 58 },
-  memberRing: { borderWidth: 2, borderRadius: 24, padding: 2 },
-  memberName: { fontSize: 9.5, marginTop: 4, maxWidth: 56 },
-  memberBadge: { fontSize: 7, fontWeight: '900', letterSpacing: 0.6, marginTop: 1 },
+  sectionTitle: { fontSize: 16, fontWeight: '800' },
+  sectionMeta: { fontSize: 12 },
+  memberScroll: { paddingHorizontal: spacing.md, gap: spacing.md },
+  memberCard: { alignItems: 'center', width: 66 },
+  memberRing: { borderWidth: 2, borderRadius: 26, padding: 3 },
+  memberName: { fontSize: 11, marginTop: 6, maxWidth: 62 },
+  memberBadge: { fontSize: 9, fontWeight: '900', letterSpacing: 0.6, marginTop: 2 },
   card: {
     marginHorizontal: spacing.md,
     marginTop: spacing.md,
     borderWidth: 1,
     borderRadius: borderRadius.lg,
-    padding: spacing.md,
+    padding: spacing.md + 2,
   },
-  cardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
-  cardTitle: { fontSize: 14, fontWeight: '800' },
-  cardBody: { fontSize: 11.5, lineHeight: 17 },
-  tagPill: { borderWidth: 1, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 },
-  tagText: { fontSize: 7.5, fontWeight: '900', letterSpacing: 0.7 },
-  rowGap: { flexDirection: 'row', gap: 8, marginTop: 10 },
-  primaryBtn: { borderRadius: borderRadius.md, paddingVertical: 11, paddingHorizontal: 14, alignItems: 'center' },
-  primaryBtnText: { color: '#0a0a0f', fontSize: 12, fontWeight: '900' },
-  ghostBtn: { borderWidth: 1, borderRadius: borderRadius.md, paddingVertical: 10, paddingHorizontal: 12, alignItems: 'center' },
-  ghostBtnText: { fontSize: 11, fontWeight: '800' },
-  stepperRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12 },
-  stepperLabel: { fontSize: 12, fontWeight: '700' },
-  stepper: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  stepBtn: { width: 32, height: 32, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  stepBtnText: { fontSize: 16, fontWeight: '900' },
-  stepValue: { fontSize: 15, fontWeight: '900', minWidth: 26, textAlign: 'center' },
-  errorText: { fontSize: 11, marginTop: 8 },
-  reactionRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
-  reactionBtn: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  chatList: { marginTop: 4, gap: 10 },
-  chatEmpty: { fontSize: 11.5, paddingVertical: 10, textAlign: 'center' },
-  msgRow: { flexDirection: 'row', gap: 8 },
+  cardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm },
+  cardTitle: { fontSize: 16, fontWeight: '800' },
+  cardBody: { fontSize: 13, lineHeight: 19 },
+  tagPill: { borderWidth: 1, borderRadius: borderRadius.sm, paddingHorizontal: 8, paddingVertical: 3 },
+  tagText: { fontSize: 9, fontWeight: '900', letterSpacing: 0.7 },
+  rowGap: { flexDirection: 'row', gap: spacing.sm, marginTop: 14 },
+  primaryBtn: { borderRadius: borderRadius.md, paddingVertical: 13, paddingHorizontal: 16, alignItems: 'center' },
+  primaryBtnText: { color: '#0a0a0f', fontSize: 14, fontWeight: '900' },
+  ghostBtn: { borderWidth: 1, borderRadius: borderRadius.md, paddingVertical: 12, paddingHorizontal: 14, alignItems: 'center' },
+  ghostBtnText: { fontSize: 13, fontWeight: '800' },
+  stepperRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.md + 2 },
+  stepperLabel: { fontSize: 14, fontWeight: '700' },
+  stepper: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm + 2 },
+  stepBtn: { width: 38, height: 38, borderRadius: 19, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  stepBtnText: { fontSize: 18, fontWeight: '900' },
+  stepValue: { fontSize: 17, fontWeight: '900', minWidth: 30, textAlign: 'center' },
+  errorText: { fontSize: 12.5, marginTop: spacing.sm },
+  reactionRow: { flexDirection: 'row', gap: spacing.sm, marginTop: 14 },
+  reactionBtn: { width: 46, height: 46, borderRadius: 23, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  chatList: { marginTop: spacing.sm, gap: 12 },
+  chatEmpty: { fontSize: 13.5, paddingVertical: 14, textAlign: 'center' },
+  msgRow: { flexDirection: 'row', gap: spacing.sm },
   msgRowMine: { opacity: 1 },
-  msgHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  msgName: { fontSize: 10.5, fontWeight: '800', flexShrink: 1 },
-  msgTime: { fontSize: 8.5 },
-  msgText: { fontSize: 12.5, lineHeight: 18, marginTop: 2 },
+  msgHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  msgName: { fontSize: 12.5, fontWeight: '800', flexShrink: 1 },
+  msgTime: { fontSize: 10 },
+  msgText: { fontSize: 14, lineHeight: 20, marginTop: 3 },
   composer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: spacing.sm,
     borderWidth: 1,
     borderRadius: borderRadius.md,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    marginTop: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginTop: 14,
   },
-  composerInput: { flex: 1, fontSize: 12.5, paddingVertical: 4, maxHeight: 80 },
-  sendBtn: { borderRadius: borderRadius.sm, paddingHorizontal: 12, paddingVertical: 7 },
-  sendText: { fontSize: 11, fontWeight: '900' },
-  leaveBtn: { marginTop: spacing.lg, marginHorizontal: spacing.md, borderWidth: 1, borderRadius: borderRadius.md, paddingVertical: 11, alignItems: 'center' },
-  leaveText: { fontSize: 12, fontWeight: '800' },
+  composerInput: { flex: 1, fontSize: 14, paddingVertical: 5, maxHeight: 90 },
+  sendBtn: { borderRadius: borderRadius.sm, paddingHorizontal: 14, paddingVertical: 9 },
+  sendText: { fontSize: 13, fontWeight: '900' },
+  leaveBtn: {
+    marginTop: spacing.lg,
+    marginHorizontal: spacing.md,
+    borderWidth: 1,
+    borderRadius: borderRadius.md,
+    paddingVertical: 13,
+    alignItems: 'center',
+  },
+  leaveText: { fontSize: 14, fontWeight: '800' },
   floaterLayer: { ...StyleSheet.absoluteFillObject, alignItems: 'center' },
   playerWrap: { flex: 1, backgroundColor: '#000' },
-  playerBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingBottom: 10 },
-  playerTitle: { color: '#fff', fontSize: 13, fontWeight: '800', flex: 1, marginRight: 10 },
-  playerClose: { color: '#fff', fontSize: 18, fontWeight: '900' },
+  playerBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 12 },
+  playerTitle: { color: '#fff', fontSize: 15, fontWeight: '800', flex: 1, marginRight: 12 },
+  playerClose: { color: '#fff', fontSize: 20, fontWeight: '900' },
   editorWrap: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
-  editorSheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, borderWidth: 1, padding: spacing.md, paddingBottom: 26 },
-  grabber: { width: 42, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 14 },
-  urlInput: { borderWidth: 1, borderRadius: borderRadius.md, paddingHorizontal: 12, paddingVertical: 10, marginTop: 12, fontSize: 12.5 },
+  editorSheet: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderWidth: 1,
+    padding: spacing.md + 2,
+    paddingBottom: 28,
+  },
+  grabber: { width: 42, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
+  urlInput: { borderWidth: 1, borderRadius: borderRadius.md, paddingHorizontal: 14, paddingVertical: 12, marginTop: 14, fontSize: 14 },
 });

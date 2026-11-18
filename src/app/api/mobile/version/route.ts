@@ -4,7 +4,7 @@ import { MOBILE_RELEASE } from "@/lib/mobile-release";
 /**
  * In-app updater endpoint.
  *
- * GET /api/mobile/version?versionCode=160000&platform=android
+ * GET /api/mobile/version?versionCode=140000&platform=android
  *
  * The Android client compares `latestVersionCode` with the build it is running
  * (expo-application `nativeBuildVersion`). When it is smaller, the app
@@ -24,7 +24,10 @@ export async function GET(req: NextRequest) {
   const platform = searchParams.get("platform") || "android";
 
   const release = MOBILE_RELEASE;
-  const updateAvailable = currentCode > 0 && release.versionCode > currentCode;
+  // A rollback release has a lower versionCode than the interim build. Surface
+  // it explicitly instead of silently telling those users they are up to date.
+  const rollback = currentCode > 0 && currentCode > release.versionCode;
+  const updateAvailable = currentCode > 0 && (release.versionCode > currentCode || rollback);
   const belowMinimum = currentCode > 0 && currentCode < release.minSupportedVersionCode;
 
   return NextResponse.json(
@@ -34,6 +37,7 @@ export async function GET(req: NextRequest) {
       latestVersionCode: release.versionCode,
       minSupportedVersionCode: release.minSupportedVersionCode,
       updateAvailable,
+      rollback,
       mandatory: release.mandatory || belowMinimum,
       apkUrl: release.apkUrl,
       sha256: release.sha256 || null,

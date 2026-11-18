@@ -123,7 +123,7 @@ export default function QuizPersonality({ initialResult }: { initialResult?: Per
           </div>
 
           <p className="mt-3 text-center text-[10px] text-[var(--color-mute)]">
-            Result card → WhatsApp pe link bhejo, card preview screenshot bhi banta hai.
+            Share the result link on WhatsApp — a preview screenshot is generated too.
           </p>
         </div>
       </div>
@@ -164,7 +164,7 @@ export default function QuizPersonality({ initialResult }: { initialResult?: Per
         </div>
 
         <p className="mt-4 text-center text-[10px] text-[var(--color-mute)]">
-          6 sawaal → apna anime personality jano → WhatsApp pe share karo 😎
+          6 questions → discover your anime personality → share it on WhatsApp 😎
         </p>
       </div>
     </div>

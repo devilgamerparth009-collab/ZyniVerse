@@ -35,7 +35,7 @@ export default async function HindiDubSeriesPage({
     <CatalogScreen
       kind="series"
       title="Hindi & regional dub series"
-      subtitle="Source sites se auto-imported series catalogue — language, genre ya rating se filter karo."
+      subtitle="Browse the dub series catalogue — filter by language, genre or rating."
       searchParams={params}
     />
   );

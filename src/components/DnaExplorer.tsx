@@ -90,8 +90,8 @@ export default function DnaExplorer({ profile, isOwn }: { profile: DnaProfile; i
     ...profile.genes.map((gene) => gene.split("·")[1]?.trim() || profile.fingerprint),
   ];
   const subtitle = isOwn
-    ? "Apna Anime DNA — watchlist, genres aur streaks se bana. Download karke share karo!"
-    : `Yeh ${profile.displayName} ka Anime DNA hai`;
+    ? "Your Anime DNA — built from your watchlist, genres and streaks. Download and share it!"
+    : `${profile.displayName}'s Anime DNA`;
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">

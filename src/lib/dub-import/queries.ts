@@ -60,8 +60,15 @@ export interface DubCatalogQuery {
 
 const MAX_LIMIT = 60;
 
-function sourceName(source: string): string {
-  return DUB_SOURCES[source as DubSourceId]?.name ?? source;
+/**
+ * Public DTOs must not advertise the upstream catalogue brand. Internal `source`
+ * ids stay untouched so redirects, filters and sync code keep working; only the
+ * human-facing label is neutral.
+ */
+const PUBLIC_SOURCE_LABEL = "Dub Hub";
+
+function sourceName(_source: string): string {
+  return PUBLIC_SOURCE_LABEL;
 }
 
 function asSource(value: string): DubSourceId {
@@ -342,19 +349,24 @@ export async function getDubSources() {
 
   return Object.values(DUB_SOURCES).map((cfg) => {
     const state = states.find((s) => s.source === cfg.id);
+    // Stable internal redirect; the public `baseUrl` no longer leaks the
+    // current upstream hostname.
+    const redirectPath = `/go/dub/${cfg.id}`;
     return {
       id: cfg.id,
-      name: cfg.name,
-      shortName: cfg.shortName,
-      description: cfg.description,
+      name: PUBLIC_SOURCE_LABEL,
+      shortName: "DH",
+      description: "Catalogue listing",
       accent: cfg.accent,
-      baseUrl: state?.baseUrl ?? cfg.candidates[0],
+      baseUrl: redirectPath,
       status: state?.status ?? "unknown",
       lastCheckedAt: state?.lastCheckedAt ? state.lastCheckedAt.toISOString() : null,
       lastSyncAt: state?.lastSyncAt ? state.lastSyncAt.toISOString() : null,
-      lastError: state?.lastError ?? null,
+      // Sync errors can contain an upstream hostname/brand; keep the detail in
+      // logs, not in a public API response.
+      lastError: state?.lastError ? "Catalogue check failed" : null,
       itemCount: counts.get(cfg.id) ?? 0,
-      redirectPath: `/go/dub/${cfg.id}`,
+      redirectPath,
     };
   });
 }

@@ -213,7 +213,7 @@ export default function MemeFeed() {
                 </span>
                 {liveAdded} live memes streamed from Reddit
               </span>
-              <span className="text-[10px] text-[var(--color-mute)]/60">— like/comment karo to save ho jayenge</span>
+              <span className="text-[10px] text-[var(--color-mute)]/60">— like or comment to save them</span>
               <button
                 onClick={() => setLiveItems([])}
                 className="ml-auto text-[10px] font-semibold text-[var(--color-mute)] transition-colors hover:text-[var(--color-magenta)]"

@@ -1,11 +1,11 @@
 {
-  "updatedAt": "2026-11-16T00:00:00.000Z",
+  "updatedAt": "2026-11-18T00:00:00.000Z",
   "announcement": {
     "active": true,
-    "id": "v160-launch",
+    "id": "v140-launch",
     "emoji": "🚀",
-    "title": "ZyniVerse 1.6.0 is here",
-    "message": "In-app updates, real channel logos, a rebuilt TV guide and native community screens. Tap to see what's new.",
+    "title": "ZyniVerse 1.4.0 is here",
+    "message": "A polished Dub Hub, reliable image loading, a working filler guide and a faster experience. Tap to see what's new.",
     "ctaLabel": "What's new",
     "ctaScreen": "Update",
     "tint": "#22d3ee"
@@ -24,7 +24,7 @@
       "id": "tv-tonight",
       "emoji": "📺",
       "title": "TV tonight",
-      "subtitle": "Live EPG with real channel logos",
+      "subtitle": "Live TV with channel guide",
       "screen": "TVGuide",
       "tint": "#60a5fa"
     }

@@ -62,9 +62,9 @@ export function ScheduleTable({ entries }: { entries: LiveDubEntry[] }) {
 export function ChannelNav({ active }: { active: DubChannel | "all" }) {
   const links: { key: "all" | DubChannel; label: string; href: string }[] = [
     { key: "all", label: "All Channels", href: "/hindi-dub-schedule" },
-    { key: "Muse India (YouTube)" as DubChannel, label: "Muse India", href: "/hindi-dub-schedule/muse-india" },
-    { key: "Ani-One India (YouTube)" as DubChannel, label: "Ani-One India", href: "/hindi-dub-schedule/ani-one-india" },
-    { key: "Crunchyroll" as DubChannel, label: "Crunchyroll", href: "/hindi-dub-schedule/crunchyroll" },
+    { key: "Muse India (YouTube)" as DubChannel, label: "Hindi uploads", href: "/hindi-dub-schedule/muse-india" },
+    { key: "Ani-One India (YouTube)" as DubChannel, label: "Regional uploads", href: "/hindi-dub-schedule/ani-one-india" },
+    { key: "Crunchyroll" as DubChannel, label: "Streaming", href: "/hindi-dub-schedule/crunchyroll" },
   ];
   return (
     <div className="mb-8 flex flex-wrap gap-2">

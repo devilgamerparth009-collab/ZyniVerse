@@ -35,7 +35,7 @@ export default function TheaterBookingModal({ movieTitle, onClose }: TheaterBook
     setLocating(true);
     setLocMsg(null);
     if (!("geolocation" in navigator)) {
-      setLocMsg("Geolocation unsupported — city manually choose karo.");
+      setLocMsg("Geolocation is not supported — please choose your city manually.");
       setLocating(false);
       return;
     }
@@ -47,7 +47,7 @@ export default function TheaterBookingModal({ movieTitle, onClose }: TheaterBook
         setLocating(false);
       },
       (err) => {
-        setLocMsg(err.code === 1 ? "Location permission denied — city manually choose karo." : "Location fetch fail hui — city choose karo.");
+        setLocMsg(err.code === 1 ? "Location permission denied — please choose your city manually." : "Could not detect your location — please choose your city.");
         setLocating(false);
       },
       { timeout: 8000, maximumAge: 600000 }
@@ -147,7 +147,7 @@ export default function TheaterBookingModal({ movieTitle, onClose }: TheaterBook
               ))}
             </div>
             <p className="mt-3 text-[10px] leading-relaxed text-[var(--color-mute)]/80">
-              BookMyShow link movie search kholta hai — city & showtime wahan select karo. PVR/District links booking platform ke pages hain.
+              The BookMyShow link opens a movie search — select your city and showtime there. PVR and District links open their booking pages.
             </p>
           </div>
         </div>

@@ -3,7 +3,6 @@ import {
   View,
   Text,
   ScrollView,
-  Image,
   TouchableOpacity,
   StyleSheet,
   Dimensions,
@@ -20,6 +19,7 @@ import { useAnime } from '../hooks/useAnime';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorView from '../components/ErrorView';
 import FillerProgress from '../components/FillerProgress';
+import SafeImage from '../components/SafeImage';
 import { formatScore, getScoreColor, LIST_STATUS_LABEL } from '../utils/helpers';
 import { api, getCurrentUser } from '../services/api';
 import {
@@ -131,12 +131,15 @@ export default function AnimeDetailScreen() {
   useEffect(() => {
     api.characters(id, 1).then((res) => setCharacters(res.edges.slice(0, 18))).catch(() => {});
     api.reviews.list(id).then(setReviews).catch(() => {});
-    // The filler endpoint is keyed by MyAnimeList id, which can differ from
-    // the AniList id for newer titles. Passing the AniList id here made the
-    // filler section disappear for most recent anime.
-    api.filler.get(malId || id).then(setFiller).catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, malId]);
+  }, [id]);
+
+  useEffect(() => {
+    if (!anime) return;
+    // Filler guides are keyed by the media id used across the app, with the
+    // title as a fallback match. This keeps newer titles from losing their
+    // guide just because an alternate id exists.
+    api.filler.get(id, title).then(setFiller).catch(() => setFiller(null));
+  }, [id, anime, title]);
 
   // Genre-based recommendations once the anime (and its genres) load.
   useEffect(() => {
@@ -304,24 +307,23 @@ export default function AnimeDetailScreen() {
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.hero}>
-        {anime.bannerImage ? (
-          <Image source={{ uri: anime.bannerImage }} style={styles.heroImage} resizeMode="cover" />
-        ) : poster ? (
-          <Image source={{ uri: poster }} style={styles.heroImage} resizeMode="cover" blurRadius={2} />
-        ) : (
-          <View style={styles.heroImage} />
-        )}
+        <SafeImage
+          uri={anime.bannerImage || poster}
+          fallbackLabel={title}
+          style={styles.heroImage}
+          blurRadius={anime.bannerImage ? undefined : 2}
+          accessibilityLabel={title}
+        />
         <View style={styles.heroOverlay} />
       </View>
 
       <View style={styles.headerCard}>
-        {poster ? (
-          <Image source={{ uri: poster }} style={styles.poster} resizeMode="cover" />
-        ) : (
-          <View style={[styles.poster, styles.posterPlaceholder]}>
-            <Text style={styles.posterPlaceholderText}>?</Text>
-          </View>
-        )}
+        <SafeImage
+          uri={poster}
+          fallbackLabel={title}
+          style={styles.poster}
+          accessibilityLabel={title}
+        />
         <View style={styles.headerInfo}>
           <Text style={styles.title}>{title}</Text>
           <View style={styles.metaRow}>
@@ -490,7 +492,7 @@ export default function AnimeDetailScreen() {
         <TouchableOpacity
           style={styles.actionCard}
           onPress={() =>
-            navigation.navigate('FillerGuide', { id: malId || anime.id, title })
+            navigation.navigate('FillerGuide', { id: anime.id, title, image: poster })
           }
         >
           <Text style={styles.actionIcon}>⚡</Text>
@@ -511,7 +513,7 @@ export default function AnimeDetailScreen() {
             onPress={() => Linking.openURL(anime.siteUrl!).catch(() => {})}
           >
             <Text style={styles.actionIcon}>🔗</Text>
-            <Text style={styles.actionLabel}>AniList</Text>
+            <Text style={styles.actionLabel}>More info</Text>
           </TouchableOpacity>
         ) : null}
       </View>
@@ -521,7 +523,9 @@ export default function AnimeDetailScreen() {
           <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionTitle}>Filler</Text>
             <TouchableOpacity
-              onPress={() => navigation.navigate('FillerGuide', { id: malId || anime.id, title })}
+              onPress={() =>
+                navigation.navigate('FillerGuide', { id: anime.id, title, image: poster })
+              }
             >
               <Text style={styles.seeAll}>Full guide →</Text>
             </TouchableOpacity>
@@ -582,13 +586,11 @@ export default function AnimeDetailScreen() {
               const va = edge.voiceActors?.[0];
               return (
                 <View key={edge.node.id} style={styles.charCard}>
-                  {image ? (
-                    <Image source={{ uri: image }} style={styles.charImage} />
-                  ) : (
-                    <View style={[styles.charImage, styles.posterPlaceholder]}>
-                      <Text style={styles.posterPlaceholderText}>?</Text>
-                    </View>
-                  )}
+                  <SafeImage
+                    uri={image}
+                    fallbackLabel={edge.node.name?.full || 'Character'}
+                    style={styles.charImage}
+                  />
                   <Text style={styles.charName} numberOfLines={2}>
                     {edge.node.name?.full || 'Unknown'}
                   </Text>
@@ -695,11 +697,12 @@ export default function AnimeDetailScreen() {
                   style={styles.recCard}
                   onPress={() => navigation.push('AnimeDetail', { id: rec.id, title: recTitle })}
                 >
-                  {recPoster ? (
-                    <Image source={{ uri: recPoster }} style={styles.recImage} />
-                  ) : (
-                    <View style={[styles.recImage, styles.posterPlaceholder]} />
-                  )}
+                  <SafeImage
+                    uri={recPoster}
+                    fallbackLabel={recTitle}
+                    style={styles.recImage}
+                    accessibilityLabel={recTitle}
+                  />
                   <Text style={styles.recTitle} numberOfLines={2}>
                     {recTitle}
                   </Text>

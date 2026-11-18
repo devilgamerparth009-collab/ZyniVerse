@@ -30,21 +30,21 @@ type Section = { title: string; subtitle: string; data: Feature[] };
 const SECTIONS: Section[] = [
   {
     title: 'Dub & schedule',
-    subtitle: 'Sab kuch ek hi Dub Hub me — yahin se kholo',
+    subtitle: 'Native dub tools and stable catalog links',
     data: [
-      { label: 'Dub Hub — all / series / movies / schedule', emoji: '🇮🇳', screen: 'HindiDub', params: { tab: 'all' } },
-      { label: 'Dub Hub — weekly schedule & tonight', emoji: '🗓️', screen: 'HindiDub', params: { tab: 'schedule' } },
-      { label: 'Dub Hub — languages', emoji: '🌐', screen: 'HindiDub', params: { tab: 'languages' } },
-      { label: 'Dub Hub — genres', emoji: '🎭', screen: 'HindiDub', params: { tab: 'genres' } },
+      { label: 'Dub Hub', emoji: '🇮🇳', screen: 'HindiDub', params: { tab: 'all' } },
       { label: 'Dubbed anime discovery', emoji: '🎙️', screen: 'Dubbed' },
-      { label: 'Hindi dub schedule (website)', emoji: '📅', path: '/hindi-dub/schedule' },
-      { label: 'Hindi dub channel schedule', emoji: '📺', path: '/hindi-dub-schedule' },
-      { label: 'Hindi dub language pages', emoji: '🗣️', path: '/hindi-dub/languages/hindi' },
+      { label: 'Live dubs', emoji: '📡', screen: 'LiveDubs' },
+      { label: 'Daily dub schedule', emoji: '🗓️', screen: 'DailyDubSchedule' },
+      { label: 'TV guide', emoji: '📺', screen: 'TVGuide' },
+      // Stable website redirects: the destination can move without breaking the app.
+      { label: 'Open Indian dub catalog', emoji: '🔗', path: '/go/dub/animedubhindi' },
+      { label: 'Open regional dub catalog', emoji: '🔗', path: '/go/dub/desidubanime' },
     ],
   },
   {
     title: 'Discover',
-    subtitle: 'Anime, manga aur unke detail pages',
+    subtitle: 'Anime, manga, and their detail pages',
     data: [
       { label: 'Trending', emoji: '🔥', screen: 'Browse', params: { mode: 'trending' } },
       { label: 'Popular', emoji: '⭐', screen: 'Browse', params: { mode: 'popular' } },
@@ -52,7 +52,7 @@ const SECTIONS: Section[] = [
       { label: 'Seasonal', emoji: '🌸', screen: 'Browse', params: { mode: 'seasonal' } },
       { label: 'Upcoming', emoji: '⏳', screen: 'Browse', params: { mode: 'upcoming' } },
       { label: 'A–Z alphabetical', emoji: '🔤', path: '/a-z' },
-      { label: 'Genres (anime / manga)', emoji: '🎭', path: '/genres' },
+      { label: 'Genres', emoji: '🎭', path: '/genres' },
       { label: 'Tags', emoji: '🏷️', path: '/tags' },
       { label: 'Semantic search', emoji: '🔍', path: '/search/semantic' },
       { label: 'Compare anime', emoji: '⚖️', path: '/compare-anime' },
@@ -60,15 +60,15 @@ const SECTIONS: Section[] = [
       { label: 'Wiki', emoji: '📜', screen: 'Hub', params: { kind: 'wiki', title: 'Wiki' } },
       { label: 'Characters', emoji: '👤', screen: 'Hub', params: { kind: 'characters', title: 'Characters' } },
       { label: 'Staff', emoji: '🎬', path: '/staff' },
-      { label: 'Voice actors / Indian dubs', emoji: '🎤', path: '/voice-actors/indian' },
       { label: 'Studios', emoji: '🏢', path: '/studios' },
+      { label: 'Voice actors', emoji: '🎤', path: '/voice-actors/indian' },
       { label: 'Indian dub guide', emoji: '🇮🇳', path: '/indian-dubs' },
       { label: 'Watch guide', emoji: '▶️', path: '/watch' },
     ],
   },
   {
     title: 'Manga & other media',
-    subtitle: 'Reader aur related catalogs',
+    subtitle: 'Readers and related catalogs',
     data: [
       { label: 'Manga', emoji: '📚', screen: 'Manga' },
       { label: 'Manga chapters & reader', emoji: '📖', path: '/manga/1/chapters' },
@@ -107,9 +107,9 @@ const SECTIONS: Section[] = [
   },
   {
     title: 'Lists, stats & tracking',
-    subtitle: 'Profile ke andar bhi yahi options',
+    subtitle: 'Your profile and tracking tools',
     data: [
-      { label: 'Profile (all tabs)', emoji: '👤', screen: 'Profile' },
+      { label: 'Profile & achievements', emoji: '👤', screen: 'Profile' },
       { label: 'Custom lists', emoji: '📚', path: '/lists' },
       { label: 'Shared watchlists', emoji: '🤝', path: '/shared-watchlists' },
       { label: 'Watchlist', emoji: '📌', screen: 'Hub', params: { kind: 'watchlist', title: 'Watchlist' } },
@@ -122,26 +122,26 @@ const SECTIONS: Section[] = [
       { label: 'Backlog', emoji: '🗃️', path: '/backlog' },
       { label: 'Saved', emoji: '💾', path: '/saved' },
       { label: 'Tier lists', emoji: '🏅', path: '/tierlist' },
-      { label: 'Achievements', emoji: '🎖️', screen: 'Profile' },
     ],
   },
   {
     title: 'Tools & extras',
-    subtitle: 'Website ke utility pages',
+    subtitle: 'Useful website utilities',
     data: [
       { label: 'Tools', emoji: '🧰', path: '/tools' },
       { label: 'Binge calculator', emoji: '🍿', path: '/tools/binge-calculator' },
       { label: 'Filler time', emoji: '⏭️', path: '/tools/filler-time' },
       { label: 'Watch stats', emoji: '📊', path: '/tools/watch-stats' },
+      { label: 'Calendar', emoji: '🗓️', path: '/calendar' },
+      { label: 'Random picker', emoji: '🎲', path: '/random' },
       { label: 'Events', emoji: '🎉', path: '/events' },
       { label: 'Conventions', emoji: '🎪', path: '/conventions' },
       { label: 'Awards', emoji: '🏆', path: '/awards' },
       { label: 'Challenges', emoji: '⚔️', path: '/challenges' },
       { label: 'Contests', emoji: '🎯', path: '/contests' },
       { label: 'Tournaments', emoji: '🥊', screen: 'Tournaments' },
-      { label: 'Anime themes (OP/ED)', emoji: '🎵', screen: 'OST' },
+      { label: 'Anime themes & OST', emoji: '🎵', screen: 'OST' },
       { label: 'Wallpapers', emoji: '🖼️', screen: 'Wallpapers' },
-      { label: 'OST vault', emoji: '🎧', screen: 'OST' },
       { label: 'Download / extension', emoji: '⬇️', path: '/download' },
       { label: 'AI corner', emoji: '🤖', path: '/ai' },
       { label: 'Developer / webhooks', emoji: '🛠️', path: '/developer/webhooks' },
@@ -150,23 +150,22 @@ const SECTIONS: Section[] = [
   },
   {
     title: 'Account, data & commerce',
-    subtitle: 'Sensitive actions website par confirm hoti hain',
+    subtitle: 'Sensitive actions are confirmed on the website',
     data: [
       { label: 'Edit profile', emoji: '✏️', screen: 'EditProfile' },
       { label: 'Settings', emoji: '⚙️', screen: 'Settings' },
-      { label: 'API keys & imports', emoji: '🔑', path: '/profile?tab=api' },
+      { label: 'Data, imports & tokens', emoji: '🔑', path: '/profile?tab=api' },
       { label: 'Export data', emoji: '📤', path: '/api/watchlist/export?format=csv' },
-      { label: 'Daily reward / economy', emoji: '🪙', path: '/earn' },
+      { label: 'Rewards & earning', emoji: '🪙', path: '/earn' },
       { label: 'Premium', emoji: '💎', path: '/premium' },
       { label: 'Merch', emoji: '🛍️', path: '/merch' },
       { label: 'My orders', emoji: '📦', path: '/my-orders' },
       { label: 'Commissions', emoji: '🎨', path: '/commissions' },
-      { label: 'Earn', emoji: '💸', path: '/earn' },
     ],
   },
   {
     title: 'Info & legal',
-    subtitle: 'ZyniVerse ke baare me',
+    subtitle: 'About ZyniVerse and your rights',
     data: [
       { label: 'About', emoji: 'ℹ️', path: '/about' },
       { label: 'Contact', emoji: '📮', path: '/contact' },
@@ -175,12 +174,14 @@ const SECTIONS: Section[] = [
       { label: 'DMCA', emoji: '⚖️', path: '/dmca' },
       { label: 'Disclaimer', emoji: '📄', path: '/disclaimer' },
       { label: 'Docs', emoji: '📖', path: '/docs' },
-      { label: 'Best anime sites', emoji: '🌐', path: '/best-anime-sites' },
+      { label: 'More anime sites', emoji: '🌐', path: '/best-anime-sites' },
       { label: 'Alternatives', emoji: '🔁', path: '/alternatives' },
       { label: 'Link to us', emoji: '🔗', path: '/link-to-us' },
     ],
   },
 ];
+
+const TAB_SCREENS = new Set(['Profile', 'Forum', 'Tournaments']);
 
 export default function AllFeaturesScreen() {
   const navigation = useNavigation<any>();
@@ -202,8 +203,8 @@ export default function AllFeaturesScreen() {
 
   const open = (item: Feature) => {
     if (item.screen) {
-      // These live inside the bottom-tab navigator, not the root stack.
-      if (item.screen === 'Profile' || item.screen === 'Forum' || item.screen === 'Tournaments') {
+      // Tab screens live inside MainTabs, not the root stack.
+      if (TAB_SCREENS.has(item.screen)) {
         navigation.navigate('MainTabs', { screen: item.screen, params: item.params });
       } else {
         navigation.navigate(item.screen, item.params);
@@ -219,7 +220,7 @@ export default function AllFeaturesScreen() {
     <View style={styles.container}>
       <ScreenHeader
         title="All features"
-        subtitle="Website ki har category — native screen ya safe website link"
+        subtitle="Every feature, with a working screen or website link"
         emoji="🧰"
       />
       <View style={styles.searchWrap}>
@@ -227,7 +228,7 @@ export default function AllFeaturesScreen() {
           style={styles.search}
           value={query}
           onChangeText={setQuery}
-          placeholder="Feature search karein…"
+          placeholder="Search features…"
           placeholderTextColor={colors.textDim}
         />
       </View>

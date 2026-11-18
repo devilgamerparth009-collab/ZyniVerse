@@ -26,21 +26,28 @@ import {
 } from "./parsers";
 import { DUB_SOURCES, DubSourceId, fetchText, resolveSourceBase } from "./sources";
 import { fetchWpCategories, fetchWpPostsPage } from "./wp-api";
+import { SyncStage, StageStatus, readStageState, writeStageState } from "./sync-state";
+
+export type { SyncStage, StageStatus } from "./sync-state";
 
 export interface SyncOptions {
   mode?: "full" | "incremental";
   /** Max pages / items handled in this invocation. */
   limit?: number;
   cursor?: string | null;
+  /** Which independent stage to run. Defaults to catalogue only. */
+  stage?: SyncStage;
 }
 
 export interface SyncResult {
   source: DubSourceId;
   mode: "full" | "incremental";
+  stage: SyncStage;
+  status: StageStatus;
   fetched: number;
   upserted: number;
   errors: string[];
-  /** Query string (no leading "?") that resumes this sync, or null when done. */
+  /** Query string (no leading "?") that resumes THIS stage, or null when done. */
   nextQuery: string | null;
   message: string;
 }
@@ -126,14 +133,23 @@ async function upsertItems(source: DubSourceId, items: DubItem[]): Promise<numbe
 
 async function markState(
   source: DubSourceId,
-  data: { status?: string; lastError?: string | null; lastSyncAt?: Date; itemCount?: number }
+  data: { status?: string; lastError?: string | null; itemCount?: number },
+  { advance = false }: { advance?: boolean } = {}
 ): Promise<void> {
   try {
     const baseUrl = await resolveSourceBase(source).catch(() => DUB_SOURCES[source].candidates[0]);
+    // `lastSyncAt` is a claim that data was actually written. It is only sent
+    // when the caller says the stage fetched something, so a failed WP fetch
+    // can no longer make a stale schedule look fresh.
+    const payload = {
+      ...data,
+      lastCheckedAt: new Date(),
+      ...(advance ? { lastSyncAt: new Date() } : {}),
+    };
     await prisma.dubSourceState.upsert({
       where: { source },
-      create: { source, baseUrl, ...data, lastCheckedAt: new Date() },
-      update: { ...data, lastCheckedAt: new Date() },
+      create: { source, baseUrl, ...payload },
+      update: payload,
     });
   } catch {
     // Bookkeeping must never fail a sync.
@@ -215,7 +231,9 @@ async function syncAnimeDubHindiFull(
     pagesDone += 1;
 
     if (page >= totalPages || items.length === 0) {
-      return { fetched, upserted, errors, nextQuery: "source=animedubhindi&mode=full&cursor=schedule" };
+      // The schedule stage is driven independently by runDubSync now; ending
+      // with a `cursor=schedule` token would re-enter the catalogue from page 1.
+      return { fetched, upserted, errors, nextQuery: null };
     }
     page += 1;
   }
@@ -223,10 +241,16 @@ async function syncAnimeDubHindiFull(
   return { fetched, upserted, errors, nextQuery: `source=animedubhindi&mode=full&cursor=api:${page}` };
 }
 
-async function syncAnimeDubHindiSchedule(baseUrl: string): Promise<{ fetched: number; upserted: number; errors: string[] }> {
+async function syncAnimeDubHindiSchedule(baseUrl: string): Promise<{ fetched: number; upserted: number; errors: string[]; ok: boolean }> {
   const errors: string[] = [];
   try {
-    const rows = parseAnimeDubHindiSchedule(await fetchText(`${baseUrl}/schedule.php`), baseUrl);
+    const rows = parseAnimeDubHindiSchedule(
+      await fetchText(`${baseUrl}/schedule.php`, { timeoutMs: 15000 }),
+      baseUrl
+    );
+    // A markup change must never wipe the schedule. Treat an empty parse as a
+    // failed stage so the previous cursor/lastSyncAt are left untouched.
+    if (!rows.length) throw new Error("schedule page returned no airings");
 
     // The schedule page has no per-show links. Resolve each title against the
     // catalogue so tapping an airing opens the real show page, not the table.
@@ -245,8 +269,19 @@ async function syncAnimeDubHindiSchedule(baseUrl: string): Promise<{ fetched: nu
 
     const ids = rows.map((r) => r.sourceId);
     if (ids.length) {
+      // Drop superseded episodes but keep TBA / Unscheduled airings: they are
+      // deliberately empty placeholders, not stale data to be invented over.
       await prisma.dubScheduleEntry.deleteMany({
-        where: { source: "animedubhindi", sourceId: { notIn: ids } },
+        where: {
+          source: "animedubhindi",
+          sourceId: { notIn: ids },
+          dayLabel: { not: null },
+          releaseAt: { not: null },
+          AND: [
+            { NOT: { episodeInfo: { contains: "TBA", mode: "insensitive" } } },
+            { NOT: { episodeInfo: { contains: "Unscheduled", mode: "insensitive" } } },
+          ],
+        },
       });
     }
     const values = rows.map(
@@ -276,10 +311,10 @@ async function syncAnimeDubHindiSchedule(baseUrl: string): Promise<{ fetched: nu
           "updatedAt" = now()
       `;
     }
-    return { fetched: rows.length, upserted: rows.length, errors };
+    return { fetched: rows.length, upserted: rows.length, errors, ok: true };
   } catch (error) {
     errors.push(`schedule: ${(error as Error).message}`);
-    return { fetched: 0, upserted: 0, errors };
+    return { fetched: 0, upserted: 0, errors, ok: false };
   }
 }
 
@@ -291,9 +326,17 @@ async function syncAnimeDubHindiIncremental(
   const budget = Math.max(1, Math.min(options.limit ?? ADH_API_PAGES, ADH_API_PAGES));
   const page = adhCursorPage(options.cursor);
 
-  const state = await prisma.dubSourceState.findUnique({ where: { source: "animedubhindi" } });
+  const [state, stageState] = await Promise.all([
+    prisma.dubSourceState.findUnique({ where: { source: "animedubhindi" } }),
+    readStageState("animedubhindi", "catalogue"),
+  ]);
+  // Use the catalogue stage's own timestamp: a successful schedule refresh
+  // must not narrow the window used to look for edited catalogue posts.
+  const lastCatalogueSync = stageState?.lastSyncAt ?? state?.lastSyncAt ?? null;
   // A small overlap avoids missing a post edited while the previous chunk ran.
-  const cutoff = state?.lastSyncAt ? new Date(state.lastSyncAt.getTime() - 6 * 3600 * 1000) : null;
+  const cutoff = lastCatalogueSync
+    ? new Date(lastCatalogueSync.getTime() - 6 * 3600 * 1000)
+    : null;
   const modifiedAfter = cutoff ? cutoff.toISOString().slice(0, 19) : null;
 
   let categoryMap: Awaited<ReturnType<typeof fetchWpCategories>>;
@@ -314,7 +357,7 @@ async function syncAnimeDubHindiIncremental(
     nextQuery:
       page < result.totalPages
         ? `source=animedubhindi&mode=incremental&cursor=${page + 1}`
-        : "source=animedubhindi&mode=incremental&cursor=schedule",
+        : null,
   };
 }
 
@@ -500,8 +543,14 @@ async function syncDesiIncremental(
     errors.push(`sitemap index: ${(error as Error).message}`);
   }
 
-  const state = await prisma.dubSourceState.findUnique({ where: { source: "desidubanime" } });
-  const cutoff = state?.lastSyncAt ? new Date(state.lastSyncAt.getTime() - 6 * 3600 * 1000) : new Date(Date.now() - 14 * 86400 * 1000);
+  const [state, stageState] = await Promise.all([
+    prisma.dubSourceState.findUnique({ where: { source: "desidubanime" } }),
+    readStageState("desidubanime", "catalogue"),
+  ]);
+  const lastCatalogueSync = stageState?.lastSyncAt ?? state?.lastSyncAt ?? null;
+  const cutoff = lastCatalogueSync
+    ? new Date(lastCatalogueSync.getTime() - 6 * 3600 * 1000)
+    : new Date(Date.now() - 14 * 86400 * 1000);
 
   let entries = (
     await Promise.all(
@@ -681,84 +730,149 @@ async function enrichDesiMissing(
 
 export async function syncDubSource(source: DubSourceId, options: SyncOptions = {}): Promise<SyncResult> {
   const mode = options.mode ?? "incremental";
+  const stage: SyncStage = options.stage ?? "catalogue";
   const cursor = options.cursor ?? null;
-  const baseUrl = await resolveSourceBase(source);
 
-  let result: { fetched: number; upserted: number; errors: string[]; nextQuery: string | null };
+  try {
+    /* ---- schedule stage: fully independent of the catalogue fetch ---- */
+    if (stage === "schedule") {
+      if (source !== "animedubhindi") {
+        return {
+          source,
+          mode,
+          stage,
+          status: "ok",
+          fetched: 0,
+          upserted: 0,
+          errors: [],
+          nextQuery: null,
+          message: "Source has no schedule endpoint.",
+        };
+      }
 
-  if (source === "animedubhindi") {
-    if (cursor === "schedule") {
+      // A homepage that works but /schedule.php 404s is not a schedule host.
+      const baseUrl = await resolveSourceBase(source, { scheduleCritical: true });
       const schedule = await syncAnimeDubHindiSchedule(baseUrl);
-      const count = await refreshItemCount(source);
-      await markState(source, {
-        status: schedule.errors.length ? "error" : "ok",
-        lastError: schedule.errors[0] ?? null,
-        lastSyncAt: new Date(),
-        itemCount: count,
+      const ok = schedule.ok && schedule.fetched > 0;
+      const status: StageStatus = ok ? "ok" : "error";
+      const state = await writeStageState(source, "schedule", {
+        status,
+        cursor: null,
+        error: schedule.errors[0] ?? null,
+        fetched: schedule.fetched,
+        advance: ok,
       });
+
+      await markState(
+        source,
+        { status, lastError: schedule.errors[0] ?? null },
+        { advance: ok }
+      );
+
       return {
         source,
         mode,
+        stage,
+        status,
         fetched: schedule.fetched,
         upserted: schedule.upserted,
         errors: schedule.errors,
         nextQuery: null,
-        message: `Schedule refreshed (${schedule.fetched} airings, ${count} titles in catalogue).`,
+        message: ok
+          ? `Schedule refreshed (${schedule.fetched} airings); cursor kept at ${state.lastSyncAt?.toISOString() ?? "now"}.`
+          : "Schedule refresh failed; previous cursor and lastSyncAt kept.",
       };
     }
 
-    result =
-      mode === "full"
-        ? await syncAnimeDubHindiFull(baseUrl, { ...options, cursor })
-        : await syncAnimeDubHindiIncremental(baseUrl, { ...options, cursor });
-  } else {
-    if (cursor === "enrich") {
+    /* ---- catalogue stage ---- */
+    // Old chains ended with `cursor=schedule`; schedule is now its own stage,
+    // so that token simply means "start the catalogue from the beginning".
+    const catalogueCursor = cursor === "schedule" ? null : cursor;
+    const baseUrl = await resolveSourceBase(source, { scheduleCritical: false });
+
+    let result: { fetched: number; upserted: number; errors: string[]; nextQuery: string | null };
+    if (source === "animedubhindi") {
+      result =
+        mode === "full"
+          ? await syncAnimeDubHindiFull(baseUrl, { ...options, cursor: catalogueCursor })
+          : await syncAnimeDubHindiIncremental(baseUrl, { ...options, cursor: catalogueCursor });
+    } else if (catalogueCursor === "enrich") {
       result = await enrichDesiMissing(baseUrl, options);
     } else {
       result =
         mode === "full"
-          ? await syncDesiFull(baseUrl, { ...options, cursor })
-          : await syncDesiIncremental(baseUrl, { ...options, cursor });
+          ? await syncDesiFull(baseUrl, { ...options, cursor: catalogueCursor })
+          : await syncDesiIncremental(baseUrl, { ...options, cursor: catalogueCursor });
     }
+
+    const done = !result.nextQuery;
+    const status: StageStatus = result.errors.length ? "error" : "ok";
+    // An empty but successful page is not a data fetch: keep the old cursor
+    // and lastSyncAt so an upstream markup change cannot fake freshness.
+    const advance = status === "ok" && result.fetched > 0;
+    const count = done
+      ? await refreshItemCount(source)
+      : await prisma.dubCatalogTitle.count({ where: { source } });
+
+    await writeStageState(source, "catalogue", {
+      status,
+      cursor: result.nextQuery,
+      error: result.errors[0] ?? null,
+      fetched: result.fetched,
+      advance,
+    });
+    await markState(
+      source,
+      { status, lastError: result.errors[0] ?? null, itemCount: count },
+      { advance }
+    );
+
+    return {
+      source,
+      mode,
+      stage,
+      status,
+      fetched: result.fetched,
+      upserted: result.upserted,
+      errors: result.errors,
+      nextQuery: result.nextQuery,
+      message: done
+        ? `${DUB_SOURCES[source].name}: ${count} titles in catalogue.`
+        : `${DUB_SOURCES[source].name}: imported ${result.upserted} titles, continuing.`,
+    };
+  } catch (error) {
+    const message = (error as Error).message;
+    await writeStageState(source, stage, {
+      status: "error",
+      error: message,
+      advance: false,
+    });
+    await markState(source, { status: "error", lastError: message }, { advance: false });
+    return {
+      source,
+      mode,
+      stage,
+      status: "error",
+      fetched: 0,
+      upserted: 0,
+      errors: [message],
+      nextQuery: null,
+      message: `${DUB_SOURCES[source].name}: ${stage} sync failed — ${message}`,
+    };
   }
-
-  const done = !result.nextQuery;
-  const count = done ? await refreshItemCount(source) : (await prisma.dubCatalogTitle.count({ where: { source } }));
-  await markState(source, {
-    status: result.errors.length ? "error" : "ok",
-    lastError: result.errors[0] ?? null,
-    ...(done ? { lastSyncAt: new Date() } : {}),
-    itemCount: count,
-  });
-
-  return {
-    source,
-    mode,
-    fetched: result.fetched,
-    upserted: result.upserted,
-    errors: result.errors,
-    nextQuery: result.nextQuery,
-    message: done
-      ? `${DUB_SOURCES[source].name}: ${count} titles in catalogue.`
-      : `${DUB_SOURCES[source].name}: imported ${result.upserted} titles, continuing.`,
-  };
 }
 
+/**
+ * Convenience entry point for callers that do not use the chunked runner.
+ * Each source's catalogue and schedule stages are invoked separately, so a
+ * failing WordPress fetch can never prevent the schedule refresh.
+ */
 export async function syncAllDubSources(options: SyncOptions = {}): Promise<SyncResult[]> {
   const results: SyncResult[] = [];
   for (const source of Object.keys(DUB_SOURCES) as DubSourceId[]) {
-    try {
-      results.push(await syncDubSource(source, options));
-    } catch (error) {
-      results.push({
-        source,
-        mode: options.mode ?? "incremental",
-        fetched: 0,
-        upserted: 0,
-        errors: [(error as Error).message],
-        nextQuery: null,
-        message: `${DUB_SOURCES[source].name}: sync failed.`,
-      });
+    results.push(await syncDubSource(source, { ...options, stage: "catalogue" }));
+    if (DUB_SOURCES[source].schedulePath) {
+      results.push(await syncDubSource(source, { ...options, stage: "schedule" }));
     }
   }
   return results;

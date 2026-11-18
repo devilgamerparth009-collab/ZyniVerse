@@ -61,7 +61,7 @@ export async function GET(req: NextRequest) {
         </div>
 
         <div style={{ display: "flex", fontSize: 40, fontWeight: 700, color: "#ffffff", marginTop: 8 }}>
-          Tumhara anime personality hai — {p.anime} ke style me
+          Your anime personality is — in the style of {p.anime}
         </div>
 
         <div style={{ display: "flex", fontSize: 34, fontWeight: 600, color: "#c7b7ff", marginTop: 14, textAlign: "center" }}>
@@ -76,7 +76,7 @@ export async function GET(req: NextRequest) {
         <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "center", width: "100%" }}>
           <div style={{ display: "flex", height: 4, width: "100%", borderRadius: 4, backgroundColor: p.accent }} />
           <div style={{ display: "flex", fontSize: 26, color: "#9b8ab0" }}>
-            Apna personality check karo → zyverse.in/quiz/personality
+            Discover your personality → zyverse.in/quiz/personality
           </div>
         </div>
       </div>

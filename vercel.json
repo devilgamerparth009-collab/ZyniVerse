@@ -1,6 +1,12 @@
 {
-  "buildCommand": "npx prisma generate && next build",
+  "buildCommand": "npx prisma generate && npm run build:sw && next build",
   "installCommand": "npm install",
   "framework": "nextjs",
-  "fluid": false
+  "fluid": false,
+  "crons": [
+    {
+      "path": "/api/cron/dub-sync",
+      "schedule": "30 20 * * *"
+    }
+  ]
 }

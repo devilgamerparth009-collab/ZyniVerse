@@ -52,7 +52,7 @@ const FEATURES: Feature[] = [
   { key: 'leaderboard', label: 'Leaderboard', sub: 'Top fans', emoji: '🏆', route: 'Leaderboard', tint: '#eab308' },
   { key: 'wallpapers', label: 'Wallpapers', sub: '4K anime art', emoji: '🖼️', route: 'Wallpapers', tint: '#38bdf8' },
   { key: 'ostlist', label: 'OP & ED Vault', sub: 'Openings', emoji: '🎧', route: 'OST', tint: '#fb7185' },
-  { key: 'tvguide', label: 'TV & Streaming', sub: 'Live EPG', emoji: '📺', route: 'TVGuide', tint: '#60a5fa' },
+  { key: 'tvguide', label: 'TV & Streaming', sub: 'Live TV', emoji: '📺', route: 'TVGuide', tint: '#60a5fa' },
 ];
 
 type WebFeature = {
@@ -452,7 +452,7 @@ export default function FunZoneScreen() {
               {
                 key: 'tv',
                 title: 'Live TV',
-                sub: 'Channels · DTH · EPG',
+                sub: 'Channels · DTH · Live TV',
                 emoji: '📺',
                 tint: '#ef4444',
                 onPress: () => navigation.navigate('TVGuide'),
