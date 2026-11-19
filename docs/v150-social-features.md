@@ -71,6 +71,29 @@ The legacy `/api/chat/messages/[id]/reaction` alias is kept for compatibility.
 - `npm run build` — succeeded after the standard Next.js security-nudge retry;
   all 795 pages generated, including the new social routes
 - `npx next typegen` — clean
+- Native Android assembly — **BUILD SUCCESSFUL** (1177 Gradle tasks). Metro
+  bundled all 1265 modules, so every new screen/import resolves correctly.
+
+### Local Hermes compiler is blocked (release-build blocker)
+
+The normal Hermes release build fails at `createBundleReleaseJsAndAssets`
+because Windows Application Control (Device Guard) blocks
+`mobile/node_modules/react-native/sdks/hermesc/win64-bin/hermesc.exe`:
+
+```
+'...hermesc.exe' was blocked by your organization's Device Guard policy.
+```
+
+`Unblock-File` does not help (no Mark-of-the-Web stream; it is a true WDAC
+block). Metro bundling itself succeeds — only the JS→Hermes bytecode step is
+affected. The verification build above was therefore run with a **temporary**
+`hermesEnabled=false` (JSC) and `gradle.properties` was restored to
+`hermesEnabled=true` afterwards. That JSC APK is verification-only and was NOT
+copied to `dist/` or `public/`.
+
+Before building the real signed `1.5.0` APK, one of these is required:
+- have the `hermesc.exe` path/hash allow-listed by device management, or
+- build through a cloud service (there is currently no `eas.json` in the repo).
 
 ## Deliberately not included
 
