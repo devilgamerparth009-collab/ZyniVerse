@@ -6,9 +6,9 @@
  * Everything is overridable through environment variables so a release can be
  * rolled out from Vercel without touching code:
  *
- *   MOBILE_VERSION_NAME=1.4.0
- *   MOBILE_VERSION_CODE=140000
- *   MOBILE_APK_URL=https://.../ZyniVerse-1.4.0.apk
+ *   MOBILE_VERSION_NAME=1.4.1
+ *   MOBILE_VERSION_CODE=140100
+ *   MOBILE_APK_URL=https://.../ZyniVerse-1.4.1.apk
  *   MOBILE_APK_SHA256=...
  *   MOBILE_APK_SIZE=...
  *   MOBILE_RELEASE_NOTES=One|Two|Three
@@ -30,8 +30,8 @@ export interface MobileRelease {
   minSupportedVersionCode: number;
 }
 
-const FALLBACK_VERSION_NAME = "1.4.0";
-const FALLBACK_VERSION_CODE = 140000;
+const FALLBACK_VERSION_NAME = "1.4.1";
+const FALLBACK_VERSION_CODE = 140100;
 
 /**
  * Verified metadata for builds we have actually published. Keeping it keyed by
@@ -39,6 +39,10 @@ const FALLBACK_VERSION_CODE = 140000;
  * can never make the app check a new APK against an old hash/size.
  */
 const PUBLISHED_BUILDS: Record<string, { sha256: string; sizeBytes: number }> = {
+  "1.4.1": {
+    sha256: "27e44ae300a25f843c8b07f10094153f18e7c458531cba168f6ad3a3d031684e",
+    sizeBytes: 42128269,
+  },
   "1.4.0": {
     sha256: "c9178820be0b777850d187abfd5f70ff2e314aec9fa4eeb2a2d7565fc86bddd9",
     sizeBytes: 42093909,
@@ -80,14 +84,14 @@ export const MOBILE_RELEASE: MobileRelease = {
   notes: (process.env.MOBILE_RELEASE_NOTES
     ? process.env.MOBILE_RELEASE_NOTES.split("|")
     : [
+        "Stories and Broadcast Channels are live, including the official ZyniVerse channel.",
+        "Tournament voting now works in live bracket matchups, with one vote per matchup.",
         "Dub Hub: series, movies, full-week schedule, languages and genres in one polished place.",
         "Live TV timings refresh automatically and show TBA when a slot has not been announced.",
         "Faster, clearer screens with reliable image fallbacks and a working filler guide.",
-        "Profile fixes, fewer duplicate options, and dedicated destinations for every feature.",
-        "Smoother animations and a lighter website experience.",
       ]
   ).map((line) => line.trim()).filter(Boolean),
   mandatory: process.env.MOBILE_RELEASE_MANDATORY === "true",
-  publishedAt: process.env.MOBILE_RELEASE_PUBLISHED_AT || "2026-11-18T00:00:00.000Z",
+  publishedAt: process.env.MOBILE_RELEASE_PUBLISHED_AT || "2026-11-19T00:00:00.000Z",
   minSupportedVersionCode: envNumber(process.env.MOBILE_MIN_SUPPORTED_VERSION_CODE) || 130000,
 };

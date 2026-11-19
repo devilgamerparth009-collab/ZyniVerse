@@ -56,16 +56,16 @@ export interface DownloadState {
   error?: string;
 }
 
-/** Build number baked into the installed APK (e.g. 140000). */
+/** Build number baked into the installed APK (e.g. 140100). */
 export function currentVersionCode(): number {
   const raw = Application.nativeBuildVersion;
   const n = raw ? Number.parseInt(raw, 10) : NaN;
   return Number.isFinite(n) ? n : 0;
 }
 
-/** Marketing version baked into the installed APK (e.g. "1.4.0"). */
+/** Marketing version baked into the installed APK (e.g. "1.4.1"). */
 export function currentVersionName(): string {
-  return Application.nativeApplicationVersion || '1.4.0';
+  return Application.nativeApplicationVersion || '1.4.1';
 }
 
 export function formatBytes(bytes?: number | null): string {

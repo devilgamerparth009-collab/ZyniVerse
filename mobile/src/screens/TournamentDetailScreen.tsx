@@ -64,9 +64,12 @@ export default function TournamentDetailScreen() {
 
   const [detail, setDetail] = useState<CharacterTournamentDetail | null>(null);
   const [myPollVote, setMyPollVote] = useState<string | null>(null);
+  const [myVotes, setMyVotes] = useState<Record<string, 'A' | 'B'>>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [votingFor, setVotingFor] = useState<string | null>(null);
+  const [votingMatch, setVotingMatch] = useState<string | null>(null);
+  const [voteError, setVoteError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
@@ -78,6 +81,7 @@ export default function TournamentDetailScreen() {
       ]);
       setDetail(d);
       setMyPollVote(poll.myPollVote ?? null);
+      setMyVotes(d.myVotes || {});
     } catch {
       setError('Could not load tournament');
     } finally {
@@ -106,6 +110,56 @@ export default function TournamentDetailScreen() {
       Alert.alert('Vote failed', e?.message || 'Could not cast your vote');
     } finally {
       setVotingFor(null);
+    }
+  };
+
+  /** Apply server-authoritative (or optimistic) counts to both round and flat lists. */
+  const applyMatchCounts = (
+    matchId: string,
+    votesA: number,
+    votesB: number,
+    choice?: 'A' | 'B'
+  ) => {
+    setDetail((prev) =>
+      prev
+        ? {
+            ...prev,
+            rounds: prev.rounds.map((round) => ({
+              ...round,
+              matches: round.matches.map((m) =>
+                m.id === matchId ? { ...m, votesA, votesB } : m
+              ),
+            })),
+            matches: prev.matches.map((m) =>
+              m.id === matchId ? { ...m, votesA, votesB } : m
+            ),
+          }
+        : prev
+    );
+    if (choice) setMyVotes((prev) => ({ ...prev, [matchId]: choice }));
+  };
+
+  const castMatchVote = async (match: TournamentMatch, choice: 'A' | 'B') => {
+    if (votingMatch || myVotes[match.id]) return;
+    const before = detail;
+    setVotingMatch(match.id);
+    setVoteError(null);
+    // Optimistic so the tap feels instant; authoritative counts replace it.
+    applyMatchCounts(
+      match.id,
+      match.votesA + (choice === 'A' ? 1 : 0),
+      match.votesB + (choice === 'B' ? 1 : 0),
+      choice
+    );
+    try {
+      const result = await api.tournaments.matchVote(tournamentId, match.id, choice);
+      applyMatchCounts(match.id, result.votesA, result.votesB, choice);
+    } catch (e: any) {
+      setDetail(before);
+      setMyVotes(before?.myVotes || {});
+      setVoteError(e?.message || 'Could not cast your vote');
+    } finally {
+      setVotingMatch(null);
     }
   };
 
@@ -200,6 +254,52 @@ export default function TournamentDetailScreen() {
         <View style={styles.barTrack}>
           <View style={[styles.barFillA, { width: `${totalPct}%` }]} />
         </View>
+        {(() => {
+          const myChoice = myVotes[m.id];
+          const votingOpen =
+            tournament.status === 'active' &&
+            m.round === tournament.currentRound &&
+            !!m.charA &&
+            !!m.charB &&
+            !m.winnerId;
+          if (!votingOpen && !myChoice) return null;
+          return (
+            <View style={styles.matchVoteSection}>
+              <Text style={styles.matchVoteLabel}>
+                {myChoice ? 'YOUR VOTE IS IN' : 'CAST YOUR VOTE'}
+              </Text>
+              <View style={styles.matchVoteRow}>
+                {(['A', 'B'] as const).map((side) => {
+                  const char = side === 'A' ? m.charA : m.charB;
+                  const chosen = myChoice === side;
+                  const blocked = !!myChoice && !chosen;
+                  const busy = votingMatch === m.id;
+                  return (
+                    <TouchableOpacity
+                      key={side}
+                      style={[
+                        styles.matchVoteBtn,
+                        chosen && styles.matchVoteBtnChosen,
+                        blocked && styles.matchVoteBtnBlocked,
+                      ]}
+                      disabled={!!myChoice || !!busy}
+                      activeOpacity={0.75}
+                      accessibilityLabel={`Vote for ${char?.charName || side}`}
+                      onPress={() => castMatchVote(m, side)}
+                    >
+                      <Text
+                        style={[styles.matchVoteBtnText, chosen && styles.matchVoteBtnTextChosen]}
+                        numberOfLines={1}
+                      >
+                        {busy ? '…' : chosen ? '✓ Your vote' : blocked ? 'Already voted' : `Vote ${char?.charName || side}`}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          );
+        })()}
       </View>
     );
   };
@@ -234,6 +334,7 @@ export default function TournamentDetailScreen() {
             {tournament.description ? (
               <Text style={styles.description}>{tournament.description}</Text>
             ) : null}
+            {!!voteError && <Text style={styles.voteError}>{voteError}</Text>}
           </FadeInView>
 
           {isQualifying && tournament.status === 'qualifying' ? (
@@ -275,6 +376,11 @@ export default function TournamentDetailScreen() {
               <Text style={styles.countdownHint}>
                 {detail.totalVotes} votes cast{meta?.label === 'LIVE' && tournament.roundEndsAt ? ` · next round in ${countdownLabel(tournament.roundEndsAt)}` : ''}
               </Text>
+              {tournament.status === 'active' && (
+                <Text style={styles.votedHint}>
+                  Tap a side in a live matchup to cast your vote. One vote per matchup.
+                </Text>
+              )}
             </FadeInView>
           ) : null}
         </View>
@@ -521,6 +627,54 @@ const styles = themed(() => ({
   barFillA: {
     height: '100%',
     backgroundColor: colors.primary,
+  },
+  voteError: {
+    color: colors.error,
+    fontSize: fontSize.xs,
+    marginTop: spacing.sm,
+  },
+  matchVoteSection: {
+    marginTop: spacing.md,
+  },
+  matchVoteLabel: {
+    color: colors.primary,
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.7,
+    marginBottom: 6,
+  },
+  matchVoteRow: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  matchVoteBtn: {
+    flex: 1,
+    minHeight: 36,
+    borderRadius: borderRadius.sm,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    backgroundColor: `${colors.primary}18`,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+  },
+  matchVoteBtnChosen: {
+    borderColor: '#22c55e',
+    backgroundColor: 'rgba(34,197,94,0.15)',
+  },
+  matchVoteBtnBlocked: {
+    borderColor: colors.border,
+    backgroundColor: 'transparent',
+    opacity: 0.5,
+  },
+  matchVoteBtnText: {
+    color: colors.primary,
+    fontSize: fontSize.xs,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  matchVoteBtnTextChosen: {
+    color: '#22c55e',
   },
   emptyState: {
     alignItems: 'center',

@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { apiLimiter } from "@/lib/rate-limiter";
 import { isHttpUrl, storySelect, toStoryItem } from "@/lib/social-types";
+import { ensureOfficialChannel } from "@/lib/social-seed";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +14,14 @@ export async function GET(req: NextRequest) {
   const viewerId = session?.user?.id;
   const { searchParams } = new URL(req.url);
   const limit = Math.min(Math.max(Number(searchParams.get("limit")) || 60, 1), 120);
+
+  try {
+    // Best effort: creates the official channel + welcome story on a fresh DB
+    // so Stories has real content the first time it is opened.
+    await ensureOfficialChannel();
+  } catch {
+    // The seed must never block the feed.
+  }
 
   try {
     const rows = await prisma.story.findMany({

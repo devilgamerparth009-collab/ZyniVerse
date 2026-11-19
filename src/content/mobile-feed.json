@@ -1,11 +1,11 @@
 {
-  "updatedAt": "2026-11-18T00:00:00.000Z",
+  "updatedAt": "2026-11-19T00:00:00.000Z",
   "announcement": {
     "active": true,
-    "id": "v140-launch",
+    "id": "v141-launch",
     "emoji": "🚀",
-    "title": "ZyniVerse 1.4.0 is here",
-    "message": "A polished Dub Hub, reliable image loading, a working filler guide and a faster experience. Tap to see what's new.",
+    "title": "ZyniVerse 1.4.1 is here",
+    "message": "Stories and Broadcast Channels are working, and you can now vote in live tournament matchups. Tap to see what's new.",
     "ctaLabel": "What's new",
     "ctaScreen": "Update",
     "tint": "#22d3ee"

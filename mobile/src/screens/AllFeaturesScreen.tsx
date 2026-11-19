@@ -99,7 +99,7 @@ const SECTIONS: Section[] = [
     subtitle: 'Readers and related catalogs',
     data: [
       { label: 'Manga', emoji: '📚', screen: 'Manga' },
-      { label: 'Manga chapters & reader', emoji: '📖', path: '/manga/1/chapters' },
+      { label: 'Manga chapters & reader', emoji: '📖', path: '/manga' },
       { label: 'Manga releases', emoji: '🆕', screen: 'Hub', params: { kind: 'manga-releases', title: 'Manga Releases' } },
       { label: 'Light novels', emoji: '📕', screen: 'Hub', params: { kind: 'light-novels', title: 'Light Novels' } },
       { label: 'Toons', emoji: '🧸', path: '/toons' },

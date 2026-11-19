@@ -4,7 +4,7 @@ import { MOBILE_RELEASE } from "@/lib/mobile-release";
 /**
  * In-app updater endpoint.
  *
- * GET /api/mobile/version?versionCode=140000&platform=android
+ * GET /api/mobile/version?versionCode=140100&platform=android
  *
  * The Android client compares `latestVersionCode` with the build it is running
  * (expo-application `nativeBuildVersion`). When it is smaller, the app

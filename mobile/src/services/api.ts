@@ -2303,8 +2303,32 @@ export const api = {
         : data?.tournaments || data?.data || []) as import('../types').CharacterTournament[];
     },
     detail: async (id: string) => {
-      const data = await requestJson<any>(`${WEB_API}/character-tournaments/${id}`);
+      // The device id makes the server include this voter's `myVotes` /
+      // `myPollVote` state. Without it guests always look like they have never
+      // voted, so the vote buttons can never show the correct state.
+      const data = await requestJson<any>(`${WEB_API}/character-tournaments/${id}`, {
+        headers: { 'X-Device-Id': await getDeviceId() },
+      });
       return (data?.data || data) as import('../types').CharacterTournamentDetail;
+    },
+    /** Vote in a live bracket matchup. One vote per match, guests allowed. */
+    matchVote: async (id: string, matchId: string, choice: 'A' | 'B') => {
+      const res = await fetchWithTimeout(
+        `${WEB_API}/character-tournaments/${id}/matches/${matchId}/vote`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Device-Id': await getDeviceId(),
+          },
+          body: JSON.stringify({ choice }),
+        }
+      );
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error((data && data.error) || `API Error: ${res.status}`);
+      }
+      return res.json() as Promise<{ success: boolean; votesA: number; votesB: number }>;
     },
     pollVoteGet: async (id: string): Promise<{ myPollVote: string | null }> => {
       const res = await fetchWithTimeout(`${WEB_API}/character-tournaments/${id}/poll-vote`, {
