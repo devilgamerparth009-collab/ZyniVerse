@@ -46,6 +46,7 @@
       ],
       "./plugins/withZyniManifest",
       "./plugins/withZyniKotlinVersion",
+      "./plugins/withZyniHermes",
       "./plugins/withAndroidArchitectures",
       "./plugins/withZyniReleaseConfig"
     ],
