@@ -71,29 +71,41 @@ The legacy `/api/chat/messages/[id]/reaction` alias is kept for compatibility.
 - `npm run build` — succeeded after the standard Next.js security-nudge retry;
   all 795 pages generated, including the new social routes
 - `npx next typegen` — clean
-- Native Android assembly — **BUILD SUCCESSFUL** (1177 Gradle tasks). Metro
-  bundled all 1265 modules, so every new screen/import resolves correctly.
+- Native Android assembly — **BUILD SUCCESSFUL** with **Hermes enabled**
+  (1177 Gradle tasks). Metro bundled all 1265 modules, so every new
+  screen/import resolves correctly.
+- Installed on a physical device (`app.zyverse.mobile`, versionCode `140000`):
+  launch is clean, no FATAL/JS errors, `MainActivity` stays in the foreground.
 
-### Local Hermes compiler is blocked (release-build blocker)
+### Local Hermes build workaround (resolved)
 
-The normal Hermes release build fails at `createBundleReleaseJsAndAssets`
-because Windows Application Control (Device Guard) blocks
-`mobile/node_modules/react-native/sdks/hermesc/win64-bin/hermesc.exe`:
+By default the Hermes compiler lives inside `node_modules`, and Windows
+Application Control (Device Guard) blocks executables there:
 
 ```
 '...hermesc.exe' was blocked by your organization's Device Guard policy.
 ```
 
-`Unblock-File` does not help (no Mark-of-the-Web stream; it is a true WDAC
-block). Metro bundling itself succeeds — only the JS→Hermes bytecode step is
-affected. The verification build above was therefore run with a **temporary**
-`hermesEnabled=false` (JSC) and `gradle.properties` was restored to
-`hermesEnabled=true` afterwards. That JSC APK is verification-only and was NOT
-copied to `dist/` or `public/`.
+The block is **path-based, not hash-based** — copying the compiler plus its DLLs
+to `%LOCALAPPDATA%\ZyniVerse\hermesc` makes it run normally. A JSC fallback
+build also assembled, but crashed at startup with `Unexpected token '?'`
+(older JSC cannot parse optional chaining), so **JSC is not a valid release
+engine** here — always build with Hermes.
 
-Before building the real signed `1.5.0` APK, one of these is required:
-- have the `hermesc.exe` path/hash allow-listed by device management, or
-- build through a cloud service (there is currently no `eas.json` in the repo).
+For local release builds:
+
+```powershell
+$hermesc = (powershell -NoProfile -ExecutionPolicy Bypass -File mobile\scripts\copy-hermesc.ps1).Trim()
+cd mobile\android
+$env:JAVA_HOME='C:\Users\ParthGupta\jdk17'
+.\gradlew assembleRelease --no-daemon -PzyniHermescPath=$hermesc
+```
+
+`mobile/android/app/build.gradle` accepts `-PzyniHermescPath` as an opt-in
+override; the default Hermes path is unchanged when the flag is absent, so this
+is harmless on machines without the WDAC policy. No `eas.json`/cloud build is
+needed. The test APK was NOT copied to `dist/` or `public/` — `v1.4.0` remains
+the published build.
 
 ## Deliberately not included
 
