@@ -1,7 +1,8 @@
 # ZyniVerse v1.5.0 — Social features blueprint
 
-Status: implemented on branch `social-v1.5.0`. **Not shipped.** `v1.4.0`
-remains the published stable APK and the deployed website build.
+Status: shipped as **v1.4.1 / 140100** from branch `social-v1.5.0`. The social
+features keep their branch name but are now part of the published release.
+`v1.4.0 / 140000` is retained only as the previous stable build.
 
 ## What was added
 
@@ -36,12 +37,14 @@ so no database-level foreign keys are added.
 **Do not deploy the website before applying this migration** — the new routes
 query these tables.
 
-## Optional: official seed channel
+## Official seed channel
 
-Set `ZYVERSE_OFFICIAL_USER_ID` to an existing user id to auto-create the
-official `zyniverse` channel with one welcome post sourced from
-`src/content/mobile-feed.json`. Without it, `ensureOfficialChannel()` is a
-no-op and channels simply start empty. Never throws.
+`ensureOfficialChannel()` uses `ZYVERSE_OFFICIAL_USER_ID` when set and otherwise
+falls back to the seeded `system-bot` account. It creates the official
+`zyniverse` channel with a branded icon, one welcome post sourced from
+`src/content/mobile-feed.json`, and one 24-hour welcome story using the site
+logo. It is called from `GET /api/stories`, never throws, and is idempotent per
+channel/story. The migration has been applied to the production database.
 
 ## API surface
 

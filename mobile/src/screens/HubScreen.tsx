@@ -84,8 +84,8 @@ interface CardModel {
 const STATIC_CARDS: Record<string, CardModel[]> = {
   tools: [
     { id: 'all-features', title: 'All Features', subtitle: 'Every website feature in one place', meta: 'Native', screen: 'AllFeatures' },
-    { id: 'watch-order', title: 'Watch Order', subtitle: 'How to watch any series', meta: 'Native', screen: 'Hub', params: { kind: 'watch-order', title: 'Watch Order' } },
-    { id: 'tracker', title: 'Season Tracker', subtitle: 'Keep up with airing shows', meta: 'Native', screen: 'Hub', params: { kind: 'seasonal-tracker', title: 'Season Tracker' } },
+    { id: 'watch-order', title: 'Watch Order', subtitle: 'How to watch any series', meta: 'Open on website', href: 'https://zyverse.in/watch-order' },
+    { id: 'tracker', title: 'Season Tracker', subtitle: 'Keep up with airing shows', meta: 'Open on website', href: 'https://zyverse.in/seasonal-tracker' },
     { id: 'tierlist', title: 'Tier List', subtitle: 'Rank everything', meta: 'Native', screen: 'Hub', params: { kind: 'tierlist', title: 'Tier Lists' } },
     { id: 'tv', title: 'TV & Streaming', subtitle: 'Live TV guide', meta: 'Native', screen: 'TVGuide' },
     { id: 'random', title: 'Surprise Me', subtitle: 'Jump to a random anime', meta: 'Native', screen: 'Hub', params: { kind: 'random', title: 'Surprise Me' } },

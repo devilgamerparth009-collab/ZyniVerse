@@ -27,8 +27,8 @@ are not advertised by the updater.
 ## Verified 1.4.1 build
 
 - **APK:** `dist/ZyniVerse-1.4.1.apk` (also hosted at `public/ZyniVerse-1.4.1.apk`)
-- **Size:** 42,128,269 bytes
-- **SHA-256:** `27e44ae300a25f843c8b07f10094153f18e7c458531cba168f6ad3a3d031684e`
+- **Size:** 42,128,273 bytes
+- **SHA-256:** `9cd9f968150352a53febb250f742063d8995c5a05fe0d8881c478bca86c32b6e`
 - **Package / version:** `app.zyverse.mobile`, `1.4.1 / 140100` (`aapt2 dump badging`)
 - **Signer:** `a2f453ded88aae9d5949f4a2f08f3330b513bf6d35d05ecd7c6c42a81515367e`
   — identical to the published 1.4.0 build, so existing installs keep their data.
