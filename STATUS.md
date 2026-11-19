@@ -95,3 +95,18 @@ Stable rollback release. Version `1.4.0` / versionCode `140000`. The interim
 | Upstream vs Vercel egress | Watch the next daily cron; the resolver self-heals when the source answers again. No code change needed for a third-party block. |
 | Device tap-through | Partial: Home explore row, announcement card and schedule cross-links were verified in the native UI. `uiautomator dump` then went stale because the November Diwali animation never lets the view hierarchy idle, so Dub Hub tab scroll/labels, the live countdown, filler guide and the removed mobile AniList button still need a manual tap-through. |
 | Security upgrade | `npm run build` warns that Next.js `16.4.2` has a known vulnerability and suggests the security upgrade command. The upgrade remains separate in `C:\Users\ParthGupta\ZyniVerse-security`, branch `security-upgrade`, commit `0a09868` (Next.js `16.4.2` → `16.4.6`); website fixes were selectively merged into main. PR not publishable while GitHub is suspended. |
+
+## v1.5.0 social branch (in progress, not shipped)
+
+- **Branch:** `social-v1.5.0`. `v1.4.0` APK/hash/URL and the deployed website are
+  untouched by this work.
+- **Added:** people discovery with reasons, tappable follower/following lists,
+  Instagram-style broadcast channels, 24h stories, chat reactions/delete/typing,
+  and real empty-state entry points on both platforms. Full details and the
+  required migration are in `docs/v150-social-features.md`.
+- **Cannot deploy before:** `npx prisma migrate deploy` is run on the production
+  database, and `ZYVERSE_OFFICIAL_USER_ID` is set if the official seed channel is
+  wanted.
+- **Verification:** root and mobile typechecks clean; filler tests 6/6;
+  `npm run build` succeeded after the standard security-nudge retry (795 pages,
+  including all new social routes).

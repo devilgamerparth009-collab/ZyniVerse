@@ -68,6 +68,9 @@ const EXPLORE_ITEMS: {
   { key: 'recommendations', icon: '✨', label: 'Recommendations', sub: 'Picks based on your list', tint: '#a855f7', route: 'Recommendations' },
   { key: 'taste', icon: '🧬', label: 'Taste Profile', sub: 'See what anime fits you', tint: '#22d3ee', route: 'TasteProfile' },
   { key: 'watchlist', icon: '📌', label: 'Watchlist', sub: 'Plan what to watch next', tint: '#f43f5e', route: 'Hub', params: { kind: 'watchlist', title: 'Watchlist' } },
+  { key: 'discover', icon: '🧭', label: 'Discover people', sub: 'Find fans with similar taste', tint: '#22c55e', route: 'DiscoverPeople' },
+  { key: 'channels', icon: '📣', label: 'Broadcast channels', sub: 'Follow creator updates', tint: '#f59e0b', route: 'Channels' },
+  { key: 'stories', icon: '✨', label: 'Stories', sub: 'Watch daily moments', tint: '#f472b6', route: 'Stories' },
 ];
 
 function isSessionError(message?: string | null): boolean {
@@ -556,14 +559,26 @@ export default function ProfileScreen() {
           ) : null}
 
           <FadeInView delay={100} style={styles.socialRow}>
-            <View style={styles.socialItem}>
+            <TouchableOpacity
+              style={styles.socialItem}
+              onPress={() =>
+                navigation.navigate('FollowList', { userId: user.id, mode: 'followers' })
+              }
+              accessibilityLabel="View followers"
+            >
               <Text style={styles.socialValue}>{formatCount(user.followersCount)}</Text>
-              <Text style={styles.socialLabel}>Followers</Text>
-            </View>
-            <View style={styles.socialItem}>
+              <Text style={[styles.socialLabel, styles.socialLink]}>Followers</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.socialItem}
+              onPress={() =>
+                navigation.navigate('FollowList', { userId: user.id, mode: 'following' })
+              }
+              accessibilityLabel="View following"
+            >
               <Text style={styles.socialValue}>{formatCount(user.followingCount)}</Text>
-              <Text style={styles.socialLabel}>Following</Text>
-            </View>
+              <Text style={[styles.socialLabel, styles.socialLink]}>Following</Text>
+            </TouchableOpacity>
             <View style={styles.socialItem}>
               <Text style={styles.socialValue}>{formatCount(stats.episodesWatched)}</Text>
               <Text style={styles.socialLabel}>Episodes</Text>
@@ -983,6 +998,9 @@ const styles = themed(() => ({
     color: colors.textDim,
     fontSize: 10,
     marginTop: 2,
+  },
+  socialLink: {
+    color: colors.primary,
   },
   actionRow: {
     flexDirection: 'row',

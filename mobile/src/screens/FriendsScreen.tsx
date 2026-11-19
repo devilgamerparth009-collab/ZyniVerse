@@ -261,6 +261,15 @@ export default function FriendsScreen() {
                   ? 'Open someone’s profile and send a friend request.'
                   : 'New requests will appear here.'}
               </Text>
+              {tab === 'friends' ? (
+                <TouchableOpacity
+                  style={[styles.findBtn, { backgroundColor: colors.primary }]}
+                  onPress={() => navigation.navigate('DiscoverPeople')}
+                  accessibilityLabel="Find people"
+                >
+                  <Text style={styles.findBtnText}>Find people</Text>
+                </TouchableOpacity>
+              ) : null}
             </View>
           }
           renderItem={tab === 'friends' ? (renderFriend as any) : (renderRequest as any)}
@@ -298,6 +307,13 @@ const styles = StyleSheet.create({
   pillText: { fontSize: 11, fontWeight: '900', color: '#0a0a0f' },
   pillBtnOutline: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: borderRadius.full, borderWidth: 1 },
   pillTextOutline: { fontSize: 11, fontWeight: '800' },
+  findBtn: {
+    marginTop: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 10,
+    borderRadius: borderRadius.full,
+  },
+  findBtnText: { color: '#0a0a0f', fontSize: fontSize.xs, fontWeight: '900' },
   emptyBox: { alignItems: 'center', marginTop: spacing.xxl },
   emptyEmoji: { fontSize: 40, marginBottom: spacing.sm },
   empty: { fontSize: fontSize.sm, fontWeight: '700', textAlign: 'center' },

@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { NextRequest, NextResponse, after } from "next/server";
 import { sendMessage, getMessages, broadcastToConversation } from "@/lib/chat";
+import { aggregateReactions } from "@/lib/social-types";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
@@ -21,7 +22,18 @@ export async function GET(req: NextRequest) {
   const before = searchParams.get("before") || undefined;
 
   const messages = await getMessages(conversationId, limit, before);
-  return NextResponse.json({ messages: messages.reverse() });
+  // Keep `reactions` as the original row array for the existing web client, and
+  // add `reactionCounts` / `myReactions` for v1.5.0 native clients. Both shapes
+  // are safe: the mobile helper normalises either one.
+  return NextResponse.json({
+    messages: messages.reverse().map((message) => {
+      const { reactions: reactionCounts, myReactions } = aggregateReactions(
+        message.reactions,
+        session.user.id
+      );
+      return { ...message, reactionCounts, myReactions, isDeleted: message.isDeleted };
+    }),
+  });
 }
 
 export async function POST(req: NextRequest) {

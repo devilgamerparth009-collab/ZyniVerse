@@ -38,6 +38,20 @@ import {
   WatchPartySyncState,
   WatchlistItem,
 } from '../types';
+import {
+  ChannelPostsResponse,
+  ChannelSummary,
+  ChannelPostView,
+  CreateChannelInput,
+  CreateChannelPostInput,
+  CreateStoryInput,
+  DiscoveredUser,
+  FollowListResponse,
+  PublicUser,
+  ReactionState,
+  StoryItem,
+  SubscriptionState,
+} from '../types/social';
 
 export const WEB_HOST = 'https://zyverse.in';
 const WEB_API = `${WEB_HOST}/api`;
@@ -1835,7 +1849,9 @@ export interface ChatMessage {
   createdAt: string;
   sender: ChatUserRef;
   isDeleted?: boolean;
-  reactions?: { id: string; emoji: string; userId: string }[];
+  /** New servers send a count map; older servers sent a flat row array. */
+  reactions?: Record<string, number> | { id: string; emoji: string; userId: string }[];
+  myReactions?: string[];
 }
 
 async function getConversations(): Promise<ChatConversation[]> {
@@ -1913,6 +1929,184 @@ async function getPublicProfile(username: string): Promise<any> {
 
 async function toggleFollow(followingId: string, follow: boolean): Promise<void> {
   await authedPost('/follow', { followingId }, follow ? 'POST' : 'DELETE');
+}
+
+/* ------------------------------------------------------------------ */
+/* Social v1.5.0 — discovery, follow lists, channels, stories          */
+/* ------------------------------------------------------------------ */
+
+/** Normalises the people search response (older routes used `results`). */
+function asPublicUser(raw: Record<string, unknown>): PublicUser {
+  return {
+    id: String(raw.id ?? ''),
+    username: String(raw.username ?? raw.name ?? 'User'),
+    avatar: (raw.avatar ?? raw.image ?? null) as string | null,
+    bio: (raw.bio ?? null) as string | null,
+  };
+}
+
+async function discoverUsers(limit = 24): Promise<DiscoveredUser[]> {
+  const data = await authedGet<{ users?: DiscoveredUser[] }>('/users/discover', { limit });
+  return (data?.users || []).map((raw) => ({
+    ...asPublicUser(raw as unknown as Record<string, unknown>),
+    isFollowing: !!raw.isFollowing,
+    isFriend: !!raw.isFriend,
+    mutualFollowers: Number(raw.mutualFollowers) || 0,
+    reason: String(raw.reason || 'Recommended for you'),
+  }));
+}
+
+async function searchPeople(query: string): Promise<DiscoveredUser[]> {
+  if (!query.trim()) return [];
+  const data = await authedGet<{
+    users?: DiscoveredUser[];
+    results?: DiscoveredUser[];
+  }>('/users/search', { q: query.trim() });
+  const list = data?.users || data?.results || [];
+  return list.map((raw) => ({
+    ...asPublicUser(raw as unknown as Record<string, unknown>),
+    isFollowing: !!raw.isFollowing,
+    isFriend: !!raw.isFriend,
+    mutualFollowers: Number(raw.mutualFollowers) || 0,
+    reason: String(raw.reason || 'People you may know'),
+  }));
+}
+
+async function getFollowList(
+  userId: string,
+  mode: 'followers' | 'following',
+  limit = 50,
+  cursor?: string
+): Promise<FollowListResponse> {
+  const data = await authedGet<FollowListResponse>(`/users/${encodeURIComponent(userId)}/${mode}`, {
+    limit,
+    ...(cursor ? { cursor } : {}),
+  });
+  return {
+    users: (data?.users || []).map((raw) => asPublicUser(raw as unknown as Record<string, unknown>)),
+    nextCursor: data?.nextCursor ?? null,
+  };
+}
+
+async function listChannels(): Promise<ChannelSummary[]> {
+  const data = await authedGet<{ channels?: ChannelSummary[] }>('/channels');
+  return data?.channels || [];
+}
+
+async function createChannel(input: CreateChannelInput): Promise<ChannelSummary> {
+  const data = await authedPost<{ channel: ChannelSummary }>('/channels', input);
+  return data.channel;
+}
+
+async function getChannel(slug: string): Promise<ChannelSummary> {
+  const data = await authedGet<{ channel: ChannelSummary }>(
+    `/channels/${encodeURIComponent(slug)}`
+  );
+  return data.channel;
+}
+
+async function subscribeChannel(slug: string, subscribe: boolean): Promise<SubscriptionState> {
+  return authedPost<SubscriptionState>(
+    `/channels/${encodeURIComponent(slug)}/subscribe`,
+    undefined,
+    subscribe ? 'POST' : 'DELETE'
+  );
+}
+
+async function getChannelPosts(
+  slug: string,
+  limit = 30,
+  cursor?: string
+): Promise<ChannelPostsResponse> {
+  const data = await authedGet<ChannelPostsResponse>(
+    `/channels/${encodeURIComponent(slug)}/posts`,
+    { limit, ...(cursor ? { cursor } : {}) }
+  );
+  return { posts: data?.posts || [], nextCursor: data?.nextCursor ?? null };
+}
+
+async function createChannelPost(
+  slug: string,
+  input: CreateChannelPostInput
+): Promise<ChannelPostView> {
+  const data = await authedPost<{ post: ChannelPostView }>(
+    `/channels/${encodeURIComponent(slug)}/posts`,
+    input
+  );
+  return data.post;
+}
+
+async function deleteChannelPost(slug: string, postId: string): Promise<void> {
+  await authedPost(
+    `/channels/${encodeURIComponent(slug)}/posts/${encodeURIComponent(postId)}`,
+    undefined,
+    'DELETE'
+  );
+}
+
+async function reactChannelPost(
+  slug: string,
+  postId: string,
+  emoji: string
+): Promise<ReactionState> {
+  return authedPost<ReactionState>(
+    `/channels/${encodeURIComponent(slug)}/posts/${encodeURIComponent(postId)}/react`,
+    { emoji }
+  );
+}
+
+async function listStories(limit = 60): Promise<StoryItem[]> {
+  const data = await authedGet<{ stories?: StoryItem[] }>('/stories', { limit });
+  return data?.stories || [];
+}
+
+async function createStory(input: CreateStoryInput): Promise<StoryItem> {
+  const data = await authedPost<{ story: StoryItem }>('/stories', input);
+  return data.story;
+}
+
+async function viewStory(id: string): Promise<number> {
+  const data = await authedPost<{ success: true; viewCount: number }>(
+    `/stories/${encodeURIComponent(id)}/view`
+  );
+  return Number(data?.viewCount) || 0;
+}
+
+async function reactChatMessage(messageId: string, emoji: string): Promise<ReactionState> {
+  return authedPost<ReactionState>(
+    `/chat/messages/${encodeURIComponent(messageId)}/react`,
+    { emoji }
+  );
+}
+
+async function deleteChatMessage(messageId: string): Promise<void> {
+  await authedPost(`/chat/messages/${encodeURIComponent(messageId)}`, undefined, 'DELETE');
+}
+
+async function sendTyping(conversationId: string, isTyping: boolean): Promise<void> {
+  // Ephemeral signal: a dropped request must never interrupt the conversation.
+  await authedPost('/chat/typing', { conversationId, isTyping }).catch(() => {});
+}
+
+/** Polling fallback that also reads optional typing metadata when present. */
+async function getChatMessagesWithTyping(
+  conversationId: string,
+  limit = 50
+): Promise<{ messages: ChatMessage[]; typingUsers: string[] }> {
+  const data = await authedGet<{
+    messages?: ChatMessage[];
+    typing?: string | string[] | { username?: string }[];
+    typingUsers?: string | string[];
+  }>('/chat/messages', { conversationId, limit });
+  const rawTyping = data?.typingUsers ?? data?.typing;
+  let typingUsers: string[] = [];
+  if (typeof rawTyping === 'string') typingUsers = [rawTyping];
+  else if (Array.isArray(rawTyping)) {
+    typingUsers = rawTyping
+      .map((t) => (typeof t === 'string' ? t : t?.username || ''))
+      .filter(Boolean);
+  }
+  return { messages: data?.messages || [], typingUsers };
 }
 
 /* ------------------------------------------------------------------ */
@@ -2030,6 +2224,26 @@ export const api = {
   feed: { get: getFeed },
   users: { publicProfile: getPublicProfile },
   follow: toggleFollow,
+
+  discover: { list: discoverUsers, search: searchPeople },
+  followLists: { list: getFollowList },
+  channels: {
+    list: listChannels,
+    create: createChannel,
+    get: getChannel,
+    subscribe: subscribeChannel,
+    posts: getChannelPosts,
+    createPost: createChannelPost,
+    deletePost: deleteChannelPost,
+    reactPost: reactChannelPost,
+  },
+  stories: { list: listStories, create: createStory, view: viewStory },
+  chatExtras: {
+    react: reactChatMessage,
+    delete: deleteChatMessage,
+    typing: sendTyping,
+    messagesWithTyping: getChatMessagesWithTyping,
+  },
 
   fun: {
     animeOfTheDay: getAnimeOfTheDay,

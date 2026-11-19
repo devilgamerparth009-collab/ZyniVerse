@@ -31,6 +31,9 @@ const MORE_ITEMS = [
   { href: "/voice-actors", label: "Voice Actors" },
   { href: "/blog", label: "Blog" },
   { href: "/forum", label: "Forum" },
+  { href: "/people", label: "Find People" },
+  { href: "/channels", label: "Channels" },
+  { href: "/stories", label: "Stories" },
   { href: "/premium", label: "Premium" },
 ];
 

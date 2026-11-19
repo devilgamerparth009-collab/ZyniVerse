@@ -3,10 +3,10 @@
 import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { motion } from "framer-motion";
 import { PageTransition } from "@/components/PageTransition";
-import ChatButton from "@/components/ChatButton";
 import AddFriendButton from "@/components/AddFriendButton";
 import { logError } from "@/lib/logger";
 
@@ -92,9 +92,11 @@ export default function PublicProfile({
   activities,
 }: PublicProfileProps) {
   const { data: session } = useSession();
+  const router = useRouter();
   const [following, setFollowing] = useState(false);
   const [followerCount, setFollowerCount] = useState(initialFollowers);
   const [followLoading, setFollowLoading] = useState(false);
+  const [messageLoading, setMessageLoading] = useState(false);
 
   useEffect(() => {
     if (!session?.user?.id) return;
@@ -135,7 +137,37 @@ export default function PublicProfile({
     setFollowLoading(false);
   }, [following, followLoading, session, userId]);
 
+  const startMessage = useCallback(async () => {
+    if (!session?.user?.id || messageLoading) return;
+    setMessageLoading(true);
+    try {
+      const res = await fetch("/api/chat/conversations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recipientId: userId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.conversation) {
+        router.push(`/messages?conversationId=${encodeURIComponent(data.conversation.id)}`);
+      }
+    } catch (e) {
+      logError(e);
+    }
+    setMessageLoading(false);
+  }, [session, messageLoading, router, userId]);
+
   const joined = new Date(createdAt).toLocaleDateString(undefined, { month: "short", year: "numeric" });
+
+  const statCards: { label: string; value: string | number; href?: string }[] = [
+    { label: "Anime List", value: stats.total },
+    { label: "Completed", value: stats.completed },
+    { label: "Episodes Watched", value: stats.episodesWatched },
+    { label: "Mean Score", value: stats.meanScore || "—" },
+    { label: "Followers", value: followerCount, href: `/users/${encodeURIComponent(userId)}/followers` },
+    { label: "Following", value: followingCount, href: `/users/${encodeURIComponent(userId)}/following` },
+    { label: "Friends", value: friendsCount },
+    { label: "Watching", value: stats.current },
+  ];
 
   return (
     <PageTransition>
@@ -179,7 +211,13 @@ export default function PublicProfile({
                     {followLoading ? "..." : following ? "Following" : "Follow"}
                   </button>
                   <AddFriendButton userId={userId} username={username} />
-                  <ChatButton userId={userId} username={username} />
+                  <button
+                    onClick={startMessage}
+                    disabled={messageLoading}
+                    className="rounded-lg bg-[var(--color-violet)] px-4 py-2 text-xs font-bold text-black transition-opacity hover:opacity-90 disabled:opacity-50"
+                  >
+                    {messageLoading ? "..." : "Message"}
+                  </button>
                 </div>
               )}
             </div>
@@ -188,21 +226,27 @@ export default function PublicProfile({
             {signature && <p className="mt-2 text-xs italic text-[var(--color-mute)]">{signature}</p>}
 
             <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2">
-              {[
-                { label: "Anime List", value: stats.total },
-                { label: "Completed", value: stats.completed },
-                { label: "Episodes Watched", value: stats.episodesWatched },
-                { label: "Mean Score", value: stats.meanScore || "—" },
-                { label: "Followers", value: followerCount },
-                { label: "Following", value: followingCount },
-                { label: "Friends", value: friendsCount },
-                { label: "Watching", value: stats.current },
-              ].map((s) => (
-                <div key={s.label} className="rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)] px-3 py-2.5 text-center">
-                  <div className="text-lg font-bold text-[var(--color-cyan)]">{s.value}</div>
-                  <div className="text-[10px] text-[var(--color-mute)] uppercase tracking-wider">{s.label}</div>
-                </div>
-              ))}
+              {statCards.map((s) => {
+                const inner = (
+                  <>
+                    <div className="text-lg font-bold text-[var(--color-cyan)]">{s.value}</div>
+                    <div className="text-[10px] text-[var(--color-mute)] uppercase tracking-wider">{s.label}</div>
+                  </>
+                );
+                return s.href ? (
+                  <Link
+                    key={s.label}
+                    href={s.href}
+                    className="rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)] px-3 py-2.5 text-center transition-colors hover:border-[var(--color-cyan)]"
+                  >
+                    {inner}
+                  </Link>
+                ) : (
+                  <div key={s.label} className="rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)] px-3 py-2.5 text-center">
+                    {inner}
+                  </div>
+                );
+              })}
             </div>
 
             <div className="mt-3 flex flex-wrap gap-2">

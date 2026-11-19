@@ -188,13 +188,20 @@ This roadmap outlines the planned features to bridge the gap between the current
 
 ## 📊 Current Status Overview
 
-| Feature | v1.2.0 Status | v1.3.0 Target |
+Statuses below reflect what is actually shipped. The v1.5.0 column is the
+feature branch (`social-v1.5.0`), which is not released yet.
+
+| Feature | Shipped (v1.4.0) | v1.5.0 branch |
 |---|---|---|
-| **Live Chat** | ❌ Not implemented | ✅ Real-time WebSocket |
-| **User Messaging** | ❌ Not implemented | ✅ Inbox + Conversations |
-| **Advanced Tournaments** | ⚠️ View-only bracket | ✅ Full bracket management |
-| **Premium System** | ❌ Not implemented | ✅ Payment + subscriptions |
-| **Dark/Light Mode** | ✅ Diwali auto + manual | ✅ Full control |
+| **Live Chat** | ✅ Real inbox + conversations (native polling, website realtime) | ✅ Typing, reactions, delete |
+| **User Messaging** | ✅ Inbox + conversations | ✅ Say hi + discovery entry points |
+| **Followers / Following** | ⚠️ Counts only, no list screens | ✅ Tappable list screens on both platforms |
+| **Find people** | ❌ Not available | ✅ Discovery with shared-interest reasons |
+| **Broadcast channels** | ❌ Not available | ✅ One-to-many channels |
+| **Stories** | ❌ Not available | ✅ 24-hour stories |
+| **Advanced Tournaments** | ✅ Available | ✅ Maintained |
+| **Premium System** | ❌ Deferred | ❌ Deferred |
+| **Dark/Light Mode** | ✅ Diwali auto + manual | ✅ Maintained |
 | **Splash Animation** | ✅ 2-second fade-in | ✅ Maintained |
 | **Login System** | ✅ Fixed + Google button | ✅ Maintained |
 | **Forum Markdown** | ✅ `stripMarkdown()` | ✅ Maintained |

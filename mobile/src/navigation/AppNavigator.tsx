@@ -41,6 +41,11 @@ import UserProfileScreen from '../screens/UserProfileScreen';
 import FeedScreen from '../screens/FeedScreen';
 import HubScreen from '../screens/HubScreen';
 import AllFeaturesScreen from '../screens/AllFeaturesScreen';
+import DiscoverPeopleScreen from '../screens/DiscoverPeopleScreen';
+import FollowListScreen from '../screens/FollowListScreen';
+import ChannelsScreen from '../screens/ChannelsScreen';
+import ChannelDetailScreen from '../screens/ChannelDetailScreen';
+import StoriesScreen from '../screens/StoriesScreen';
 import WebScreen from '../screens/WebScreen';
 import SplashScreen from '../screens/SplashScreen';
 import { useTheme } from '../hooks/useTheme';
@@ -176,6 +181,11 @@ export default function AppNavigator() {
       <Stack.Screen name="Feed" component={FeedScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Hub" component={HubScreen} options={{ headerShown: false }} />
       <Stack.Screen name="AllFeatures" component={AllFeaturesScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="DiscoverPeople" component={DiscoverPeopleScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="FollowList" component={FollowListScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Channels" component={ChannelsScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="ChannelDetail" component={ChannelDetailScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Stories" component={StoriesScreen} options={{ headerShown: false }} />
       <Stack.Screen
         name="Web"
         component={WebScreen}

@@ -150,6 +150,23 @@ export default function MessagesScreen() {
         {searching && <ActivityIndicator size="small" color={colors.primary} />}
       </View>
 
+      <View style={styles.quickActions}>
+        <TouchableOpacity
+          style={[styles.quickBtn, { backgroundColor: colors.primary, borderColor: colors.primary }]}
+          onPress={() => navigation.navigate('DiscoverPeople')}
+          accessibilityLabel="Find people to message"
+        >
+          <Text style={styles.quickBtnPrimaryText}>Find people to message</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.quickBtn, { borderColor: colors.border }]}
+          onPress={() => navigation.navigate('DiscoverPeople')}
+          accessibilityLabel="Say hi"
+        >
+          <Text style={[styles.quickBtnText, { color: colors.textMuted }]}>Say hi 👋</Text>
+        </TouchableOpacity>
+      </View>
+
       {query.trim().length > 0 ? (
         <FlatList
           data={results}
@@ -226,6 +243,23 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   searchInput: { flex: 1, fontSize: 13, paddingVertical: 0 },
+  quickActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    marginTop: spacing.sm,
+  },
+  quickBtn: {
+    flex: 1,
+    minHeight: 38,
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.sm,
+  },
+  quickBtnPrimaryText: { color: '#0a0a0f', fontSize: 10, fontWeight: '900' },
+  quickBtnText: { fontSize: 10, fontWeight: '800' },
   row: {
     flexDirection: 'row',
     alignItems: 'center',

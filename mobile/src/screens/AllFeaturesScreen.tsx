@@ -15,6 +15,7 @@ import ScreenHeader from '../components/ScreenHeader';
 import FadeInView from '../components/FadeInView';
 import PressableScale from '../components/PressableScale';
 import { useTheme } from '../hooks/useTheme';
+import { getCurrentUser } from '../services/api';
 import { colors, spacing, fontSize, borderRadius, themed } from '../theme';
 
 const WEB_HOST = 'https://zyverse.in';
@@ -27,6 +28,8 @@ type Feature = {
   /** Native screen when the website feature already has a full APK screen. */
   screen?: string;
   params?: Record<string, any>;
+  /** Follow list needs the signed-in user's id resolved at tap time. */
+  follow?: 'followers' | 'following';
 };
 
 type Section = {
@@ -118,6 +121,11 @@ const SECTIONS: Section[] = [
       { label: 'Social feed', emoji: '📰', screen: 'Feed' },
       { label: 'Messages', emoji: '💬', screen: 'Messages' },
       { label: 'Friends', emoji: '🤝', screen: 'Friends' },
+      { label: 'Discover people', emoji: '🧭', screen: 'DiscoverPeople' },
+      { label: 'Followers', emoji: '👥', screen: 'FollowList', follow: 'followers' },
+      { label: 'Following', emoji: '👥', screen: 'FollowList', follow: 'following' },
+      { label: 'Broadcast channels', emoji: '📣', screen: 'Channels' },
+      { label: 'Stories', emoji: '✨', screen: 'Stories' },
       { label: 'Forum', emoji: '💭', screen: 'Forum' },
       { label: 'Clubs', emoji: '🏛️', screen: 'Hub', params: { kind: 'clubs', title: 'Clubs' } },
       { label: 'Moments', emoji: '✨', screen: 'Hub', params: { kind: 'moments', title: 'Moments' } },
@@ -313,7 +321,7 @@ function FeaturedRail({ onOpen }: { onOpen: (item: Feature) => void }) {
           <PressableScale
             key={`featured-${item.label}`}
             accessibilityLabel={`Open ${item.label}`}
-            onPress={() => onOpen(item)}
+            onPress={() => void onOpen(item)}
             style={[styles.featureCard, { backgroundColor: active.surface, borderColor: active.border }]}
           >
             <View style={[styles.featureIcon, { backgroundColor: `${tint}1f` }]}>
@@ -384,7 +392,21 @@ export default function AllFeaturesScreen() {
     [sections]
   );
 
-  const open = (item: Feature) => {
+  const open = async (item: Feature) => {
+    if (item.follow) {
+      const mode = item.follow;
+      try {
+        const me = await getCurrentUser();
+        if (!me) {
+          navigation.navigate('Login');
+          return;
+        }
+        navigation.navigate('FollowList', { userId: me.id, mode });
+      } catch {
+        navigation.navigate('Login');
+      }
+      return;
+    }
     if (item.screen) {
       // Tab screens live inside MainTabs, not the root stack.
       if (TAB_SCREENS.has(item.screen)) {
@@ -512,7 +534,7 @@ export default function AllFeaturesScreen() {
             accessibilityLabel={`${item.label}, ${
               item.screen ? 'opens in the app' : 'opens in your browser'
             }`}
-            onPress={() => open(item)}
+            onPress={() => void open(item)}
             style={[styles.row, { backgroundColor: active.surface, borderColor: active.border }]}
           >
             <View style={[styles.rowEmoji, { backgroundColor: `${tint}16` }]}>

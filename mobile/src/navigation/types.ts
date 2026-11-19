@@ -57,9 +57,16 @@ export type RootStackParamList = {
     userId?: string;
     username?: string;
     avatar?: string;
+    /** Prefills the composer for "Say hi" entry points. */
+    initialMessage?: string;
   };
   Friends: undefined;
   UserProfile: { username: string };
+  DiscoverPeople: undefined;
+  FollowList: { userId: string; mode: 'followers' | 'following' };
+  Channels: undefined;
+  ChannelDetail: { slug: string };
+  Stories: undefined;
   Feed: undefined;
   Hub: { kind: string; title?: string };
   AllFeatures: undefined;

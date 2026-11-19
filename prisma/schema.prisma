@@ -163,6 +163,14 @@ model User {
   contestWins            ContentContest[]          @relation("ContestWinner")
   contestEntries         ContentContestEntry[]
   contestVotes           ContentContestVote[]
+
+  // Social v1.5.0
+  ownedChannels          BroadcastChannel[]       @relation("ChannelOwner")
+  channelSubscriptions   ChannelSubscription[]
+  channelPosts           ChannelPost[]            @relation("ChannelPostAuthor")
+  channelReactions       ChannelPostReaction[]
+  stories                Story[]
+  storyViews             StoryView[]              @relation("StoryViewer")
 }
 
 model Follow {
@@ -3268,4 +3276,103 @@ model DubSourceState {
   lastSyncAt    DateTime?
   lastError     String?
   itemCount     Int       @default(0)
+}
+
+// ── Broadcast Channels (one-to-many, Instagram-style) ──
+model BroadcastChannel {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  description String?
+  iconUrl     String?
+  coverUrl    String?
+  ownerId     String
+  isOfficial  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  owner         User                   @relation("ChannelOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  subscriptions ChannelSubscription[]
+  posts         ChannelPost[]
+  stories       Story[]
+
+  @@index([ownerId])
+}
+
+model ChannelSubscription {
+  id        String   @id @default(cuid())
+  channelId String
+  userId    String
+  createdAt DateTime @default(now())
+
+  channel BroadcastChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  user    User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([channelId, userId])
+  @@index([userId])
+}
+
+model ChannelPost {
+  id        String   @id @default(cuid())
+  channelId String
+  authorId  String
+  content   String
+  imageUrl  String?
+  linkUrl   String?
+  linkLabel String?
+  pinned    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  channel   BroadcastChannel     @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  author    User                 @relation("ChannelPostAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  reactions ChannelPostReaction[]
+
+  @@index([channelId, createdAt])
+}
+
+model ChannelPostReaction {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String
+  emoji     String
+  createdAt DateTime @default(now())
+
+  post ChannelPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId, emoji])
+  @@index([postId])
+}
+
+// ── Stories (24 hour ephemeral posts) ──
+model Story {
+  id        String   @id @default(cuid())
+  userId    String
+  channelId String?
+  mediaUrl  String
+  mediaType String   @default("image") // image | video
+  caption   String?
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  user    User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channel BroadcastChannel? @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  views   StoryView[]
+
+  @@index([createdAt])
+  @@index([userId, createdAt])
+  @@index([channelId, createdAt])
+}
+
+model StoryView {
+  id        String   @id @default(cuid())
+  storyId   String
+  viewerId  String
+  createdAt DateTime @default(now())
+
+  story  Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  viewer User  @relation("StoryViewer", fields: [viewerId], references: [id], onDelete: Cascade)
+
+  @@unique([storyId, viewerId])
+  @@index([storyId])
 }

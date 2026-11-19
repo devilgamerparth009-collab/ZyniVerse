@@ -91,7 +91,9 @@ export default function MessagesClient() {
   }, [status, router, fetchConversations]);
 
   useEffect(() => {
-    const convoId = searchParams.get("conversation");
+    // `conversationId` is used by newer links (people, profiles, channels);
+    // `conversation` is kept for older bookmarks and the in-app search.
+    const convoId = searchParams.get("conversationId") ?? searchParams.get("conversation");
     if (convoId && conversations.length > 0) {
       const convo = conversations.find((c) => c.id === convoId);
       // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -239,7 +241,7 @@ export default function MessagesClient() {
     setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, reactions: optimistic } : m)));
 
     try {
-      const res = await fetch(`/api/chat/messages/${messageId}/reaction`, {
+      const res = await fetch(`/api/chat/messages/${messageId}/react`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ emoji }),
