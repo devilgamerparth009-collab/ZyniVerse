@@ -9,6 +9,12 @@ EventEmitter.defaultMaxListeners = 50;
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ["@prisma/client", "sharp"],
+  // The /api/img route reads from public/uploads at runtime; without excludes
+  // file tracing can pull large static assets (e.g. release APKs in public/)
+  // into the serverless function bundle, exceeding Vercel's size limit.
+  outputFileTracingExcludes: {
+    "/api/img": ["./public/**/*.apk"],
+  },
   // output: "export",  // REMOVED to fix ISR writes overage
   // This was causing ISR writes exceeding free tier limits (1.2M vs 200K)
   // Normal serverless function mode will reduce Vercel usage
