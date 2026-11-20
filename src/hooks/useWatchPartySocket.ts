@@ -145,8 +145,8 @@ export function useWatchPartySocket(options: UseWatchPartySocketOptions) {
         channelRef.current = channel;
       } catch {
         // Realtime unavailable — the 10s polling fallback in WatchPartyRoom
-        // keeps playback roughly in sync.
-        setConnected(false);
+        // keeps playback roughly in sync. `connected` is already false here:
+        // it starts false and the previous effect cleanup resets it.
         return;
       }
 

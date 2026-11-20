@@ -1534,6 +1534,15 @@ async function getLiveDubs(): Promise<import('../types').LiveDubsResponse> {
   );
 }
 
+/** Anonymous, aggregate episode reactions from the last N days. */
+async function getHotEpisodes(days = 7, limit = 12): Promise<import('../types').HotEpisodesResponse> {
+  return fetchWithCache(`episodes_hot_${days}_${limit}`, () =>
+    requestJson<import('../types').HotEpisodesResponse>(
+      buildUrl('/episodes/hot', { days, limit })
+    )
+  );
+}
+
 async function getReelComments(id: string): Promise<any> {
   return requestJson<any>(`${WEB_API}/reels/${encodeURIComponent(id)}/comments`);
 }
@@ -2268,6 +2277,7 @@ export const api = {
     reportReel,
     toggleFollow: toggleFollowUser,
     liveDubs: getLiveDubs,
+    hotEpisodes: getHotEpisodes,
   },
 
   watchParty: {

@@ -66,9 +66,17 @@ export default function DownloadPage() {
 
         <div className="mt-10 grid gap-6 sm:grid-cols-2">
           <section>
-            <h2 className="text-sm font-black uppercase tracking-widest text-slate-300">
-              What&apos;s new
-            </h2>
+            <div className="flex items-baseline justify-between gap-3">
+              <h2 className="text-sm font-black uppercase tracking-widest text-slate-300">
+                What&apos;s new
+              </h2>
+              <Link
+                href="/changelog"
+                className="text-[11px] font-semibold text-cyan-300 underline decoration-dotted underline-offset-4 hover:text-white"
+              >
+                Full changelog
+              </Link>
+            </div>
             <ul className="mt-3 space-y-2">
               {release.notes.map((note) => (
                 <li key={note} className="flex gap-2 text-sm leading-relaxed text-slate-400">

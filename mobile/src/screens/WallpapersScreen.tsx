@@ -11,7 +11,6 @@ import {
   ActivityIndicator,
   Modal,
   Alert,
-  Linking,
   Animated,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -24,6 +23,7 @@ import FadeInView from '../components/FadeInView';
 import PressableScale from '../components/PressableScale';
 import ErrorView from '../components/ErrorView';
 import { spacing, fontSize, borderRadius } from '../theme';
+import { openSafeWebUrl } from '../utils/safeLinks';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const COL_GAP = spacing.sm;
@@ -40,8 +40,8 @@ type SortKey = (typeof SORTS)[number]['key'];
 export default function WallpapersScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
-  const { colors, isDiwali } = useTheme();
-  const tint = isDiwali ? '#f59e0b' : colors.primary;
+  const { colors, isLaunch } = useTheme();
+  const tint = isLaunch ? '#22d3ee' : colors.primary;
 
   const [sort, setSort] = useState<SortKey>('popular');
   const [query, setQuery] = useState('');
@@ -99,7 +99,7 @@ export default function WallpapersScreen() {
   };
 
   const download = (item: WallpaperItem) => {
-    Linking.openURL(item.imageUrl).catch(() => {});
+    openSafeWebUrl(`/wallpapers#${encodeURIComponent(item.id)}`, '/wallpapers');
   };
 
   return (

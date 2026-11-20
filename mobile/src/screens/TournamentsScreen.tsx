@@ -60,7 +60,7 @@ type TabKey = 'live' | 'all' | 'history';
 export default function TournamentsScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
-  const { colors, isDiwali } = useTheme();
+  const { colors, isLaunch } = useTheme();
 
   const [tournaments, setTournaments] = useState<CharacterTournament[]>([]);
   const [activeTab, setActiveTab] = useState<TabKey>('live');
@@ -90,7 +90,7 @@ export default function TournamentsScreen() {
     fetchTournaments();
   };
 
-  const primaryColor = isDiwali ? '#FF8C00' : colors.primary;
+  const primaryColor = isLaunch ? '#22d3ee' : colors.primary;
 
   const liveList = tournaments.filter(
     (t) => t.status === 'active' || t.status === 'qualifying' || t.status === 'upcoming'

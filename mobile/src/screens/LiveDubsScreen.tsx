@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   Animated,
-  Linking,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -20,6 +20,7 @@ import PressableScale from '../components/PressableScale';
 import FadeInView from '../components/FadeInView';
 import { spacing, borderRadius } from '../theme';
 import { timeAgo, cleanText } from '../utils/helpers';
+import { openTrustedExternalUrl } from '../utils/safeLinks';
 
 const LANG_COLOR: Record<string, string> = {
   Hindi: '#ff9933',
@@ -110,8 +111,8 @@ function SkeletonCard({ colors }: { colors: any }) {
 export default function LiveDubsScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
-  const { colors, isDiwali } = useTheme();
-  const tint = isDiwali ? '#f59e0b' : colors.primary;
+  const { colors, isLaunch } = useTheme();
+  const tint = isLaunch ? '#22d3ee' : colors.primary;
 
   const [sources, setSources] = useState<LiveDubSource[]>([]);
   const [loading, setLoading] = useState(true);
@@ -158,11 +159,10 @@ export default function LiveDubsScreen() {
 
   const total = useMemo(() => sources.reduce((acc, s) => acc + s.entries.length, 0), [sources]);
 
-  const openEntry = (entry: LiveDubEntry) => {
-    if (!entry.url) return;
-    Linking.openURL(entry.url).catch(() => {
-      navigation.navigate('Web', { title: entry.title, url: entry.url });
-    });
+  const openEntry = async (entry: LiveDubEntry) => {
+    const opened = await openTrustedExternalUrl(entry.url);
+    if (opened) return;
+    Alert.alert('Watch link', 'Is episode ka direct official link abhi available nahi hai.');
   };
 
   return (

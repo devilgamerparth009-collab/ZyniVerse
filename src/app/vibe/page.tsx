@@ -5,7 +5,8 @@ import { getVibeSnapshot } from "@/lib/vibe";
 import { FadeIn } from "@/components/PageTransition";
 import { logError } from "@/lib/logger";
 
-export const revalidate = 120;
+// 1 hour: reduces ISR regenerations/write pressure while keeping the pulse fresh enough.
+export const revalidate = 3600;
 
 export const metadata: Metadata = {
   title: "Vibe — What Anime Fans Are Watching Now",
@@ -68,7 +69,7 @@ export default async function VibePage() {
           Vibe
         </h1>
         <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-[var(--color-mute)]">
-          The whole fandom's mood in one place — what everyone is watching, which rooms are live and
+          The whole fandom&apos;s mood in one place — what everyone is watching, which rooms are live and
           which titles are trending. Counts only, never names. 🔒
         </p>
       </section>

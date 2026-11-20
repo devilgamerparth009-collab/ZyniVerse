@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { Animated, Dimensions, Easing, StyleSheet, View } from 'react-native';
-import { DIWALI_SPARK_COLORS } from '../utils/themeUtils';
+import { LAUNCH_GLOW_COLORS } from '../utils/themeUtils';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
-/** Point in each spark's timeline where the rocket reaches its burst origin. */
-const LAUNCH_END = 0.55;
+/** Point in each light trail's timeline where it reaches its bloom origin. */
+const RISE_END = 0.55;
 
 type Spark = {
   originX: number;
@@ -14,13 +14,13 @@ type Spark = {
   distance: number;
   size: number;
   color: string;
-  launchDuration: number;
-  burstDuration: number;
+  riseDuration: number;
+  bloomDuration: number;
   delay: number;
 };
 
 /**
- * Builds a few small, widely spaced firework bursts. Everything is seeded once
+ * Builds a few small, widely spaced aurora blooms. Everything is seeded once
  * with useMemo so the layout stays stable while the screen scrolls.
  */
 function buildSparks(bursts: number): Spark[] {
@@ -31,8 +31,8 @@ function buildSparks(bursts: number): Spark[] {
     const originX = SCREEN_W * (0.16 + Math.random() * 0.68);
     const originY = SCREEN_H * (0.16 + Math.random() * 0.34);
     const delay = Math.random() * 4000;
-    const launchDuration = 1800 + Math.random() * 900;
-    const burstDuration = 1600 + Math.random() * 700;
+    const riseDuration = 1800 + Math.random() * 900;
+    const bloomDuration = 1600 + Math.random() * 700;
 
     for (let ray = 0; ray < perBurst; ray += 1) {
       sparks.push({
@@ -41,9 +41,9 @@ function buildSparks(bursts: number): Spark[] {
         angle: (Math.PI * 2 * ray) / perBurst + (Math.random() - 0.5) * 0.3,
         distance: 30 + Math.random() * 44,
         size: 2 + Math.random() * 2.5,
-        color: DIWALI_SPARK_COLORS[ray % DIWALI_SPARK_COLORS.length],
-        launchDuration,
-        burstDuration,
+        color: LAUNCH_GLOW_COLORS[ray % LAUNCH_GLOW_COLORS.length],
+        riseDuration,
+        bloomDuration,
         // A tiny offset keeps the rays from looking mechanically identical.
         delay: delay + ray * 25,
       });
@@ -54,11 +54,11 @@ function buildSparks(bursts: number): Spark[] {
 }
 
 /**
- * Subtle Diwali firework overlay: a handful of gold/amber sparks rise, bloom
+ * Subtle Aurora Launch overlay: a handful of cool light trails rise, bloom
  * outward and fade. Each spark is one native-driver transform/opacity loop, so
  * the animation never runs JS work per frame and cannot intercept taps.
  */
-export default function DiwaliFireworks({ bursts = 3 }: { bursts?: number }) {
+export default function LaunchGlow({ bursts = 3 }: { bursts?: number }) {
   const sparks = useMemo(() => buildSparks(bursts), [bursts]);
   const progress = useRef(sparks.map(() => new Animated.Value(0))).current;
 
@@ -69,18 +69,18 @@ export default function DiwaliFireworks({ bursts = 3 }: { bursts?: number }) {
         Animated.sequence([
           Animated.delay(spark.delay),
           Animated.timing(value, {
-            toValue: LAUNCH_END,
-            duration: spark.launchDuration,
+            toValue: RISE_END,
+            duration: spark.riseDuration,
             easing: Easing.out(Easing.quad),
             useNativeDriver: true,
           }),
           Animated.timing(value, {
             toValue: 1,
-            duration: spark.burstDuration,
+            duration: spark.bloomDuration,
             easing: Easing.out(Easing.cubic),
             useNativeDriver: true,
           }),
-          // Hidden reset (opacity is 0 at both ends), so the next burst starts
+          // Hidden reset (opacity is 0 at both ends), so the next bloom starts
           // from the launch point instead of sliding the sparks backwards.
           Animated.timing(value, {
             toValue: 0,
@@ -109,22 +109,22 @@ export default function DiwaliFireworks({ bursts = 3 }: { bursts?: number }) {
         const dy = Math.sin(spark.angle) * spark.distance;
 
         const translateX = value.interpolate({
-          inputRange: [0, LAUNCH_END, 1],
+          inputRange: [0, RISE_END, 1],
           outputRange: [spark.originX, spark.originX, spark.originX + dx],
           extrapolate: 'clamp',
         });
         const translateY = value.interpolate({
-          inputRange: [0, LAUNCH_END, 1],
+          inputRange: [0, RISE_END, 1],
           outputRange: [SCREEN_H + 24, spark.originY, spark.originY + dy],
           extrapolate: 'clamp',
         });
         const opacity = value.interpolate({
-          inputRange: [0, 0.12, LAUNCH_END, 0.72, 1],
-          outputRange: [0, 0.32, 0.5, 0.55, 0],
+          inputRange: [0, 0.12, RISE_END, 0.72, 1],
+          outputRange: [0, 0.26, 0.42, 0.5, 0],
           extrapolate: 'clamp',
         });
         const scale = value.interpolate({
-          inputRange: [0, LAUNCH_END, 0.72, 1],
+          inputRange: [0, RISE_END, 0.72, 1],
           outputRange: [0.4, 0.8, 1, 0.2],
           extrapolate: 'clamp',
         });

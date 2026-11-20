@@ -23,7 +23,7 @@ function walk(d) {
             }
           }
         }
-      } catch (e) {}
+      } catch (_e) {}
     }
   }
 }

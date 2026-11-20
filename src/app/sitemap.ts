@@ -50,6 +50,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // "Page with redirect" instead of indexing anything. /schedule is below.
     { url: `${BASE_URL}/seasonal-tracker`,  changeFrequency: "daily", priority: 0.6 },
     { url: `${BASE_URL}/tools/filler-time`,  changeFrequency: "weekly", priority: 0.6 },
+    { url: `${BASE_URL}/tools/anime-dice`,  changeFrequency: "monthly", priority: 0.6 },
     { url: `${BASE_URL}/tools/binge-calculator`,  changeFrequency: "weekly", priority: 0.6 },
     { url: `${BASE_URL}/figures`,  changeFrequency: "weekly", priority: 0.5 },
     { url: `${BASE_URL}/podcast`,  changeFrequency: "weekly", priority: 0.6 },
@@ -104,7 +105,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE_URL}/news`,  changeFrequency: "daily", priority: 0.6 },
     { url: `${BASE_URL}/manga-million`,  changeFrequency: "weekly", priority: 0.8 },
     { url: `${BASE_URL}/cosplay`,  changeFrequency: "weekly", priority: 0.5 },
-    { url: `${BASE_URL}/doujinshi`,  changeFrequency: "weekly", priority: 0.5 },
+    // NOTE: /doujinshi is intentionally absent — the whole segment is 18+,
+    // `noindex, nofollow` and age-gated (see src/app/doujinshi/layout.tsx),
+    // so submitting it would only produce a "blocked by robots.txt" report.
+    { url: `${BASE_URL}/changelog`,  changeFrequency: "weekly", priority: 0.6 },
     { url: `${BASE_URL}/clubs`,  changeFrequency: "weekly", priority: 0.5 },
     { url: `${BASE_URL}/tierlist`,  changeFrequency: "weekly", priority: 0.5 },
     { url: `${BASE_URL}/theories`,  changeFrequency: "daily", priority: 0.6 },

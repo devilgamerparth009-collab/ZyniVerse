@@ -3,7 +3,7 @@
     "name": "ZyniVerse",
     "slug": "zyniverse",
     "scheme": "zyniverse",
-    "version": "1.4.1",
+    "version": "1.4.3",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -30,7 +30,7 @@
         "backgroundColor": "#000000"
       },
       "package": "app.zyverse.mobile",
-      "versionCode": 140100,
+      "versionCode": 140300,
       "permissions": ["RECORD_AUDIO", "MODIFY_AUDIO_SETTINGS", "CAMERA", "REQUEST_INSTALL_PACKAGES"]
     },
     "plugins": [

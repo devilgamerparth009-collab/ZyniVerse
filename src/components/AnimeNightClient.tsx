@@ -157,7 +157,7 @@ export default function AnimeNightClient() {
               Anime Night Generator
             </h1>
             <p className="mt-3 text-sm text-[var(--color-mute)]">
-              Add everyone's tastes — Zyni AI blends them into a full night plan: lineup, episode order, snacks and even a quiz.
+              Add everyone&apos;s tastes — Zyni AI blends them into a full night plan: lineup, episode order, snacks and even a quiz.
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
               {["🌙 Lineup", "🍿 Snacks", "📝 Trivia quiz", "🎬 Watch Party"].map((chip) => (
@@ -189,7 +189,7 @@ export default function AnimeNightClient() {
               <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-[var(--color-cyan)] to-[var(--color-violet)] text-[12px] font-black text-black shadow-[0_0_14px_rgba(0,255,224,0.3)]">1</span>
               <div>
                 <p className="text-sm font-bold tracking-wide">Add your crew 👥</p>
-                <p className="text-[11px] text-[var(--color-mute)]">Add tastes — AI will blend everyone's picks</p>
+                <p className="text-[11px] text-[var(--color-mute)]">Add tastes — AI will blend everyone&apos;s picks</p>
               </div>
             </div>
             <motion.button
@@ -358,7 +358,7 @@ export default function AnimeNightClient() {
                 📺
               </motion.div>
               <p className="max-w-xs text-sm text-[var(--color-mute)]">
-                Your AI-planned night will appear here. Add your group's tastes on the left to get started.
+                Your AI-planned night will appear here. Add your group&apos;s tastes on the left to get started.
               </p>
             </motion.div>
           )}

@@ -82,8 +82,8 @@ function getDailyPuzzle(): AnimePuzzle {
 export default function WordleScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
-  const { colors, isDiwali } = useTheme();
-  const tint = isDiwali ? '#f59e0b' : '#00ff7c';
+  const { colors, isLaunch } = useTheme();
+  const tint = isLaunch ? '#22d3ee' : '#00ff7c';
 
   const target = useMemo(() => getDailyPuzzle(), []);
   const [guesses, setGuesses] = useState<GuessFeedback[]>([]);

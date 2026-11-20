@@ -66,7 +66,7 @@ function formatTime(iso: string): string {
 export default function ScheduleScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
-  const { colors, isDiwali } = useTheme();
+  const { colors, isLaunch } = useTheme();
 
   const [schedule, setSchedule] = useState<ScheduleItem[]>([]);
   const [selectedKey, setSelectedKey] = useState<string>(dayKey(new Date()));
@@ -132,7 +132,7 @@ export default function ScheduleScreen() {
   const dayItems = grouped.get(selectedKey) || [];
   const selectedDay = days.find((d) => d.key === selectedKey) || days[0];
 
-  const primaryColor = isDiwali ? '#FF8C00' : colors.primary;
+  const primaryColor = isLaunch ? '#22d3ee' : colors.primary;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>

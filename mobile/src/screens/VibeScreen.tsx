@@ -83,8 +83,8 @@ function WatchingRow({ item, index, maxFans }: { item: VibeTitle; index: number;
 export default function VibeScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
-  const { colors, isDiwali, isChristmas } = useTheme();
-  const tint = isDiwali ? '#f59e0b' : isChristmas ? '#7dd3fc' : '#f472b6';
+  const { colors, isLaunch, isChristmas } = useTheme();
+  const tint = isLaunch ? '#22d3ee' : isChristmas ? '#7dd3fc' : '#f472b6';
 
   const [data, setData] = useState<VibeResponse | null>(null);
   const [loading, setLoading] = useState(true);

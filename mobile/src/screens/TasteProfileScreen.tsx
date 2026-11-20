@@ -56,8 +56,8 @@ function StatTile({
 export default function TasteProfileScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
-  const { colors, isDiwali, isChristmas } = useTheme();
-  const tint = isDiwali ? '#f59e0b' : isChristmas ? '#7dd3fc' : '#a78bfa';
+  const { colors, isLaunch, isChristmas } = useTheme();
+  const tint = isLaunch ? '#22d3ee' : isChristmas ? '#7dd3fc' : '#a78bfa';
 
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<DnaProfile | null>(null);

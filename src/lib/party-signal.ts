@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
 import type { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
 import { getSocket } from "./socket";
 import { getSupabase } from "./supabase";
@@ -55,8 +55,8 @@ export interface PartySignal {
   readonly id: string;
   readonly connected: boolean;
   emit(event: string, data?: unknown): void;
-  on(event: string, handler: (payload: any) => void): void;
-  off(event: string, handler: (payload: any) => void): void;
+  on<T>(event: string, handler: (payload: T) => void): void;
+  off<T>(event: string, handler: (payload: T) => void): void;
   update?(options: SignalOptions): void;
   dispose?(): void;
 }
@@ -72,7 +72,7 @@ export function createSupabaseSignal(
   client?: SupabaseClient,
 ): PartySignal {
   let options = { ...initial };
-  const handlers = new Map<string, Set<(payload: any) => void>>();
+  const handlers = new Map<string, Set<(payload: unknown) => void>>();
   const outbox: { event: string; data?: unknown }[] = [];
   let channel: RealtimeChannel | null = null;
   let connected = false;
@@ -93,44 +93,45 @@ export function createSupabaseSignal(
     }
   }
 
-  function deliver(event: string, data: any, from: string) {
+  function deliver(event: string, data: unknown, from: string) {
     if (!from || from === options.userId) return;
     const { partyId } = options;
     const fromHost = !!options.hostId && from === options.hostId;
-    const target = data?.targetId;
+    const payload = (data && typeof data === "object" ? data : {}) as Record<string, unknown>;
+    const target = payload.targetId;
 
     switch (event) {
       case "voice-join":
-        emitLocal("voice-user-joined", { user: data?.user, socketId: from });
+        emitLocal("voice-user-joined", { user: payload.user, socketId: from });
         break;
       case "voice-leave":
-        emitLocal("voice-user-left", { user: data?.user, socketId: from });
+        emitLocal("voice-user-left", { user: payload.user, socketId: from });
         break;
       case "voice-offer":
         if (target !== options.userId) break;
         emitLocal("voice-offer", {
-          offer: data?.offer,
-          fromUser: data?.fromUser,
+          offer: payload.offer,
+          fromUser: payload.fromUser,
           fromSocketId: from,
           partyId,
         });
         break;
       case "voice-answer":
         if (target !== options.userId) break;
-        emitLocal("voice-answer", { answer: data?.answer, fromSocketId: from, partyId });
+        emitLocal("voice-answer", { answer: payload.answer, fromSocketId: from, partyId });
         break;
       case "voice-ice-candidate":
         if (target !== options.userId) break;
         emitLocal("voice-ice-candidate", {
-          candidate: data?.candidate,
+          candidate: payload.candidate,
           fromSocketId: from,
           partyId,
         });
         break;
       case "voice-speaking":
         emitLocal("voice-speaking", {
-          user: data?.user,
-          isSpeaking: !!data?.isSpeaking,
+          user: payload.user,
+          isSpeaking: !!payload.isSpeaking,
           socketId: from,
         });
         break;
@@ -140,17 +141,17 @@ export function createSupabaseSignal(
         break;
       case "webrtc-offer":
         if (target !== options.userId) break;
-        emitLocal("webrtc-offer-viewer", { offer: data?.offer, partyId, hostId: from });
+        emitLocal("webrtc-offer-viewer", { offer: payload.offer, partyId, hostId: from });
         break;
       case "webrtc-viewer-answer":
         if (!isHost()) break;
-        emitLocal("webrtc-viewer-answer", { viewerId: from, answer: data?.answer, partyId });
+        emitLocal("webrtc-viewer-answer", { viewerId: from, answer: payload.answer, partyId });
         break;
       case "webrtc-ice-candidate":
         if (target !== options.userId) break;
         emitLocal(
           fromHost ? "webrtc-ice-candidate-viewer" : "webrtc-ice-candidate-host",
-          { candidate: data?.candidate, partyId, senderId: from },
+          { candidate: payload.candidate, partyId, senderId: from },
         );
         break;
       case "screen-share-started":
@@ -186,10 +187,12 @@ export function createSupabaseSignal(
     channel = supabase.channel(topic, {
       config: { broadcast: { self: false } },
     });
-    channel.on("broadcast", { event: CHANNEL_EVENT }, (msg: any) => {
+    channel.on("broadcast", { event: CHANNEL_EVENT }, (msg: { payload?: unknown }) => {
       const payload = msg?.payload;
-      if (!payload || typeof payload.ev !== "string" || typeof payload.from !== "string") return;
-      deliver(payload.ev, payload.data, payload.from);
+      if (!payload || typeof payload !== "object") return;
+      const envelope = payload as { ev?: unknown; data?: unknown; from?: unknown };
+      if (typeof envelope.ev !== "string" || typeof envelope.from !== "string") return;
+      deliver(envelope.ev, envelope.data, envelope.from);
     });
     channel.subscribe((status) => {
       connected = status === "SUBSCRIBED";
@@ -224,17 +227,17 @@ export function createSupabaseSignal(
       }
       outbox.push({ event, data });
     },
-    on(event, handler) {
+    on<T>(event: string, handler: (payload: T) => void) {
       let set = handlers.get(event);
       if (!set) {
         set = new Set();
         handlers.set(event, set);
       }
-      set.add(handler);
+      set.add(handler as (payload: unknown) => void);
       ensureChannel();
     },
-    off(event, handler) {
-      handlers.get(event)?.delete(handler);
+    off<T>(event: string, handler: (payload: T) => void) {
+      handlers.get(event)?.delete(handler as (payload: unknown) => void);
     },
     update(next) {
       options = { ...options, ...next };
@@ -270,30 +273,39 @@ const USE_SUPABASE_SIGNAL =
  * one is configured, otherwise the Supabase shim. Both expose the same shape, so
  * callers never need to know which one is live.
  */
+function createSignal(options: SignalOptions): PartySignal {
+  return USE_SUPABASE_SIGNAL
+    ? createSupabaseSignal(options)
+    : (getSocket() as unknown as PartySignal);
+}
+
 export function usePartySignal(options: SignalOptions): PartySignal {
   const key = `${options.partyId}:${options.userId ?? ""}:${options.scope ?? "voice"}`;
-  const ref = useRef<{ key: string; signal: PartySignal } | null>(null);
+  const [entry, setEntry] = useState(() => ({ key, signal: createSignal(options) }));
 
-  if (!ref.current || ref.current.key !== key) {
-    ref.current?.signal.dispose?.();
-    ref.current = {
-      key,
-      signal: USE_SUPABASE_SIGNAL
-        ? createSupabaseSignal(options)
-        : (getSocket() as unknown as PartySignal),
-    };
+  // Adjust state during render when the room key changes, so the returned
+  // transport is always in sync with the current party. Disposal stays out of
+  // render (a render may be discarded) and happens in the effect below.
+  if (entry.key !== key) {
+    setEntry({ key, signal: createSignal(options) });
   }
 
-  const signal = ref.current.signal;
+  const signal = entry.signal;
+
   // hostId / username can arrive after the first render (party fetch, session).
-  signal.update?.(options);
+  useEffect(() => {
+    signal.update?.(options);
+  });
 
   useEffect(() => {
     return () => {
-      ref.current?.signal.dispose?.();
-      ref.current = null;
+      // Deferred a tick so StrictMode's setup → cleanup → setup probe does not
+      // dispose a transport that is still in use.
+      void Promise.resolve().then(() => {
+        signal.dispose?.();
+      });
     };
-  }, []);
+  }, [signal]);
 
   return signal;
 }

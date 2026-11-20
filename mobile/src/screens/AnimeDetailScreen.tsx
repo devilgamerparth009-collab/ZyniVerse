@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   Dimensions,
-  Linking,
   TextInput,
   ActivityIndicator,
   Alert,
@@ -21,6 +20,7 @@ import ErrorView from '../components/ErrorView';
 import FillerProgress from '../components/FillerProgress';
 import SafeImage from '../components/SafeImage';
 import { formatScore, getScoreColor, LIST_STATUS_LABEL } from '../utils/helpers';
+import { openSafeWebUrl, openTrustedExternalUrl, platformLabelForUrl, trustedExternalUrl } from '../utils/safeLinks';
 import { api, getCurrentUser } from '../services/api';
 import {
   Anime,
@@ -82,8 +82,8 @@ export default function AnimeDetailScreen() {
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
-  const { colors, isDiwali } = useTheme();
-  const primaryAccent = isDiwali ? '#f59e0b' : colors.primary;
+  const { colors, isLaunch } = useTheme();
+  const primaryAccent = isLaunch ? '#22d3ee' : colors.primary;
   const id: number = route.params?.id;
   const { data: anime, loading, error, refetch } = useAnime(id);
 
@@ -280,14 +280,15 @@ export default function AnimeDetailScreen() {
     }
   };
 
-  const openTrailer = () => {
-    const trailer = anime?.trailer;
-    if (!trailer?.id) return;
-    if (trailer.site === 'youtube') {
-      Linking.openURL(`https://www.youtube.com/watch?v=${trailer.id}`).catch(() => {});
-    } else {
-      Linking.openURL(`https://www.youtube.com/watch?v=${trailer.id}`).catch(() => {});
+  const openTrailer = async () => {
+    if (!anime) return;
+    const site = (anime.trailer?.site || '').toLowerCase();
+    const trailerId = anime.trailer?.id;
+    if (site === 'youtube' && trailerId) {
+      const opened = await openTrustedExternalUrl(`https://www.youtube.com/watch?v=${trailerId}`);
+      if (opened) return;
     }
+    Alert.alert('Trailer', 'Trailer ka direct link abhi available nahi hai.');
   };
 
   const description = useMemo(() => cleanDescription(anime?.description), [anime?.description]);
@@ -583,6 +584,43 @@ export default function AnimeDetailScreen() {
           <TouchableOpacity onPress={() => navigation.navigate('Settings')}>
             <Text style={styles.dubSettingsLink}>Change preferred language in Settings →</Text>
           </TouchableOpacity>
+        </View>
+      ) : null}
+
+      {anime.streamingEpisodes && anime.streamingEpisodes.length > 0 ? (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Where to Watch</Text>
+          <Text style={styles.mutedText}>
+            Official platforms where episodes are available. Tap to open directly.
+          </Text>
+          <View style={styles.watchList}>
+            {anime.streamingEpisodes.slice(0, 12).map((ep, idx) => {
+              const trusted = trustedExternalUrl(ep.url);
+              const platform = platformLabelForUrl(ep.url);
+              return (
+                <TouchableOpacity
+                  key={`${ep.url}-${idx}`}
+                  style={styles.watchRow}
+                  activeOpacity={0.85}
+                  onPress={() => {
+                    if (trusted) {
+                      openTrustedExternalUrl(trusted).catch(() => {});
+                    } else {
+                      Alert.alert('Watch link', 'Is platform ka direct official link abhi available nahi hai.');
+                    }
+                  }}
+                >
+                  <View style={styles.watchRowBody}>
+                    <Text style={styles.watchPlatform}>{platform}</Text>
+                    <Text style={styles.watchTitle} numberOfLines={2}>
+                      {ep.title || 'Watch episode'}
+                    </Text>
+                  </View>
+                  <Text style={styles.watchAction}>{trusted ? 'Open →' : 'Unavailable'}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </View>
       ) : null}
 
@@ -1041,6 +1079,43 @@ const styles = themed(() => ({
     color: colors.textDim,
     fontSize: fontSize.xs,
     marginTop: spacing.sm,
+  },
+  watchList: {
+    marginTop: spacing.sm,
+    gap: spacing.sm,
+  },
+  watchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.surface,
+    borderWidth: 0.5,
+    borderColor: colors.border,
+  },
+  watchRowBody: {
+    flex: 1,
+  },
+  watchPlatform: {
+    color: colors.primary,
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  watchTitle: {
+    color: colors.text,
+    fontSize: fontSize.sm,
+    fontWeight: '600',
+    marginTop: 2,
+    lineHeight: 18,
+  },
+  watchAction: {
+    color: colors.secondary,
+    fontSize: fontSize.xs,
+    fontWeight: '800',
   },
   charScroll: {
     gap: spacing.sm,

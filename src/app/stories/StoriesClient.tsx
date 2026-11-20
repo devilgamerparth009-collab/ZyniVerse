@@ -441,7 +441,7 @@ export default function StoriesClient() {
             )}
             {!activeStory.channel && (
               <Link href={`/profile/${encodeURIComponent(activeStory.user.id)}`} className="mt-3 text-xs font-semibold text-[var(--color-cyan)] hover:underline">
-                View {activeStory.user.username}'s profile
+                View {activeStory.user.username}&apos;s profile
               </Link>
             )}
             {activeStory.channel && (

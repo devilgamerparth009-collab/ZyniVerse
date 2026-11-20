@@ -68,8 +68,8 @@ function Avatar({
 export default function WatchPartyScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
-  const { colors, isDiwali, isChristmas } = useTheme();
-  const tint = isDiwali ? '#f59e0b' : isChristmas ? '#7dd3fc' : colors.primary;
+  const { colors, isLaunch, isChristmas } = useTheme();
+  const tint = isLaunch ? '#22d3ee' : isChristmas ? '#7dd3fc' : colors.primary;
 
   const [tab, setTab] = useState<PartyTab>('live');
   const [live, setLive] = useState<WatchParty[]>([]);

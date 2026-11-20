@@ -47,8 +47,12 @@ export function useVoiceChat({
   const speakingCheckRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const userId = user?.id ?? null;
+  // Kept up to date in an effect so the latest user is available to callbacks
+  // without writing to a ref during render (which breaks React Compiler/refs rules).
   const userRef = useRef<PartyUser | null>(user);
-  userRef.current = user;
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
 
   // Stable for the lifetime of the room, so effects below do not re-subscribe
   // on every render (playback ticks re-render this component often).
@@ -351,7 +355,9 @@ export function useVoiceChat({
 
   // Cleanup on unmount
   const voiceActiveRef = useRef(false);
-  voiceActiveRef.current = voiceActive;
+  useEffect(() => {
+    voiceActiveRef.current = voiceActive;
+  }, [voiceActive]);
 
   useEffect(() => {
     return () => {

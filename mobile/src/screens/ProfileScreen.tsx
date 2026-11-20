@@ -7,7 +7,6 @@ import {
   StyleSheet,
   RefreshControl,
   Alert,
-  Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -28,6 +27,7 @@ import {
   LIST_STATUS_LABEL,
   timeAgo,
 } from '../utils/helpers';
+import { openSafeWebUrl } from '../utils/safeLinks';
 import LoadingSpinner from '../components/LoadingSpinner';
 import FadeInView from '../components/FadeInView';
 import PressableScale from '../components/PressableScale';
@@ -47,10 +47,9 @@ const TABS: { key: TabKey; label: string }[] = [
 ];
 
 const PROFILE_COLORS = ['emerald', 'violet', 'amber', 'rose', 'cyan'];
-const WEB_HOST = 'https://zyverse.in';
 
 function openWeb(path: string) {
-  Linking.openURL(`${WEB_HOST}${path}`).catch(() => {});
+  openSafeWebUrl(path, '/');
 }
 
 const STATUS_FILTERS = ['ALL', 'CURRENT', 'COMPLETED', 'PLANNING', 'PAUSED', 'DROPPED'];
@@ -99,8 +98,8 @@ function AuthState({
   onTertiary?: () => void;
 }) {
   const insets = useSafeAreaInsets();
-  const { colors, isDiwali } = useTheme();
-  const primaryAccent = isDiwali ? '#f59e0b' : colors.primary;
+  const { colors, isLaunch } = useTheme();
+  const primaryAccent = isLaunch ? '#22d3ee' : colors.primary;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>

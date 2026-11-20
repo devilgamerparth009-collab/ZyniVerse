@@ -21,8 +21,8 @@ interface Props {
 export default function ScreenHeader({ title, subtitle, emoji, right, accent }: Props) {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
-  const { colors, isDiwali } = useTheme();
-  const tint = accent || (isDiwali ? '#f59e0b' : colors.primary);
+  const { colors, isLaunch } = useTheme();
+  const tint = accent || (isLaunch ? '#22d3ee' : colors.primary);
 
   return (
     <View

@@ -7,7 +7,6 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
-  Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -29,6 +28,7 @@ import {
   DownloadedUpdate,
   UpdateRelease,
 } from '../services/updater';
+import { openSafeWebUrl } from '../utils/safeLinks';
 
 export default function UpdateScreen() {
   const insets = useSafeAreaInsets();
@@ -39,6 +39,7 @@ export default function UpdateScreen() {
   const [ready, setReady] = useState<DownloadedUpdate | null>(null);
   const [checking, setChecking] = useState(true);
   const [downloading, setDownloading] = useState(false);
+  const [verifying, setVerifying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [bytes, setBytes] = useState(0);
   const [totalBytes, setTotalBytes] = useState(0);
@@ -48,10 +49,10 @@ export default function UpdateScreen() {
     setChecking(true);
     setError(null);
     try {
-      const existing = await getReadyUpdate();
-      setReady(existing);
       const latest = await checkForUpdate();
+      const existing = await getReadyUpdate(latest);
       setRelease(latest);
+      setReady(existing);
     } catch (e: any) {
       setError(e?.message || 'Could not check for updates.');
     } finally {
@@ -68,6 +69,7 @@ export default function UpdateScreen() {
   const startDownload = async () => {
     if (!release || downloading) return;
     setDownloading(true);
+    setVerifying(false);
     setError(null);
     setProgress(0);
     try {
@@ -75,12 +77,14 @@ export default function UpdateScreen() {
         setProgress(state.progress);
         setBytes(state.bytes);
         setTotalBytes(state.totalBytes);
+        if (state.phase === 'verifying') setVerifying(true);
       });
       setReady(result);
     } catch (e: any) {
       setError(e?.message || 'Download failed. Please try again.');
     } finally {
       setDownloading(false);
+      setVerifying(false);
     }
   };
 
@@ -105,11 +109,13 @@ export default function UpdateScreen() {
     navigation.goBack();
   };
 
-  const updateAvailable = !!release?.updateAvailable && !ready;
-  const rollback = !!release?.rollback;
-  const hasReady = !!ready;
   const installedCode = currentVersionCode();
   const installedName = currentVersionName();
+  const updateAvailable = !!release?.updateAvailable && !ready;
+  const rollback = !!release?.rollback;
+  const hasReady =
+    !!ready &&
+    (ready.release.latestVersionCode > installedCode || !!ready.release.rollback);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -214,12 +220,14 @@ export default function UpdateScreen() {
         </FadeInView>
 
         {/* Progress */}
-        {(downloading || (progress > 0 && progress < 1)) && (
+        {(downloading || verifying || (progress > 0 && progress < 1)) && (
           <FadeInView delay={100}>
             <View
               style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
             >
-              <Text style={[styles.cardTitle, { color: colors.text }]}>Downloading update…</Text>
+              <Text style={[styles.cardTitle, { color: colors.text }]}>
+                {verifying ? 'Verifying SHA-256…' : 'Downloading update…'}
+              </Text>
               <View style={[styles.progressTrack, { backgroundColor: colors.border }]}>
                 <View
                   style={[
@@ -257,7 +265,7 @@ export default function UpdateScreen() {
               disabled={downloading}
               activeOpacity={0.85}
             >
-              {downloading ? (
+              {downloading || verifying ? (
                 <ActivityIndicator color="#0a0a0f" />
               ) : (
                 <Text style={styles.primaryText}>
@@ -288,7 +296,7 @@ export default function UpdateScreen() {
           )}
 
           <TouchableOpacity
-            onPress={() => Linking.openURL('https://zyverse.in/download').catch(() => {})}
+            onPress={() => openSafeWebUrl('/download')}
             style={styles.skipBtn}
           >
             <Text style={[styles.skipText, { color: colors.textDim }]}>
@@ -300,7 +308,7 @@ export default function UpdateScreen() {
         <Text style={[styles.footnote, { color: colors.textDim }]}>
           {rollback
             ? 'This build uses the same app key. If Android blocks a version downgrade, remove the newer build first — your account data is stored on the server.'
-            : 'Updates are signed with the same key as your current app, so Android installs them over the top. Nothing is deleted.'}
+            : 'Every download is SHA-256 verified before install. Updates use the same signing key, so Android installs them over the top and nothing is deleted.'}
         </Text>
       </ScrollView>
     </View>

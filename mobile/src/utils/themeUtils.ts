@@ -29,23 +29,24 @@ export const DEFAULT_THEME: ThemeConfig = {
 };
 
 /**
- * 🪔 Diwali Regal Festival Theme (Luxurious Warm Amber & Royal Gold)
- * Elegant deep mahogany night with glowing warm gold and flame accents
+ * ✨ Aurora Launch Theme (Official launch skin)
+ * Deep space navy with electric cyan, orbital blue and soft violet light.
+ * Replaces the former seasonal festival skin with a clean, year-round-safe look.
  */
-export const DIWALI_THEME: ThemeConfig = {
-  primary: '#f59e0b',
-  secondary: '#ea580c',
-  accent: '#fbbf24',
-  background: '#0c0a08',
-  surface: '#1c150e',
-  text: '#fef3c7',
-  textMuted: '#d97706',
-  border: '#382a1a',
-  notification: '#f59e0b',
+export const LAUNCH_THEME: ThemeConfig = {
+  primary: '#22d3ee',
+  secondary: '#8b5cf6',
+  accent: '#f0abfc',
+  background: '#050b16',
+  surface: '#0f172a',
+  text: '#f0f9ff',
+  textMuted: '#7dd3fc',
+  border: '#1e3a5a',
+  notification: '#22d3ee',
 };
 
-/** Warm gold/amber/orange sparks shared by the Diwali firework overlay. */
-export const DIWALI_SPARK_COLORS = ['#fcd34d', '#fbbf24', '#f59e0b', '#ea580c'] as const;
+/** Cool light trails shared by the Aurora launch glow overlay. */
+export const LAUNCH_GLOW_COLORS = ['#22d3ee', '#60a5fa', '#a78bfa', '#f0abfc'] as const;
 
 /**
  * 🎄 Christmas Anime Wonderland (icy blue, snow white & neon pink)
@@ -127,14 +128,14 @@ export async function forceSetTheme(themeKey: string, theme: ThemeConfig): Promi
 
 export function getThemeName(theme: ThemeConfig): string {
   if (theme.primary === CHRISTMAS_THEME.primary) return 'Christmas';
-  if (theme.primary === DIWALI_THEME.primary) return 'Diwali';
+  if (theme.primary === LAUNCH_THEME.primary) return 'Aurora Launch';
   if (theme.primary === NIGHT_THEME.primary) return 'Night';
   if (theme.primary === LIGHT_THEME.primary) return 'Light';
   return 'Cyberpunk Dark';
 }
 
-/** Seasonal window for the Diwali skin: the whole of November (local time). */
-export function isDiwaliWindow(date = new Date()): boolean {
+/** Launch skin window: the whole of November (local time). */
+export function isLaunchWindow(date = new Date()): boolean {
   return date.getMonth() === 10;
 }
 

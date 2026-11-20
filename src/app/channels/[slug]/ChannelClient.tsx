@@ -56,42 +56,77 @@ export default function ChannelClient({ slug }: { slug: string }) {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [pickerPostId, setPickerPostId] = useState<string | null>(null);
 
-  const loadChannel = useCallback(async () => {
+  const fetchChannel = useCallback(async (): Promise<ChannelSummary | null> => {
+    const res = await fetch(`/api/channels/${encodedSlug}`);
+    if (!res.ok) throw new Error("Could not load channel");
+    const data = await res.json();
+    return data.channel ?? null;
+  }, [encodedSlug]);
+
+  const fetchPosts = useCallback(async (): Promise<{
+    posts: ChannelPostView[];
+    nextCursor: string | null;
+  }> => {
+    const res = await fetch(`/api/channels/${encodedSlug}/posts?limit=30`);
+    if (!res.ok) throw new Error("Could not load posts");
+    const data = await res.json();
+    return {
+      posts: sortPosts(data.posts ?? []),
+      nextCursor: data.nextCursor ?? null,
+    };
+  }, [encodedSlug]);
+
+  const applyChannel = useCallback((value: ChannelSummary | null) => {
+    setChannel(value);
+    setLoadingChannel(false);
+  }, []);
+
+  const applyChannelError = useCallback((e: unknown) => {
+    logError(e);
+    setChannelError("We couldn't load this channel. Please try again.");
+    setLoadingChannel(false);
+  }, []);
+
+  const applyPosts = useCallback(
+    (value: { posts: ChannelPostView[]; nextCursor: string | null }) => {
+      setPosts(value.posts);
+      setNextCursor(value.nextCursor);
+      setLoadingPosts(false);
+    },
+    []
+  );
+
+  const applyPostsError = useCallback((e: unknown) => {
+    logError(e);
+    setPostsError("We couldn't load posts right now. Please try again.");
+    setLoadingPosts(false);
+  }, []);
+
+  const loadChannel = useCallback(() => {
     setLoadingChannel(true);
     setChannelError(null);
-    try {
-      const res = await fetch(`/api/channels/${encodedSlug}`);
-      if (!res.ok) throw new Error("Could not load channel");
-      const data = await res.json();
-      setChannel(data.channel ?? null);
-    } catch (e) {
-      logError(e);
-      setChannelError("We couldn't load this channel. Please try again.");
-    }
-    setLoadingChannel(false);
-  }, [encodedSlug]);
+    void fetchChannel().then(applyChannel, applyChannelError);
+  }, [fetchChannel, applyChannel, applyChannelError]);
 
-  const loadPosts = useCallback(async () => {
+  const loadPosts = useCallback(() => {
     setLoadingPosts(true);
     setPostsError(null);
-    try {
-      const res = await fetch(`/api/channels/${encodedSlug}/posts?limit=30`);
-      if (!res.ok) throw new Error("Could not load posts");
-      const data = await res.json();
-      setPosts(sortPosts(data.posts ?? []));
-      setNextCursor(data.nextCursor ?? null);
-    } catch (e) {
-      logError(e);
-      setPostsError("We couldn't load posts right now. Please try again.");
-    }
-    setLoadingPosts(false);
-  }, [encodedSlug]);
+    void fetchPosts().then(applyPosts, applyPostsError);
+  }, [fetchPosts, applyPosts, applyPostsError]);
 
   useEffect(() => {
-    loadChannel();
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    loadPosts();
-  }, [loadChannel, loadPosts]);
+    // Reset the loading flags for a new channel in a microtask rather than
+    // synchronously in the effect body. The fetched data still updates state
+    // from promise callbacks, so there is no cascading render on mount.
+    void Promise.resolve().then(() => {
+      setLoadingChannel(true);
+      setChannelError(null);
+      setLoadingPosts(true);
+      setPostsError(null);
+    });
+    void fetchChannel().then(applyChannel, applyChannelError);
+    void fetchPosts().then(applyPosts, applyPostsError);
+  }, [fetchChannel, fetchPosts, applyChannel, applyChannelError, applyPosts, applyPostsError]);
 
   async function loadMorePosts() {
     if (!nextCursor || loadingMore) return;

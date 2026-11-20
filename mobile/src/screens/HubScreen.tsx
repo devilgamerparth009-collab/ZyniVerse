@@ -8,7 +8,6 @@ import {
   Image,
   RefreshControl,
   ActivityIndicator,
-  Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
@@ -17,6 +16,7 @@ import { useTheme } from '../hooks/useTheme';
 import { spacing, fontSize, borderRadius } from '../theme';
 import { api } from '../services/api';
 import { absoluteAvatarUrl, cleanText, timeAgo } from '../utils/helpers';
+import { openSafeWebUrl } from '../utils/safeLinks';
 
 /**
  * Native replacement for the old "More from ZyniVerse" WebView tiles.
@@ -290,7 +290,7 @@ export default function HubScreen() {
       return;
     }
     if (card.href) {
-      Linking.openURL(card.href).catch(() => {});
+      openSafeWebUrl(card.href, '/');
     }
   };
 

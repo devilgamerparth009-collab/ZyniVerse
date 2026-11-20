@@ -9,6 +9,7 @@ const PRIVATE_PATHS = [
   "/admin/",
   "/embed/",
   "/api/",
+  "/auth/",
   "/login",
   "/register",
   "/forgot-password",
@@ -20,6 +21,7 @@ const PRIVATE_PATHS = [
   "/backlog",
   "/list-share/",
   "/profile/edit",
+  "/settings",
   "/u/",
   "/creators/",
   "/posts/",
@@ -29,10 +31,15 @@ const PRIVATE_PATHS = [
   "/activity",
   "/moments",
   "/forum/",
-  // Search results with query params (sort/status/season/genre) form
-  // an unbounded URL space. Already noindexed; this stops Google from
-  // crawling them at all and re-discovering the www/http variants.
+  // Search results and filter combinations form an unbounded crawl space.
+  // Keep the landing/search UI usable for people, but do not let crawlers
+  // enumerate query variants and expensive subpaths. The semantic search tool
+  // page is explicitly allowed below as a discoverable content surface.
   "/search",
+  // 18+ metadata surfaces. Both are age-gated client-side and `noindex` on the
+  // server; disallowing them stops crawlers from fetching the interstitial.
+  "/doujinshi",
+  "/mature",
 ];
 
 // Infinite AniList mirrors. Neither route is in `sitemap.ts` (they are
@@ -167,13 +174,17 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: "*",
-        allow: "/",
+        allow: ["/", "/search/semantic"],
         disallow: [...PRIVATE_PATHS, ...LOW_VALUE_CATALOG],
       },
-      // AI search/answer crawlers: public pages everywhere, private paths
-      // still off-limits (the duplicated list keeps this correct even when a
-      // parser ignores the wildcard group for these user agents).
-      { userAgent: AI_SEARCH_BOTS, allow: "/", disallow: [...PRIVATE_PATHS, ...LOW_VALUE_CATALOG] },
+      // AI search/answer crawlers: public pages everywhere, private and crawl-
+      // trap surfaces still off-limits (duplicated so intent holds under either
+      // robots.txt matching model).
+      {
+        userAgent: AI_SEARCH_BOTS,
+        allow: ["/", "/search/semantic"],
+        disallow: [...PRIVATE_PATHS, ...LOW_VALUE_CATALOG],
+      },
       // AdSense's content crawler needs to reach the ad-bearing detail pages
       // (/manga/[id], /character/[id]) even though organic crawlers are told
       // to skip the infinite mirrors. It is low-volume, so allowing it back

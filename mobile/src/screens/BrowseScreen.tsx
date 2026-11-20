@@ -31,8 +31,8 @@ export default function BrowseScreen() {
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
-  const { colors, isDiwali } = useTheme();
-  const primaryAccent = isDiwali ? '#f59e0b' : colors.primary;
+  const { colors, isLaunch } = useTheme();
+  const primaryAccent = isLaunch ? '#22d3ee' : colors.primary;
 
   const mode: string | undefined = route.params?.mode;
   const genre: string | undefined = route.params?.genre;

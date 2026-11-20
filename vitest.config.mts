@@ -7,8 +7,12 @@ export default defineConfig({
     environment: "node",
     include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
     setupFiles: ["src/__tests__/setup.ts"],
-    testTimeout: 15000,
-    hookTimeout: 15000,
+    // Several suites import the Next/Prisma/AniList graph on demand. On a busy
+    // workstation a cold transform can exceed 15s, which produced spurious
+    // timeouts in otherwise-passing contract tests. 30s covers a cold cache
+    // without letting a genuinely hung route pass.
+    testTimeout: 30000,
+    hookTimeout: 30000,
     coverage: {
       provider: "v8",
       include: ["src/lib/*.ts"],
@@ -17,7 +21,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      "@": path.resolve(import.meta.dirname, "./src"),
     },
   },
 });

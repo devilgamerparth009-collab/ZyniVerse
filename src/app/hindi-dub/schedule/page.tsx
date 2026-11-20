@@ -3,7 +3,7 @@ import Link from "next/link";
 import { getDubLanguages, getDubSchedule, groupScheduleByDay, WEEKDAY_ORDER } from "@/lib/dub-import/queries";
 import NativeBannerAd from "@/components/NativeBannerAd";
 
-export const revalidate = 1800;
+export const revalidate = 3600;
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "https://zyverse.in";
 

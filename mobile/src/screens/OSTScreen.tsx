@@ -6,12 +6,12 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Linking,
   ActivityIndicator,
   Animated,
   Easing,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../hooks/useTheme';
 import { api } from '../services/api';
 import { OSTEntry } from '../types';
@@ -62,8 +62,9 @@ function Vinyl({ color }: { color: string }) {
 
 export default function OSTScreen() {
   const insets = useSafeAreaInsets();
-  const { colors, isDiwali } = useTheme();
-  const tint = isDiwali ? '#f59e0b' : colors.primary;
+  const navigation = useNavigation<any>();
+  const { colors, isLaunch } = useTheme();
+  const tint = isLaunch ? '#22d3ee' : colors.primary;
 
   const [query, setQuery] = useState('');
   const [type, setType] = useState('');
@@ -91,9 +92,10 @@ export default function OSTScreen() {
     return () => clearTimeout(t);
   }, [query, type, load]);
 
-  const play = (url?: string) => {
-    if (!url) return;
-    Linking.openURL(url).catch(() => {});
+  const play = (item: OSTEntry) => {
+    if (item.animeId) {
+      navigation.navigate('AnimeDetail', { id: item.animeId });
+    }
   };
 
   return (
@@ -178,7 +180,7 @@ export default function OSTScreen() {
               const c = TYPE_COLOR[item.type] || colors.textMuted;
               return (
                 <FadeInView key={item.id} delay={Math.min(i * 30, 400)} offset={8}>
-                  <PressableScale onPress={() => play(item.videoUrl)}>
+                  <PressableScale onPress={() => play(item)}>
                     <View style={[styles.row, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                       <View style={[styles.typeBadge, { backgroundColor: `${c}22`, borderColor: c }]}>
                         <Text style={[styles.typeText, { color: c }]}>{item.type}</Text>

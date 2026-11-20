@@ -254,7 +254,7 @@ function meta($: cheerio.CheerioAPI, selector: string): string {
 /* Anime Dub Hindi                                                     */
 /* ------------------------------------------------------------------ */
 
-export function parseAnimeDubHindiListing(html: string, baseUrl: string): ListingResult {
+export function parseAnimeDubHindiListing(html: string, _baseUrl: string): ListingResult {
   const $ = cheerio.load(html);
   const items: DubItem[] = [];
 
@@ -390,7 +390,7 @@ export function parseAnimeDubHindiSchedule(html: string, baseUrl: string): DubSc
 /* Desi Dub Anime                                                      */
 /* ------------------------------------------------------------------ */
 
-export function parseDesiListing(html: string, baseUrl: string): ListingResult {
+export function parseDesiListing(html: string, _baseUrl: string): ListingResult {
   const $ = cheerio.load(html);
   const items: DubItem[] = [];
 
@@ -454,14 +454,26 @@ export function parseDesiListing(html: string, baseUrl: string): ListingResult {
   return { items, nextPage, lastPage: pageNumbers.length ? Math.max(...pageNumbers) : 1 };
 }
 
+/** Only the JSON-LD fields this parser reads are declared; the rest is ignored. */
+interface DesiJsonLd {
+  name?: string;
+  image?: string;
+  description?: string;
+  genre?: unknown;
+  datePublished?: string;
+  numberOfEpisodes?: number | string;
+  "@type"?: string;
+  aggregateRating?: { ratingValue?: number | string };
+}
+
 export function parseDesiAnimeDetail(html: string, url: string): Partial<DubItem> {
   const $ = cheerio.load(html);
   const slug = slugify(decodeSlug(url.replace(/\/$/, "").split("/").pop() || ""));
   const ldRaw = $("script[type='application/ld+json']").first().text();
 
-  let ld: any = null;
+  let ld: DesiJsonLd | null = null;
   try {
-    ld = ldRaw ? JSON.parse(ldRaw) : null;
+    ld = ldRaw ? (JSON.parse(ldRaw) as DesiJsonLd) : null;
   } catch {
     ld = null;
   }

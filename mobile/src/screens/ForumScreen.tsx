@@ -49,7 +49,7 @@ const SORTS: { key: SortKey; label: string; icon: string }[] = [
 export default function ForumScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
-  const { colors, isDiwali } = useTheme();
+  const { colors, isLaunch } = useTheme();
 
   const [categories, setCategories] = useState<ForumCategory[]>([]);
   const [threads, setThreads] = useState<ForumThread[]>([]);
@@ -174,7 +174,7 @@ export default function ForumScreen() {
     }
   };
 
-  const primaryColor = isDiwali ? '#FF8C00' : colors.primary;
+  const primaryColor = isLaunch ? '#22d3ee' : colors.primary;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>

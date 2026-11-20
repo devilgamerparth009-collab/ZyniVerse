@@ -8,7 +8,6 @@ import {
   Image,
   RefreshControl,
   ActivityIndicator,
-  Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -17,6 +16,7 @@ import { useTheme } from '../hooks/useTheme';
 import { spacing, fontSize, borderRadius } from '../theme';
 import { api } from '../services/api';
 import { absoluteAvatarUrl, cleanText, timeAgo } from '../utils/helpers';
+import { openSafeWebUrl } from '../utils/safeLinks';
 
 interface FeedItem {
   id: string;
@@ -81,12 +81,9 @@ export default function FeedScreen() {
       return;
     }
     if (item.href) {
-      // External article/post pages open in the browser; the in-app WebView is
-      // reserved for media playback only.
-      const url = item.href.startsWith('http')
-        ? item.href
-        : `https://zyverse.in${item.href.startsWith('/') ? '' : '/'}${item.href}`;
-      Linking.openURL(url).catch(() => {});
+      // Never open a foreign site. Same-origin paths are kept; anything else
+      // falls back to the app's own feed page.
+      openSafeWebUrl(item.href, '/feed');
     }
   };
 

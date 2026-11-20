@@ -13,8 +13,9 @@ import { WebView } from 'react-native-webview';
 import { useTheme } from '../hooks/useTheme';
 import { api } from '../services/api';
 import { spacing, borderRadius } from '../theme';
+import { canLoadInAppWebView, internalPath, SAFE_WEB_ORIGIN } from '../utils/safeLinks';
 
-const BASE = 'https://zyverse.in';
+const BASE = SAFE_WEB_ORIGIN;
 
 type Source = { uri: string; headers?: Record<string, string> };
 
@@ -33,19 +34,18 @@ export default function WebScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const { colors, isDiwali } = useTheme();
-  const tint = isDiwali ? '#f59e0b' : colors.primary;
+  const { colors, isLaunch } = useTheme();
+  const tint = isLaunch ? '#22d3ee' : colors.primary;
 
   const path: string | undefined = route.params?.path;
-  const explicitUrl: string | undefined = route.params?.url;
   const title: string = route.params?.title || 'ZyniVerse';
   /** Signed-in pages need the app's session copied into the WebView first. */
   const needsAuth: boolean = !!route.params?.auth;
 
-  const targetUrl = useMemo(
-    () => explicitUrl || `${BASE}${path || '/'}`,
-    [explicitUrl, path]
-  );
+  // Only same-origin paths are accepted. Even if a caller passes a foreign URL
+  // by mistake, it is reduced to a local ZyniVerse path before it reaches the
+  // WebView.
+  const targetUrl = useMemo(() => `${BASE}${internalPath(path)}`, [path]);
 
   const webRef = useRef<WebView>(null);
   const progress = useRef(new Animated.Value(0)).current;
@@ -192,6 +192,7 @@ export default function WebScreen() {
           ref={webRef}
           source={source}
           style={{ flex: 1, backgroundColor: colors.background }}
+          onShouldStartLoadWithRequest={(request) => canLoadInAppWebView(request.url)}
           javaScriptEnabled
           domStorageEnabled
           sharedCookiesEnabled

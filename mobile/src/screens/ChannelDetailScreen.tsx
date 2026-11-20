@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
-  Linking,
   RefreshControl,
   StyleSheet,
   Text,
@@ -29,6 +28,7 @@ import { api } from '../services/api';
 import { ChannelPostView, ChannelSummary } from '../types/social';
 import { spacing, fontSize, borderRadius } from '../theme';
 import { formatCount, timeAgo } from '../utils/helpers';
+import { openSafeWebUrl } from '../utils/safeLinks';
 
 type DetailRoute = RouteProp<RootStackParamList, 'ChannelDetail'>;
 const REACTIONS = ['👍', '❤️', '🔥', '😂'];
@@ -222,7 +222,7 @@ export default function ChannelDetailScreen() {
         {!!item.linkUrl && (
           <TouchableOpacity
             style={[styles.linkBox, { backgroundColor: colors.background, borderColor: colors.border }]}
-            onPress={() => Linking.openURL(item.linkUrl || '').catch(() => {})}
+            onPress={() => openSafeWebUrl(item.linkUrl, '/channels')}
             activeOpacity={0.8}
           >
             <Text style={[styles.linkLabel, { color: colors.primary }]} numberOfLines={1}>

@@ -18,7 +18,7 @@ function walk(d) {
             out.push({ v, p: p.replace('C:\\Users\\Parth Gupta\\Desktop\\ZyniVerse\\src\\app\\', '') });
           }
         }
-      } catch (e) {}
+      } catch (_e) {}
     }
   }
 }

@@ -5,7 +5,6 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Linking,
   Alert,
   Switch,
 } from 'react-native';
@@ -25,11 +24,12 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { ThemeMode } from '../theme/ThemeContext';
 import { isChristmasWindow } from '../utils/themeUtils';
+import { openSafeWebUrl } from '../utils/safeLinks';
 
 const appConfig = require('../../app.json');
 const APP_VERSION = appConfig?.expo?.version ?? '1.4.1';
 
-const openLink = (url: string) => Linking.openURL(url).catch(() => {});
+const openLink = (url: string) => openSafeWebUrl(url, '/');
 
 function SettingRow({ label, value, onPress, disabled }: any) {
   const { colors: c } = useTheme();
@@ -258,7 +258,7 @@ export default function SettingsScreen() {
                   accent: '#7dd3fc',
                   bg: '#060b14',
                 },
-                { key: 'diwali', label: '🪔 Diwali Regal', desc: 'Warm amber & royal gold', accent: '#f59e0b', bg: '#0c0a08' },
+                { key: 'launch', label: '✨ Aurora Launch', desc: 'Electric cyan & violet glow', accent: '#22d3ee', bg: '#050b16' },
                 { key: 'night', label: '🌙 Midnight', desc: 'Deep indigo & slate', accent: '#818cf8', bg: '#070b14' },
                 { key: 'light', label: '☀️ Minimal Light', desc: 'Crisp clean slate', accent: '#4f46e5', bg: '#f8fafc' },
               ] as { key: ThemeMode; label: string; desc: string; accent: string; bg: string }[]).map(t => {

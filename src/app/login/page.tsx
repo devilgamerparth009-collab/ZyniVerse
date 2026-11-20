@@ -241,7 +241,11 @@ export default function LoginPage() {
       Verification: "That sign-in link has expired. Please try again.",
       CredentialsSignin: "Invalid email or password.",
     };
-    setError(messages[code] || "Sign-in failed. Please try again.");
+    // Defer so the update happens from a callback rather than synchronously
+    // in the effect body (which would cause a cascading render).
+    void Promise.resolve().then(() =>
+      setError(messages[code] || "Sign-in failed. Please try again.")
+    );
   }, []);
 
   // Started from the mobile app? Kick off the provider flow automatically.
@@ -252,12 +256,13 @@ export default function LoginPage() {
     const isMobile = params.get("mobile") === "1";
     if (!provider || !isMobile) return;
     if (!providers[provider]) {
-      setError(`${provider} sign-in is not configured on the server yet.`);
+      void Promise.resolve().then(() =>
+        setError(`${provider} sign-in is not configured on the server yet.`)
+      );
       return;
     }
     autoStarted.current = true;
-    startSocial(provider);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    void Promise.resolve().then(() => startSocial(provider));
   }, [providers]);
 
   function startSocial(id: string) {

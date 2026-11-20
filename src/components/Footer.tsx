@@ -61,6 +61,7 @@ const LINK_COLUMNS: FooterColumn[] = [
       { href: "/extension", label: "Chrome Extension", icon: "code" },
       { href: "/toons", label: "Toons & Cartoons", icon: "tv" },
       { href: "/tv-schedule", label: "TV Channels", icon: "globe" },
+      { href: "/changelog", label: "Changelog", icon: "edit" },
       { href: "/blog", label: "Blog", icon: "edit" },
     ],
   },
@@ -283,6 +284,8 @@ export default function Footer() {
                 { label: "Forum", href: "/forum" },
                 { label: "Filler Guides", href: "/filler" },
                 { label: "Watch Orders", href: "/watch-order" },
+                { label: "Changelog", href: "/changelog" },
+                { label: "18+ Hub", href: "/mature" },
                 { label: "API Docs", href: "/docs" },
               ].map((link) => (
                 <Link

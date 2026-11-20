@@ -323,7 +323,7 @@ async function syncAnimeDubHindiIncremental(
   options: SyncOptions
 ): Promise<{ fetched: number; upserted: number; errors: string[]; nextQuery: string | null }> {
   const errors: string[] = [];
-  const budget = Math.max(1, Math.min(options.limit ?? ADH_API_PAGES, ADH_API_PAGES));
+  const _budget = Math.max(1, Math.min(options.limit ?? ADH_API_PAGES, ADH_API_PAGES));
   const page = adhCursorPage(options.cursor);
 
   const [state, stageState] = await Promise.all([
@@ -552,7 +552,7 @@ async function syncDesiIncremental(
     ? new Date(lastCatalogueSync.getTime() - 6 * 3600 * 1000)
     : new Date(Date.now() - 14 * 86400 * 1000);
 
-  let entries = (
+  const entries = (
     await Promise.all(
       sitemaps.map(async (url) => {
         try {

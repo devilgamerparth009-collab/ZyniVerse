@@ -3,6 +3,7 @@ import * as Application from 'expo-application';
 import * as FileSystem from 'expo-file-system';
 import * as IntentLauncher from 'expo-intent-launcher';
 import { Platform } from 'react-native';
+import { base64ToBytes, createSha256, normaliseSha256 } from './sha256';
 
 /**
  * In-app APK updater.
@@ -46,7 +47,14 @@ export interface DownloadedUpdate {
   downloadedAt: number;
 }
 
-export type DownloadPhase = 'idle' | 'checking' | 'downloading' | 'ready' | 'installing' | 'error';
+export type DownloadPhase =
+  | 'idle'
+  | 'checking'
+  | 'downloading'
+  | 'verifying'
+  | 'ready'
+  | 'installing'
+  | 'error';
 
 export interface DownloadState {
   phase: DownloadPhase;
@@ -92,6 +100,35 @@ async function writeJson(key: string, value: unknown): Promise<void> {
   }
 }
 
+function isCachedReleaseUsable(
+  meta: DownloadedUpdate,
+  expected?: UpdateRelease | null
+): boolean {
+  const cachedCode = meta.release?.latestVersionCode || 0;
+  const installedCode = currentVersionCode();
+  if (!cachedCode || cachedCode <= installedCode) return false;
+
+  if (expected?.latestVersionCode && cachedCode !== expected.latestVersionCode) return false;
+  if (
+    expected?.latestVersionName &&
+    meta.release?.latestVersionName &&
+    meta.release.latestVersionName !== expected.latestVersionName
+  ) {
+    return false;
+  }
+  if (expected?.sha256 && normaliseSha256(meta.release?.sha256) !== normaliseSha256(expected.sha256)) {
+    return false;
+  }
+  if (expected?.sizeBytes && meta.bytes && meta.bytes !== expected.sizeBytes) return false;
+  return true;
+}
+
+/** Drop a cached APK that belongs to an older, replaced or already-installed release. */
+async function discardStaleCachedUpdate(expected?: UpdateRelease | null): Promise<void> {
+  const meta = await readJson<DownloadedUpdate>(META_KEY);
+  if (meta && !isCachedReleaseUsable(meta, expected)) await clearReadyUpdate();
+}
+
 /** Ask the website which build is current. Never throws. */
 export async function checkForUpdate(): Promise<UpdateRelease | null> {
   if (Platform.OS !== 'android') return null;
@@ -109,7 +146,16 @@ export async function checkForUpdate(): Promise<UpdateRelease | null> {
     // Only accept an older build when the server explicitly marks it as a
     // rollback. This still guards against a misconfigured deploy.
     const rollback = json.rollback === true && json.latestVersionCode < code;
-    return { ...json, rollback, updateAvailable: json.latestVersionCode > code || rollback };
+    const release: UpdateRelease = {
+      ...json,
+      rollback,
+      updateAvailable: json.latestVersionCode > code || rollback,
+    };
+    // A downloaded APK left by a previous release must not keep offering a
+    // stale Install button after the website has moved on (or after the same
+    // build was installed from another source).
+    await discardStaleCachedUpdate(release);
+    return release;
   } catch {
     return null;
   }
@@ -124,13 +170,83 @@ export async function skipVersion(versionCode: number): Promise<void> {
   await writeJson(SKIPPED_KEY, versionCode);
 }
 
-export async function getReadyUpdate(): Promise<DownloadedUpdate | null> {
+/**
+ * Bytes per read when hashing the APK. A multiple of 3 means base64 chunks
+ * have no padding except the final one, and ~3 MB keeps memory flat on
+ * low-end devices.
+ */
+const HASH_CHUNK_BYTES = 3 * 1024 * 1024;
+
+/** Stream the file through SHA-256 and compare with the server-published hash. */
+async function verifyApkSha256(
+  uri: string,
+  expectedHex: string,
+  totalBytes: number,
+  onProgress?: (fraction: number) => void
+): Promise<boolean> {
+  const hasher = createSha256();
+  let offset = 0;
+  while (offset < totalBytes) {
+    const length = Math.min(HASH_CHUNK_BYTES, totalBytes - offset);
+    const chunk = await FileSystem.readAsStringAsync(uri, {
+      encoding: FileSystem.EncodingType.Base64,
+      position: offset,
+      length,
+    });
+    if (!chunk) throw new Error('The downloaded file could not be read.');
+    hasher.update(base64ToBytes(chunk));
+    offset += length;
+    onProgress?.(Math.min(1, offset / Math.max(1, totalBytes)));
+  }
+  return hasher.digest() === expectedHex;
+}
+
+/** Delete a rejected download so it can never be offered to the installer. */
+async function rejectDownload(uri: string): Promise<void> {
+  try {
+    await FileSystem.deleteAsync(uri, { idempotent: true });
+  } catch {
+    /* ignore */
+  }
+}
+
+export async function getReadyUpdate(
+  expected?: UpdateRelease | null
+): Promise<DownloadedUpdate | null> {
   const meta = await readJson<DownloadedUpdate>(META_KEY);
-  if (!meta?.uri) return null;
+  if (!meta?.uri || !isCachedReleaseUsable(meta, expected)) {
+    if (meta) await clearReadyUpdate();
+    return null;
+  }
+  let actualSize = 0;
   try {
     const info = await FileSystem.getInfoAsync(meta.uri);
-    if (!info.exists) return null;
+    if (!info.exists) {
+      await clearReadyUpdate();
+      return null;
+    }
+    actualSize = 'size' in info ? info.size || 0 : 0;
   } catch {
+    await clearReadyUpdate();
+    return null;
+  }
+
+  // Files cached by an older build were only size-checked. Re-verify them
+  // before showing an Install button; a corrupt/tampered APK must never be
+  // installed from the cached slot.
+  try {
+    const expectedSize = expected?.sizeBytes || meta.release?.sizeBytes || meta.bytes || 0;
+    if (expectedSize > 0 && actualSize > 0 && actualSize !== expectedSize) {
+      await clearReadyUpdate();
+      return null;
+    }
+    const expectedHash = normaliseSha256(expected?.sha256 || meta.release?.sha256);
+    if (expectedHash && !(await verifyApkSha256(meta.uri, expectedHash, actualSize || meta.bytes))) {
+      await clearReadyUpdate();
+      return null;
+    }
+  } catch {
+    await clearReadyUpdate();
     return null;
   }
   return meta;
@@ -159,6 +275,10 @@ export async function downloadUpdate(
   onProgress?: (state: DownloadState) => void
 ): Promise<DownloadedUpdate> {
   if (Platform.OS !== 'android') throw new Error('Updates are only available on Android.');
+  if (release.latestVersionCode <= currentVersionCode() && !release.rollback) {
+    await clearReadyUpdate();
+    throw new Error('This version is already installed.');
+  }
   const base = FileSystem.documentDirectory;
   if (!base) throw new Error('Storage is not available on this device.');
 
@@ -220,6 +340,30 @@ export async function downloadUpdate(
     );
   }
 
+  // Security check: the website publishes the exact SHA-256 of this APK.
+  // Size alone cannot detect a corrupted or substituted file, so the app now
+  // verifies the hash before it ever offers the Install button.
+  const expectedHash = normaliseSha256(release.sha256);
+  if (release.sha256 && !expectedHash) {
+    await rejectDownload(result.uri);
+    throw new Error('This release has an invalid checksum. Please use the download page instead.');
+  }
+  if (expectedHash) {
+    onProgress?.({ phase: 'verifying', progress: 1, bytes, totalBytes: bytes });
+    let verified = false;
+    try {
+      verified = await verifyApkSha256(result.uri, expectedHash, bytes);
+    } catch {
+      verified = false;
+    }
+    if (!verified) {
+      await rejectDownload(result.uri);
+      throw new Error(
+        'The download failed SHA-256 verification and was discarded. Please retry on a stable connection.'
+      );
+    }
+  }
+
   const downloaded: DownloadedUpdate = {
     release,
     uri: result.uri,
@@ -271,10 +415,10 @@ export async function openInstallPermissionSettings(): Promise<void> {
  * own; the caller decides when to show the install card.
  */
 export async function autoPrepareUpdate(): Promise<UpdateRelease | null> {
-  const ready = await getReadyUpdate();
+  const release = await checkForUpdate();
+  const ready = await getReadyUpdate(release);
   if (ready) return ready.release;
 
-  const release = await checkForUpdate();
   if (!release?.updateAvailable) return null;
   if (!release.mandatory && (await isSkipped(release.latestVersionCode))) return null;
 

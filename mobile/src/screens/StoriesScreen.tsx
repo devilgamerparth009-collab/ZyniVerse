@@ -4,7 +4,6 @@ import {
   Easing,
   FlatList,
   Image,
-  Linking,
   Modal,
   RefreshControl,
   ScrollView,
@@ -31,6 +30,8 @@ import { api, mediaImageUrl } from '../services/api';
 import { ChannelSummary, StoryItem } from '../types/social';
 import { spacing, fontSize, borderRadius } from '../theme';
 import { formatCount, timeAgo } from '../utils/helpers';
+import { Linking } from 'react-native';
+import { openTrustedExternalUrl } from '../utils/safeLinks';
 
 const STORY_MS = 5000;
 type MediaType = 'image' | 'video';
@@ -435,7 +436,13 @@ export default function StoriesScreen() {
                 <Text style={styles.viewerVideoTitle}>Video story</Text>
                 <TouchableOpacity
                   style={[styles.viewerLink, { borderColor: colors.primary }]}
-                  onPress={() => Linking.openURL(activeStory.mediaUrl).catch(() => {})}
+                  onPress={async () => {
+                    const opened = await openTrustedExternalUrl(activeStory.mediaUrl);
+                    if (opened) return;
+                    if (/^https?:\/\//i.test(activeStory.mediaUrl)) {
+                      Linking.openURL(activeStory.mediaUrl).catch(() => {});
+                    }
+                  }}
                 >
                   <Text style={[styles.viewerLinkText, { color: colors.primary }]}>Open video</Text>
                 </TouchableOpacity>

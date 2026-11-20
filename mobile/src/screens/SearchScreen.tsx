@@ -52,8 +52,8 @@ const EXPLORE_ITEMS: {
 export default function SearchScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
-  const { colors, isDiwali } = useTheme();
-  const primaryColor = isDiwali ? '#FF8C00' : colors.primary;
+  const { colors, isLaunch } = useTheme();
+  const primaryColor = isLaunch ? '#22d3ee' : colors.primary;
 
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);

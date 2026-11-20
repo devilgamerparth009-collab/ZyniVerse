@@ -24,7 +24,7 @@ import PressableScale from '../components/PressableScale';
 import AdBanner from '../components/AdBanner';
 import Snowfall from '../components/Snowfall';
 import ChristmasBanner from '../components/ChristmasBanner';
-import DiwaliFireworks from '../components/DiwaliFireworks';
+import LaunchGlow from '../components/LaunchGlow';
 import { useTheme } from '../hooks/useTheme';
 
 const FEED_DISMISSED_KEY = 'zv_feed_dismissed';
@@ -71,8 +71,8 @@ interface MobileFeed {
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
-  const { colors, isDiwali, isChristmas, isDiwaliSeason } = useTheme();
-  const primaryColor = isDiwali ? '#FF8C00' : isChristmas ? '#7dd3fc' : colors.primary;
+  const { colors, isLaunch, isChristmas, isLaunchSeason } = useTheme();
+  const primaryColor = isLaunch ? '#22d3ee' : isChristmas ? '#7dd3fc' : colors.primary;
 
   const [trending, setTrending] = useState<Anime[]>([]);
   const [popular, setPopular] = useState<Anime[]>([]);
@@ -263,17 +263,17 @@ export default function HomeScreen() {
             <Text style={{ color: '#08090f', fontSize: 12, fontWeight: '900' }}>🎮 Fun Zone</Text>
           </TouchableOpacity>
 
-          {isDiwali && (
+          {isLaunch && (
             <TouchableOpacity
               style={{
-                backgroundColor: '#FF8C00',
+                backgroundColor: '#22d3ee',
                 paddingHorizontal: 12,
                 paddingVertical: 7,
                 borderRadius: 20,
               }}
-              onPress={() => navigation.navigate('Browse', { mode: 'trending', title: 'Diwali Specials' })}
+              onPress={() => navigation.navigate('Browse', { mode: 'trending', title: 'Launch Spotlight' })}
             >
-              <Text style={{ color: '#ffffff', fontSize: 12, fontWeight: '800' }}>🎆 Diwali Special</Text>
+              <Text style={{ color: '#ffffff', fontSize: 12, fontWeight: '800' }}>✨ Launch Spotlight</Text>
             </TouchableOpacity>
           )}
 
@@ -791,7 +791,7 @@ export default function HomeScreen() {
           subtitle="What everyone is bingeing today"
           anime={trending}
           variant="trending"
-          accent={isDiwali ? '#fb923c' : isChristmas ? '#7dd3fc' : undefined}
+          accent={isLaunch ? '#22d3ee' : isChristmas ? '#7dd3fc' : undefined}
           onSeeAll={() => openBrowse('trending', 'Trending Now')}
         />
         <ShowcaseRail
@@ -844,7 +844,7 @@ export default function HomeScreen() {
       </ScrollView>
 
       {isChristmas && <Snowfall />}
-      {isDiwaliSeason && <DiwaliFireworks />}
+      {isLaunchSeason && <LaunchGlow />}
     </View>
   );
 }

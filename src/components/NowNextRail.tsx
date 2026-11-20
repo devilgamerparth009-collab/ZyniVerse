@@ -264,7 +264,7 @@ export default function NowNextRail({ data }: { data: RailData | null }) {
         </div>
 
         <p className="mt-3 font-mono text-[9px] uppercase tracking-wider text-[var(--color-mute)]/70">
-          Select a row to open the channel's full schedule · updated {new Date(data.updatedAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
+          Select a row to open the channel&apos;s full schedule · updated {new Date(data.updatedAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
         </p>
       </div>
     </motion.section>

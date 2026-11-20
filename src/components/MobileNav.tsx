@@ -28,12 +28,15 @@ const MORE_ITEMS = [
   { href: "/conventions", label: "Conventions" },
   { href: "/filler", label: "Filler Guides" },
   { href: "/watch-order", label: "Watch Orders" },
+  { href: "/tools/anime-dice", label: "Anime Dice" },
   { href: "/voice-actors", label: "Voice Actors" },
   { href: "/blog", label: "Blog" },
   { href: "/forum", label: "Forum" },
   { href: "/people", label: "Find People" },
   { href: "/channels", label: "Channels" },
   { href: "/stories", label: "Stories" },
+  { href: "/changelog", label: "Changelog" },
+  { href: "/mature", label: "18+ Hub" },
   { href: "/premium", label: "Premium" },
 ];
 

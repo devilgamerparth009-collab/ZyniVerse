@@ -320,7 +320,7 @@ export default function FeedClient({ initialItems }: { initialItems: FeedItem[] 
       )}
       {!hasMore && items.length > 0 && (
         <p className="py-6 text-center font-mono text-xs text-[var(--color-mute)]">
-          — That's everything for now 🎌 —
+          — That&apos;s everything for now 🎌 —
         </p>
       )}
     </div>

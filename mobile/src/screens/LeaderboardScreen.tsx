@@ -82,8 +82,8 @@ function PodiumCard({
 
 export default function LeaderboardScreen() {
   const insets = useSafeAreaInsets();
-  const { colors, isDiwali } = useTheme();
-  const tint = isDiwali ? '#f59e0b' : colors.primary;
+  const { colors, isLaunch } = useTheme();
+  const tint = isLaunch ? '#22d3ee' : colors.primary;
 
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [total, setTotal] = useState(0);

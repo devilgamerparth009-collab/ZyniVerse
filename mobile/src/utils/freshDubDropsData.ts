@@ -5,7 +5,7 @@ export const EXPANDED_DUB_SOURCES: LiveDubSource[] = [
     id: 'sony-yay',
     name: 'SONY YAY!',
     channelName: 'Sony YAY!',
-    channelUrl: 'https://www.sonyyay.com',
+    channelUrl: 'https://zyverse.in/hindi-dub',
     fetchedAt: new Date().toISOString(),
     ok: true,
     entries: [
@@ -15,7 +15,7 @@ export const EXPANDED_DUB_SOURCES: LiveDubSource[] = [
         published: new Date(Date.now() - 2 * 3600000).toISOString(),
         language: 'Hindi',
         thumbnail: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx1735-kGfVm0YqCPcu.png',
-        url: 'https://www.sonyliv.com/shows/naruto-shippuden-1700000843',
+        url: 'https://zyverse.in/hindi-dub/schedule',
       },
       {
         videoId: 'sony-yay-naruto-2',
@@ -23,7 +23,7 @@ export const EXPANDED_DUB_SOURCES: LiveDubSource[] = [
         published: new Date(Date.now() - 14 * 3600000).toISOString(),
         language: 'Hindi',
         thumbnail: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx1735-kGfVm0YqCPcu.png',
-        url: 'https://www.sonyliv.com/shows/naruto-shippuden-1700000843',
+        url: 'https://zyverse.in/hindi-dub/schedule',
       },
       {
         videoId: 'sony-yay-beyblade-1',
@@ -31,7 +31,7 @@ export const EXPANDED_DUB_SOURCES: LiveDubSource[] = [
         published: new Date(Date.now() - 26 * 3600000).toISOString(),
         language: 'Hindi',
         thumbnail: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx21236-8B4fORbuUp6v.jpg',
-        url: 'https://www.sonyyay.com',
+        url: 'https://zyverse.in/hindi-dub/schedule',
       },
       {
         videoId: 'sony-yay-naruto-classic-1',
@@ -39,7 +39,7 @@ export const EXPANDED_DUB_SOURCES: LiveDubSource[] = [
         published: new Date(Date.now() - 38 * 3600000).toISOString(),
         language: 'Hindi',
         thumbnail: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx20-YJvLbgJQPCoI.jpg',
-        url: 'https://www.sonyliv.com',
+        url: 'https://zyverse.in/hindi-dub/schedule',
       },
     ],
   },
@@ -47,7 +47,7 @@ export const EXPANDED_DUB_SOURCES: LiveDubSource[] = [
     id: 'crunchyroll-india',
     name: 'Crunchyroll',
     channelName: 'Crunchyroll India',
-    channelUrl: 'https://www.crunchyroll.com',
+    channelUrl: 'https://zyverse.in/hindi-dub',
     fetchedAt: new Date().toISOString(),
     ok: true,
     entries: [
@@ -57,7 +57,7 @@ export const EXPANDED_DUB_SOURCES: LiveDubSource[] = [
         published: new Date(Date.now() - 4 * 3600000).toISOString(),
         language: 'Hindi',
         thumbnail: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx151807-it355ZgzquUd.png',
-        url: 'https://www.crunchyroll.com/series/GKKH4JY60/solo-leveling',
+        url: 'https://zyverse.in/hindi-dub/schedule',
       },
       {
         videoId: 'cr-jjk-s2-tamil',
@@ -65,7 +65,7 @@ export const EXPANDED_DUB_SOURCES: LiveDubSource[] = [
         published: new Date(Date.now() - 8 * 3600000).toISOString(),
         language: 'Tamil',
         thumbnail: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx113415-LHBAeoZDIsnF.jpg',
-        url: 'https://www.crunchyroll.com/series/GRDV0019R/jujutsu-kaisen',
+        url: 'https://zyverse.in/hindi-dub/schedule',
       },
       {
         videoId: 'cr-jjk-s2-telugu',
@@ -73,7 +73,7 @@ export const EXPANDED_DUB_SOURCES: LiveDubSource[] = [
         published: new Date(Date.now() - 9 * 3600000).toISOString(),
         language: 'Telugu',
         thumbnail: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx113415-LHBAeoZDIsnF.jpg',
-        url: 'https://www.crunchyroll.com/series/GRDV0019R/jujutsu-kaisen',
+        url: 'https://zyverse.in/hindi-dub/schedule',
       },
       {
         videoId: 'cr-demon-slayer-hindi',
@@ -81,7 +81,7 @@ export const EXPANDED_DUB_SOURCES: LiveDubSource[] = [
         published: new Date(Date.now() - 18 * 3600000).toISOString(),
         language: 'Hindi',
         thumbnail: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx166240-bCclN7x7YQkG.png',
-        url: 'https://www.crunchyroll.com/series/GY5P48XEY/demon-slayer-kimetsu-no-yaiba',
+        url: 'https://zyverse.in/hindi-dub/schedule',
       },
       {
         videoId: 'cr-one-piece-hindi',
@@ -89,7 +89,7 @@ export const EXPANDED_DUB_SOURCES: LiveDubSource[] = [
         published: new Date(Date.now() - 30 * 3600000).toISOString(),
         language: 'Hindi',
         thumbnail: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx21-ELSYx3yMPcKM.jpg',
-        url: 'https://www.crunchyroll.com/series/GRMG8ZQZR/one-piece',
+        url: 'https://zyverse.in/hindi-dub/schedule',
       },
       {
         videoId: 'cr-kaiju-hindi',
@@ -97,7 +97,7 @@ export const EXPANDED_DUB_SOURCES: LiveDubSource[] = [
         published: new Date(Date.now() - 42 * 3600000).toISOString(),
         language: 'Hindi',
         thumbnail: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx153288-nZ6U0V6rR1K4.jpg',
-        url: 'https://www.crunchyroll.com/series/GG5H5XQ08/kaiju-no-8',
+        url: 'https://zyverse.in/hindi-dub/schedule',
       },
     ],
   },
@@ -105,7 +105,7 @@ export const EXPANDED_DUB_SOURCES: LiveDubSource[] = [
     id: 'cartoon-network-in',
     name: 'Cartoon Network',
     channelName: 'Cartoon Network India',
-    channelUrl: 'https://www.cartoonnetwork.in',
+    channelUrl: 'https://zyverse.in/hindi-dub',
     fetchedAt: new Date().toISOString(),
     ok: true,
     entries: [
@@ -115,7 +115,7 @@ export const EXPANDED_DUB_SOURCES: LiveDubSource[] = [
         published: new Date(Date.now() - 6 * 3600000).toISOString(),
         language: 'Hindi',
         thumbnail: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx21175-EH06qlfF8TnB.jpg',
-        url: 'https://www.cartoonnetwork.in',
+        url: 'https://zyverse.in/hindi-dub/schedule',
       },
       {
         videoId: 'cn-dbs-tamil-1',
@@ -123,7 +123,7 @@ export const EXPANDED_DUB_SOURCES: LiveDubSource[] = [
         published: new Date(Date.now() - 20 * 3600000).toISOString(),
         language: 'Tamil',
         thumbnail: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx21175-EH06qlfF8TnB.jpg',
-        url: 'https://www.cartoonnetwork.in',
+        url: 'https://zyverse.in/hindi-dub/schedule',
       },
       {
         videoId: 'cn-digimon-hindi-1',
@@ -131,7 +131,7 @@ export const EXPANDED_DUB_SOURCES: LiveDubSource[] = [
         published: new Date(Date.now() - 32 * 3600000).toISOString(),
         language: 'Hindi',
         thumbnail: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx552-zad0ts5hylQJ.jpg',
-        url: 'https://www.cartoonnetwork.in',
+        url: 'https://zyverse.in/hindi-dub/schedule',
       },
     ],
   },
@@ -139,7 +139,7 @@ export const EXPANDED_DUB_SOURCES: LiveDubSource[] = [
     id: 'netflix-india',
     name: 'Netflix Anime',
     channelName: 'Netflix India',
-    channelUrl: 'https://www.netflix.com',
+    channelUrl: 'https://zyverse.in/hindi-dub',
     fetchedAt: new Date().toISOString(),
     ok: true,
     entries: [
@@ -149,7 +149,7 @@ export const EXPANDED_DUB_SOURCES: LiveDubSource[] = [
         published: new Date(Date.now() - 10 * 3600000).toISOString(),
         language: 'Hindi',
         thumbnail: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx171018-09Q2t5QO1x7C.jpg',
-        url: 'https://www.netflix.com/title/81736884',
+        url: 'https://zyverse.in/hindi-dub/schedule',
       },
       {
         videoId: 'netflix-vinland-1',
@@ -157,7 +157,7 @@ export const EXPANDED_DUB_SOURCES: LiveDubSource[] = [
         published: new Date(Date.now() - 24 * 3600000).toISOString(),
         language: 'Hindi',
         thumbnail: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx136430-mQ34M1fGz43p.jpg',
-        url: 'https://www.netflix.com',
+        url: 'https://zyverse.in/hindi-dub/schedule',
       },
       {
         videoId: 'netflix-death-note-1',
@@ -165,7 +165,7 @@ export const EXPANDED_DUB_SOURCES: LiveDubSource[] = [
         published: new Date(Date.now() - 48 * 3600000).toISOString(),
         language: 'Hindi',
         thumbnail: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx1535-lawC6Jq173b8.jpg',
-        url: 'https://www.netflix.com',
+        url: 'https://zyverse.in/hindi-dub/schedule',
       },
     ],
   },
@@ -173,7 +173,7 @@ export const EXPANDED_DUB_SOURCES: LiveDubSource[] = [
     id: 'muse-india',
     name: 'Muse India',
     channelName: 'Muse India (YouTube)',
-    channelUrl: 'https://www.youtube.com/@MuseIndia',
+    channelUrl: 'https://zyverse.in/hindi-dub',
     fetchedAt: new Date().toISOString(),
     ok: true,
     entries: [
@@ -183,7 +183,7 @@ export const EXPANDED_DUB_SOURCES: LiveDubSource[] = [
         published: new Date(Date.now() - 5 * 3600000).toISOString(),
         language: 'Hindi',
         thumbnail: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx140960-YrkSD4V74up2.jpg',
-        url: 'https://www.youtube.com/@MuseIndia',
+        url: 'https://zyverse.in/hindi-dub/schedule',
       },
       {
         videoId: 'muse-tokyo-rev-1',
@@ -191,7 +191,7 @@ export const EXPANDED_DUB_SOURCES: LiveDubSource[] = [
         published: new Date(Date.now() - 16 * 3600000).toISOString(),
         language: 'Hindi',
         thumbnail: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx120120-d3P5YFjZ5tqF.jpg',
-        url: 'https://www.youtube.com/@MuseIndia',
+        url: 'https://zyverse.in/hindi-dub/schedule',
       },
       {
         videoId: 'muse-mob-psycho-1',
@@ -199,7 +199,7 @@ export const EXPANDED_DUB_SOURCES: LiveDubSource[] = [
         published: new Date(Date.now() - 28 * 3600000).toISOString(),
         language: 'Hindi',
         thumbnail: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx21507-7Kqg8U1WlQG2.jpg',
-        url: 'https://www.youtube.com/@MuseIndia',
+        url: 'https://zyverse.in/hindi-dub/schedule',
       },
     ],
   },
@@ -207,7 +207,7 @@ export const EXPANDED_DUB_SOURCES: LiveDubSource[] = [
     id: 'ani-one-india',
     name: 'Ani-One India',
     channelName: 'Ani-One India (YouTube)',
-    channelUrl: 'https://www.youtube.com/@AniOneIndia',
+    channelUrl: 'https://zyverse.in/hindi-dub',
     fetchedAt: new Date().toISOString(),
     ok: true,
     entries: [
@@ -217,7 +217,7 @@ export const EXPANDED_DUB_SOURCES: LiveDubSource[] = [
         published: new Date(Date.now() - 12 * 3600000).toISOString(),
         language: 'Hindi',
         thumbnail: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx127230-NuZcrbCuCHsL.png',
-        url: 'https://www.youtube.com/@AniOneIndia',
+        url: 'https://zyverse.in/hindi-dub/schedule',
       },
       {
         videoId: 'ani-one-blue-lock-1',
@@ -225,7 +225,7 @@ export const EXPANDED_DUB_SOURCES: LiveDubSource[] = [
         published: new Date(Date.now() - 22 * 3600000).toISOString(),
         language: 'Hindi',
         thumbnail: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx137822-4P2P2r8j4Z5Q.jpg',
-        url: 'https://www.youtube.com/@AniOneIndia',
+        url: 'https://zyverse.in/hindi-dub/schedule',
       },
     ],
   },

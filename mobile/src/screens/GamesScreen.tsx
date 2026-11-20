@@ -50,12 +50,12 @@ export default function GamesScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const { colors, isDiwali } = useTheme();
+  const { colors, isLaunch } = useTheme();
 
   const mode: Mode =
     route.params?.mode === 'silhouette' || route.params?.mode === 'ost' ? route.params.mode : 'plot';
   const meta = MODE_META[mode];
-  const tint = isDiwali ? '#f59e0b' : meta.tint;
+  const tint = isLaunch ? '#22d3ee' : meta.tint;
 
   const [game, setGame] = useState<any>(null);
   const [guess, setGuess] = useState('');

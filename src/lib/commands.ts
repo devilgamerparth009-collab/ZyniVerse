@@ -175,12 +175,15 @@ export const COMMANDS: Command[] = [
   { id: "best-anime-sites", label: "Best Anime Sites", path: "/best-anime-sites", group: "Reference", keywords: "alternatives directory", emoji: "🔗" },
   { id: "alternatives", label: "Alternatives", path: "/alternatives", group: "Reference", keywords: "other sites similar", emoji: "↔️" },
   { id: "docs", label: "Docs", path: "/docs", group: "Reference", keywords: "documentation help api", emoji: "📘" },
-  { id: "changelog", label: "Changelog", path: "/docs/changelog", group: "Reference", keywords: "updates release notes history", emoji: "🧾" },
+  { id: "changelog", label: "API Changelog", path: "/docs/changelog", group: "Reference", keywords: "updates release notes history api", emoji: "🧾" },
+  { id: "release-notes", label: "Release Notes", path: "/changelog", group: "Reference", keywords: "app updates changelog version history android", emoji: "🗒️" },
+  { id: "mature-hub", label: "18+ Metadata Hub", path: "/mature", group: "Reference", keywords: "adult mature age gate content warning", emoji: "🔞" },
 
   // ── Tools ──────────────────────────────────────────────────────────────────
   { id: "compare", label: "Compare Users", path: "/compare", group: "Tools", keywords: "diff versus match stats", emoji: "⚖️" },
   { id: "compare-anime", label: "Compare Anime", path: "/compare-anime", group: "Tools", keywords: "diff two anime side by side", emoji: "⚖️" },
   { id: "binge-calculator", label: "Binge Calculator", path: "/tools/binge-calculator", group: "Tools", keywords: "how long watch time", emoji: "⏱️" },
+  { id: "anime-dice", label: "Anime Dice Roller", path: "/tools/anime-dice", group: "Tools", keywords: "random picker what should i watch roulette decision", emoji: "🎲" },
   { id: "filler-time", label: "Filler Time", path: "/tools/filler-time", group: "Tools", keywords: "skip filler worth it", emoji: "⏭️" },
   { id: "watch-stats", label: "Watch Stats", path: "/tools/watch-stats", group: "Tools", keywords: "time watched analysis", emoji: "📊" },
   { id: "filler", label: "Filler Finder", path: "/filler", group: "Tools", keywords: "skip episodes guide", emoji: "✂️" },

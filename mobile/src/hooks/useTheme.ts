@@ -1,8 +1,8 @@
 import { useAppTheme, ThemeMode } from '../theme/ThemeContext';
-import { getThemeName, isDiwaliWindow } from '../utils/themeUtils';
+import { getThemeName, isLaunchWindow } from '../utils/themeUtils';
 
 export function useTheme() {
-  const { theme, colors, mode, setTheme, navTheme, isDiwali, isChristmas } = useAppTheme();
+  const { theme, colors, mode, setTheme, navTheme, isLaunch, isChristmas } = useAppTheme();
 
   const selectTheme = (key: ThemeMode) => setTheme(key);
 
@@ -13,9 +13,9 @@ export function useTheme() {
     selectedThemeKey: mode,
     selectTheme,
     getThemeName,
-    isDiwali,
+    isLaunch,
     isChristmas,
-    /** Diwali skin active inside its own November window (drives the firework overlay). */
-    isDiwaliSeason: isDiwali && isDiwaliWindow(),
+    /** Aurora Launch skin active inside its own November window (drives the glow overlay). */
+    isLaunchSeason: isLaunch && isLaunchWindow(),
   };
 }

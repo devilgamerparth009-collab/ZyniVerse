@@ -205,9 +205,9 @@ function Halftone({ opacity, color }: { opacity: Animated.Value; color: string }
 
 export default function SplashScreen() {
   const navigation = useNavigation<any>();
-  const { colors, isDiwali, isChristmas } = useTheme();
-  const accent = isDiwali ? '#f59e0b' : isChristmas ? '#7dd3fc' : '#00ffe0';
-  const accentAlt = isDiwali ? '#ea580c' : isChristmas ? '#f472b6' : '#ff00e6';
+  const { colors, isLaunch, isChristmas } = useTheme();
+  const accent = isLaunch ? '#22d3ee' : isChristmas ? '#7dd3fc' : '#00ffe0';
+  const accentAlt = isLaunch ? '#8b5cf6' : isChristmas ? '#f472b6' : '#ff00e6';
 
   const exitOpacity = useRef(new Animated.Value(1)).current;
   const exitScale = useRef(new Animated.Value(1)).current;

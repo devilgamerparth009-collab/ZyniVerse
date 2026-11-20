@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   RefreshControl,
-  Linking,
   Alert,
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -16,6 +15,7 @@ import { useTheme } from '../hooks/useTheme';
 import { api, getCurrentUser } from '../services/api';
 import { NotificationItem } from '../types';
 import { timeAgo } from '../utils/helpers';
+import { openSafeWebUrl } from '../utils/safeLinks';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorView from '../components/ErrorView';
 import FadeInView from '../components/FadeInView';
@@ -97,10 +97,10 @@ export default function NotificationsScreen() {
       navigation.navigate('ThreadDetail', { id: threadMatch[1] });
       return;
     }
-    if (link.startsWith('http')) {
-      Linking.openURL(link).catch(() => {});
-    } else if (link) {
-      Linking.openURL(`https://zyverse.in${link.startsWith('/') ? '' : '/'}${link}`).catch(() => {});
+    if (link) {
+      // Absolute third-party notification links are reduced to a safe local
+      // page instead of opening another website.
+      openSafeWebUrl(link, '/notifications');
     }
   };
 

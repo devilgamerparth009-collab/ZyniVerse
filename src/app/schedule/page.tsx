@@ -43,7 +43,8 @@ export const metadata: Metadata = {
 // Kept at 15 minutes on purpose: an earlier 7-day window meant a single AniList
 // rate-limit response was baked into the page for a whole week. 15 min is still
 // cheap (96 renders/day) and lets a recovered upstream heal the page quickly.
-export const revalidate = 900;
+// 30 minutes: balance schedule freshness with ISR/function pressure.
+export const revalidate = 1800;
 
 /** Schedule-specific structured data so the board can win rich results. */
 function buildScheduleJsonLd(schedule: AiringScheduleEntry[]) {

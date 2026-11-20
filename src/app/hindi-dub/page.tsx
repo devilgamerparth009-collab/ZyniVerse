@@ -4,7 +4,8 @@ import { getDubCatalog, getDubGenreStats, getDubLanguages, getDubSchedule, getDu
 import { DubTitleGrid } from "@/components/hindi-dub/DubTitleCard";
 import NativeBannerAd from "@/components/NativeBannerAd";
 
-export const revalidate = 1800;
+// 1 hour: catalogue changes are not minute-to-minute; lowers ISR churn.
+export const revalidate = 3600;
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "https://zyverse.in";
 

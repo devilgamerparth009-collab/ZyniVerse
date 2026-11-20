@@ -16,6 +16,12 @@ const eslintConfig = defineConfig([
     "load-test*.js",
   ]),
   {
+    files: ["**/*.cjs"],
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
+    },
+  },
+  {
     rules: {
       "@typescript-eslint/no-explicit-any": "warn",
       "@typescript-eslint/no-unused-vars": [

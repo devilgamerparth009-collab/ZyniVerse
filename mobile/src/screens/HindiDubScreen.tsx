@@ -9,7 +9,6 @@ import {
   RefreshControl,
   ActivityIndicator,
   ScrollView,
-  Linking,
   useWindowDimensions,
   Animated,
   Easing,
@@ -26,6 +25,7 @@ import AnimatedTabBar, { type AnimatedTabItem } from '../components/AnimatedTabB
 import { SkeletonBlock } from '../components/Skeletons';
 import { useTheme } from '../hooks/useTheme';
 import { colors, themed, spacing, fontSize, borderRadius } from '../theme';
+import { openSafeWebUrl } from '../utils/safeLinks';
 
 const LANG_TINT: Record<string, string> = {
   Hindi: '#ff9933',
@@ -82,9 +82,9 @@ function languageTint(language: string): string {
   return LANG_TINT[language] ?? '#8b5cf6';
 }
 
-function openExternal(url?: string | null) {
-  if (!url) return;
-  Linking.openURL(url).catch(() => {});
+function openDubSource(url?: string | null) {
+  // Open trusted official platform links directly; keep unknown/external sites on ZyniVerse pages.
+  openSafeWebUrl(url, '/hindi-dub');
 }
 
 /* ------------------------------------------------------------------ */
@@ -399,7 +399,7 @@ function CatalogTab({
       keyExtractor={(item) => item.id}
       numColumns={3}
       renderItem={({ item, index }) => (
-        <CatalogCard item={item} width={cardWidth} index={index} onPress={() => openExternal(item.sourceUrl)} />
+        <CatalogCard item={item} width={cardWidth} index={index} onPress={() => openDubSource(item.sourceUrl)} />
       )}
       ListHeaderComponent={
         <>
@@ -497,7 +497,7 @@ function AiringRow({
     <FadeInView delay={Math.min(index, 10) * 40} offset={8}>
       <PressableScale
         scaleTo={0.99}
-        onPress={() => openExternal(item.sourceUrl)}
+        onPress={() => openDubSource(item.sourceUrl)}
         accessibilityLabel={item.title}
         style={styles.airingCard}
       >
@@ -596,13 +596,25 @@ function ScheduleTab({ tint, header }: { tint: string; header?: ReactNode }) {
       setError(null);
       const data = await api.dub.weeklySchedule();
       const tonight = todayLabel();
+      const todayIdx = DAY_NAMES.indexOf(tonight);
       const groups = (data?.groups || [])
         .filter((group) => group.items.length > 0)
         .filter((group) => view !== 'tonight' || group.day === tonight || group.day === 'Daily')
         .map((group) => ({ title: group.day, data: group.items }));
-      if (view === 'week' && data?.unscheduled?.length) {
-        groups.push({ title: 'Unscheduled', data: data.unscheduled });
+
+      if (view === 'week') {
+        groups.sort((a, b) => {
+          const ai = DAY_NAMES.indexOf(a.title);
+          const bi = DAY_NAMES.indexOf(b.title);
+          const aOffset = ai < 0 ? (a.title === 'Daily' ? -1 : 99) : (ai - todayIdx + 7) % 7;
+          const bOffset = bi < 0 ? (b.title === 'Daily' ? -1 : 99) : (bi - todayIdx + 7) % 7;
+          return aOffset - bOffset;
+        });
+        if (data?.unscheduled?.length) {
+          groups.push({ title: 'Unscheduled', data: data.unscheduled });
+        }
       }
+
       setSections(groups);
       setCount(groups.reduce((sum, group) => sum + group.data.length, 0));
     } catch (e: any) {
@@ -894,8 +906,8 @@ function GenresTab({
 export default function HindiDubScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const { isDiwali, isChristmas } = useTheme();
-  const tint = isDiwali ? '#f59e0b' : isChristmas ? '#7dd3fc' : colors.primary;
+  const { isLaunch, isChristmas } = useTheme();
+  const tint = isLaunch ? '#22d3ee' : isChristmas ? '#7dd3fc' : colors.primary;
 
   const requestedTab = route.params?.tab as TabKey | undefined;
   const initialTab = requestedTab && TABS.some((item) => item.key === requestedTab) ? requestedTab : 'all';

@@ -130,8 +130,8 @@ function Section({
 export default function DubbedScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
-  const { colors, isDiwali } = useTheme();
-  const primaryAccent = isDiwali ? '#f59e0b' : colors.primary;
+  const { colors, isLaunch } = useTheme();
+  const primaryAccent = isLaunch ? '#22d3ee' : colors.primary;
 
   const [language, setLanguage] = useState<DubScheduleLanguage>('hindi');
   const [response, setResponse] = useState<DubScheduleResponse | null>(null);

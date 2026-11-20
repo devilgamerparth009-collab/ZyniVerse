@@ -5,7 +5,7 @@ import DoujinshiBrowseClient from "./client";
 const SITE = "https://zyverse.in";
 
 export const metadata: Metadata = {
-  title: "Doujinshi — Fan Works & Original Creations",
+  title: "Doujinshi (18+) — Fan Works & Original Creations",
   description:
     "Discover and track doujinshi. Browse fan works, original creations, and community favorites from MangaDex — updated daily on ZyniVerse.",
   keywords: [
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   ],
   openGraph: {
     images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "ZyniVerse — anime filler guides, watch orders and dub tracking" }],
-    title: "Doujinshi — Fan Works & Original Creations",
+    title: "Doujinshi (18+) — Fan Works & Original Creations",
     description:
       "Browse fan-made doujinshi, original creations and community favorites from MangaDex. Track what you love.",
     url: `${SITE}/doujinshi`,
@@ -29,20 +29,19 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     site: "@GuptaParth2857",
-    title: "Doujinshi — Fan Works & Original Creations",
+    title: "Doujinshi (18+) — Fan Works & Original Creations",
     description:
       "Browse fan-made doujinshi, original creations and community favorites from MangaDex.",
   },
   alternates: {
     canonical: "/doujinshi",
   },
-  robots: { index: true, follow: true },
 };
 
 const jsonLd = {
   "@context": "https://schema.org",
   "@type": "CollectionPage",
-  name: "Doujinshi — Fan Works & Original Creations",
+  name: "Doujinshi (18+) — Fan Works & Original Creations",
   url: `${SITE}/doujinshi`,
   description:
     "Browse and track doujinshi — fan works, original creations and community favorites from MangaDex.",

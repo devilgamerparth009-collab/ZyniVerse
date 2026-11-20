@@ -28,8 +28,8 @@ type GuideState =
 export default function FillerGuideScreen() {
   const route = useRoute<any>();
   const { id, title: animeTitle, image, malId: routeMalId, aliases: routeAliases } = route.params || {};
-  const { colors, isDiwali } = useTheme();
-  const primaryAccent = isDiwali ? '#f59e0b' : colors.primary;
+  const { colors, isLaunch } = useTheme();
+  const primaryAccent = isLaunch ? '#22d3ee' : colors.primary;
 
   const fillerId = Number(id);
   const hasTitle = typeof animeTitle === 'string' && animeTitle.trim().length > 0;

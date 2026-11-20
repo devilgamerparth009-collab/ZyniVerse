@@ -114,8 +114,8 @@ interface ReelComment {
 export default function ReelsScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
-  const { colors, isDiwali } = useTheme();
-  const tint = isDiwali ? '#f59e0b' : colors.primary;
+  const { colors, isLaunch } = useTheme();
+  const tint = isLaunch ? '#22d3ee' : colors.primary;
   const { height: windowH } = useWindowDimensions();
   const [measuredHeight, setMeasuredHeight] = useState<number>(0);
   const containerHeight = measuredHeight > 0 ? measuredHeight : windowH;

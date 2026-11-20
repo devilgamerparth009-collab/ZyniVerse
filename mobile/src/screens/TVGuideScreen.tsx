@@ -30,7 +30,20 @@ function getTodayDayName() {
   return TV_DAYS[new Date().getDay()];
 }
 
-/** Calendar date for a weekday inside the current 7-day window. */
+function rotateDaysFromToday(dayNames: string[]): string[] {
+  const unique = Array.from(new Set(dayNames.filter((d) => TV_DAYS.includes(d))));
+  const today = getTodayDayName();
+  const idx = unique.indexOf(today);
+  if (idx <= 0) return unique.length ? unique : [...TV_DAYS.slice(TV_DAYS.indexOf(today)), ...TV_DAYS.slice(0, TV_DAYS.indexOf(today))];
+  return [...unique.slice(idx), ...unique.slice(0, idx)];
+}
+
+function weekDaysFromToday(): string[] {
+  const todayIdx = TV_DAYS.indexOf(getTodayDayName());
+  return Array.from({ length: 7 }, (_, i) => TV_DAYS[(todayIdx + i) % 7]);
+}
+
+/** Calendar date for a weekday inside the current 7-day window starting today. */
 function dateForDay(dayName: string): Date {
   const todayIdx = new Date().getDay();
   const idx = TV_DAYS.indexOf(dayName);
@@ -236,11 +249,11 @@ function ChannelBadge({
 
 export default function TVGuideScreen() {
   const insets = useSafeAreaInsets();
-  const { colors, isDiwali, isChristmas } = useTheme();
-  const tint = isDiwali ? '#f59e0b' : isChristmas ? '#7dd3fc' : colors.primary;
+  const { colors, isLaunch, isChristmas } = useTheme();
+  const tint = isLaunch ? '#22d3ee' : isChristmas ? '#7dd3fc' : colors.primary;
 
   const [channels, setChannels] = useState<TvChannelEntry[]>([]);
-  const [days, setDays] = useState<string[]>(TV_DAYS);
+  const [days, setDays] = useState<string[]>(weekDaysFromToday());
   const [day, setDay] = useState<string>(getTodayDayName());
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -265,7 +278,7 @@ export default function TVGuideScreen() {
       const base = await api.fun.tvSchedule(selectedDay);
       if (base?.channels?.length) {
         setChannels(base.channels);
-        if (base.availableDays?.length) setDays(base.availableDays);
+        if (base.availableDays?.length) setDays(rotateDaysFromToday(base.availableDays));
         if (base.day) setDay(base.day);
         setUpdatedAt(base.updatedAt || null);
         applyOffline(base);
@@ -289,7 +302,7 @@ export default function TVGuideScreen() {
       const cached = await api.fun.tvSchedulePeek();
       if (cancelled || !cached?.channels?.length) return;
       setChannels(cached.channels);
-      if (cached.availableDays?.length) setDays(cached.availableDays);
+      if (cached.availableDays?.length) setDays(rotateDaysFromToday(cached.availableDays));
       if (cached.day) setDay(cached.day);
       setUpdatedAt(cached.updatedAt || null);
       applyOffline(cached);

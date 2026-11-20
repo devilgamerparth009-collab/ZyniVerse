@@ -887,6 +887,18 @@ export interface LiveDubsResponse {
   sources: LiveDubSource[];
 }
 
+export interface HotEpisodeRow {
+  mediaId: number;
+  episode: number;
+  reactionCount: number;
+}
+
+export interface HotEpisodesResponse {
+  hot: HotEpisodeRow[];
+  titles: Record<string, { title: string; coverImage: string }>;
+  since: string;
+}
+
 export interface DubCatalogTitle {
   id: string;
   source: string;

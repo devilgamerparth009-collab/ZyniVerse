@@ -7,7 +7,6 @@ import {
   RefreshControl,
   TouchableOpacity,
   Image,
-  Linking,
   ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,6 +19,7 @@ import PressableScale from '../components/PressableScale';
 import ErrorView from '../components/ErrorView';
 import { spacing, fontSize, borderRadius } from '../theme';
 import { timeAgo, truncate } from '../utils/helpers';
+import { openSafeWebUrl } from '../utils/safeLinks';
 
 const FILTERS: { key: string; label: string }[] = [
   { key: 'all', label: 'Everything' },
@@ -31,8 +31,8 @@ const FILTERS: { key: string; label: string }[] = [
 
 export default function NewsScreen() {
   const insets = useSafeAreaInsets();
-  const { colors, isDiwali } = useTheme();
-  const tint = isDiwali ? '#f59e0b' : colors.primary;
+  const { colors, isLaunch } = useTheme();
+  const tint = isLaunch ? '#22d3ee' : colors.primary;
 
   const [filter, setFilter] = useState('all');
   const [items, setItems] = useState<NewsItem[]>([]);
@@ -66,9 +66,8 @@ export default function NewsScreen() {
     load(filter);
   };
 
-  const open = (url: string) => {
-    if (!url) return;
-    Linking.openURL(url).catch(() => {});
+  const open = (item: NewsItem) => {
+    openSafeWebUrl(item.id ? `/news/${encodeURIComponent(item.id)}` : '/news', '/news');
   };
 
   const hero = items[0];
@@ -133,7 +132,7 @@ export default function NewsScreen() {
             {/* Hero story */}
             {hero && (
               <FadeInView delay={20}>
-                <PressableScale onPress={() => open(hero.url)}>
+                <PressableScale onPress={() => open(hero)}>
                   <View style={[styles.heroCard, { borderColor: colors.border }]}>
                     {hero.image ? (
                       <Image source={{ uri: hero.image }} style={styles.heroImage} resizeMode="cover" />
@@ -166,7 +165,7 @@ export default function NewsScreen() {
             {/* Rest */}
             {rest.map((n, i) => (
               <FadeInView key={n.id || `${i}`} delay={60 + Math.min(i * 40, 400)} offset={10}>
-                <PressableScale onPress={() => open(n.url)}>
+                <PressableScale onPress={() => open(n)}>
                   <View style={[styles.row, { borderBottomColor: colors.border }]}>
                     {n.image ? (
                       <Image source={{ uri: n.image }} style={styles.thumb} />

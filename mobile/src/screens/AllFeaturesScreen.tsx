@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   ScrollView,
   StyleSheet,
-  Linking,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,8 +16,7 @@ import PressableScale from '../components/PressableScale';
 import { useTheme } from '../hooks/useTheme';
 import { getCurrentUser } from '../services/api';
 import { colors, spacing, fontSize, borderRadius, themed } from '../theme';
-
-const WEB_HOST = 'https://zyverse.in';
+import { openSafeWebUrl } from '../utils/safeLinks';
 
 type Feature = {
   label: string;
@@ -68,6 +66,7 @@ const SECTIONS: Section[] = [
       { label: 'Top rated', emoji: '🏆', screen: 'Browse', params: { mode: 'top-rated' } },
       { label: 'Seasonal', emoji: '🌸', screen: 'Browse', params: { mode: 'seasonal' } },
       { label: 'Upcoming', emoji: '⏳', screen: 'Browse', params: { mode: 'upcoming' } },
+      { label: 'Episode pulse', emoji: '🔥', screen: 'EpisodePulse' },
       { label: 'A–Z alphabetical', emoji: '🔤', path: '/a-z' },
       { label: 'Genres', emoji: '🎭', path: '/genres' },
       { label: 'Tags', emoji: '🏷️', path: '/tags' },
@@ -256,8 +255,8 @@ const FEATURED_ITEMS = [
 const TAB_SCREENS = new Set(['Profile', 'Forum', 'Tournaments']);
 
 function CatalogHero() {
-  const { colors: active, isDiwali } = useTheme();
-  const tint = isDiwali ? active.warning : active.primary;
+  const { colors: active, isLaunch } = useTheme();
+  const tint = active.primary;
   const stats = [
     { value: FEATURE_COUNT, label: 'Features' },
     { value: CATEGORY_COUNT, label: 'Categories' },
@@ -274,7 +273,7 @@ function CatalogHero() {
             style={[styles.heroBadge, { backgroundColor: `${tint}1f`, borderColor: `${tint}66` }]}
           >
             <Text style={[styles.heroBadgeText, { color: tint }]}>
-              {isDiwali ? '🪔 FESTIVE EDITION' : '✦ ALL IN ONE PLACE'}
+              {isLaunch ? '✦ LAUNCH EDITION' : '✦ ALL IN ONE PLACE'}
             </Text>
           </View>
         </View>
@@ -367,8 +366,8 @@ function EmptyState({ query, onClear }: { query: string; onClear: () => void }) 
 export default function AllFeaturesScreen() {
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
-  const { colors: active, isDiwali } = useTheme();
-  const tint = isDiwali ? active.warning : active.primary;
+  const { colors: active, isLaunch } = useTheme();
+  const tint = active.primary;
   const [query, setQuery] = useState('');
   const listRef = useRef<SectionList<Feature, Section>>(null);
 
@@ -417,7 +416,7 @@ export default function AllFeaturesScreen() {
       return;
     }
     if (item.path) {
-      Linking.openURL(`${WEB_HOST}${item.path}`).catch(() => {});
+      openSafeWebUrl(item.path, '/');
     }
   };
 

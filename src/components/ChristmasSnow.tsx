@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 
 /** 1–25 December, inclusive, in the visitor's local time. */
 export function isChristmasWindow(date = new Date()): boolean {
@@ -19,6 +19,12 @@ type Flake = {
 
 const GLYPHS = ["❄", "❅", "❆", "•"];
 
+/** Deterministic pseudo-random value in [0, 1) for a flake index and field. */
+function seeded(index: number, salt: number): number {
+  const value = Math.sin(index * 127.1 + salt * 311.7) * 43758.5453;
+  return value - Math.floor(value);
+}
+
 /**
  * Sitewide snowfall for the Christmas window.
  *
@@ -27,18 +33,23 @@ const GLYPHS = ["❄", "❅", "❆", "•"];
  * Mounted after hydration so the server and client always agree on the date.
  */
 export default function ChristmasSnow({ count = 18 }: { count?: number }) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  // Hydration-safe mount flag: server renders false, client flips to true
+  // after hydration without a cascading state update in an effect.
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
 
   const flakes = useMemo<Flake[]>(
     () =>
       Array.from({ length: count }, (_, i) => ({
-        left: Math.random() * 100,
-        size: 7 + Math.random() * 11,
-        delay: Math.random() * 12,
-        duration: 11 + Math.random() * 14,
-        drift: -20 + Math.random() * 40,
-        opacity: 0.25 + Math.random() * 0.45,
+        left: seeded(i, 1) * 100,
+        size: 7 + seeded(i, 2) * 11,
+        delay: seeded(i, 3) * 12,
+        duration: 11 + seeded(i, 4) * 14,
+        drift: -20 + seeded(i, 5) * 40,
+        opacity: 0.25 + seeded(i, 6) * 0.45,
         glyph: GLYPHS[i % GLYPHS.length],
       })),
     [count]

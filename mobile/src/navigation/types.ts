@@ -70,7 +70,9 @@ export type RootStackParamList = {
   Feed: undefined;
   Hub: { kind: string; title?: string };
   AllFeatures: undefined;
-  Web: { title?: string; path?: string; url?: string; auth?: boolean };
+  EpisodePulse: undefined;
+  /** WebView is locked to zyverse.in; pass a path, never a third-party URL. */
+  Web: { title?: string; path?: string; auth?: boolean };
 };
 
 export type TabParamList = {

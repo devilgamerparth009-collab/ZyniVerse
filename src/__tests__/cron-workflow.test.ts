@@ -30,8 +30,8 @@ const mapping = new Map(
 );
 
 describe("cron workflow routing", () => {
-  it("declares the eight expected schedules", () => {
-    expect(schedules).toHaveLength(8);
+  it("declares the nine expected schedules", () => {
+    expect(schedules).toHaveLength(9);
     expect(schedules).toEqual([
       "0 9 * * *",
       "0 3 * * 0",
@@ -41,6 +41,7 @@ describe("cron workflow routing", () => {
       "0 2 1 * *",
       "0 4 1 * *",
       "0 6 1 * *",
+      "30 20 * * *",
     ]);
   });
 
@@ -59,6 +60,7 @@ describe("cron workflow routing", () => {
     expect(mapping.get("0 2 1 * *")).toBe("refresh-awards");
     expect(mapping.get("0 4 1 * *")).toBe("refresh-posters");
     expect(mapping.get("0 6 1 * *")).toBe("analytics");
+    expect(mapping.get("30 20 * * *")).toBe("dub-sync");
   });
 
   it("routes on github.event.schedule, not on the wall-clock hour", () => {

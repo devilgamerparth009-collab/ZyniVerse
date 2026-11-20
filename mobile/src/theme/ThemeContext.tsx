@@ -2,19 +2,19 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   DEFAULT_THEME,
-  DIWALI_THEME,
+  LAUNCH_THEME,
   CHRISTMAS_THEME,
   NIGHT_THEME,
   LIGHT_THEME,
   ThemeConfig,
   isChristmasWindow,
-  isDiwaliWindow,
+  isLaunchWindow,
   storeTheme,
 } from '../utils/themeUtils';
 import { colors } from './index';
 import { bumpThemeVersion } from './index';
 
-export type ThemeMode = 'default' | 'diwali' | 'christmas' | 'night' | 'light';
+export type ThemeMode = 'default' | 'launch' | 'christmas' | 'night' | 'light';
 
 export interface ThemeColors {
   background: string;
@@ -51,7 +51,7 @@ interface ThemeContextValue {
   theme: ThemeConfig;
   colors: ThemeColors;
   setTheme: (mode: ThemeMode) => Promise<void>;
-  isDiwali: boolean;
+  isLaunch: boolean;
   isChristmas: boolean;
   navTheme: {
     dark: boolean;
@@ -79,22 +79,22 @@ const THEME_MODE_KEY = 'zt_theme_mode';
 
 /**
  * Seasonal defaults for people who have never picked a theme:
- *  - November   → Diwali
+ *  - November   → Aurora Launch
  *  - 1–25 Dec   → Christmas
  * Outside those windows the signature Cyberpunk Dark theme is used, so the
- * festival skin is purely additive and expires on its own.
+ * launch skin is purely additive and expires on its own.
  */
 function seasonalModeForToday(): ThemeMode | null {
   const now = new Date();
   if (isChristmasWindow(now)) return 'christmas';
-  if (isDiwaliWindow(now)) return 'diwali';
+  if (isLaunchWindow(now)) return 'launch';
   return null;
 }
 
 function isThemeMode(value: string | null): value is ThemeMode {
   return (
     value === 'default' ||
-    value === 'diwali' ||
+    value === 'launch' ||
     value === 'christmas' ||
     value === 'night' ||
     value === 'light'
@@ -103,21 +103,21 @@ function isThemeMode(value: string | null): value is ThemeMode {
 
 function resolveColors(t: ThemeConfig, mode: ThemeMode): ThemeColors {
   const isLight = mode === 'light';
-  const isDiwali = mode === 'diwali';
+  const isLaunch = mode === 'launch';
   const isChristmas = mode === 'christmas';
   return {
     background: t.background,
     surface: t.surface,
     surfaceLight: isLight
       ? '#f1f5f9'
-      : isDiwali
-        ? '#261c12'
+      : isLaunch
+        ? '#152541'
         : isChristmas
           ? '#16233a'
           : '#181b2e',
     primary: t.primary,
-    primaryDark: isDiwali
-      ? '#b45309'
+    primaryDark: isLaunch
+      ? '#0e7490'
       : isChristmas
         ? '#38bdf8'
         : isLight
@@ -125,15 +125,15 @@ function resolveColors(t: ThemeConfig, mode: ThemeMode): ThemeColors {
           : '#00cbb2',
     secondary:
       t.secondary ||
-      (isDiwali ? '#ea580c' : isChristmas ? '#f472b6' : isLight ? '#06b6d4' : '#7000ff'),
+      (isLaunch ? '#8b5cf6' : isChristmas ? '#f472b6' : isLight ? '#06b6d4' : '#7000ff'),
     accent:
-      t.accent || (isDiwali ? '#fbbf24' : isChristmas ? '#f8fafc' : isLight ? '#ec4899' : '#ff00e6'),
+      t.accent || (isLaunch ? '#f0abfc' : isChristmas ? '#f8fafc' : isLight ? '#ec4899' : '#ff00e6'),
     text: t.text,
     textMuted: t.textMuted,
     textDim: isLight
       ? '#94a3b8'
-      : isDiwali
-        ? '#92400e'
+      : isLaunch
+        ? '#7dd3fc'
         : isChristmas
           ? '#6b8cae'
           : '#64748b',
@@ -164,8 +164,8 @@ function syncGlobalColors(active: ThemeColors) {
 
 function themeForMode(mode: ThemeMode): ThemeConfig {
   switch (mode) {
-    case 'diwali':
-      return DIWALI_THEME;
+    case 'launch':
+      return LAUNCH_THEME;
     case 'christmas':
       return CHRISTMAS_THEME;
     case 'night':
@@ -179,7 +179,7 @@ function themeForMode(mode: ThemeMode): ThemeConfig {
 
 /** Per-mode storage key for the cached palette (default needs no cache). */
 const THEME_CONFIG_KEY: Record<Exclude<ThemeMode, 'default'>, string> = {
-  diwali: 'zt_theme_config_diwali',
+  launch: 'zt_theme_config_launch',
   christmas: 'zt_theme_config_christmas',
   night: 'zt_theme_config_night',
   light: 'zt_theme_config_light',
@@ -188,7 +188,7 @@ const THEME_CONFIG_KEY: Record<Exclude<ThemeMode, 'default'>, string> = {
 /** A seasonal skin is only valid inside its own window. */
 function isSeasonalModeActive(mode: ThemeMode, date = new Date()): boolean {
   if (mode === 'christmas') return isChristmasWindow(date);
-  if (mode === 'diwali') return isDiwaliWindow(date);
+  if (mode === 'launch') return isLaunchWindow(date);
   return true;
 }
 
@@ -207,6 +207,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     async function initTheme() {
       try {
+        // Remove the retired festival skin's cached palette from older installs.
+        await AsyncStorage.removeItem('zt_theme_config_diwali');
         const saved = await AsyncStorage.getItem(THEME_MODE_KEY);
 
         let selectedMode: ThemeMode | null = isThemeMode(saved) ? saved : null;
@@ -226,12 +228,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     initTheme();
   }, [applyMode]);
 
-  // The Christmas skin reverts to the normal ZyniVerse theme on its own once
-  // 25 December is over, even if the app stays open for days.
+  // Seasonal skins revert to the normal ZyniVerse theme on their own once
+  // their window is over, even if the app stays open for days.
   useEffect(() => {
     const tick = () => {
       const active = modeRef.current;
-      if (active !== 'christmas' && active !== 'diwali') return;
+      if (active !== 'christmas' && active !== 'launch') return;
       if (isSeasonalModeActive(active)) return;
       applyMode('default');
       AsyncStorage.setItem(THEME_MODE_KEY, 'default').catch(() => {});
@@ -285,7 +287,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         theme: currentTheme,
         colors: activeColors,
         setTheme,
-        isDiwali: mode === 'diwali',
+        isLaunch: mode === 'launch',
         isChristmas: mode === 'christmas',
         navTheme,
       }}
@@ -304,7 +306,7 @@ export function useAppTheme() {
       theme: DEFAULT_THEME,
       colors: fallback,
       setTheme: async () => {},
-      isDiwali: false,
+      isLaunch: false,
       isChristmas: false,
       navTheme: {
         dark: true,

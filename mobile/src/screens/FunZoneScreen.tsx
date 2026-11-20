@@ -10,7 +10,6 @@ import {
   TouchableOpacity,
   Animated,
   Dimensions,
-  Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -28,6 +27,7 @@ import PressableScale from '../components/PressableScale';
 import AdBanner from '../components/AdBanner';
 import { spacing, fontSize, borderRadius } from '../theme';
 import { timeAgo } from '../utils/helpers';
+import { openSafeWebUrl } from '../utils/safeLinks';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const FEATURE_CARD_WIDTH = (SCREEN_WIDTH - spacing.md * 2 - spacing.sm) / 2;
@@ -124,6 +124,7 @@ const WEB_GROUPS: WebGroup[] = [
       { key: 'top', label: 'Top Anime', emoji: '🔝', path: '/top-anime', tint: '#f97316', nativeRoute: 'Browse', nativeParams: { mode: 'top-rated', title: 'Top Anime' } },
       { key: 'seasonal', label: 'Seasonal Now', emoji: '🌸', path: '/seasonal', tint: '#22d3ee', nativeRoute: 'Browse', nativeParams: { mode: 'seasonal', title: 'This Season' } },
       { key: 'calendar', label: 'Anime Calendar', emoji: '🗓️', path: '/calendar', tint: '#3b82f6', nativeRoute: 'Schedule' },
+      { key: 'pulse', label: 'Episode Pulse', emoji: '🔥', path: '/episode-pulse', tint: '#f97316', nativeRoute: 'EpisodePulse' },
       { key: 'watchorder', label: 'Watch Order', emoji: '🧭', path: '/watch-order', tint: '#10b981' },
       { key: 'watchlist', label: 'Watchlist', emoji: '📌', path: '/watchlist', tint: '#f43f5e', auth: true, nativeRoute: 'Hub', nativeParams: { kind: 'watchlist', title: 'Watchlist' } },
       { key: 'tracker', label: 'Season Tracker', emoji: '📊', path: '/seasonal-tracker', tint: '#a855f7' },
@@ -175,8 +176,8 @@ function LivePulse({ color }: { color: string }) {
 export default function FunZoneScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
-  const { colors, isDiwali, isChristmas } = useTheme();
-  const tint = isDiwali ? '#f59e0b' : isChristmas ? '#7dd3fc' : colors.primary;
+  const { colors, isLaunch, isChristmas } = useTheme();
+  const tint = isLaunch ? '#22d3ee' : isChristmas ? '#7dd3fc' : colors.primary;
 
   const [aotd, setAotd] = useState<AnimeOfTheDay | null>(null);
   const [leaders, setLeaders] = useState<LeaderboardEntry[]>([]);
@@ -589,7 +590,7 @@ export default function FunZoneScreen() {
                       onPress={() =>
                         f.nativeRoute
                           ? navigation.navigate(f.nativeRoute, f.nativeParams)
-                          : Linking.openURL(`https://zyverse.in${f.path}`).catch(() => {})
+                          : openSafeWebUrl(f.path, '/')
                       }
                     >
                       <Text style={styles.webEmoji}>{f.emoji}</Text>
@@ -606,7 +607,7 @@ export default function FunZoneScreen() {
 
           <PressableScale
             style={[styles.openSiteBtn, { borderColor: tint, backgroundColor: `${tint}14` }]}
-            onPress={() => Linking.openURL('https://zyverse.in').catch(() => {})}
+            onPress={() => openSafeWebUrl('/')}
           >
             <Text style={[styles.openSiteText, { color: tint }]}>
               🌐 Open zyverse.in in your browser

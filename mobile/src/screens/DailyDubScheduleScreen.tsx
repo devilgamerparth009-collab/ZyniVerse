@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   Animated,
-  Linking,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -20,6 +20,7 @@ import PressableScale from '../components/PressableScale';
 import FadeInView from '../components/FadeInView';
 import { spacing, borderRadius } from '../theme';
 import { cleanText, timeAgo } from '../utils/helpers';
+import { openTrustedExternalUrl } from '../utils/safeLinks';
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const DAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -229,8 +230,8 @@ type DropItem = {
 export default function DailyDubScheduleScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
-  const { colors, isDiwali } = useTheme();
-  const tint = isDiwali ? '#f59e0b' : colors.primary;
+  const { colors, isLaunch } = useTheme();
+  const tint = isLaunch ? '#22d3ee' : colors.primary;
 
   const today = useMemo(istToday, []);
 
@@ -371,11 +372,10 @@ export default function DailyDubScheduleScreen() {
     return Array.from({ length: 7 }, (_, i) => DAY_NAMES[(idx + i) % 7]);
   }, [today.dayName]);
 
-  const openEntry = (entry: LiveDubEntry) => {
-    if (!entry.url) return;
-    Linking.openURL(entry.url).catch(() => {
-      navigation.navigate('Web', { title: entry.title, url: entry.url });
-    });
+  const openEntry = async (entry: LiveDubEntry) => {
+    const opened = await openTrustedExternalUrl(entry.url);
+    if (opened) return;
+    Alert.alert('Watch link', 'Is episode ka direct official link abhi available nahi hai.');
   };
 
   const onRefresh = async () => {
@@ -773,11 +773,9 @@ export default function DailyDubScheduleScreen() {
 
         <TouchableOpacity
           style={[styles.webLink, { borderColor: colors.border }]}
-          onPress={() =>
-            Linking.openURL('https://zyverse.in/hindi-dub-schedule').catch(() => {})
-          }
+          onPress={() => navigation.navigate('HindiDub', { tab: 'schedule' })}
         >
-          <Text style={[styles.webLinkText, { color: tint }]}>Open the full week on zyverse.in →</Text>
+          <Text style={[styles.webLinkText, { color: tint }]}>Open full week schedule</Text>
         </TouchableOpacity>
       </ScrollView>
     </View>

@@ -5,6 +5,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import AppNavigator from './src/navigation/AppNavigator';
+import { navigationRef } from './src/navigation/navigationRef';
 import { ThemeProvider, useAppTheme } from './src/theme/ThemeContext';
 import {
   autoPrepareUpdate,
@@ -93,7 +94,7 @@ function RootNavigator() {
 
   return (
     <View style={{ flex: 1, backgroundColor: navTheme.colors.background }}>
-      <NavigationContainer theme={navTheme as any}>
+      <NavigationContainer ref={navigationRef} theme={navTheme as any}>
         <AppNavigator />
       </NavigationContainer>
       <Animated.View

@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { getDubbedEntries } from "@/lib/editorial";
 import { withoutProviderFields } from "@/lib/dub-import/public-fields";
 import {

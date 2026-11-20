@@ -6,9 +6,9 @@
  * Everything is overridable through environment variables so a release can be
  * rolled out from Vercel without touching code:
  *
- *   MOBILE_VERSION_NAME=1.4.1
- *   MOBILE_VERSION_CODE=140100
- *   MOBILE_APK_URL=https://.../ZyniVerse-1.4.1.apk
+ *   MOBILE_VERSION_NAME=1.4.3
+ *   MOBILE_VERSION_CODE=140300
+ *   MOBILE_APK_URL=https://.../ZyniVerse-1.4.3.apk
  *   MOBILE_APK_SHA256=...
  *   MOBILE_APK_SIZE=...
  *   MOBILE_RELEASE_NOTES=One|Two|Three
@@ -30,8 +30,8 @@ export interface MobileRelease {
   minSupportedVersionCode: number;
 }
 
-const FALLBACK_VERSION_NAME = "1.4.1";
-const FALLBACK_VERSION_CODE = 140100;
+const FALLBACK_VERSION_NAME = "1.4.3";
+const FALLBACK_VERSION_CODE = 140300;
 
 /**
  * Verified metadata for builds we have actually published. Keeping it keyed by
@@ -39,6 +39,14 @@ const FALLBACK_VERSION_CODE = 140100;
  * can never make the app check a new APK against an old hash/size.
  */
 const PUBLISHED_BUILDS: Record<string, { sha256: string; sizeBytes: number }> = {
+  "1.4.3": {
+    sha256: "4d092e816df37240a2fbbb50699196dd5848aeb25419bcddd507c017998a7fb8",
+    sizeBytes: 42138561,
+  },
+  "1.4.2": {
+    sha256: "b82b0aba6f9f88d4277258cfa2df83e1c4f7b8830cba869bc105972f86b55563",
+    sizeBytes: 42131729,
+  },
   "1.4.1": {
     sha256: "9cd9f968150352a53febb250f742063d8995c5a05fe0d8881c478bca86c32b6e",
     sizeBytes: 42128273,
@@ -84,14 +92,15 @@ export const MOBILE_RELEASE: MobileRelease = {
   notes: (process.env.MOBILE_RELEASE_NOTES
     ? process.env.MOBILE_RELEASE_NOTES.split("|")
     : [
-        "Stories and Broadcast Channels are live, including the official ZyniVerse channel.",
-        "Tournament voting now works in live bracket matchups, with one vote per matchup.",
-        "Dub Hub: series, movies, full-week schedule, languages and genres in one polished place.",
-        "Live TV timings refresh automatically and show TBA when a slot has not been announced.",
-        "Faster, clearer screens with reliable image fallbacks and a working filler guide.",
+        "Removed every third-party website shortcut from the app; taps now stay on zyverse.in.",
+        "New Aurora Launch theme replaces the Diwali skin with a cool cyan/violet look.",
+        "New Episode Pulse screen: anonymous, aggregate episode reactions from the community.",
+        "Fixed the stale Install button when 1.4.1 or 1.4.2 is already installed.",
+        "APK hash, size and signer checks are unchanged: failed downloads are deleted, never installed.",
+        "Signed with the same certificate as 1.4.1 and 1.4.2, so existing installs keep their data.",
       ]
   ).map((line) => line.trim()).filter(Boolean),
   mandatory: process.env.MOBILE_RELEASE_MANDATORY === "true",
-  publishedAt: process.env.MOBILE_RELEASE_PUBLISHED_AT || "2026-11-19T00:00:00.000Z",
+  publishedAt: process.env.MOBILE_RELEASE_PUBLISHED_AT || "2026-11-20T03:43:00.000Z",
   minSupportedVersionCode: envNumber(process.env.MOBILE_MIN_SUPPORTED_VERSION_CODE) || 130000,
 };

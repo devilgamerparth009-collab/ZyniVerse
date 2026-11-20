@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 
 const CHRISTMAS_DAY = 25;
@@ -29,11 +29,16 @@ function breakdown(target: Date, now: Date) {
  * completely untouched.
  */
 export default function ChristmasCountdown() {
-  const [mounted, setMounted] = useState(false);
+  // Hydration-safe mount flag: server renders false, client flips to true
+  // after hydration without a cascading state update in an effect.
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
-    setMounted(true);
     const timer = setInterval(() => setNow(new Date()), 60_000);
     return () => clearInterval(timer);
   }, []);

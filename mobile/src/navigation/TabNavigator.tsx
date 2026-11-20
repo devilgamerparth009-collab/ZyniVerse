@@ -80,8 +80,8 @@ function AnimatedTabIcon({
 }
 
 export default function TabNavigator() {
-  const { colors, isDiwali, isChristmas } = useTheme();
-  const primaryAccent = isDiwali ? '#f59e0b' : isChristmas ? '#7dd3fc' : colors.primary;
+  const { colors, isLaunch, isChristmas } = useTheme();
+  const primaryAccent = isLaunch ? '#22d3ee' : isChristmas ? '#7dd3fc' : colors.primary;
 
   return (
     <Tab.Navigator

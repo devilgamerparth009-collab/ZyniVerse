@@ -26,6 +26,14 @@ export const metadata: Metadata = {
 
 const TOOLS = [
   {
+    emoji: "🎲",
+    title: "Anime Dice Roller",
+    description: "Can't decide what to watch? Roll a fair dice over a custom list or your watchlist and pick 1–6 titles instantly.",
+    href: "/tools/anime-dice",
+    color: "#29f2e0",
+    tag: "New",
+  },
+  {
     emoji: "⏱️",
     title: "Filler Time Calculator",
     description: "See exactly how many hours you'd save by skipping filler in any anime. Enter episode count & filler % to calculate.",
