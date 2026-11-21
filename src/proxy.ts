@@ -191,12 +191,23 @@ export function proxy(request: NextRequest, event: NextFetchEvent) {
       ? { scope: "filler-discovery", max: 180, windowMs: 60_000 }
       : { scope: "filler", max: 90, windowMs: 60_000 };
   } else if (isParameterizedCatalogPath(pathname)) {
-    // Only throttle non-discovery bots on catalog detail pages so normal users
-    // can browse freely while bulk automated scraping is slowed.
+    // Throttle catalog detail pages to prevent scrapers from causing massive ISR writes.
     if (isDiscoveryBot) {
       rate = { scope: "catalog-discovery", max: 240, windowMs: 60_000 };
     } else if (isBot) {
-      rate = { scope: "catalog-bot", max: 80, windowMs: 60_000 };
+      rate = { scope: "catalog-bot", max: 40, windowMs: 60_000 };
+    } else {
+      // Human or browser-mimicking headless scraper (Desktop/Windows UA).
+      // Strict limit on catalog mirrors (/character/, /staff/, /manga/) where
+      // rapid enumeration causes massive ISR writes and burns function limits.
+      // Real humans browsing anime never open > 20 character/staff pages in 60s.
+      const isMirrorRoute =
+        pathname.startsWith("/character/") ||
+        pathname.startsWith("/staff/") ||
+        pathname.startsWith("/manga/");
+      rate = isMirrorRoute
+        ? { scope: "catalog-mirror", max: 20, windowMs: 60_000 }
+        : { scope: "catalog-human", max: 60, windowMs: 60_000 };
     }
   }
 

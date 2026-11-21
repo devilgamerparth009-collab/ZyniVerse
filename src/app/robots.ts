@@ -56,7 +56,7 @@ const PRIVATE_PATHS = [
 // hub that links to the guides) and every URL that appears in `sitemap.ts`.
 // Revert this list if the character/manga mirrors ever start earning organic
 // sessions — the disallow is a quota decision, not a content decision.
-const LOW_VALUE_CATALOG = ["/character/", "/manga/"];
+const LOW_VALUE_CATALOG = ["/character/", "/manga/", "/staff/"];
 
 // AI *search / answer* crawlers: they surface the site in AI answers with a
 // citation and send real users (ChatGPT search, Perplexity answers, Meta AI

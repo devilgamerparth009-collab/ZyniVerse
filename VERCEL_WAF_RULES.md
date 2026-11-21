@@ -21,9 +21,10 @@ move left the new project's firewall empty — see the log below).
 | --- | --- | --- | --- | --- |
 | 2026-10-21 | `prj_…` (`zyni-verse`) | `gupta-s1` | rules present | verified |
 | 2026-11-08 | `prj_i3W7HWYALqUhXFsS1JrSIPvq2ebS` | `team_QWT6SydfR4belanmvV5JDmRY` | **empty (`0/3`)** | 3 rules re-inserted + published |
+| 2026-11-21 | `prj_cfJirhCN394bhOP2lZYqnp1qXN1Y` | `gupta-s1` (`team_XcshII3m8pYPRn5kN9WYCqaI`) | active (updated) | 3 rules updated + published |
 
-**Current production target:** project `prj_i3W7HWYALqUhXFsS1JrSIPvq2ebS`,
-team `team_QWT6SydfR4belanmvV5JDmRY`. If the project is ever moved again,
+**Current production target:** project `prj_cfJirhCN394bhOP2lZYqnp1qXN1Y`,
+team `gupta-s1`. If the project is ever moved again,
 run `--list` first. An empty answer (`{"active":null,"draft":null,"versions":[]}`)
 means the crawler flood is unprotected and ISR writes will start climbing
 within a day.
