@@ -56,6 +56,10 @@ import {
 export const WEB_HOST = 'https://zyverse.in';
 const WEB_API = `${WEB_HOST}/api`;
 const ANILIST_GQL = 'https://graphql.anilist.co';
+// Sent with API requests so the server can prefer official app traffic over
+// generic scrapers. This is defense-in-depth, not a secret (APK can be inspected).
+const APP_CLIENT_HEADER = 'x-zyniverse-client';
+const APP_CLIENT_VALUE = 'zyniverse-mobile-v1';
 
 const DEVICE_KEY = 'zt_ct_device';
 const SESSION_COOKIE_KEY = 'zt_session_cookie';
@@ -188,12 +192,17 @@ async function fetchWithTimeout(
 ): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), init?.timeoutMs ?? REQUEST_TIMEOUT_MS);
+  const headers = new Headers(init?.headers || undefined);
+  if (url.startsWith(WEB_API) && !headers.has(APP_CLIENT_HEADER)) {
+    headers.set(APP_CLIENT_HEADER, APP_CLIENT_VALUE);
+  }
   try {
     return await fetch(url, {
       // Lets React Native's native cookie jar attach the NextAuth session
       // automatically (Google / OAuth sign-in lives there).
       credentials: 'include',
       ...init,
+      headers,
       signal: controller.signal,
     });
   } catch (e: any) {

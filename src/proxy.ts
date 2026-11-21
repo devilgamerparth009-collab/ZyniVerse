@@ -3,6 +3,46 @@ import type { NextFetchEvent, NextRequest } from "next/server";
 import { detectBot } from "@/lib/bot-detect";
 import { BOT_COOKIE, BOT_COOKIE_MAX_AGE } from "@/lib/bot-cookie";
 
+const APP_CLIENT_HEADER = "x-zyniverse-client";
+const APP_CLIENT_VALUE = "zyniverse-mobile-v1";
+const ALLOWED_API_HOSTS = new Set([
+  "zyverse.in",
+  "www.zyverse.in",
+  "localhost",
+  "127.0.0.1",
+]);
+
+function hostFromUrl(value: string | null): string | null {
+  if (!value) return null;
+  try {
+    return new URL(value).hostname.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+function hasAllowedApiClient(request: NextRequest): boolean {
+  if (request.headers.get(APP_CLIENT_HEADER) === APP_CLIENT_VALUE) return true;
+  const originHost = hostFromUrl(request.headers.get("origin"));
+  if (originHost && ALLOWED_API_HOSTS.has(originHost)) return true;
+  const refererHost = hostFromUrl(request.headers.get("referer"));
+  if (refererHost && ALLOWED_API_HOSTS.has(refererHost)) return true;
+  const secFetchSite = (request.headers.get("sec-fetch-site") || "").toLowerCase();
+  if (secFetchSite === "same-origin" || secFetchSite === "same-site" || secFetchSite === "none") {
+    return true;
+  }
+  return false;
+}
+
+function isPublicApiException(pathname: string): boolean {
+  return (
+    pathname.startsWith("/api/auth/") ||
+    pathname.startsWith("/api/cron/") ||
+    pathname.startsWith("/api/internal/") ||
+    pathname.startsWith("/api/og/")
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Proxy runs on the Node.js runtime in Next.js 16 (middleware was renamed to
 // Proxy and the Edge default was dropped in v16). `runtime` is not a valid
@@ -166,6 +206,16 @@ export function proxy(request: NextRequest, event: NextFetchEvent) {
   const isRead = method === "GET" || method === "HEAD";
   const isMutating = !isRead;
   const isApi = pathname.startsWith("/api/");
+
+  // Block third-party/unknown API clients. Official web (same-origin) and
+  // official mobile app (client header) are allowed; cron/auth/internal/og
+  // have their own controls or public needs.
+  if (isApi && !isPublicApiException(pathname) && !hasAllowedApiClient(request)) {
+    return NextResponse.json(
+      { error: "Forbidden" },
+      { status: 403, headers: { "Cache-Control": "no-store, max-age=0" } }
+    );
+  }
 
   let rate: { scope: string; max: number; windowMs: number } | null = null;
 
