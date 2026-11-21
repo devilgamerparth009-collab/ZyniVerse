@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import CreatorsPageClient from "./CreatorsPageClient";
 
 export const metadata = {
+  robots: { index: false, follow: true },
   title: "Creators",
   description: "Discover and support your favorite content creators",
 };

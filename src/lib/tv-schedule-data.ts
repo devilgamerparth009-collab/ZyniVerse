@@ -66,6 +66,7 @@ export const EPG_CHANNEL_IDS = [
   "disney_channel",
   "disney_junior",
   "animax",
+  "epic_kids",
 ];
 
 /** Streaming platforms filled from AniList's live airing schedule. */
@@ -631,9 +632,10 @@ async function buildGrid(selectedDay: string, today: string): Promise<TvGrid> {
   };
 }
 
-/** Today + the next six days, in display order. */
+/** Today + the next six days, in display order (IST, like every slot). */
 export function getScheduleDays(): string[] {
   const names = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-  const today = new Date().getDay();
-  return Array.from({ length: 7 }, (_, i) => names[(today + i) % 7]);
+  const today = getDayName();
+  const start = names.indexOf(today);
+  return Array.from({ length: 7 }, (_, i) => names[(start + i) % 7]);
 }

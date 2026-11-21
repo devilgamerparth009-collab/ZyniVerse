@@ -14,6 +14,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, themed, spacing, fontSize, borderRadius } from '../theme';
 import { api, getCurrentUser } from '../services/api';
+import { checkForUpdate, getReadyUpdate, type UpdateRelease } from '../services/updater';
 import { Anime, AnimeOfTheDay, User, WatchlistItem } from '../types';
 import { animePoster, animeTitle, LIST_STATUS_LABEL } from '../utils/helpers';
 import ShowcaseRail from '../components/ShowcaseRail';
@@ -86,6 +87,8 @@ export default function HomeScreen() {
   const [unread, setUnread] = useState(0);
   const [feed, setFeed] = useState<MobileFeed | null>(null);
   const [dismissedFeedId, setDismissedFeedId] = useState<string | null>(null);
+  const [updateRelease, setUpdateRelease] = useState<UpdateRelease | null>(null);
+  const [updateReady, setUpdateReady] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -169,6 +172,31 @@ export default function HomeScreen() {
     }, [loading])
   );
 
+  useFocusEffect(
+    useCallback(() => {
+      let alive = true;
+      (async () => {
+        try {
+          const release = await checkForUpdate();
+          if (!alive) return;
+          setUpdateRelease(release);
+          if (release?.updateAvailable) {
+            const ready = await getReadyUpdate(release).catch(() => null);
+            if (alive) setUpdateReady(!!ready);
+          } else if (release?.rollback) {
+            const ready = await getReadyUpdate(release).catch(() => null);
+            if (alive) setUpdateReady(!!ready);
+          } else {
+            setUpdateReady(false);
+          }
+        } catch {
+          // ignore update check failures on home
+        }
+      })();
+      return () => { alive = false; };
+    }, [])
+  );
+
   const onRefresh = () => {
     setRefreshing(true);
     fetchData(true);
@@ -244,6 +272,40 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
         </View>
+
+        {(updateRelease?.updateAvailable || updateRelease?.rollback || updateReady) && (
+          <TouchableOpacity
+            activeOpacity={0.88}
+            onPress={() => navigation.navigate('Update')}
+            style={{
+              marginHorizontal: spacing.md,
+              marginBottom: spacing.sm,
+              paddingHorizontal: spacing.md,
+              paddingVertical: 12,
+              borderRadius: borderRadius.lg,
+              borderWidth: 1,
+              borderColor: `${primaryColor}55`,
+              backgroundColor: colors.surface,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 10,
+            }}
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: colors.text, fontSize: fontSize.sm, fontWeight: '800' }}>
+                {updateReady
+                  ? `Update ${updateRelease?.latestVersionName || ''} ready to install`
+                  : updateRelease?.rollback
+                    ? `Stable build ${updateRelease?.latestVersionName || ''} available`
+                    : `Update ${updateRelease?.latestVersionName || ''} available`}
+              </Text>
+              <Text style={{ color: colors.textMuted, fontSize: fontSize.xs, marginTop: 2 }}>
+                Tap to open the updater. Your data stays safe.
+              </Text>
+            </View>
+            <Text style={{ color: primaryColor, fontSize: fontSize.sm, fontWeight: '700' }}>View</Text>
+          </TouchableOpacity>
+        )}
 
         {/* Quick Action Navigation Pills */}
         <ScrollView
@@ -839,8 +901,6 @@ export default function HomeScreen() {
           <Text style={styles.loginArrow}>→</Text>
         </TouchableOpacity>
 
-        {/* Scrollable in-feed AdBanner (Never sticks to bottom) */}
-        <AdBanner size="banner" />
       </ScrollView>
 
       {isChristmas && <Snowfall />}

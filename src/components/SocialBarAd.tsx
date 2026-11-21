@@ -45,7 +45,7 @@ export default function SocialBarAd() {
 
       const script = document.createElement("script");
       script.src =
-        "https://formssternlystately.com/79/88/46/798846c18dea1cf9f50c54e73acf1380.js";
+        "https://bauval.org/14/798846c18dea1cf9f50c54e73acf1380";
       script.type = "text/javascript";
       document.head.appendChild(script);
     };

@@ -158,6 +158,46 @@ export default async function FillerListingPage() {
         </section>
       )}
 
+      <section className="mt-10 rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)]/60 p-6 sm:p-8">
+        <h2 className="font-display text-xl font-bold text-white">How to use this filler guide</h2>
+        <p className="mt-3 text-sm leading-relaxed text-[var(--color-mute)]">
+          Pick an anime, open its guide, and check each episode label before you watch. Use canon episodes to follow the main story,
+          mixed episodes when you want extra context, and filler episodes when you want optional side stories or want to save time.
+        </p>
+        <div className="mt-6 grid gap-4 sm:grid-cols-3">
+          <div className="rounded-xl border border-green-500/20 bg-green-500/5 p-4">
+            <p className="text-sm font-semibold text-green-400">Canon</p>
+            <p className="mt-1 text-xs text-[var(--color-mute)]">Follows the original story. Usually safe to watch if you want the main plot.</p>
+          </div>
+          <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
+            <p className="text-sm font-semibold text-amber-400">Mixed</p>
+            <p className="mt-1 text-xs text-[var(--color-mute)]">Contains both canon and filler material. Watch if you want full context.</p>
+          </div>
+          <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4">
+            <p className="text-sm font-semibold text-red-400">Filler</p>
+            <p className="mt-1 text-xs text-[var(--color-mute)]">Not part of the main source story. Optional for most viewers.</p>
+          </div>
+        </div>
+      </section>
+
+      <section className="mt-8 rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)]/40 p-6 sm:p-8">
+        <h2 className="font-display text-xl font-bold text-white">Filler guide FAQ</h2>
+        <div className="mt-4 space-y-4 text-sm text-[var(--color-mute)]">
+          <div>
+            <h3 className="font-semibold text-white">Are filler episodes always bad?</h3>
+            <p className="mt-1">No. Some filler episodes are fun character stories. They are usually optional for the main plot, but you can still watch them if you enjoy the series.</p>
+          </div>
+          <div>
+            <h3 className="font-semibold text-white">Where does ZyniVerse get filler data?</h3>
+            <p className="mt-1">We combine community-reviewed filler lists, episode metadata, and manual checks for popular titles. Episode classifications can change when better source information becomes available.</p>
+          </div>
+          <div>
+            <h3 className="font-semibold text-white">Should I skip mixed episodes?</h3>
+            <p className="mt-1">If you only want main-story canon, you can skip many mixed episodes, but check the note first. Some mixed episodes include important scenes.</p>
+          </div>
+        </div>
+      </section>
+
       {/* Native banner after filler list */}
       <NativeBannerAd className="mt-8" />
     </div>

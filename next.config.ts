@@ -65,7 +65,17 @@ const nextConfig: NextConfig = {
         permanent: true,
       },
       {
+        source: "/hi/:path*",
+        destination: "/",
+        permanent: true,
+      },
+      {
         source: "/te",
+        destination: "/",
+        permanent: true,
+      },
+      {
+        source: "/te/:path*",
         destination: "/",
         permanent: true,
       },
@@ -74,11 +84,23 @@ const nextConfig: NextConfig = {
         destination: "/",
         permanent: true,
       },
+      {
+        source: "/ta/:path*",
+        destination: "/",
+        permanent: true,
+      },
       // A stray "$" path (crawled as https://zyverse.in/%24) is not a real page
       // and was showing up as a permanent 404 in Search Console. Send it home.
       {
         source: "/$",
         destination: "/",
+        permanent: true,
+      },
+      // ws.zyverse.in was an old subdomain crawled by Google; consolidate to canonical host.
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "ws.zyverse.in" }],
+        destination: "https://zyverse.in/:path*",
         permanent: true,
       },
       // www -> non-www canonicalisation (301, path preserved).

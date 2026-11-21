@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { apiLimiter } from "@/lib/rate-limiter";
 
 interface OstGame { mediaId: number; title: string; song: string; artist: string; type: "OP" | "ED" | "OST"; hint: string; }
 
@@ -48,7 +49,10 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const { guess, attempts } = await req.json();
+  const rateLimited = await apiLimiter.middleware(req);
+  if (rateLimited) return rateLimited;
+
+  const { guess, attempts } = await req.json().catch(() => ({}));
   if (!guess || typeof guess !== "string") {
     return NextResponse.json({ error: "Guess required" }, { status: 400 });
   }

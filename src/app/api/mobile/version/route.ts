@@ -24,10 +24,16 @@ export async function GET(req: NextRequest) {
   const platform = searchParams.get("platform") || "android";
 
   const release = MOBILE_RELEASE;
-  // A rollback release has a lower versionCode than the interim build. Surface
-  // it explicitly instead of silently telling those users they are up to date.
-  const rollback = currentCode > 0 && currentCode > release.versionCode;
-  const updateAvailable = currentCode > 0 && (release.versionCode > currentCode || rollback);
+  // A device running a NEWER build than the published release is up to date.
+  // Previously this was flagged as a "rollback" and every launch nagged the
+  // user to reinstall an older APK. Only an explicit server flag can request a
+  // downgrade (used for a genuinely bad interim build).
+  const rollback =
+    currentCode > release.versionCode &&
+    release.rollback === true &&
+    release.versionCode >= release.minSupportedVersionCode;
+  const upToDate = currentCode > 0 && currentCode >= release.versionCode && !rollback;
+  const updateAvailable = currentCode > 0 && currentCode < release.versionCode;
   const belowMinimum = currentCode > 0 && currentCode < release.minSupportedVersionCode;
 
   return NextResponse.json(
@@ -37,6 +43,7 @@ export async function GET(req: NextRequest) {
       latestVersionCode: release.versionCode,
       minSupportedVersionCode: release.minSupportedVersionCode,
       updateAvailable,
+      upToDate,
       rollback,
       mandatory: release.mandatory || belowMinimum,
       apkUrl: release.apkUrl,

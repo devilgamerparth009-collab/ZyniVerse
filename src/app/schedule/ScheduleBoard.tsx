@@ -308,6 +308,38 @@ export default function ScheduleBoard({ initialSchedule, initialWeekStartMs, ini
     return () => clearInterval(id);
   }, [weekOffset, weekStartMs]);
 
+  // Keep the current week fresh automatically. This catches newly added/updated
+  // airings without requiring a manual refresh.
+  useEffect(() => {
+    if (weekOffset !== 0) return;
+    let cancelled = false;
+    const refresh = async () => {
+      if (cancelled || typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      try {
+        const from = Math.floor(weekStartMs / 1000);
+        const to = Math.floor(weekEndMs / 1000);
+        const res = await fetch(`/api/anilist/airing-schedule?from=${from}&to=${to}`, { cache: 'no-store' });
+        const data = await res.json().catch(() => null);
+        if (cancelled || !Array.isArray(data)) return;
+        setSchedule(data as AiringScheduleEntry[]);
+        setError(null);
+        committedWindowRef.current = weekStartMs;
+      } catch {
+        /* keep existing schedule on background refresh failure */
+      }
+    };
+    const id = setInterval(refresh, 90_000);
+    const onVisible = () => { if (document.visibilityState === 'visible') void refresh(); };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+    };
+  }, [weekOffset, weekStartMs, weekEndMs]);
+
   const retry = useCallback(() => { setRetryNonce((n) => n + 1); }, []);
 
   // Load the user's existing airing alerts once. A 401 means "guest" — rows then
@@ -810,14 +842,16 @@ export default function ScheduleBoard({ initialSchedule, initialWeekStartMs, ini
 
                         <div className="lg:pl-2">
                           {focusLive ? (
-                            <div className="flex flex-col items-start lg:items-center">
-                              <span className="font-mono text-4xl font-bold text-[var(--color-magenta)] sm:text-5xl">{liveAgeMin}m</span>
+                            <div className="flex flex-col items-start rounded-2xl border border-[var(--color-magenta)]/20 bg-black/30 px-4 py-3 lg:items-center">
+                              <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-[var(--color-magenta)]">Airing now</span>
+                              <span className="mt-1 font-mono text-4xl font-bold text-[var(--color-magenta)] sm:text-5xl">{liveAgeMin}m</span>
                               <span className="mt-1 text-xs text-[var(--color-mute)]">since broadcast start</span>
                             </div>
                           ) : (
-                            <div className="flex flex-col items-start gap-2 lg:items-end">
-                              <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-[var(--color-mute)]">Airs in</span>
+                            <div className="flex flex-col items-start gap-2 rounded-2xl border border-white/10 bg-black/30 px-4 py-3 lg:items-end">
+                              <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-[var(--color-cyan)]">Next episode in</span>
                               <Countdown targetSec={focus.airingAt} />
+                              <span className="text-[11px] text-[var(--color-mute)]">{formatISTTime(focus.airingAt, { suffix: true })} IST</span>
                             </div>
                           )}
                         </div>

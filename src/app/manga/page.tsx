@@ -74,6 +74,34 @@ export default async function MangaPage() {
         }}
       />
       <MangaBrowseClient initialManga={trending} />
+      <section className="mx-auto max-w-7xl px-4 pb-12 sm:px-6">
+        <div className="rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)]/60 p-6 sm:p-8">
+          <h2 className="font-display text-xl font-bold text-white">How to use the manga tracker</h2>
+          <p className="mt-3 text-sm leading-relaxed text-[var(--color-mute)]">
+            Browse trending, popular, or top-rated manga, open a title for details, and track your reading progress in your list.
+            ZyniVerse provides discovery and tracking tools; we do not host manga chapters.
+          </p>
+          <div className="mt-5 grid gap-4 sm:grid-cols-3 text-sm">
+            <div className="rounded-xl border border-[var(--color-line)] bg-black/20 p-4">
+              <p className="font-semibold text-white">Discover</p>
+              <p className="mt-1 text-xs text-[var(--color-mute)]">Find manga by trends, ratings, and search.</p>
+            </div>
+            <div className="rounded-xl border border-[var(--color-line)] bg-black/20 p-4">
+              <p className="font-semibold text-white">Track</p>
+              <p className="mt-1 text-xs text-[var(--color-mute)]">Save progress, status, and chapters you have read.</p>
+            </div>
+            <div className="rounded-xl border border-[var(--color-line)] bg-black/20 p-4">
+              <p className="font-semibold text-white">Verify sources</p>
+              <p className="mt-1 text-xs text-[var(--color-mute)]">Check official publishers/platforms for legal reading availability.</p>
+            </div>
+          </div>
+          <div className="mt-6 space-y-3 text-sm text-[var(--color-mute)]">
+            <h3 className="font-semibold text-white">Manga FAQ</h3>
+            <p><span className="text-white">Can I read manga on ZyniVerse?</span> ZyniVerse does not host manga chapters. We help you discover titles, track progress, and find information.</p>
+            <p><span className="text-white">Where does manga data come from?</span> We use public metadata sources such as AniList and display it with our own tracking and discovery interface.</p>
+          </div>
+        </div>
+      </section>
     </>
   );
 }

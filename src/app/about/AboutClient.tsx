@@ -314,6 +314,23 @@ export default function AboutClient() {
         </motion.div>
       </section>
 
+      {/* Editorial & Sources */}
+      <section className="mb-14">
+        <div className="neon-premium rounded-[20px]">
+          <div className="neon-premium-track" />
+          <div className="neon-premium-overlay" />
+          <div className="neon-premium-content rounded-[20px] p-6 sm:p-8">
+            <p className="mb-2 font-mono text-xs uppercase tracking-[0.25em] text-[var(--color-cyan)]">04 / Editorial &amp; Sources</p>
+            <h2 className="font-display text-2xl font-bold text-[var(--color-ink)] sm:text-3xl">How ZyniVerse creates value</h2>
+            <div className="mt-4 space-y-4 text-sm leading-relaxed text-[var(--color-mute)]">
+              <p>ZyniVerse is created and operated by an independent team based in India. Our goal is to make anime and manga information easier to use: clear filler guides, watch orders, schedules, and discovery tools, especially for Indian fans looking for Hindi, Tamil, Telugu and other regional dub information.</p>
+              <p>We use public metadata sources such as AniList and other publicly available references, then organize and present them with our own guides, filters, schedules, and editorial context. Availability, schedules, and metadata can change, so we encourage users to verify final details on official platforms.</p>
+              <p>ZyniVerse does not host or stream copyrighted anime episodes or manga chapters. If you find an error or copyright concern, please contact us at <a href="mailto:contact@zyverse.in" className="text-[var(--color-cyan)] hover:underline">contact@zyverse.in</a> or visit our <Link href="/dmca" className="text-[var(--color-cyan)] hover:underline">DMCA page</Link>.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Free & Forever */}
       <section>
         <div className="neon-premium rounded-[20px]">
@@ -327,7 +344,7 @@ export default function AboutClient() {
               transition={{ duration: 0.5 }}
               className="mb-3 inline-flex items-center gap-2 rounded-full border border-[var(--color-magenta)]/40 bg-[var(--color-magenta)]/10 px-3 py-1 font-mono text-xs uppercase tracking-[0.2em] text-[var(--color-magenta)]"
             >
-              ✦ 04 / Free & Forever
+              ✦ 05 / Free &amp; Forever
             </motion.p>
             <motion.h2
               initial={{ opacity: 0, y: 18 }}

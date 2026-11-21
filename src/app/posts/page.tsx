@@ -39,7 +39,7 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
       url: `${BASE_URL}/posts`,
       type: "website",
     },
-    robots: { index: true, follow: true },
+    robots: { index: false, follow: true },
   };
 }
 

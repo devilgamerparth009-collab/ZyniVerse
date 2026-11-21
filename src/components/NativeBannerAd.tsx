@@ -50,7 +50,7 @@ export default function NativeBannerAd({ className = "" }: { className?: string 
     script.async = true;
     script.setAttribute("data-cfasync", "false");
     script.src =
-      "https://formssternlystately.com/188115be46209eff2403f0d29b32d940/invoke.js";
+      "https://bauval.org/21/188115be46209eff2403f0d29b32d940";
     containerRef.current.appendChild(script);
   }, [showAds, status, isBot]);
 

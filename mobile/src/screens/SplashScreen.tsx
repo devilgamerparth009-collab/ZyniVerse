@@ -15,7 +15,7 @@ import appConfig from '../../app.json';
 
 const { width, height } = Dimensions.get('window');
 const WORDMARK = 'ZyniVerse'.split('');
-const APP_VERSION = appConfig?.expo?.version ?? '1.5.0';
+const APP_VERSION = appConfig?.expo?.version ?? '1.4.4';
 
 /* ------------------------------------------------------------------ */
 /* Manga speed lines                                                   */

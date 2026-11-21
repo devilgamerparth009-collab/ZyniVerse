@@ -5,6 +5,7 @@ import FeedClient from "@/components/FeedClient";
 export const revalidate = 172800; // 2 hours (was 30 min)
 
 export const metadata: Metadata = {
+  robots: { index: false, follow: true },
   title: "My Feed",
   description:
     "Your personalized anime feed — news, memes, reels, moments, fan art, cosplay and blogs, ranked to your taste. Follow, discover and never miss a drop.",

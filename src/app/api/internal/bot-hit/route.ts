@@ -8,16 +8,29 @@ import { recordBotHit } from "@/lib/bot-stats";
  * JavaScript, so the client-side analytics beacon can never see them and the
  * only place they can be observed is the server request path.
  *
- * Not linked or advertised anywhere, and /api/ is disallowed in robots.txt
- * (`PRIVATE_PATHS`). `recordBotHit` re-runs the User-Agent classifier itself, so
- * a request with a browser UA is silently ignored — spoofing the endpoint
- * requires sending a bot-shaped UA, i.e. exactly what we want to count.
+ * Requires an internal secret header when configured. This prevents random
+ * external callers from polluting bot stats.
  */
 
 export const dynamic = "force-dynamic";
 
+function isAuthorized(req: Request): boolean {
+  const expected = process.env.INTERNAL_API_SECRET || process.env.CRON_SECRET;
+  if (!expected) {
+    // Fail closed in production; allow local/dev to avoid breaking telemetry.
+    return process.env.NODE_ENV !== "production";
+  }
+  const authHeader = req.headers.get("authorization");
+  if (authHeader === `Bearer ${expected}`) return true;
+  return req.headers.get("x-internal-secret") === expected;
+}
+
 export async function POST(req: Request) {
   try {
+    if (!isAuthorized(req)) {
+      return NextResponse.json({ ok: false }, { status: 401 });
+    }
+
     const body = (await req.json().catch(() => null)) as
       | { path?: unknown; userAgent?: unknown; country?: unknown }
       | null;

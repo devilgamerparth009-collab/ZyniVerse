@@ -492,8 +492,6 @@ export default function ForumScreen() {
                   </View>
                 </TouchableOpacity>
 
-                {/* Show sponsored ad every 6 threads */}
-                {(index + 1) % 6 === 0 && <AdBanner placement="forum-feed" />}
               </React.Fragment>
             );
           })

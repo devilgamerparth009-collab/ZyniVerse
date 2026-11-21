@@ -7,12 +7,14 @@ import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-cont
 import AppNavigator from './src/navigation/AppNavigator';
 import { navigationRef } from './src/navigation/navigationRef';
 import { ThemeProvider, useAppTheme } from './src/theme/ThemeContext';
+import AdInterstitial from './src/components/AdInterstitial';
 import {
   autoPrepareUpdate,
   getReadyUpdate,
   installUpdate,
   openInstallPermissionSettings,
-  skipVersion,
+  remindLater,
+  shouldPromptUpdate,
   UpdateRelease,
 } from './src/services/updater';
 
@@ -46,8 +48,12 @@ function RootNavigator() {
     let alive = true;
     const timer = setTimeout(async () => {
       const existing = await getReadyUpdate();
-      const latest = existing ? existing.release : await autoPrepareUpdate();
+      // Always ask the server first: a cached APK from an older release must
+      // never resurrect an update card after the user skipped it or installed
+      // that version from somewhere else.
+      const latest = (await autoPrepareUpdate()) || existing?.release || null;
       if (!alive || !latest?.updateAvailable) return;
+      if (!(await shouldPromptUpdate(latest))) return;
       setRelease(latest);
       setBannerVisible(true);
     }, 5000);
@@ -66,7 +72,7 @@ function RootNavigator() {
   }, [bannerVisible, bannerAnim]);
 
   const install = async () => {
-    const ready = await getReadyUpdate();
+    const ready = await getReadyUpdate(release);
     if (!ready?.uri) {
       Alert.alert(
         'Update available',
@@ -89,7 +95,7 @@ function RootNavigator() {
 
   const later = async () => {
     setBannerVisible(false);
-    if (release) await skipVersion(release.latestVersionCode);
+    if (release) await remindLater(release.latestVersionCode);
   };
 
   return (
@@ -106,6 +112,7 @@ function RootNavigator() {
         }}
       />
       <StatusBar style={mode === 'light' ? 'dark' : 'light'} />
+      <AdInterstitial />
 
       {release && (
         <Animated.View
@@ -173,7 +180,7 @@ function RootNavigator() {
           </TouchableOpacity>
           <TouchableOpacity
             onPress={later}
-            accessibilityLabel="Skip this update"
+            accessibilityLabel="Remind me later"
             style={{ paddingHorizontal: 4, paddingVertical: 8 }}
           >
             <Text style={{ color: colors.textDim, fontSize: 16, fontWeight: '800' }}>✕</Text>

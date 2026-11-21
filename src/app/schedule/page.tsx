@@ -43,8 +43,8 @@ export const metadata: Metadata = {
 // Kept at 15 minutes on purpose: an earlier 7-day window meant a single AniList
 // rate-limit response was baked into the page for a whole week. 15 min is still
 // cheap (96 renders/day) and lets a recovered upstream heal the page quickly.
-// 30 minutes: balance schedule freshness with ISR/function pressure.
-export const revalidate = 1800;
+// 1 hour: balance schedule freshness with ISR/function pressure.
+export const revalidate = 3600;
 
 /** Schedule-specific structured data so the board can win rich results. */
 function buildScheduleJsonLd(schedule: AiringScheduleEntry[]) {
@@ -103,6 +103,34 @@ export default async function SchedulePage() {
         initialWeekStartMs={weekStartMs}
         initialError={error}
       />
+      <section className="mx-auto max-w-7xl px-4 pb-10 sm:px-6">
+        <div className="rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)]/60 p-6 sm:p-8">
+          <h2 className="font-display text-xl font-bold text-white">How to use the anime schedule</h2>
+          <p className="mt-3 text-sm leading-relaxed text-[var(--color-mute)]">
+            This schedule shows anime episode air times converted to IST. Use it to track what is airing today, what is coming next, and which episodes are already on air.
+            Times come from public schedule metadata and can change if broadcasters or platforms update their release plans.
+          </p>
+          <div className="mt-5 grid gap-4 sm:grid-cols-3 text-sm">
+            <div className="rounded-xl border border-[var(--color-line)] bg-black/20 p-4">
+              <p className="font-semibold text-white">IST times</p>
+              <p className="mt-1 text-xs text-[var(--color-mute)]">All times are shown in Indian Standard Time for easier tracking in India.</p>
+            </div>
+            <div className="rounded-xl border border-[var(--color-line)] bg-black/20 p-4">
+              <p className="font-semibold text-white">Live updates</p>
+              <p className="mt-1 text-xs text-[var(--color-mute)]">The board refreshes regularly so new episodes and timing changes appear without manual reloads.</p>
+            </div>
+            <div className="rounded-xl border border-[var(--color-line)] bg-black/20 p-4">
+              <p className="font-semibold text-white">Verify official release</p>
+              <p className="mt-1 text-xs text-[var(--color-mute)]">For streaming availability, always confirm on the official platform or broadcaster.</p>
+            </div>
+          </div>
+          <div className="mt-6 space-y-3 text-sm text-[var(--color-mute)]">
+            <h3 className="font-semibold text-white">Schedule FAQ</h3>
+            <p><span className="text-white">Why did an episode time change?</span> Studios, platforms, or broadcasters can delay or reschedule releases. We update the board when source data changes.</p>
+            <p><span className="text-white">Does this include Hindi dub schedules?</span> This page focuses on anime broadcast times. For Hindi/regional dub schedules, visit <a href="/hindi-dub/schedule" className="text-[var(--color-cyan)] hover:underline">Hindi Dub Schedule</a>.</p>
+          </div>
+        </div>
+      </section>
     </>
   );
 }

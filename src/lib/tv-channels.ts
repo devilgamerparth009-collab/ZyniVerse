@@ -406,8 +406,8 @@ export function getTodaySchedule(): { channel: TvChannel; slots: TimeSlot[] }[] 
 }
 
 export function getNowPlaying(): { channel: TvChannel; slot: TimeSlot }[] {
-  const now = new Date();
-  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const ist = istDate();
+  const currentMinutes = ist.getUTCHours() * 60 + ist.getUTCMinutes();
   const today = getDayName();
 
   return CHANNEL_SCHEDULES.map((cs) => {
@@ -436,17 +436,23 @@ export function getNowPlaying(): { channel: TvChannel; slot: TimeSlot }[] {
   }).filter((item): item is { channel: TvChannel; slot: TimeSlot } => item !== null);
 }
 
+/** Every published slot in this app is IST, so "today" must be IST too. */
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+function istDate(date?: Date): Date {
+  return new Date((date || new Date()).getTime() + IST_OFFSET_MS);
+}
+
 export function getDayName(date?: Date): string {
-  const d = date || new Date();
-  return ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][d.getDay()];
+  return DAY_NAMES[istDate(date).getUTCDay()];
 }
 
 export function getNext7Days(): string[] {
-  const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-  const today = new Date().getDay();
+  const today = istDate().getUTCDay();
   // Today + the next six days. This used to walk backwards, so the schedule
   // page opened on a week that was already over.
-  return Array.from({ length: 7 }, (_, i) => days[(today + i) % 7]);
+  return Array.from({ length: 7 }, (_, i) => DAY_NAMES[(today + i) % 7]);
 }
 
 export function findAnimeSchedule(title: string): { channelId: string; slots: TimeSlot[] }[] {

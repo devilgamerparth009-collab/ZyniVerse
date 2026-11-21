@@ -48,6 +48,11 @@ const TRUSTED_PLATFORM_HOSTS = new Set([
   'abema.tv',
   'dazn.com',
   'www.dazn.com',
+  // Source sites we deliberately link to from Dub Hub / schedule cards.
+  'animedubhindi.link',
+  'www.animedubhindi.link',
+  'desidubanime.com',
+  'www.desidubanime.com',
 ]);
 
 function isSameOrigin(value: string): boolean {

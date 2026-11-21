@@ -73,6 +73,7 @@ export interface Anime {
   trailer?: AnimeTrailer | null;
   nextAiringEpisode?: { episode: number; airingAt: number } | null;
   streamingEpisodes?: { title: string; url: string }[];
+  externalLinks?: { site?: string | null; url: string; type?: string | null; language?: string | null }[];
   type?: string | null;
   chapters?: number | null;
   volumes?: number | null;
@@ -812,6 +813,8 @@ export interface TvChannelEntry {
   schedule?: TvDaySchedule;
   /** Where the listings came from; `fallback` means the offline guide. */
   source?: 'epg' | 'fallback' | 'live' | 'empty';
+  /** Server-provided display label, e.g. `epg.pw`, `AniList`, `Offline guide`. */
+  sourceLabel?: string;
 }
 
 export interface TvScheduleResponse {
@@ -949,6 +952,32 @@ export interface DubScheduleListResponse {
   days: string[];
   groups: { day: string; items: DubAiring[] }[];
   unscheduled: DubAiring[];
+}
+
+/** Direct mirror of the live Anime Dub Hindi schedule page. */
+export interface LiveDubAiring {
+  id: string;
+  title: string;
+  posterUrl: string | null;
+  season: string | null;
+  episodeInfo: string | null;
+  languages: string[];
+  dayLabel: string | null;
+  timeLabel: string | null;
+  dateLabel: string | null;
+  releaseAt: string | null;
+  sourceUrl: string;
+}
+
+export interface LiveDubScheduleResponse {
+  success: boolean;
+  source: string;
+  sourceUrl: string;
+  timezone: 'Asia/Kolkata';
+  fetchedAt: string;
+  ongoing: LiveDubAiring[];
+  upcoming: LiveDubAiring[];
+  counts: { ongoing: number; upcoming: number };
 }
 
 export interface DubLanguageStat {

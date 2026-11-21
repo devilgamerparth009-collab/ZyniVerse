@@ -4,6 +4,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "Community",
   description: "Find people, follow channels, watch stories, and join the conversation on ZyniVerse.",
+  robots: { index: false, follow: true },
 };
 
 const CARDS = [

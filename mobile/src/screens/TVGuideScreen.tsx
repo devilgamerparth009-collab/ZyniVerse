@@ -13,21 +13,35 @@ import {
   Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../hooks/useTheme';
 import { api } from '../services/api';
 import { TvChannelEntry, TvTimeSlot } from '../types';
 import ScreenHeader from '../components/ScreenHeader';
 import PressableScale from '../components/PressableScale';
 import FadeInView from '../components/FadeInView';
+import AdBanner from '../components/AdBanner';
 import { spacing, borderRadius } from '../theme';
 import { webAbsoluteUrl } from '../utils/helpers';
 
 const TV_DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+const SOURCE_LABELS: Record<string, string> = {
+  epg: 'epg.pw',
+  live: 'AniList',
+  fallback: 'Offline guide',
+  empty: 'No source',
+};
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const TILE_WIDTH = (SCREEN_WIDTH - spacing.md * 2 - 10) / 2;
 
+/** epg.pw and AniList both publish IST slots, so the phone clock must be IST too. */
+function istNow() {
+  return new Date(Date.now() + IST_OFFSET_MS);
+}
+
 function getTodayDayName() {
-  return TV_DAYS[new Date().getDay()];
+  return TV_DAYS[istNow().getUTCDay()];
 }
 
 function rotateDaysFromToday(dayNames: string[]): string[] {
@@ -45,17 +59,25 @@ function weekDaysFromToday(): string[] {
 
 /** Calendar date for a weekday inside the current 7-day window starting today. */
 function dateForDay(dayName: string): Date {
-  const todayIdx = new Date().getDay();
+  const todayIdx = istNow().getUTCDay();
   const idx = TV_DAYS.indexOf(dayName);
   const diff = idx < 0 ? 0 : (idx - todayIdx + 7) % 7;
-  const d = new Date();
-  d.setDate(d.getDate() + diff);
-  return d;
+  return new Date(istNow().getTime() + diff * 86_400_000);
+}
+
+function formatDayDate(dayName: string): string {
+  const d = dateForDay(dayName);
+  const month = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return `${d.getUTCDate()} ${month[d.getUTCMonth()]}`;
+}
+
+function sourceLabel(entry: TvChannelEntry): string {
+  return entry.sourceLabel || SOURCE_LABELS[entry.source || 'empty'] || 'Live guide';
 }
 
 function nowMinutes() {
-  const d = new Date();
-  return d.getHours() * 60 + d.getMinutes();
+  const d = istNow();
+  return d.getUTCHours() * 60 + d.getUTCMinutes();
 }
 
 function currentSlot(slots?: TvTimeSlot[]): TvTimeSlot | null {
@@ -263,6 +285,10 @@ export default function TVGuideScreen() {
   const [filter, setFilter] = useState<'all' | 'tv' | 'streaming'>('all');
   const [query, setQuery] = useState('');
   const [offline, setOffline] = useState(false);
+  // Re-renders the live progress bars once a minute without refetching.
+  const [, setClockTick] = useState(0);
+  const dayRef = useRef(day);
+  dayRef.current = day;
 
   const applyOffline = useCallback((payload?: { offlineLinear?: boolean; channels?: TvChannelEntry[] }) => {
     if (!payload) return;
@@ -314,6 +340,18 @@ export default function TVGuideScreen() {
     };
   }, [load, applyOffline]);
 
+  // Keep the grid fresh while the user is on this screen. The server result is
+  // cheap after its first scrape, so a minute poll is enough for live timing.
+  useFocusEffect(
+    useCallback(() => {
+      const timer = setInterval(() => {
+        setClockTick((tick) => tick + 1);
+        load(dayRef.current);
+      }, 60_000);
+      return () => clearInterval(timer);
+    }, [load])
+  );
+
   const visible = useMemo(() => {
     let list = channels;
     if (filter === 'tv') list = list.filter((c) => c.channel.type === 'tv');
@@ -341,6 +379,18 @@ export default function TVGuideScreen() {
     [channels]
   );
 
+  const sourceSummary = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const entry of visible) {
+      const label = sourceLabel(entry);
+      counts[label] = (counts[label] || 0) + 1;
+    }
+    return Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([label, count]) => `${label} ${count}`)
+      .join(' · ');
+  }, [visible]);
+
   const onRefresh = () => {
     setRefreshing(true);
     load(day);
@@ -362,6 +412,9 @@ export default function TVGuideScreen() {
         emoji="📺"
         accent={tint}
       />
+      <View style={{ paddingHorizontal: spacing.md }}>
+        <AdBanner placement="tv-guide" size="banner" />
+      </View>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -390,15 +443,14 @@ export default function TVGuideScreen() {
                 </Text>
               </View>
               <Text style={[styles.heroDate, { color: colors.textMuted }]}>
-                {day} ·{' '}
-                {dateForDay(day).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
+                {day} · {formatDayDate(day)}
               </Text>
             </View>
             <Text style={[styles.heroTitle, { color: colors.text }]}>What’s on right now</Text>
             <Text style={[styles.heroSub, { color: colors.textMuted }]}>
               {totalSlots > 0
                 ? `${channels.length} channels · ${totalSlots} airings · ${
-                    offline ? 'offline guide' : 'Live TV'
+                    sourceSummary || (offline ? 'offline guide' : 'Live TV')
                   }`
                 : 'Loading the live guide…'}
             </Text>
@@ -503,7 +555,7 @@ export default function TVGuideScreen() {
                   ]}
                 >
                   <Text style={[styles.dayChipDate, { color: active ? '#0b0b10' : colors.textMuted }]}>
-                    {date.getDate()}
+                    {date.getUTCDate()}
                   </Text>
                   <Text style={[styles.dayChipText, { color: active ? '#0b0b10' : colors.text }]}>
                     {d.slice(0, 3)}
@@ -694,15 +746,14 @@ export default function TVGuideScreen() {
                       )}
 
                       <View style={styles.tileFooter}>
-                        {entry.source === 'fallback' ? (
-                          <Text style={[styles.offlineTag, { color: colors.warning }]}>
-                            OFFLINE
-                          </Text>
-                        ) : (
-                          <Text style={[styles.countTag, { color: colors.textDim }]}>
-                            {count} shows
-                          </Text>
-                        )}
+                        <Text
+                          style={[
+                            styles.countTag,
+                            { color: entry.source === 'fallback' ? colors.warning : colors.textDim },
+                          ]}
+                        >
+                          {sourceLabel(entry)} · {count}
+                        </Text>
                         <Text style={[styles.tileOpen, { color: brand }]}>Open ›</Text>
                       </View>
                     </PressableScale>
@@ -734,8 +785,8 @@ export default function TVGuideScreen() {
                       {activeChannel.channel.name}
                     </Text>
                     <Text style={[styles.sheetMeta, { color: colors.textMuted }]} numberOfLines={1}>
-                      {activeChannel.schedule?.day} · {activeChannel.schedule?.slots?.length || 0} shows
-                      {activeChannel.source === 'fallback' ? ' · offline guide' : ''}
+                      {activeChannel.schedule?.day} · {activeChannel.schedule?.slots?.length || 0} shows ·{' '}
+                      {sourceLabel(activeChannel)}
                     </Text>
                     {!!activeChannel.channel.dthNumbers && (
                       <Text style={[styles.sheetMeta, { color: colors.textDim }]} numberOfLines={1}>

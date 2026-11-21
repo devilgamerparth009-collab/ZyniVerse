@@ -37,11 +37,12 @@ const NOMINEE_CATEGORY_MAP: Record<string, string> = {
 
 export async function POST(req: NextRequest) {
   const secret = process.env.AWARDS_WEBHOOK_SECRET;
-  if (secret) {
-    const authHeader = req.headers.get("authorization");
-    if (authHeader !== `Bearer ${secret}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  if (!secret) {
+    return NextResponse.json({ error: "Webhook not configured" }, { status: 503 });
+  }
+  const authHeader = req.headers.get("authorization");
+  if (authHeader !== `Bearer ${secret}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   let body: unknown;

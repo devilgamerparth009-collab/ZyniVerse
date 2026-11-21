@@ -216,6 +216,46 @@ export default async function HindiDubHubPage() {
       </section>
 
       <section className="mt-8 rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5">
+        <h2 className="text-sm font-bold uppercase tracking-wide text-[var(--color-ink)]">How to use this Hindi dub library</h2>
+        <p className="mt-2 text-sm leading-relaxed text-[var(--color-mute)]">
+          Use this page to find Hindi and regional dubbed anime by language, genre, series, movie, or schedule. ZyniVerse organizes public catalogue metadata
+          and helps you discover titles; always confirm final availability, audio language, and platform rights on the official service.
+        </p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-3 text-sm">
+          <div className="rounded-xl border border-[var(--color-line)] bg-black/20 p-4">
+            <p className="font-semibold text-[var(--color-ink)]">Find by format</p>
+            <p className="mt-1 text-xs text-[var(--color-mute)]">Browse series, movies, or the weekly schedule depending on what you want to watch.</p>
+          </div>
+          <div className="rounded-xl border border-[var(--color-line)] bg-black/20 p-4">
+            <p className="font-semibold text-[var(--color-ink)]">Check language</p>
+            <p className="mt-1 text-xs text-[var(--color-mute)]">Filter by Hindi, Tamil, Telugu, Malayalam, Kannada, Bengali, and other available dubs.</p>
+          </div>
+          <div className="rounded-xl border border-[var(--color-line)] bg-black/20 p-4">
+            <p className="font-semibold text-[var(--color-ink)]">Verify before watching</p>
+            <p className="mt-1 text-xs text-[var(--color-mute)]">Dub availability can change by region and platform. Use official platform pages for final confirmation.</p>
+          </div>
+        </div>
+      </section>
+
+      <section className="mt-8 rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5">
+        <h2 className="text-sm font-bold uppercase tracking-wide text-[var(--color-ink)]">Hindi dub FAQ</h2>
+        <div className="mt-3 space-y-3 text-sm text-[var(--color-mute)]">
+          <div>
+            <h3 className="font-semibold text-[var(--color-ink)]">Does ZyniVerse host dubbed episodes?</h3>
+            <p>No. ZyniVerse is an information and discovery platform. We do not host or stream copyrighted episodes.</p>
+          </div>
+          <div>
+            <h3 className="font-semibold text-[var(--color-ink)]">How often is the catalogue updated?</h3>
+            <p>Catalogue and schedule data are refreshed regularly through automated syncs. Timing can vary by source availability.</p>
+          </div>
+          <div>
+            <h3 className="font-semibold text-[var(--color-ink)]">Why can a dub be missing or different on a platform?</h3>
+            <p>Streaming rights, regional availability, and audio tracks change over time. Always check the official platform listing.</p>
+          </div>
+        </div>
+      </section>
+
+      <section className="mt-8 rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5">
         <h2 className="text-sm font-bold uppercase tracking-wide text-[var(--color-ink)]">Catalogue coverage</h2>
         <p className="mt-1 text-xs text-[var(--color-mute)]">
           Links keep working even when a catalogue host changes address — a working destination is resolved

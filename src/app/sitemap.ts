@@ -89,14 +89,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE_URL}/quiz`,  changeFrequency: "daily", priority: 0.6 },
     { url: `${BASE_URL}/quiz/daily`,  changeFrequency: "daily", priority: 0.5 },
     { url: `${BASE_URL}/schedule`,  changeFrequency: "weekly", priority: 0.6 },
-    { url: `${BASE_URL}/reels`,  changeFrequency: "daily", priority: 0.6 },
-    { url: `${BASE_URL}/creators`,  changeFrequency: "weekly", priority: 0.7 },
     { url: `${BASE_URL}/discover`,  changeFrequency: "daily", priority: 0.6 },
     // Vibe is a live community pulse (7-day rolling window) so it is worth
     // re-crawling often — the aggregate changes every few minutes.
     { url: `${BASE_URL}/vibe`,  changeFrequency: "daily", priority: 0.6 },
-    { url: `${BASE_URL}/feed`,  changeFrequency: "daily", priority: 0.7 },
-    { url: `${BASE_URL}/posts`,  changeFrequency: "daily", priority: 0.4 },
     { url: `${BASE_URL}/awards`,  changeFrequency: "monthly", priority: 0.5 },
     { url: `${BASE_URL}/developer`,  changeFrequency: "weekly", priority: 0.6 },
     { url: `${BASE_URL}/recommendations`,  changeFrequency: "weekly", priority: 0.6 },
@@ -116,15 +112,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // NOTE: /activity is intentionally absent — robots.ts PRIVATE_PATHS
     // disallows it (personalised feed), and a sitemap entry would surface as
     // "Submitted URL blocked by robots.txt" in Search Console.
-    { url: `${BASE_URL}/watch-party`,  changeFrequency: "weekly", priority: 0.4 },
     { url: `${BASE_URL}/manga-list`,  changeFrequency: "daily", priority: 0.6 },
     { url: `${BASE_URL}/premium`,  changeFrequency: "monthly", priority: 0.5 },
     { url: `${BASE_URL}/tv-schedule`,  changeFrequency: "weekly", priority: 0.6 },
     { url: `${BASE_URL}/live-action`,  changeFrequency: "weekly", priority: 0.5 },
-    { url: `${BASE_URL}/polls`,  changeFrequency: "daily", priority: 0.5 },
-    { url: `${BASE_URL}/docs`,  changeFrequency: "monthly", priority: 0.4 },
-    { url: `${BASE_URL}/extension`,  changeFrequency: "monthly", priority: 0.6 },
-    { url: `${BASE_URL}/status`,  changeFrequency: "monthly", priority: 0.3 },
     { url: `${BASE_URL}/terms`,  changeFrequency: "monthly", priority: 0.2 },
     { url: `${BASE_URL}/best-anime-sites`,  changeFrequency: "monthly", priority: 0.8 },
     { url: `${BASE_URL}/top-anime`,  changeFrequency: "weekly", priority: 0.8 },
@@ -146,11 +137,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE_URL}/commissions`,  changeFrequency: "weekly", priority: 0.5 },
     { url: `${BASE_URL}/character-tournaments`,  changeFrequency: "weekly", priority: 0.6 },
     { url: `${BASE_URL}/theatrical-releases`,  changeFrequency: "weekly", priority: 0.6 },
-    { url: `${BASE_URL}/link-to-us`,  changeFrequency: "monthly", priority: 0.4 },
     { url: `${BASE_URL}/season/upcoming`,  changeFrequency: "weekly", priority: 0.7 },
-    { url: `${BASE_URL}/developer/webhooks`,  changeFrequency: "monthly", priority: 0.4 },
-    { url: `${BASE_URL}/quiz/leaderboard`,  changeFrequency: "daily", priority: 0.5 },
-    { url: `${BASE_URL}/quiz/personality`,  changeFrequency: "weekly", priority: 0.5 },
     { url: `${BASE_URL}/contact`,  changeFrequency: "monthly", priority: 0.5 },
     { url: `${BASE_URL}/disclaimer`,  changeFrequency: "monthly", priority: 0.3 },
     { url: `${BASE_URL}/dmca`,  changeFrequency: "monthly", priority: 0.3 },

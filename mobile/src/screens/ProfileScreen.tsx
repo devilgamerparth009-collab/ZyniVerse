@@ -73,7 +73,7 @@ const EXPLORE_ITEMS: {
 ];
 
 function isSessionError(message?: string | null): boolean {
-  return !!message && /unauthor|401|403|session|sign in|expired|logged in/i.test(message);
+  return !!message && /session expired|unauthorized|invalid session|not authenticated|please sign in again/i.test(message);
 }
 
 function AuthState({
@@ -380,20 +380,40 @@ export default function ProfileScreen() {
       setMediaMap(map);
     } catch (e: any) {
       const message = e?.message || 'Could not load your profile';
-      setProfile(null);
-      setMediaMap(new Map());
-      setLoggedIn(false);
       if (isSessionError(message)) {
+        // Confirm the session is actually invalid before clearing it. Transient
+        // 401s or missing cookies should not log users out.
+        let liveUser: any = null;
         try {
-          await api.auth.logout();
+          liveUser = await api.auth.current();
         } catch {
-          /* ignore storage failures while clearing a stale session */
+          /* ignore */
         }
-        setSessionIssue('expired');
-        setAuthMessage(
-          'Your saved session was no longer valid, so we cleared it. Sign in again to continue.'
-        );
+        if (!liveUser) {
+          setProfile(null);
+          setMediaMap(new Map());
+          setLoggedIn(false);
+          try {
+            await api.auth.logout();
+          } catch {
+            /* ignore storage failures while clearing a stale session */
+          }
+          setSessionIssue('expired');
+          setAuthMessage(
+            'Your saved session was no longer valid, so we cleared it. Sign in again to continue.'
+          );
+        } else {
+          setSessionIssue('error');
+          setAuthMessage('Could not verify your session right now. Please try again.');
+          // Keep cached profile state off-screen but do not clear session.
+          setProfile(null);
+          setMediaMap(new Map());
+          setLoggedIn(false);
+        }
       } else {
+        setProfile(null);
+        setMediaMap(new Map());
+        setLoggedIn(false);
         setSessionIssue('error');
         setAuthMessage(message);
       }

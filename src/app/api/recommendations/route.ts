@@ -110,17 +110,23 @@ export async function GET(request: NextRequest) {
   try {
     const body = await discovery(type, genre, userId);
     if (body instanceof NextResponse) return body;
-    // "ai" / "personalized" are built from the signed-in user's taste profile,
-    // so their response is visitor-specific and must stay out of the shared
-    // CDN cache. Every other mode (trending / top rated / upcoming / genre /
-    // fan recommendations) is identical for every visitor and can be answered
-    // by the CDN instead of a billed function invocation.
     const visitorSpecific = type === "ai" || type === "personalized";
     const res = NextResponse.json({ recommendations: body });
     return visitorSpecific ? withPrivateCache(res) : withPublicCache(res);
   } catch (e) {
     logError(e);
-    return NextResponse.json({ error: "Failed to load recommendations, try again shortly." }, { status: 502 });
+    // Graceful fallback: never show a hard error for discovery recommendations.
+    if (type !== "trending") {
+      try {
+        const fallback = await discovery("trending", null, null);
+        if (!(fallback instanceof NextResponse) && fallback.length > 0) {
+          return withPublicCache(NextResponse.json({ recommendations: fallback, fallback: true }));
+        }
+      } catch (fallbackError) {
+        logError(fallbackError);
+      }
+    }
+    return withPublicCache(NextResponse.json({ recommendations: [], fallback: true }));
   }
 }
 

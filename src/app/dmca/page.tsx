@@ -17,7 +17,7 @@ export default function DmcaPage() {
       <h1 className="font-display text-3xl font-bold tracking-tight">
         DMCA &amp; Copyright Takedown Policy
       </h1>
-      <p className="mt-2 text-sm text-[var(--color-mute)]">Last updated: November 2026</p>
+      <p className="mt-2 text-sm text-[var(--color-mute)]">Last updated: May 2026</p>
 
       <div className="mt-10 space-y-6 text-sm leading-relaxed text-[var(--color-mute)]">
         <section>

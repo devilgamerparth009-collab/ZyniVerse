@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { NativeModules } from 'react-native';
 import { absoluteAvatarUrl } from '../utils/helpers';
+import { isTrustedPlatformUrl } from '../utils/safeLinks';
 import {
   Anime,
   CharacterEdge,
@@ -16,6 +17,7 @@ import {
   DubGenreStat,
   DubGenresResponse,
   DubOverviewResponse,
+  LiveDubScheduleResponse,
   FillerData,
   ForumCategory,
   ForumPost,
@@ -293,6 +295,22 @@ function normalizeAnime(raw: any): Anime {
   if (!raw) return raw;
   if (raw.idMal != null && raw.malId == null) raw.malId = raw.idMal;
   if (raw.malId != null && raw.idMal == null) raw.idMal = raw.malId;
+
+  // AniList often has an official platform URL in `externalLinks` even when it
+  // has no per-episode `streamingEpisodes` for a title. Surface those as watch
+  // rows, but never pass an unvetted third-party URL to the UI.
+  const directEpisodes = Array.isArray(raw.streamingEpisodes)
+    ? raw.streamingEpisodes.filter((ep: any) => ep?.url)
+    : [];
+  if (directEpisodes.length === 0 && Array.isArray(raw.externalLinks)) {
+    raw.streamingEpisodes = raw.externalLinks
+      .filter((link: any) => isTrustedPlatformUrl(link?.url))
+      .map((link: any) => ({
+        title: link.site || 'Watch on official platform',
+        url: link.url,
+      }))
+      .slice(0, 12);
+  }
   return raw as Anime;
 }
 
@@ -417,7 +435,68 @@ export async function getCurrentUser(): Promise<User | null> {
   return null;
 }
 
+interface MobileSessionLoginResponse {
+  ok: boolean;
+  user?: { id?: string; username?: string; email?: string; avatar?: string | null };
+  cookie?: string;
+  error?: string;
+}
+
+/**
+ * Preferred APK sign-in: one authenticated request, server-side bcrypt check,
+ * and an Auth.js-compatible session cookie returned in the response body.
+ * This avoids the CSRF callback/redirect round trip that React Native cannot
+ * reliably preserve.
+ */
+async function loginWithMobileSession(email: string, password: string): Promise<User> {
+  const res = await fetchWithTimeout(`${WEB_API}/mobile/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
+  const payload = (await res.json().catch(() => null)) as MobileSessionLoginResponse | null;
+  if (!res.ok || !payload?.ok) {
+    const error = new Error(
+      payload?.error || (res.status === 401 ? 'Invalid email or password.' : 'Could not sign in right now.')
+    ) as Error & { status?: number };
+    error.status = res.status;
+    throw error;
+  }
+  if (!payload.cookie || !payload.user?.id) {
+    const error = new Error('Sign-in response was incomplete. Please try again.') as Error & {
+      status?: number;
+    };
+    error.status = res.status;
+    throw error;
+  }
+
+  const user: User = {
+    id: payload.user.id,
+    username: payload.user.username || payload.user.email || email,
+    email: payload.user.email || email,
+    avatar: payload.user.avatar || undefined,
+  };
+  // An older OAuth session can still sit in the native WebView jar. Remove it
+  // so the explicit cookie below is the only one sent on authenticated calls.
+  await clearNativeCookies();
+  await saveSessionToStorage(payload.cookie, user);
+  return user;
+}
+
 async function login(email: string, password: string): Promise<User> {
+  try {
+    return await loginWithMobileSession(email, password);
+  } catch (e: any) {
+    // Real credential/server errors must reach the user unchanged. Only fall
+    // back when the new endpoint is not deployed yet (or temporarily down).
+    const fallbackStatuses = new Set([404, 405, 503]);
+    if (e?.status && !fallbackStatuses.has(e.status)) throw e;
+    if (!e?.status && !/timed out|network request failed/i.test(e?.message || '')) throw e;
+    return legacyLogin(email, password);
+  }
+}
+
+async function legacyLogin(email: string, password: string): Promise<User> {
   const csrfRes = await fetchWithTimeout(`${WEB_HOST}/api/auth/csrf`, {
     headers: { Accept: 'application/json' },
   });
@@ -610,6 +689,8 @@ const ANIME_DETAIL_QUERY = `
       trailer { id site thumbnail }
       siteUrl
       nextAiringEpisode { episode airingAt }
+      externalLinks { site url type language }
+      streamingEpisodes { title url site thumbnail }
     }
   }`;
 
@@ -626,6 +707,30 @@ async function animeById(id: number): Promise<Anime> {
     if (!json?.data?.Media) throw new Error('Anime not found');
     return normalizeAnime(json.data.Media);
   });
+}
+
+export interface StreamingLink {
+  platform: string;
+  url: string;
+  kind: 'direct' | 'search';
+}
+
+/** Direct official links first, then official platform searches as a fallback. */
+async function getStreamingLinks(id: number, title?: string): Promise<StreamingLink[]> {
+  try {
+    const data = await fetchWithCache(
+      `streaming_links_${id}`,
+      () =>
+        requestJson<{ success?: boolean; links?: StreamingLink[] }>(
+          buildUrl('/streaming/links', { id: String(id), title: title || '' }),
+          { timeoutMs: 10000 }
+        ),
+      6 * 60 * 60 * 1000
+    );
+    return (data?.links || []).filter((link) => isTrustedPlatformUrl(link?.url));
+  } catch {
+    return [];
+  }
 }
 
 async function listAnime(
@@ -946,6 +1051,31 @@ async function getDubWeeklySchedule(): Promise<DubScheduleListResponse> {
   return fetchWithCache('dub_weekly_schedule', () =>
     requestJson<DubScheduleListResponse>(`${WEB_API}/dub/schedule?limit=200`)
   );
+}
+
+/**
+ * Live Anime Dub Hindi schedule (Ongoing + Upcoming). Short cache TTL because
+ * the Dub Hub polls this endpoint every minute while it is on screen.
+ */
+async function getDubLiveSchedule(force = false): Promise<LiveDubScheduleResponse | null> {
+  const key = 'dub_live_schedule';
+  const ttl = 60 * 1000;
+  if (force) {
+    try {
+      const live = await requestJson<LiveDubScheduleResponse>(`${WEB_API}/dub/live-schedule`);
+      await cacheSet(key, live, ttl);
+      return live;
+    } catch {
+      return cacheGet<LiveDubScheduleResponse>(key, 6 * 60 * 60 * 1000);
+    }
+  }
+  try {
+    return await fetchWithCache(key, () =>
+      requestJson<LiveDubScheduleResponse>(`${WEB_API}/dub/live-schedule`), ttl
+    );
+  } catch {
+    return cacheGet<LiveDubScheduleResponse>(key, 6 * 60 * 60 * 1000);
+  }
 }
 
 async function getDubLanguageStats(): Promise<DubLanguageStat[]> {
@@ -2171,12 +2301,14 @@ export const api = {
   batch: batchMedia,
 
   anime: { get: animeById, list: listAnime },
+  streaming: { links: getStreamingLinks },
   filler: { get: getFiller },
   dubStatus: { get: getDubStatus },
   dubSchedule: { get: getDubSchedule },
   dub: {
     catalog: getDubCatalog,
     weeklySchedule: getDubWeeklySchedule,
+    liveSchedule: getDubLiveSchedule,
     languages: getDubLanguageStats,
     genres: getDubGenres,
     overview: getDubOverview,

@@ -306,10 +306,14 @@ export function proxy(request: NextRequest, event: NextFetchEvent) {
   // -------------------------------------------------------------------------
   if (isRead && userAgent && isBot) {
     const report = new URL("/api/internal/bot-hit", request.url);
+    const internalSecret = process.env.INTERNAL_API_SECRET || process.env.CRON_SECRET;
     event.waitUntil(
       fetch(report, {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: {
+          "content-type": "application/json",
+          ...(internalSecret ? { "x-internal-secret": internalSecret } : {}),
+        },
         body: JSON.stringify({
           path: pathname,
           userAgent,

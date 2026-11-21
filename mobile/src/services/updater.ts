@@ -23,6 +23,9 @@ const WEB_HOST = 'https://zyverse.in';
 const APK_FILE = 'ZyniVerse-update.apk';
 const META_KEY = 'zv_update_meta';
 const SKIPPED_KEY = 'zv_update_skipped';
+/** "Remind me later" state. Separate from the permanent Skip choice. */
+const PROMPT_KEY = 'zv_update_prompt';
+const REMIND_LATER_MS = 24 * 60 * 60 * 1000;
 
 export interface UpdateRelease {
   latestVersionName: string;
@@ -38,6 +41,7 @@ export interface UpdateRelease {
   notes: string[];
   publishedAt: string;
   downloadPage?: string;
+  upToDate?: boolean;
 }
 
 export interface DownloadedUpdate {
@@ -73,7 +77,7 @@ export function currentVersionCode(): number {
 
 /** Marketing version baked into the installed APK (e.g. "1.4.1"). */
 export function currentVersionName(): string {
-  return Application.nativeApplicationVersion || '1.4.1';
+  return Application.nativeApplicationVersion || '1.4.4';
 }
 
 export function formatBytes(bytes?: number | null): string {
@@ -138,7 +142,13 @@ export async function checkForUpdate(): Promise<UpdateRelease | null> {
     const timer = setTimeout(() => controller.abort(), 12000);
     const res = await fetch(
       `${WEB_HOST}/api/mobile/version?platform=android&versionCode=${code}`,
-      { headers: { Accept: 'application/json' }, signal: controller.signal }
+      {
+        headers: {
+          Accept: 'application/json',
+          'x-zyniverse-client': 'zyniverse-mobile-v1',
+        },
+        signal: controller.signal,
+      }
     ).finally(() => clearTimeout(timer));
     if (!res.ok) return null;
     const json = (await res.json()) as UpdateRelease;
@@ -155,6 +165,7 @@ export async function checkForUpdate(): Promise<UpdateRelease | null> {
     // stale Install button after the website has moved on (or after the same
     // build was installed from another source).
     await discardStaleCachedUpdate(release);
+    await clearUpdatePrompt(release.latestVersionCode);
     return release;
   } catch {
     return null;
@@ -168,6 +179,42 @@ export async function isSkipped(versionCode: number): Promise<boolean> {
 
 export async function skipVersion(versionCode: number): Promise<void> {
   await writeJson(SKIPPED_KEY, versionCode);
+  await writeJson(PROMPT_KEY, { code: versionCode, dismissedAt: Date.now(), forever: true });
+}
+
+/**
+ * "Remind me tomorrow" — the update card stays hidden for 24 hours but the
+ * version is not skipped forever. Mandatory releases ignore this cooldown.
+ */
+export async function remindLater(versionCode: number): Promise<void> {
+  await writeJson(PROMPT_KEY, { code: versionCode, dismissedAt: Date.now(), forever: false });
+}
+
+/** One central decision point so no screen can nag on every cold start. */
+export async function shouldPromptUpdate(release: UpdateRelease | null): Promise<boolean> {
+  if (!release?.updateAvailable || !release.latestVersionCode) return false;
+  if (release.latestVersionCode <= currentVersionCode() && !release.rollback) return false;
+  if (await isSkipped(release.latestVersionCode)) return false;
+  if (release.mandatory) return true;
+
+  const prompt = await readJson<{ code?: number; dismissedAt?: number; forever?: boolean }>(
+    PROMPT_KEY
+  );
+  if (!prompt || prompt.code !== release.latestVersionCode || !prompt.dismissedAt) return true;
+  if (prompt.forever) return false;
+  return Date.now() - prompt.dismissedAt >= REMIND_LATER_MS;
+}
+
+/** Clear stale prompt state when a new release arrives or after an install. */
+export async function clearUpdatePrompt(versionCode?: number): Promise<void> {
+  const prompt = await readJson<{ code?: number }>(PROMPT_KEY);
+  if (!versionCode || !prompt?.code || prompt.code !== versionCode) {
+    await AsyncStorage.removeItem(PROMPT_KEY).catch(() => {});
+  }
+  const skipped = await readJson<number>(SKIPPED_KEY);
+  if (skipped && skipped !== versionCode && versionCode) {
+    await AsyncStorage.removeItem(SKIPPED_KEY).catch(() => {});
+  }
 }
 
 /**
@@ -420,7 +467,9 @@ export async function autoPrepareUpdate(): Promise<UpdateRelease | null> {
   if (ready) return ready.release;
 
   if (!release?.updateAvailable) return null;
-  if (!release.mandatory && (await isSkipped(release.latestVersionCode))) return null;
+  // Respect both "Skip" and "Remind me later" before spending mobile data on
+  // a 40 MB download the user already declined.
+  if (!(await shouldPromptUpdate(release))) return null;
 
   try {
     await downloadUpdate(release);

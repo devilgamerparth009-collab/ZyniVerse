@@ -4,6 +4,7 @@ import WebhookManager from "@/components/WebhookManager";
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "https://zyverse.in";
 
 export const metadata: Metadata = {
+  robots: { index: false, follow: true },
   title: "Webhooks — Real-time notifications from ZyniVerse",
   description: "Connect ZyniVerse to your own server or bot. Get instant updates whenever anime are completed, episodes watched, reviews published, and more.",
   openGraph: {

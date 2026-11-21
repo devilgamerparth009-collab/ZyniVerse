@@ -9,7 +9,7 @@ import DubbedClient from "./DubbedClient";
  * which is why /dubbed felt slow on a cold visit.
  */
 // 15 minutes: editorial dub pages don't need 5-minute ISR churn.
-export const revalidate = 900;
+export const revalidate = 3600;
 
 export type LangKey = "english" | "hindi" | "tamil" | "telugu";
 

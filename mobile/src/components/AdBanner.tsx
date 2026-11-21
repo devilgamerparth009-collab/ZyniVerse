@@ -1,205 +1,249 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, Dimensions, Linking } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Dimensions,
+  Linking,
+  Animated,
+  ActivityIndicator,
+} from 'react-native';
 import { WebView } from 'react-native-webview';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
+export type AdPlacement =
+  | 'home-bottom'
+  | 'forum-feed'
+  | 'schedule-header'
+  | 'search-card'
+  | 'sidebar'
+  | 'detail-inline'
+  | 'tournaments-top'
+  | 'tv-guide'
+  | 'dub-schedule';
+
 interface AdBannerProps {
-  placement?: 'home-bottom' | 'forum-feed' | 'schedule-header' | 'search-card' | 'sidebar' | 'detail-inline';
+  placement?: AdPlacement;
   size?: 'banner' | 'medium' | 'native';
   style?: object;
+  /** Delay initial load so the first scroll/interaction stays smooth. */
+  lazy?: boolean;
 }
 
 /**
- * Real Adsterra Ad Unit with live script execution via native Android WebView.
- * Runs official Adsterra codes:
+ * Adsterra units rendered through the native Android WebView.
+ *
  * - 300x250 Medium: 72dd20ad744b4f992e4e2121cfa47172
  * - 728x90 Leaderboard: e80028b0207a45ef76bfc3d9d4a0fe9e (scaled to mobile)
  * - Native Banner: 188115be46209eff2403f0d29b32d940
+ *
+ * A failed/throttled ad collapses to zero height instead of leaving a blank
+ * rectangle, and a single retry is attempted with a cache-busted script URL.
  */
+const UNITS = {
+  medium: '72dd20ad744b4f992e4e2121cfa47172',
+  banner: 'e80028b0207a45ef76bfc3d9d4a0fe9e',
+  native: '188115be46209eff2403f0d29b32d940',
+} as const;
+
+const LOADER_HOST = 'formssternlystately.com';
+const LOAD_TIMEOUT_MS = 12000;
+const MAX_ATTEMPTS = 2;
+
+const AD_HOSTS = [
+  LOADER_HOST,
+  'bauval.org',
+  'adsterra.com',
+  'adsterra.network',
+  'zyverse.in',
+];
+
+function adHtml(size: 'banner' | 'medium' | 'native', attempt: number): string {
+  const cacheBust = attempt > 0 ? `?cb=${Date.now()}` : '';
+  const loader = (key: string) => `https://${LOADER_HOST}/${key}/invoke.js${cacheBust}`;
+  const readyScript = `
+    (function () {
+      var sent = false;
+      function ready() {
+        if (sent || !window.ReactNativeWebView) return;
+        sent = true;
+        window.ReactNativeWebView.postMessage('ad-ready');
+      }
+      var ticks = 0;
+      var timer = setInterval(function () {
+        ticks += 1;
+        if (document.querySelector('iframe, #container-${UNITS.native} iframe, #container-${UNITS.native}')) ready();
+        if (sent || ticks > 100) clearInterval(timer);
+      }, 100);
+    })();
+    true;
+  `;
+
+  if (size === 'banner') {
+    const scale = Math.min(1, (SCREEN_WIDTH - 24) / 728);
+    return `<!DOCTYPE html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { background:transparent; width:100%; height:100%; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+  .scaler { width:728px; height:90px; transform:scale(${scale}); transform-origin:center center; }
+  iframe { border:none !important; }
+</style></head><body>
+  <div class="scaler">
+    <script type="text/javascript">
+      atOptions = { 'key':'${UNITS.banner}', 'format':'iframe', 'height':90, 'width':728, 'params':{} };
+    </script>
+    <script type="text/javascript" src="${loader(UNITS.banner)}"></script>
+  </div>
+  <script>${readyScript}</script>
+</body></html>`;
+  }
+
+  if (size === 'native') {
+    return `<!DOCTYPE html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { background:transparent; width:100%; height:100%; overflow:hidden; font-family:Roboto, sans-serif; }
+</style></head><body>
+  <script async="async" data-cfasync="false" src="${loader(UNITS.native)}"></script>
+  <div id="container-${UNITS.native}"></div>
+  <script>${readyScript}</script>
+</body></html>`;
+  }
+
+  return `<!DOCTYPE html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { background:transparent; width:100%; height:100%; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+  iframe { border:none !important; }
+</style></head><body>
+  <script type="text/javascript">
+    atOptions = { 'key':'${UNITS.medium}', 'format':'iframe', 'height':250, 'width':300, 'params':{} };
+  </script>
+  <script type="text/javascript" src="${loader(UNITS.medium)}"></script>
+  <script>${readyScript}</script>
+</body></html>`;
+}
 
 export default function AdBanner({
   placement = 'home-bottom',
   size = 'medium',
   style,
+  lazy = true,
 }: AdBannerProps) {
-  const [loadFailed, setLoadFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  const [status, setStatus] = useState<'waiting' | 'loading' | 'loaded' | 'failed'>(
+    lazy ? 'waiting' : 'loading'
+  );
+  const mounted = useRef(true);
+
   const contentWidth = SCREEN_WIDTH - 24;
+  const scale = Math.min(1, contentWidth / 728);
+  const frameHeight = size === 'banner' ? Math.round(90 * scale) + 10 : size === 'native' ? 320 : 260;
+  const html = useMemo(() => adHtml(size, attempt), [size, attempt]);
 
-  // 728x90 Leaderboard requires exact dimensions in atOptions, so we scale it to fit mobile width
-  const bannerScale = Math.min(1, contentWidth / 728);
-  const bannerFrameHeight = Math.round(90 * bannerScale) + 8;
-
-  let htmlContent = '';
-  let frameHeight = 260;
-
-  if (size === 'banner') {
-    frameHeight = bannerFrameHeight;
-    htmlContent = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body {
-      background-color: transparent;
-      width: 100%;
-      height: 100%;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      overflow: hidden;
-    }
-    .scaler {
-      width: 728px;
-      height: 90px;
-      transform: scale(${bannerScale});
-      transform-origin: center center;
-    }
-    iframe { border: none !important; }
-  </style>
-</head>
-<body>
-  <div class="scaler">
-    <script type="text/javascript">
-      atOptions = {
-        'key' : 'e80028b0207a45ef76bfc3d9d4a0fe9e',
-        'format' : 'iframe',
-        'height' : 90,
-        'width' : 728,
-        'params' : {}
-      };
-    </script>
-    <script type="text/javascript" src="https://formssternlystately.com/e80028b0207a45ef76bfc3d9d4a0fe9e/invoke.js"></script>
-  </div>
-</body>
-</html>
-`;
-  } else if (size === 'native') {
-    frameHeight = 320;
-    htmlContent = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body {
-      background-color: transparent;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    }
-  </style>
-</head>
-<body>
-  <script async="async" data-cfasync="false" src="https://formssternlystately.com/188115be46209eff2403f0d29b32d940/invoke.js"></script>
-  <div id="container-188115be46209eff2403f0d29b32d940"></div>
-</body>
-</html>
-`;
-  } else {
-    // 300x250 Medium rectangle (default - most reliable & highest eCPM on mobile)
-    frameHeight = 260;
-    htmlContent = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body {
-      background-color: transparent;
-      width: 100%;
-      height: 100%;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      overflow: hidden;
-    }
-    iframe { border: none !important; }
-  </style>
-</head>
-<body>
-  <script type="text/javascript">
-    atOptions = {
-      'key' : '72dd20ad744b4f992e4e2121cfa47172',
-      'format' : 'iframe',
-      'height' : 250,
-      'width' : 300,
-      'params' : {}
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
     };
-  </script>
-  <script type="text/javascript" src="https://formssternlystately.com/72dd20ad744b4f992e4e2121cfa47172/invoke.js"></script>
-</body>
-</html>
-`;
-  }
+  }, []);
 
-  if (loadFailed) {
-    return null;
-  }
+  // Let the host screen finish its first interaction before loading a WebView.
+  useEffect(() => {
+    if (!lazy || status !== 'waiting') return;
+    const timer = setTimeout(() => setStatus('loading'), 450);
+    return () => clearTimeout(timer);
+  }, [lazy, status]);
+
+  // If the ad script is blocked or the network stalls, retry once then hide.
+  useEffect(() => {
+    if (status !== 'loading') return;
+    const timer = setTimeout(() => {
+      if (!mounted.current) return;
+      if (attempt < MAX_ATTEMPTS - 1) {
+        setAttempt((a) => a + 1);
+        setStatus('loading');
+      } else {
+        setStatus('failed');
+      }
+    }, LOAD_TIMEOUT_MS);
+    return () => clearTimeout(timer);
+  }, [status, attempt]);
+
+  if (status === 'failed') return null;
 
   return (
     <View
       style={[
         styles.wrapper,
         {
+          // Keep the measured box while loading so the WebView can actually
+          // render; a confirmed failure returns null below and collapses it.
           height: frameHeight,
+          marginVertical: 8,
           width: '100%',
         },
         style,
       ]}
+      accessibilityLabel={`Advertisement ${placement}`}
     >
-      <WebView
-        source={{
-          html: htmlContent,
-          baseUrl: 'https://zyverse.in',
-        }}
-        style={[styles.webView, { width: contentWidth }]}
-        javaScriptEnabled={true}
-        domStorageEnabled={true}
-        scalesPageToFit={false}
-        scrollEnabled={false}
-        showsHorizontalScrollIndicator={false}
-        showsVerticalScrollIndicator={false}
-        originWhitelist={['*']}
-        mixedContentMode="always"
-        allowsInlineMediaPlayback={true}
-        androidLayerType="hardware"
-        thirdPartyCookiesEnabled={true}
-        onShouldStartLoadWithRequest={(request) => {
-          const url = request.url || '';
-          // Allow internal ad loaders and scripts
-          if (
-            url === 'about:blank' ||
-            url.startsWith('data:') ||
-            url.includes('formssternlystately.com') ||
-            url.includes('zyverse.in') ||
-            url.includes('adsterra')
-          ) {
+      {status === 'loading' || status === 'loaded' ? (
+        <WebView
+          key={`${placement}-${attempt}`}
+          source={{ html, baseUrl: `https://${LOADER_HOST}` }}
+          style={[styles.webView, { width: contentWidth, height: frameHeight }]}
+          javaScriptEnabled
+          domStorageEnabled
+          scalesPageToFit={false}
+          scrollEnabled={false}
+          showsHorizontalScrollIndicator={false}
+          showsVerticalScrollIndicator={false}
+          originWhitelist={['*']}
+          mixedContentMode="compatibility"
+          allowsInlineMediaPlayback
+          androidLayerType="hardware"
+          thirdPartyCookiesEnabled
+          onMessage={(event) => {
+            if (event.nativeEvent.data === 'ad-ready' && mounted.current) setStatus('loaded');
+          }}
+          onError={() => {
+            if (!mounted.current) return;
+            if (attempt < MAX_ATTEMPTS - 1) {
+              setAttempt((a) => a + 1);
+              setStatus('loading');
+            } else {
+              setStatus('failed');
+            }
+          }}
+          renderError={() => <View />}
+          onShouldStartLoadWithRequest={(request) => {
+            const url = request.url || '';
+            if (url === 'about:blank' || url.startsWith('data:') || url.startsWith('https://')) {
+              if (AD_HOSTS.some((host) => url.includes(host))) return true;
+              // An ad tap must leave the app, never navigate the WebView away.
+              Linking.openURL(url).catch(() => {});
+              return false;
+            }
             return true;
-          }
-          // If the user taps an ad link / redirect, open it in the phone's browser
-          if (url.startsWith('http://') || url.startsWith('https://')) {
-            Linking.openURL(url).catch(() => {});
-            return false;
-          }
-          return true;
-        }}
-      />
+          }}
+        />
+      ) : null}
+      {status === 'loading' ? (
+        <View style={[styles.placeholder, { height: frameHeight }]} pointerEvents="none">
+          <ActivityIndicator size="small" color="#7c6cff" />
+        </View>
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   wrapper: {
-    marginVertical: 10,
+    marginVertical: 8,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'transparent',
@@ -207,5 +251,9 @@ const styles = StyleSheet.create({
   },
   webView: {
     backgroundColor: 'transparent',
+  },
+  placeholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

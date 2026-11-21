@@ -8,6 +8,13 @@ import { buildTvSchedule, getScheduleDays } from "@/lib/tv-schedule-data";
 export const maxDuration = 30;
 export const dynamic = "force-dynamic";
 
+const SOURCE_LABELS: Record<string, string> = {
+  epg: "epg.pw",
+  live: "AniList",
+  fallback: "Offline guide",
+  empty: "No source",
+};
+
 async function GET_inner(req: NextRequest) {
   try {
     const { searchParams } = req.nextUrl;
@@ -28,6 +35,7 @@ async function GET_inner(req: NextRequest) {
         day: grid.day,
         schedule: { day: grid.day, slots },
         source: entry?.source ?? "empty",
+        sourceLabel: SOURCE_LABELS[entry?.source ?? "empty"],
         updatedAt: grid.updatedAt,
       });
     }
@@ -45,6 +53,7 @@ async function GET_inner(req: NextRequest) {
         channel: ch,
         schedule: { day: grid.day, slots },
         source: entry.source ?? "empty",
+        sourceLabel: SOURCE_LABELS[entry.source ?? "empty"],
       };
     });
 

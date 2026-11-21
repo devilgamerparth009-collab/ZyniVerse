@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   description:
     "See the top anime quiz scores on ZyniVerse. Ranked by total points across anime quizzes, daily challenges, and community trivia.",
   alternates: { canonical: `${BASE_URL}/quiz/leaderboard` },
-  robots: { index: true, follow: true },
+  robots: { index: false, follow: true },
 };
 
 interface ScoreRow {

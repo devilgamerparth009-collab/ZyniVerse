@@ -13,13 +13,23 @@ import { buildTvSchedule } from "@/lib/tv-schedule-data";
 export const maxDuration = 30;
 export const dynamic = "force-dynamic";
 
+const SOURCE_LABELS: Record<string, string> = {
+  epg: "epg.pw",
+  live: "AniList",
+  fallback: "Offline guide",
+  empty: "No source",
+};
+
 async function GET_inner() {
   try {
     const grid = await buildTvSchedule();
     return NextResponse.json({
       updatedAt: grid.updatedAt,
       today: grid.today,
-      channels: grid.channels,
+      channels: grid.channels.map((entry) => ({
+        ...entry,
+        sourceLabel: SOURCE_LABELS[entry.source ?? "empty"],
+      })),
       liveAiringTotal: grid.liveAiringTotal,
       offlineLinear: grid.offlineLinear ?? false,
     });

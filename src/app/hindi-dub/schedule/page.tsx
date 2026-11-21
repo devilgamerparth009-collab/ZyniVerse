@@ -125,11 +125,10 @@ export default async function HindiDubSchedulePage({
                 <ul className="divide-y divide-[var(--color-line)] overflow-hidden rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)]">
                   {group.items.map((row) => (
                     <li key={row.id}>
-                      <a
-                        href={row.sourceUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <Link
+                        href={`/search?q=${encodeURIComponent(row.title)}`}
                         className="flex items-center gap-3 p-3 transition hover:bg-white/5"
+                        title={`Search ${row.title} on ZyniVerse`}
                       >
                         <div className="h-16 w-12 shrink-0 overflow-hidden rounded-md border border-[var(--color-line)] bg-black/40">
                           {row.posterUrl && (
@@ -162,7 +161,7 @@ export default async function HindiDubSchedulePage({
                           <p className="text-xs font-bold text-[var(--color-cyan)]">{row.timeLabel ?? "TBA"}</p>
                           <p className="text-[10px] uppercase tracking-wide text-[var(--color-mute)]">IST</p>
                         </div>
-                      </a>
+                      </Link>
                     </li>
                   ))}
                 </ul>

@@ -41,6 +41,7 @@ export const EPG_PW_MAP: Record<string, number> = {
   disney_channel: 577362, // DISNEY CHANNEL
   disney_junior: 577377, // DISNEY JUNIOR
   animax: 524073, // Animax Asia (English)
+  epic_kids: 577097, // EPIC TV (closest epg.pw feed for EPIC Kids)
 };
 
 interface EpgPwEntry {

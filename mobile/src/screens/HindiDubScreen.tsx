@@ -23,9 +23,10 @@ import FadeInView from '../components/FadeInView';
 import SafeImage from '../components/SafeImage';
 import AnimatedTabBar, { type AnimatedTabItem } from '../components/AnimatedTabBar';
 import { SkeletonBlock } from '../components/Skeletons';
+import LiveDubSchedule from '../components/LiveDubSchedule';
 import { useTheme } from '../hooks/useTheme';
 import { colors, themed, spacing, fontSize, borderRadius } from '../theme';
-import { openSafeWebUrl } from '../utils/safeLinks';
+
 
 const LANG_TINT: Record<string, string> = {
   Hindi: '#ff9933',
@@ -51,7 +52,7 @@ const TABS: AnimatedTabItem<TabKey>[] = [
   { key: 'all', label: 'All', emoji: '✨' },
   { key: 'series', label: 'Series', emoji: '📺' },
   { key: 'movies', label: 'Movies', emoji: '🎬' },
-  { key: 'schedule', label: 'Schedule', emoji: '🗓' },
+  { key: 'schedule', label: 'Live Schedule', emoji: '⏱' },
   { key: 'languages', label: 'Languages', emoji: '🌐' },
   { key: 'genres', label: 'Genres', emoji: '🎭' },
 ];
@@ -82,9 +83,52 @@ function languageTint(language: string): string {
   return LANG_TINT[language] ?? '#8b5cf6';
 }
 
-function openDubSource(url?: string | null) {
-  // Open trusted official platform links directly; keep unknown/external sites on ZyniVerse pages.
-  openSafeWebUrl(url, '/hindi-dub');
+const dubResolveCache = new Map<string, number | null>();
+
+async function resolveDubAnilistId(title: string): Promise<number | null> {
+  const key = title.trim().toLowerCase();
+  if (!key) return null;
+  if (dubResolveCache.has(key)) return dubResolveCache.get(key) ?? null;
+
+  const clean = title
+    .replace(/\s*\((?:Hindi|Tamil|Telugu|Kannada|Malayalam|Bengali|Marathi|English|Dub(?:bed)?|Movie|Film|TV|Series|Season\s*\d+|S\d+)\)/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const queries = [clean, title.trim()].filter((q, i, arr) => q && arr.indexOf(q) === i);
+  for (const query of queries) {
+    try {
+      const suggestions = await api.suggestions(query);
+      const exact = suggestions.find((s) => s.title?.trim().toLowerCase() === key);
+      const match = exact ?? suggestions[0];
+      if (match?.id) {
+        dubResolveCache.set(key, match.id);
+        return match.id;
+      }
+    } catch {
+      // try next strategy
+    }
+
+    try {
+      const results = await api.search(query, 'anime');
+      const exact = results.find((a) => {
+        const titles = [a.title?.english, a.title?.romaji, a.title?.native, a.title?.userPreferred]
+          .filter(Boolean)
+          .map((t) => String(t).trim().toLowerCase());
+        return titles.includes(key) || titles.includes(clean.toLowerCase());
+      });
+      const match = exact ?? results[0];
+      if (match?.id) {
+        dubResolveCache.set(key, match.id);
+        return match.id;
+      }
+    } catch {
+      // try next query
+    }
+  }
+
+  dubResolveCache.set(key, null);
+  return null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -180,6 +224,7 @@ function CatalogTab({
   initialGenre,
   onClearInitial,
   header,
+  onOpenTitle,
 }: {
   kind?: 'series' | 'movie';
   languages: DubLanguageStat[];
@@ -189,6 +234,7 @@ function CatalogTab({
   initialGenre?: string;
   onClearInitial: () => void;
   header?: ReactNode;
+  onOpenTitle: (title: string) => void;
 }) {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
@@ -399,7 +445,7 @@ function CatalogTab({
       keyExtractor={(item) => item.id}
       numColumns={3}
       renderItem={({ item, index }) => (
-        <CatalogCard item={item} width={cardWidth} index={index} onPress={() => openDubSource(item.sourceUrl)} />
+        <CatalogCard item={item} width={cardWidth} index={index} onPress={() => onOpenTitle(item.title)} />
       )}
       ListHeaderComponent={
         <>
@@ -484,11 +530,13 @@ function AiringRow({
   tint,
   index,
   now,
+  onOpenTitle,
 }: {
   item: DubAiring;
   tint: string;
   index: number;
   now: number;
+  onOpenTitle: (title: string) => void;
 }) {
   const countdown = countdownFrom(item.releaseAt, now);
   const meta = [item.season, item.episodeInfo].filter(Boolean).join(' · ');
@@ -497,7 +545,7 @@ function AiringRow({
     <FadeInView delay={Math.min(index, 10) * 40} offset={8}>
       <PressableScale
         scaleTo={0.99}
-        onPress={() => openDubSource(item.sourceUrl)}
+        onPress={() => onOpenTitle(item.title)}
         accessibilityLabel={item.title}
         style={styles.airingCard}
       >
@@ -576,7 +624,15 @@ function AiringRow({
 
 type ScheduleView = 'week' | 'tonight';
 
-function ScheduleTab({ tint, header }: { tint: string; header?: ReactNode }) {
+function ScheduleTab({
+  tint,
+  header,
+  onOpenTitle,
+}: {
+  tint: string;
+  header?: ReactNode;
+  onOpenTitle: (title: string) => void;
+}) {
   const insets = useSafeAreaInsets();
   const [view, setView] = useState<ScheduleView>('week');
   const [sections, setSections] = useState<{ title: string; data: DubAiring[] }[]>([]);
@@ -680,7 +736,7 @@ function ScheduleTab({ tint, header }: { tint: string; header?: ReactNode }) {
       sections={sections}
       keyExtractor={(item) => item.id}
       renderItem={({ item, index }) => (
-        <AiringRow item={item} tint={tint} index={index} now={now} />
+        <AiringRow item={item} tint={tint} index={index} now={now} onOpenTitle={onOpenTitle} />
       )}
       renderSectionHeader={({ section }) => (
         <View style={styles.sectionHeader}>
@@ -999,6 +1055,27 @@ export default function HindiDubScreen() {
 
   const clearBrowse = useCallback(() => setBrowse({}), []);
 
+  const openingTitleRef = useRef<string | null>(null);
+  const openDubTitle = useCallback(async (title: string) => {
+    const key = title.trim().toLowerCase();
+    if (!key || openingTitleRef.current === key) return;
+    openingTitleRef.current = key;
+    try {
+      const anilistId = await resolveDubAnilistId(title);
+      if (anilistId) {
+        navigation.navigate('AnimeDetail', { id: anilistId, title: title.trim() });
+        return;
+      }
+      navigation.navigate('Browse', { search: title.trim(), title: `Search: ${title.trim()}` });
+    } catch {
+      navigation.navigate('Browse', { search: title.trim(), title: `Search: ${title.trim()}` });
+    } finally {
+      setTimeout(() => {
+        if (openingTitleRef.current === key) openingTitleRef.current = null;
+      }, 600);
+    }
+  }, [navigation]);
+
   const headerRight = (
     <PressableScale
       scaleTo={0.92}
@@ -1080,9 +1157,12 @@ export default function HindiDubScreen() {
           initialGenre={browse.genre}
           onClearInitial={clearBrowse}
           header={sharedHeader}
+          onOpenTitle={openDubTitle}
         />
       ) : null}
-      {tab === 'schedule' ? <ScheduleTab tint={tint} header={sharedHeader} /> : null}
+      {tab === 'schedule' ? (
+        <LiveDubSchedule tint={tint} header={sharedHeader} onOpenTitle={openDubTitle} />
+      ) : null}
       {tab === 'languages' ? (
         <LanguagesTab
           languages={languages}

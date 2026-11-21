@@ -172,7 +172,7 @@ function NativeAsyncAd({ containerId }: { containerId: string }) {
     const script = document.createElement("script");
     script.async = true;
     script.setAttribute("data-cfasync", "false");
-    script.src = `https://formssternlystately.com/188115be46209eff2403f0d29b32d940/invoke.js`;
+    script.src = `https://bauval.org/21/188115be46209eff2403f0d29b32d940`;
     divRef.current.appendChild(script);
   }, [containerId]);
 

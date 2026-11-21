@@ -258,6 +258,34 @@ export default async function AnimeDetailsPage({
         reels={animeReels}
         dubGuideHref={dubPageSlug ? `/indian-dubs/${dubPageSlug}` : null}
       />
+      <section className="mx-auto max-w-7xl px-4 pb-12 sm:px-6">
+        <div className="rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)]/60 p-6 sm:p-8">
+          <h2 className="font-display text-xl font-bold text-white">About this anime page</h2>
+          <p className="mt-3 text-sm leading-relaxed text-[var(--color-mute)]">
+            This page combines anime metadata, episode details, character information, and ZyniVerse tools like watch order, filler guides, and Hindi dub availability where relevant.
+            Information is sourced from public metadata providers and curated references, and it may change as new episodes or official updates are released.
+          </p>
+          <div className="mt-5 grid gap-4 sm:grid-cols-3 text-sm">
+            <div className="rounded-xl border border-[var(--color-line)] bg-black/20 p-4">
+              <p className="font-semibold text-white">Check watch order</p>
+              <p className="mt-1 text-xs text-[var(--color-mute)]">Use watch order guides for franchises with multiple seasons, movies, or timelines.</p>
+            </div>
+            <div className="rounded-xl border border-[var(--color-line)] bg-black/20 p-4">
+              <p className="font-semibold text-white">Skip filler wisely</p>
+              <p className="mt-1 text-xs text-[var(--color-mute)]">Filler guides help you save time while keeping important canon episodes.</p>
+            </div>
+            <div className="rounded-xl border border-[var(--color-line)] bg-black/20 p-4">
+              <p className="font-semibold text-white">Verify availability</p>
+              <p className="mt-1 text-xs text-[var(--color-mute)]">Streaming and dub availability can change by region and platform. Confirm on official services.</p>
+            </div>
+          </div>
+          <div className="mt-6 space-y-3 text-sm text-[var(--color-mute)]">
+            <h3 className="font-semibold text-white">FAQ</h3>
+            <p><span className="text-white">Is this anime canon/filler information accurate?</span> We use available episode data and guide references. If you notice an issue, use the feedback/contact page so we can review it.</p>
+            <p><span className="text-white">Can I watch anime here?</span> No. ZyniVerse does not host or stream anime episodes. We provide information, guides, and links to official platforms where available.</p>
+          </div>
+        </div>
+      </section>
     </>
   );
 }

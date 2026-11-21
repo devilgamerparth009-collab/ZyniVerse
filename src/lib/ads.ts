@@ -33,7 +33,7 @@ export const PLACEMENTS: AdPlacement[] = [
     'params' : {}
   };
 </script>
-<script src="https://formssternlystately.com/72dd20ad744b4f992e4e2121cfa47172/invoke.js"></script>`,
+<script src="https://bauval.org/22/72dd20ad744b4f992e4e2121cfa47172"></script>`,
     location: "sidebar",        // matches: sidebar, manga, wiki, search, anime-detail
     isActive: true,
     dimensions: { width: 300, height: 250 },
@@ -53,7 +53,7 @@ export const PLACEMENTS: AdPlacement[] = [
     'params' : {}
   };
 </script>
-<script src="https://formssternlystately.com/e80028b0207a45ef76bfc3d9d4a0fe9e/invoke.js"></script>`,
+<script src="https://bauval.org/22/e80028b0207a45ef76bfc3d9d4a0fe9e"></script>`,
     location: "banner",         // matches: homepage, filler, forum, global-footer, recommendations
     isActive: true,
     dimensions: { width: 728, height: 90 },
@@ -64,7 +64,7 @@ export const PLACEMENTS: AdPlacement[] = [
     type: "native",
     network: "adsterra",
     renderMode: "native-async",
-    code: `<script async="async" data-cfasync="false" src="https://formssternlystately.com/188115be46209eff2403f0d29b32d940/invoke.js"></script>
+    code: `<script async="async" data-cfasync="false" src="https://bauval.org/21/188115be46209eff2403f0d29b32d940"></script>
 <div id="container-188115be46209eff2403f0d29b32d940"></div>`,
     location: "native",         // matches: in-content placements
     isActive: true,
@@ -75,7 +75,7 @@ export const PLACEMENTS: AdPlacement[] = [
     type: "socialbar",
     network: "adsterra",
     renderMode: "socialbar-sync",
-    code: `<script src="https://formssternlystately.com/79/88/46/798846c18dea1cf9f50c54e73acf1380.js"></script>`,
+    code: `<script data-cfasync="false" src="https://bauval.org/14/798846c18dea1cf9f50c54e73acf1380"></script>`,
     location: "global",
     isActive: true,
   },

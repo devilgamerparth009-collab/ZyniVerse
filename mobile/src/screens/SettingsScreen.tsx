@@ -27,7 +27,7 @@ import { isChristmasWindow } from '../utils/themeUtils';
 import { openSafeWebUrl } from '../utils/safeLinks';
 
 const appConfig = require('../../app.json');
-const APP_VERSION = appConfig?.expo?.version ?? '1.4.1';
+const APP_VERSION = appConfig?.expo?.version ?? '1.4.4';
 
 const openLink = (url: string) => openSafeWebUrl(url, '/');
 

@@ -22,7 +22,7 @@ import SafeImage from '../components/SafeImage';
 import AdBanner from '../components/AdBanner';
 import { formatScore, getScoreColor, LIST_STATUS_LABEL } from '../utils/helpers';
 import { openSafeWebUrl, openTrustedExternalUrl, platformLabelForUrl, trustedExternalUrl } from '../utils/safeLinks';
-import { api, getCurrentUser } from '../services/api';
+import { api, getCurrentUser, StreamingLink } from '../services/api';
 import {
   Anime,
   CharacterEdge,
@@ -97,6 +97,7 @@ export default function AnimeDetailScreen() {
   const [filler, setFiller] = useState<FillerData | null>(null);
   const [reviews, setReviews] = useState<ReviewItem[]>([]);
   const [preferredDub, setPreferredDub] = useState<DubLanguage | null>(null);
+  const [streamingLinks, setStreamingLinks] = useState<StreamingLink[]>([]);
 
   const [reviewRating, setReviewRating] = useState(8);
   const [reviewComment, setReviewComment] = useState('');
@@ -170,6 +171,22 @@ export default function AnimeDetailScreen() {
     }
     api.dubStatus.get(malId).then(setDub).catch(() => setDub(null));
   }, [malId]);
+
+  // AniList direct links are best; fall back to official platform searches.
+  useEffect(() => {
+    if (!anime) return;
+    const direct = (anime.streamingEpisodes || [])
+      .map((ep) => trustedExternalUrl(ep.url))
+      .filter(Boolean) as string[];
+    if (direct.length > 0) {
+      setStreamingLinks([]);
+      return;
+    }
+    api.streaming
+      .links(id, title)
+      .then((links) => setStreamingLinks(links.slice(0, 8)))
+      .catch(() => setStreamingLinks([]));
+  }, [anime, id, title]);
 
   const setStatus = async (status: string) => {
     if (!loggedIn) {
@@ -628,6 +645,35 @@ export default function AnimeDetailScreen() {
         </View>
       ) : null}
 
+      {streamingLinks.length > 0 ? (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Find it on official platforms</Text>
+          <Text style={styles.mutedText}>
+            No direct episode link was published for this title. These searches stay on official services.
+          </Text>
+          <View style={styles.watchList}>
+            {streamingLinks.map((link) => (
+              <TouchableOpacity
+                key={`${link.platform}-${link.url}`}
+                style={styles.watchRow}
+                activeOpacity={0.85}
+                onPress={() => openTrustedExternalUrl(link.url).catch(() => {})}
+              >
+                <View style={styles.watchRowBody}>
+                  <Text style={styles.watchPlatform}>{link.platform}</Text>
+                  <Text style={styles.watchTitle} numberOfLines={1}>
+                    {platformLabelForUrl(link.url)}
+                  </Text>
+                </View>
+                <Text style={styles.watchAction}>
+                  {link.kind === 'search' ? 'Search →' : 'Open →'}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      ) : null}
+
       {characters.length > 0 ? (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Characters</Text>
@@ -768,8 +814,6 @@ export default function AnimeDetailScreen() {
         </View>
       ) : null}
 
-      {/* Bottom Ad Banner */}
-      <AdBanner size="banner" placement="home-bottom" />
     </ScrollView>
   );
 }

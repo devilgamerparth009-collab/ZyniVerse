@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { DubTitleDTO } from "@/lib/dub-import/queries";
 
 const LANG_TINT: Record<string, string> = {
@@ -11,12 +12,10 @@ const LANG_TINT: Record<string, string> = {
 
 export function DubTitleCard({ item }: { item: DubTitleDTO }) {
   return (
-    <a
-      href={item.sourceUrl}
-      target="_blank"
-      rel="noopener noreferrer"
+    <Link
+      href={`/search?q=${encodeURIComponent(item.title)}`}
       className="group flex flex-col"
-      title={`View ${item.title}`}
+      title={`Search ${item.title} on ZyniVerse`}
     >
       <div className="relative aspect-[3/4] overflow-hidden rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)]">
         {item.posterUrl ? (
@@ -77,7 +76,7 @@ export function DubTitleCard({ item }: { item: DubTitleDTO }) {
           {[item.season, item.episodeInfo].filter(Boolean).join(" · ")}
         </p>
       )}
-    </a>
+    </Link>
   );
 }
 

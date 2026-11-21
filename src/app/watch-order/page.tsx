@@ -397,6 +397,9 @@ export default function WatchOrderPage() {
         <div className="mt-20 border-t border-[var(--color-line)] pt-12">
           <h2 className="font-display text-2xl font-bold mb-2">Why Watch Order Matters</h2>
           <p className="text-xs text-[var(--color-mute)] mb-8">Quick answers to common questions</p>
+          <div className="mb-8 rounded-xl border border-[var(--glass-border)] bg-[var(--glass-bg)] p-5 text-sm text-[var(--color-mute)]">
+            <p><span className="font-semibold text-[var(--color-ink)]">How to use this page:</span> Search for an anime, open a guide, and follow the recommended order. If a franchise has multiple timelines or movies, check the notes before skipping entries. For filler-heavy shows, pair watch order guides with our <Link href="/filler" className="text-[var(--color-cyan)] hover:underline">filler guides</Link>.</p>
+          </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {FAQ.map((item, i) => (
               <div key={i} className="rounded-xl border border-[var(--glass-border)] bg-[var(--glass-bg)] backdrop-blur-md p-5 transition-all duration-300 hover:border-[var(--color-magenta)]/20 hover:shadow-[0_4px_24px_-8px_rgba(255,45,120,0.1)]">

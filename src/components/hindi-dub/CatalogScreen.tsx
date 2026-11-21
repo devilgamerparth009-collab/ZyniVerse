@@ -1,4 +1,5 @@
 import Link from "next/link";
+import NativeBannerAd from "@/components/NativeBannerAd";
 import { CatalogView } from "./CatalogView";
 import { getDubCatalog, getDubGenres, getDubLanguages } from "@/lib/dub-import/queries";
 
@@ -45,6 +46,7 @@ export async function CatalogScreen({
         <span>/</span>
         <span className="text-[var(--color-ink)]">{kind === "movie" ? "Movies" : "Series"}</span>
       </nav>
+      <NativeBannerAd className="mb-6" />
       <CatalogView
         basePath={kind === "movie" ? "/hindi-dub/movies" : "/hindi-dub/series"}
         title={title}

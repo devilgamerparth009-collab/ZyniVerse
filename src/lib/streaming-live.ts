@@ -25,8 +25,10 @@ function timestampToIST(airingAt: number): string {
 }
 
 function getDayOfWeek(airingAt: number): string {
-  const d = new Date(airingAt * 1000);
-  return ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][d.getDay()];
+  // `airingAt` is a UTC timestamp but every air time we publish is IST. Group
+  // it by the same IST day, otherwise a 00:30 IST episode lands on yesterday.
+  const d = new Date((airingAt + IST_OFFSET) * 1000);
+  return ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][d.getUTCDay()];
 }
 
 function titleBest(media: { title: { romaji?: string; english?: string } }): string {

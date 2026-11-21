@@ -12,6 +12,7 @@ import {
   Image,
   Animated,
   Easing,
+  Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -20,6 +21,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../hooks/useTheme';
 import { api } from '../services/api';
 import { GoogleLogo, GitHubLogo, DiscordLogo } from '../components/SocialIcons';
+
+WebBrowser.maybeCompleteAuthSession();
 
 type Mode = 'login' | 'signup';
 type Provider = 'google' | 'github' | 'discord';
@@ -249,41 +252,59 @@ export default function LoginScreen() {
         OAUTH_REDIRECT
       )}&t=${Date.now()}`;
 
+      let finished = false;
+      const completeFromUrl = async (url: string) => {
+        if (finished) return false;
+        const cookie = cookieFromRedirect(url);
+        if (!cookie) return false;
+        const userFromUrl = userFromRedirect(url);
+        await api.auth.setCookie(cookie, userFromUrl);
+        let user = userFromUrl || (await api.auth.current());
+        if (!user) {
+          await new Promise((resolve) => setTimeout(resolve, 800));
+          user = await api.auth.current();
+        }
+        if (!user) throw new Error('Could not verify the new session. Please try again.');
+        finished = true;
+        navigation.goBack();
+        return true;
+      };
+
+      const sub = Linking.addEventListener('url', ({ url }) => {
+        if (url?.startsWith(OAUTH_REDIRECT)) {
+          void completeFromUrl(url).catch(() => {});
+        }
+      });
+
       try {
         const result = await WebBrowser.openAuthSessionAsync(startUrl, OAUTH_REDIRECT, {
           showInRecents: false,
         });
 
         if (result.type === 'success') {
-          const cookie = cookieFromRedirect(result.url || '');
-          if (!cookie) throw new Error('Sign-in did not return a session. Please try again.');
-
-          const userFromUrl = userFromRedirect(result.url || '');
-          await api.auth.setCookie(cookie, userFromUrl);
-
-          // Verify session: use direct user payload from deep link or fetch current user
-          let user = userFromUrl || (await api.auth.current());
-          if (!user) {
-            // Short retry for network lag after system browser dismisses
-            await new Promise((resolve) => setTimeout(resolve, 800));
-            user = await api.auth.current();
-          }
-
-          if (!user) {
-            throw new Error('Could not verify the new session. Please try again.');
-          }
-
-          navigation.goBack();
+          await completeFromUrl(result.url || '');
+          if (!finished) throw new Error('Sign-in did not return a session. Please try again.');
           return;
         }
 
         if (result.type === 'cancel' || result.type === 'dismiss') {
-          setError('Sign-in was cancelled.');
+          // Some Android flows dismiss before JS receives the success result.
+          await new Promise((resolve) => setTimeout(resolve, 900));
+          if (finished) return;
+          const user = await api.auth.current().catch(() => null);
+          if (user) {
+            finished = true;
+            navigation.goBack();
+            return;
+          }
+          setError('Sign-in was cancelled or did not complete. If you finished signing in, please try again.');
         }
       } catch (e: any) {
-        setError(e?.message || 'Sign-in could not complete. Please try again.');
+        if (!finished) setError(e?.message || 'Sign-in could not complete. Please try again.');
       } finally {
-        setOauthBusy(null);
+        sub.remove();
+        if (!finished) setOauthBusy(null);
+        else setOauthBusy(null);
       }
     },
     [available, oauthBusy, navigation]

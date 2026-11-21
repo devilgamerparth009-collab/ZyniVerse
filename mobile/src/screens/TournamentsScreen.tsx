@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useTheme } from '../hooks/useTheme';
 import { api } from '../services/api';
 import { CharacterTournament } from '../types';
@@ -67,6 +67,7 @@ export default function TournamentsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [, setClockTick] = useState(0);
 
   const fetchTournaments = useCallback(async () => {
     try {
@@ -90,6 +91,13 @@ export default function TournamentsScreen() {
     fetchTournaments();
   };
 
+  useFocusEffect(
+    useCallback(() => {
+      const timer = setInterval(() => setClockTick((tick) => tick + 1), 60_000);
+      return () => clearInterval(timer);
+    }, [])
+  );
+
   const primaryColor = isLaunch ? '#22d3ee' : colors.primary;
 
   const liveList = tournaments.filter(
@@ -98,6 +106,12 @@ export default function TournamentsScreen() {
   const historyList = tournaments.filter(
     (t) => t.status === 'completed' || t.status === 'cancelled'
   );
+  const featured = useMemo(() => {
+    const priority: Record<string, number> = { active: 0, qualifying: 1, upcoming: 2 };
+    return [...liveList].sort(
+      (a, b) => (priority[a.status] ?? 9) - (priority[b.status] ?? 9)
+    )[0] || null;
+  }, [liveList]);
 
   const displayedList =
     activeTab === 'live' ? liveList : activeTab === 'history' ? historyList : tournaments;
@@ -171,8 +185,6 @@ export default function TournamentsScreen() {
           </View>
         </TouchableOpacity>
 
-        {/* Adsterra Sponsored Ad inside list */}
-        {(index + 1) % 4 === 0 && <AdBanner placement="home-bottom" />}
       </FadeInView>
     );
   };
@@ -192,6 +204,68 @@ export default function TournamentsScreen() {
             <Text style={[styles.title, { color: colors.text }]}>Tournament Arena</Text>
           </View>
         </View>
+
+        {/* Featured battle: the arena's main event, not just another row. */}
+        {featured ? (
+          <FadeInView delay={30} offset={10}>
+            <PressableScale
+              scaleTo={0.99}
+              accessibilityLabel={`Enter ${featured.title}`}
+              onPress={() =>
+                navigation.navigate('TournamentDetail', {
+                  id: featured.id,
+                  title: featured.title,
+                })
+              }
+              style={[
+                styles.featuredCard,
+                {
+                  backgroundColor: colors.background,
+                  borderColor: `${primaryColor}66`,
+                },
+              ]}
+            >
+              <View
+                pointerEvents="none"
+                style={[styles.featuredGlow, { backgroundColor: `${primaryColor}22` }]}
+              />
+              <View style={styles.featuredTop}>
+                <View
+                  style={[
+                    styles.featuredBadge,
+                    { backgroundColor: `${STATUS_META[featured.status]?.color || primaryColor}22` },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.featuredBadgeText,
+                      { color: STATUS_META[featured.status]?.color || primaryColor },
+                    ]}
+                  >
+                    ⚡ FEATURED BATTLE
+                  </Text>
+                </View>
+                <Text style={[styles.featuredCountdown, { color: colors.textMuted }]}>
+                  {countdownLabel(
+                    featured.mode === 'qualifying'
+                      ? featured.qualifyingEndsAt
+                      : featured.roundEndsAt
+                  ) || 'Voting open'}
+                </Text>
+              </View>
+              <Text style={[styles.featuredTitle, { color: colors.text }]} numberOfLines={2}>
+                {featured.title}
+              </Text>
+              <View style={styles.featuredFooter}>
+                <Text style={[styles.featuredMeta, { color: colors.textMuted }]}>
+                  {featured.characterCount || featured.totalSlots || 32} contenders ·{' '}
+                  {featured.currentRound ? `Round ${featured.currentRound}` : 'Elimination stage'}
+                </Text>
+                <Text style={[styles.featuredCta, { color: primaryColor }]}>Enter arena ›</Text>
+              </View>
+            </PressableScale>
+          </FadeInView>
+        ) : null}
 
         {/* Tab Filters */}
         <View style={styles.tabBar}>
@@ -266,9 +340,6 @@ export default function TournamentsScreen() {
         </View>
       </FadeInView>
 
-      {/* Adsterra Ad Banner */}
-      <AdBanner placement="schedule-header" />
-
       {/* Tournaments List */}
       {loading && tournaments.length === 0 ? (
         <View style={{ paddingVertical: 40 }}>
@@ -285,6 +356,7 @@ export default function TournamentsScreen() {
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={primaryColor} />
           }
+          ListHeaderComponent={<AdBanner placement="tournaments-top" size="banner" />}
           ListEmptyComponent={
             <View style={[styles.emptyBox, { backgroundColor: colors.surface }]}>
               <Text style={{ fontSize: 44, marginBottom: 8 }}>⚔️</Text>
@@ -314,6 +386,63 @@ const styles = StyleSheet.create({
   },
   headerTitleRow: {
     marginBottom: 12,
+  },
+  featuredCard: {
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 12,
+    overflow: 'hidden',
+  },
+  featuredGlow: {
+    position: 'absolute',
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    top: -100,
+    right: -70,
+  },
+  featuredTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginBottom: 8,
+  },
+  featuredBadge: {
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  featuredBadgeText: {
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.8,
+  },
+  featuredCountdown: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  featuredTitle: {
+    fontSize: 18,
+    fontWeight: '900',
+    lineHeight: 23,
+  },
+  featuredFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginTop: 10,
+  },
+  featuredMeta: {
+    flex: 1,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  featuredCta: {
+    fontSize: 12,
+    fontWeight: '900',
   },
   liveTagRow: {
     flexDirection: 'row',
