@@ -21,6 +21,9 @@ function hostFromUrl(value: string | null): string | null {
   }
 }
 
+const SCRIPT_UA_RE =
+  /(python-requests|python-urllib|aiohttp|httpx\/|scrapy|go-http-client|curl\/|wget\/|libwww-perl|node-fetch|axios\/|postmanruntime|insomnia)/i;
+
 function hasAllowedApiClient(request: NextRequest): boolean {
   if (request.headers.get(APP_CLIENT_HEADER) === APP_CLIENT_VALUE) return true;
   const originHost = hostFromUrl(request.headers.get("origin"));
@@ -33,13 +36,17 @@ function hasAllowedApiClient(request: NextRequest): boolean {
   }
   // Backward compatibility for existing/older mobile APKs that don't send the
   // client header yet. Native app requests typically omit browser Origin/Referer/
-  // Sec-Fetch-* headers; this keeps the official app working while still
-  // blocking obvious cross-origin browser/script abuse. Tighten after all users
-  // are on a header-sending app version.
+  // Sec-Fetch-* headers. Allow them only when they do not look like obvious
+  // scripting clients. Tighten further after all users are on a header-sending
+  // app version.
   const hasOrigin = !!request.headers.get("origin");
   const hasReferer = !!request.headers.get("referer");
   const hasSecFetch = !!request.headers.get("sec-fetch-site");
-  if (!hasOrigin && !hasReferer && !hasSecFetch) return true;
+  if (!hasOrigin && !hasReferer && !hasSecFetch) {
+    const ua = request.headers.get("user-agent") || "";
+    if (ua && SCRIPT_UA_RE.test(ua)) return false;
+    return true;
+  }
   return false;
 }
 
