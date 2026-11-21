@@ -31,6 +31,15 @@ function hasAllowedApiClient(request: NextRequest): boolean {
   if (secFetchSite === "same-origin" || secFetchSite === "same-site" || secFetchSite === "none") {
     return true;
   }
+  // Backward compatibility for existing/older mobile APKs that don't send the
+  // client header yet. Native app requests typically omit browser Origin/Referer/
+  // Sec-Fetch-* headers; this keeps the official app working while still
+  // blocking obvious cross-origin browser/script abuse. Tighten after all users
+  // are on a header-sending app version.
+  const hasOrigin = !!request.headers.get("origin");
+  const hasReferer = !!request.headers.get("referer");
+  const hasSecFetch = !!request.headers.get("sec-fetch-site");
+  if (!hasOrigin && !hasReferer && !hasSecFetch) return true;
   return false;
 }
 
