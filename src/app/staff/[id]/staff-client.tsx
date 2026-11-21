@@ -6,6 +6,8 @@ import Image from "next/image";
 import { useParams } from "next/navigation";
 import { bestTitle } from "@/lib/anilist";
 import { PageTransition } from "@/components/PageTransition";
+import AdBanner from "@/components/AdBanner";
+import NativeBannerAd from "@/components/NativeBannerAd";
 import type { StaffFull } from "@/lib/anilist";
 
 function formatYearsActive(val: unknown): string | null {
@@ -116,6 +118,11 @@ export default function StaffDetailClient({
         </div>
       </div>
 
+      {/* In-content Ad Banner */}
+      <div className="mx-auto flex max-w-7xl justify-center px-4 pt-6 sm:px-6">
+        <AdBanner placement="staff-inline" type="sidebar" />
+      </div>
+
       {/* ── Works by Year ── */}
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
         {edges.length > 0 && (() => {
@@ -174,6 +181,16 @@ export default function StaffDetailClient({
         {edges.length === 0 && (
           <p className="py-10 text-center text-sm text-[var(--color-mute)]">No media found for this staff member.</p>
         )}
+
+        {/* Native Ad Grid */}
+        <div className="my-8">
+          <NativeBannerAd />
+        </div>
+
+        {/* Bottom Leaderboard Banner */}
+        <div className="my-6 flex justify-center">
+          <AdBanner placement="staff-bottom" type="banner" />
+        </div>
 
         <div className="mt-8 text-center text-xs text-[var(--color-mute)]">
           Data from <a href={staff.siteUrl || "#"} target="_blank" rel="noopener noreferrer" className="underline hover:text-[var(--color-cyan)]">AniList</a>.

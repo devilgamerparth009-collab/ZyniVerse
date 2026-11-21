@@ -89,8 +89,13 @@ export function canonicalLocation(pageType: string): string {
     "search", "wiki", "manga", "manga-detail", "anime-detail",
     // In-content 300×250 slots on the highest-traffic templates.
     "manga-detail-inline", "character-inline", "alternatives-inline", "forum-anime-inline",
+    "staff-inline", "anime-detail-inline", "watch-inline", "manga-read-inline",
+    "character-sidebar", "staff-sidebar",
   ];
-  const bannerPages  = ["homepage", "filler", "global-footer", "forum", "recommendations", "banner"];
+  const bannerPages  = [
+    "homepage", "filler", "global-footer", "forum", "recommendations", "banner",
+    "character-bottom", "staff-bottom", "anime-bottom", "manga-bottom", "watch-bottom", "manga-read-bottom",
+  ];
   if (sidebarPages.includes(pageType)) return "sidebar";
   if (bannerPages.includes(pageType))  return "banner";
   return pageType;

@@ -444,6 +444,11 @@ export default function AnimeDetailClient({
                 </div>
               </section>
 
+              {/* In-content Ad Banner for Anime detail */}
+              <div className="flex justify-center my-6">
+                <AdBanner placement="anime-detail-inline" type="sidebar" />
+              </div>
+
               {/* ZyniVerse Editorial */}
               {editorial && (
                 <section className="relative overflow-hidden rounded-2xl border border-[var(--color-magenta)]/25 bg-gradient-to-br from-[var(--color-panel)] to-[var(--color-void)] p-5 sm:p-6">
@@ -1053,6 +1058,11 @@ export default function AnimeDetailClient({
               </div>
             );
           })()}
+
+          {/* Bottom Leaderboard Banner */}
+          <div className="my-8 flex justify-center">
+            <AdBanner placement="anime-bottom" type="banner" />
+          </div>
         </div>
       </ErrorBoundary>
     </PageTransition>

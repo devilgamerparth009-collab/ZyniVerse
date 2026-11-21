@@ -11,6 +11,7 @@ import ClaimCharacterButton from "@/components/ClaimCharacterButton";
 import TraitTagButton from "@/components/TraitTagButton";
 import CharacterChat from "@/components/CharacterChat";
 import AdBanner from "@/components/AdBanner";
+import NativeBannerAd from "@/components/NativeBannerAd";
 import { amazonSearchUrl } from "@/lib/affiliate-config";
 
 function stripHtml(str: string | null | undefined = "") { return str ? str.replace(/<[^>]*>/g, "") : ""; }
@@ -229,6 +230,16 @@ export default function CharacterDetailClient({ initialChar }: { initialChar: Ch
             )}
           </motion.div>
         </AnimatePresence>
+
+        {/* Native Ad Grid */}
+        <div className="my-8">
+          <NativeBannerAd />
+        </div>
+
+        {/* Bottom Leaderboard Banner */}
+        <div className="my-6 flex justify-center">
+          <AdBanner placement="character-bottom" type="banner" />
+        </div>
 
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
           <a href="https://www.crunchyroll.com/search?ref=zyniverse" target="_blank" rel="noopener noreferrer sponsored"

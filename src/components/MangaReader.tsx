@@ -5,6 +5,8 @@ import Image from "next/image";
 import { searchMangaDex, getMangaDexChapters, getMangaDexChapterPages } from "@/lib/manga-reader";
 import type { MangaChapter, MangaPage, MangaDexManga } from "@/lib/manga-reader";
 import Loader from "./Loader";
+import AdBanner from "./AdBanner";
+import NativeBannerAd from "./NativeBannerAd";
 
 interface Props {
   mangaTitle?: string;
@@ -222,6 +224,11 @@ export default function MangaReader({ mangaTitle, mangaId: propMangaId, initialC
         {/* Reader */}
         {currentChapter && (
           <div>
+            {/* Inline Ad */}
+            <div className="my-4 flex justify-center">
+              <AdBanner placement="manga-read-inline" type="sidebar" />
+            </div>
+
             {/* Chapter header */}
             <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
@@ -340,6 +347,16 @@ export default function MangaReader({ mangaTitle, mangaId: propMangaId, initialC
                 )}
               </div>
             )}
+
+            {/* Native Ad Grid */}
+            <div className="my-8">
+              <NativeBannerAd />
+            </div>
+
+            {/* Bottom Leaderboard Banner */}
+            <div className="my-6 flex justify-center">
+              <AdBanner placement="manga-read-bottom" type="banner" />
+            </div>
 
             {/* Source credit */}
             <div className="mt-6 rounded-xl neon-rgb-border bg-[var(--color-panel)] p-4 text-center">

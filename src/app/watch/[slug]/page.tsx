@@ -8,6 +8,7 @@ import { getWatchOrderSlugForAnilistId } from "@/lib/watch-order-index";
 import { getDubPageSlugForMalId, getDubPageSlugForTitle } from "@/lib/dub-page-index";
 import { PageTransition } from "@/components/PageTransition";
 import NativeBannerAd from "@/components/NativeBannerAd";
+import AdBanner from "@/components/AdBanner";
 import Link from "next/link";
 
 // Next.js only enables on-demand ISR for a dynamic segment when
@@ -186,6 +187,11 @@ export default async function WatchGuidePage({ params }: Props) {
           )}
         </section>
 
+        {/* In-content Ad */}
+        <div className="my-6 flex justify-center">
+          <AdBanner placement="watch-inline" type="sidebar" />
+        </div>
+
         {/* Quick Links */}
         <section className="mb-8">
           <h2 className="mb-4 text-xl font-bold">Quick Links</h2>
@@ -260,6 +266,11 @@ export default async function WatchGuidePage({ params }: Props) {
 
         <div className="mt-8">
           <NativeBannerAd />
+        </div>
+
+        {/* Bottom Leaderboard Banner */}
+        <div className="my-6 flex justify-center">
+          <AdBanner placement="watch-bottom" type="banner" />
         </div>
       </div>
     </PageTransition>

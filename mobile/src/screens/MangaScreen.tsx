@@ -20,6 +20,7 @@ import { Anime, MangaChapter, MangaEntry, User } from '../types';
 import ScreenHeader from '../components/ScreenHeader';
 import PressableScale from '../components/PressableScale';
 import FadeInView from '../components/FadeInView';
+import AdBanner from '../components/AdBanner';
 import { spacing, borderRadius } from '../theme';
 import { animePoster, animeTitle, formatScore, getScoreColor } from '../utils/helpers';
 
@@ -617,6 +618,9 @@ export default function MangaScreen() {
             )}
           </>
         )}
+
+        {/* Bottom Ad Banner */}
+        <AdBanner size="banner" placement="home-bottom" />
       </ScrollView>
 
       {/* Detail sheet */}

@@ -19,6 +19,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorView from '../components/ErrorView';
 import FillerProgress from '../components/FillerProgress';
 import SafeImage from '../components/SafeImage';
+import AdBanner from '../components/AdBanner';
 import { formatScore, getScoreColor, LIST_STATUS_LABEL } from '../utils/helpers';
 import { openSafeWebUrl, openTrustedExternalUrl, platformLabelForUrl, trustedExternalUrl } from '../utils/safeLinks';
 import { api, getCurrentUser } from '../services/api';
@@ -469,6 +470,9 @@ export default function AnimeDetailScreen() {
         </View>
       ) : null}
 
+      {/* In-content 300x250 Medium Ad Banner */}
+      <AdBanner size="medium" placement="detail-inline" />
+
       {anime.genres && anime.genres.length > 0 ? (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Genres</Text>
@@ -763,6 +767,9 @@ export default function AnimeDetailScreen() {
           </ScrollView>
         </View>
       ) : null}
+
+      {/* Bottom Ad Banner */}
+      <AdBanner size="banner" placement="home-bottom" />
     </ScrollView>
   );
 }

@@ -21,6 +21,7 @@ import DiscussionLinks from "@/components/DiscussionLinks";
 import UsersAlsoLiked from "@/components/features/UsersAlsoLiked";
 import ShareButton from "@/components/ShareButton";
 import AdBanner from "@/components/AdBanner";
+import NativeBannerAd from "@/components/NativeBannerAd";
 import AffiliateLink from "@/components/AffiliateLink";
 import { STATUS_LABELS, STATUS_COLORS } from "@/lib/manga";
 import type { MediaMangaFull } from "@/lib/anilist";
@@ -634,6 +635,16 @@ export default function MangaDetailsPage({ initialManga }: { initialManga: Media
             {manga.idMal && <> Also on <a href={`https://myanimelist.net/manga/${manga.idMal}`} target="_blank" rel="noopener noreferrer" className="underline hover:text-[var(--color-violet)]">MyAnimeList</a>.</>}
           </div>
         </aside>
+      </div>
+
+      {/* Native Ad Grid */}
+      <div className="my-8 max-w-7xl mx-auto px-4 sm:px-6">
+        <NativeBannerAd />
+      </div>
+
+      {/* Bottom Leaderboard Banner */}
+      <div className="my-6 flex justify-center max-w-7xl mx-auto px-4 sm:px-6">
+        <AdBanner placement="manga-bottom" type="banner" />
       </div>
     </div></ErrorBoundary></PageTransition>
   );
