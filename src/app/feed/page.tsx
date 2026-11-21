@@ -20,8 +20,14 @@ export const metadata: Metadata = {
 
 export default async function FeedPage() {
   // Server-render page 1 for SEO + fast first paint; FeedClient hydrates the
-  // personalized/infinite-scroll behavior on top.
-  const initial = await getUnifiedFeed({ mode: "foryou", limit: 20 });
+  // personalized/infinite-scroll behavior on top. Fall back to an empty shell
+  // if the database is unavailable during prerender/build.
+  let initial: Awaited<ReturnType<typeof getUnifiedFeed>> = { items: [], nextCursor: null };
+  try {
+    initial = await getUnifiedFeed({ mode: "foryou", limit: 20 });
+  } catch {
+    // Keep build/deploy resilient when DB connections are exhausted or down.
+  }
 
   return (
     <main className="relative mx-auto max-w-6xl px-4 pb-16 pt-8 sm:px-6">
