@@ -105,6 +105,7 @@ function isParameterizedCatalogPath(pathname: string): boolean {
     /^\/anime\/.+/.test(pathname) ||
     /^\/manga\/.+/.test(pathname) ||
     /^\/character\/.+/.test(pathname) ||
+    /^\/staff\/.+/.test(pathname) ||
     /^\/alternatives\/.+/.test(pathname) ||
     /^\/watch-order\/.+/.test(pathname) ||
     /^\/wiki\/.+/.test(pathname) ||
@@ -285,6 +286,7 @@ export const config = {
     "/api/:path*",
     "/anime/:path*",
     "/character/:path*",
+    "/staff/:path*",
     "/manga/:path*",
     "/alternatives/:path*",
     "/filler",
