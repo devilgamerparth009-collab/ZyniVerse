@@ -162,6 +162,8 @@ function isParameterizedCatalogPath(pathname: string): boolean {
     /^\/news\/.+/.test(pathname) ||
     /^\/studio\/.+/.test(pathname) ||
     /^\/voice-actors\/.+/.test(pathname) ||
+    /^\/themes\/.+/.test(pathname) ||
+    /^\/ost\/.+/.test(pathname) ||
     /^\/filler\/.+/.test(pathname)
   );
 }
@@ -251,21 +253,31 @@ export function proxy(request: NextRequest, event: NextFetchEvent) {
       : { scope: "filler", max: 90, windowMs: 60_000 };
   } else if (isParameterizedCatalogPath(pathname)) {
     // Throttle catalog detail pages to prevent scrapers from causing massive ISR writes.
+    // Mirror routes are high-cardinality AniList/catalog pages: first hit per unique ID
+    // can trigger an ISR write/render, so enumeration is especially expensive.
+    const isMirrorRoute =
+      pathname.startsWith("/character/") ||
+      pathname.startsWith("/staff/") ||
+      pathname.startsWith("/manga/") ||
+      pathname.startsWith("/voice-actors/") ||
+      pathname.startsWith("/studio/") ||
+      pathname.startsWith("/themes/") ||
+      pathname.startsWith("/ost/") ||
+      pathname.startsWith("/watch-order/");
     if (isDiscoveryBot) {
-      rate = { scope: "catalog-discovery", max: 240, windowMs: 60_000 };
+      // Allow legitimate search/AI discovery crawlers, but keep them bounded.
+      rate = isMirrorRoute
+        ? { scope: "catalog-discovery-mirror", max: 120, windowMs: 60_000 }
+        : { scope: "catalog-discovery", max: 240, windowMs: 60_000 };
     } else if (isBot) {
-      rate = { scope: "catalog-bot", max: 40, windowMs: 60_000 };
+      rate = isMirrorRoute
+        ? { scope: "catalog-bot-mirror", max: 12, windowMs: 60_000 }
+        : { scope: "catalog-bot", max: 40, windowMs: 60_000 };
     } else {
       // Human or browser-mimicking headless scraper (Desktop/Windows UA).
-      // Strict limit on catalog mirrors (/character/, /staff/, /manga/) where
-      // rapid enumeration causes massive ISR writes and burns function limits.
-      // Real humans browsing anime never open > 20 character/staff pages in 60s.
-      const isMirrorRoute =
-        pathname.startsWith("/character/") ||
-        pathname.startsWith("/staff/") ||
-        pathname.startsWith("/manga/");
+      // Real users rarely open many mirror detail pages in a minute; scrapers do.
       rate = isMirrorRoute
-        ? { scope: "catalog-mirror", max: 20, windowMs: 60_000 }
+        ? { scope: "catalog-mirror", max: 12, windowMs: 60_000 }
         : { scope: "catalog-human", max: 60, windowMs: 60_000 };
     }
   }
@@ -380,5 +392,7 @@ export const config = {
     "/wallpapers/:path*",
     "/voice-actors/:path*",
     "/studio/:path*",
+    "/themes/:path*",
+    "/ost/:path*",
   ],
 };
