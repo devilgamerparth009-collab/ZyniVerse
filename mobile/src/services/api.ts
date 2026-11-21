@@ -462,9 +462,19 @@ async function login(email: string, password: string): Promise<User> {
   const captured = hasSessionCookie(merged);
   const stored = captured ? serializeCookies(merged) : NATIVE_JAR_MARKER;
 
-  const user = await fetchSessionUser(stored);
+  // When Android drops the Set-Cookie header, the session lives in the native
+  // cookie jar. `credentials: 'include'` lets fetch attach it, but the jar
+  // may not be populated yet right after the callback response. Retry once
+  // with a short delay so the jar has time to settle.
+  let user = await fetchSessionUser(stored);
+  if (!user && stored === NATIVE_JAR_MARKER) {
+    await new Promise((r) => setTimeout(r, 1200));
+    user = await fetchSessionUser(stored);
+  }
   if (!user) {
-    throw new Error('Invalid email or password');
+    // If we got no error from the callback but can't read the session, the
+    // credentials were likely wrong (or the network dropped the cookie).
+    throw new Error('Invalid email or password. Please check your credentials and try again.');
   }
   await saveSessionToStorage(stored, user);
   return user;
