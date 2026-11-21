@@ -65,6 +65,9 @@ const APP_CLIENT_VALUE = 'zyniverse-mobile-v1';
 
 const DEVICE_KEY = 'zt_ct_device';
 const SESSION_COOKIE_KEY = 'zt_session_cookie';
+// The raw Auth.js JWT is stored separately so authenticated requests can send
+// it as a Bearer token even when Android drops a manually set Cookie header.
+const SESSION_TOKEN_KEY = 'zt_session_token';
 let cachedDevice: string | null = null;
 
 // Lightweight last-known-good cache: serves fresh data when online and
@@ -318,14 +321,28 @@ function normalizeAnime(raw: any): Anime {
 /* Auth / session cookie handling                                      */
 /* ------------------------------------------------------------------ */
 
+/** Pull the raw JWT out of a `name=value` session cookie string. */
+function tokenFromCookie(cookie: string | null): string | null {
+  if (!cookie) return null;
+  const marker = 'session-token=';
+  const index = cookie.indexOf(marker);
+  if (index === -1) return null;
+  return (cookie.slice(index + marker.length).split(';')[0] || '').trim() || null;
+}
+
 async function saveSessionToStorage(stored: string, user?: User | null): Promise<void> {
   // A different account must never see the previous one's cached reads.
   await clearReadCache();
+  const token = tokenFromCookie(stored);
   try {
     await SecureStore.setItemAsync(SESSION_COOKIE_KEY, stored);
+    if (token) await SecureStore.setItemAsync(SESSION_TOKEN_KEY, token);
+    else await SecureStore.deleteItemAsync(SESSION_TOKEN_KEY);
   } catch {}
   try {
     await AsyncStorage.setItem(SESSION_COOKIE_KEY, stored);
+    if (token) await AsyncStorage.setItem(SESSION_TOKEN_KEY, token);
+    else await AsyncStorage.removeItem(SESSION_TOKEN_KEY);
     if (user) {
       await AsyncStorage.setItem('zv_cached_user', JSON.stringify(user));
     }
@@ -344,9 +361,27 @@ async function readCookie(): Promise<string | null> {
   }
 }
 
+async function readSessionToken(): Promise<string | null> {
+  try {
+    const val = await SecureStore.getItemAsync(SESSION_TOKEN_KEY);
+    if (val) return val;
+  } catch {}
+  try {
+    return await AsyncStorage.getItem(SESSION_TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
 async function authHeader(): Promise<Record<string, string>> {
-  const cookie = cookieForHeader(await readCookie());
-  return cookie ? { Cookie: cookie } : {};
+  const [storedCookie, token] = await Promise.all([readCookie(), readSessionToken()]);
+  const headers: Record<string, string> = {};
+  const cookie = cookieForHeader(storedCookie);
+  if (cookie) headers.Cookie = cookie;
+  // The Bearer token is the reliable auth channel on Android. The server
+  // verifies the same JWT that Auth.js would read from the cookie.
+  if (token) headers.Authorization = `Bearer ${token}`;
+  return headers;
 }
 
 function extractAuthCookies(res: Response): Record<string, string> {
@@ -392,17 +427,16 @@ function cookieForHeader(stored: string | null): string | undefined {
   return stored && stored !== NATIVE_JAR_MARKER ? stored : undefined;
 }
 
-async function fetchSessionUser(storedCookie: string | null): Promise<User | null> {
+async function fetchSessionUser(): Promise<User | null> {
   try {
-    const cookie = cookieForHeader(storedCookie);
-    const res = await fetchWithTimeout(`${WEB_HOST}/api/auth/session`, {
-      headers: { Accept: 'application/json', ...(cookie ? { Cookie: cookie } : {}) },
+    const res = await fetchWithTimeout(`${WEB_API}/mobile/me`, {
+      headers: { Accept: 'application/json', ...(await authHeader()) },
     });
     if (!res.ok) return null;
     const json = await res.json().catch(() => null);
-    if (!json?.user) return null;
+    if (!json?.user?.id) return null;
     return {
-      id: json.user.id || '',
+      id: json.user.id,
       username: json.user.name || json.user.email || 'User',
       email: json.user.email || '',
       avatar: json.user.image || undefined,
@@ -413,25 +447,18 @@ async function fetchSessionUser(storedCookie: string | null): Promise<User | nul
 }
 
 export async function getCurrentUser(): Promise<User | null> {
-  const stored = await readCookie();
-  if (!stored) {
-    try {
-      const cached = await AsyncStorage.getItem('zv_cached_user');
-      if (cached) return JSON.parse(cached) as User;
-    } catch {}
-    return null;
-  }
-  const live = await fetchSessionUser(stored);
+  const [storedCookie, token] = await Promise.all([readCookie(), readSessionToken()]);
+  if (!storedCookie && !token) return null;
+
+  const live = await fetchSessionUser();
   if (live) {
     try {
       await AsyncStorage.setItem('zv_cached_user', JSON.stringify(live));
     } catch {}
     return live;
   }
-  try {
-    const cached = await AsyncStorage.getItem('zv_cached_user');
-    if (cached) return JSON.parse(cached) as User;
-  } catch {}
+  // A cached user is not proof of a valid session. Never render it as a
+  // signed-in profile; that is what produced the "Profile unavailable" loop.
   return null;
 }
 
@@ -484,88 +511,9 @@ async function loginWithMobileSession(email: string, password: string): Promise<
 }
 
 async function login(email: string, password: string): Promise<User> {
-  try {
-    return await loginWithMobileSession(email, password);
-  } catch (e: any) {
-    // Real credential/server errors must reach the user unchanged. Only fall
-    // back when the new endpoint is not deployed yet (or temporarily down).
-    const fallbackStatuses = new Set([404, 405, 503]);
-    if (e?.status && !fallbackStatuses.has(e.status)) throw e;
-    if (!e?.status && !/timed out|network request failed/i.test(e?.message || '')) throw e;
-    return legacyLogin(email, password);
-  }
-}
-
-async function legacyLogin(email: string, password: string): Promise<User> {
-  const csrfRes = await fetchWithTimeout(`${WEB_HOST}/api/auth/csrf`, {
-    headers: { Accept: 'application/json' },
-  });
-  const csrf = (await csrfRes.json().catch(() => ({ csrfToken: '' }))) as {
-    csrfToken: string;
-  };
-  if (!csrf.csrfToken) throw new Error('Could not reach ZyniVerse login');
-
-  const jar = extractAuthCookies(csrfRes);
-  const cookieHeader = serializeCookies(jar);
-
-  // `X-Auth-Return-Redirect` makes Auth.js answer with a JSON body instead of a
-  // 302. React Native follows redirects unconditionally, which would drop the
-  // session Set-Cookie header; a plain 200 keeps it visible to fetch().
-  const res = await fetchWithTimeout(`${WEB_HOST}/api/auth/callback/credentials`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      Accept: 'application/json',
-      'X-Auth-Return-Redirect': '1',
-      ...(cookieHeader ? { Cookie: cookieHeader } : {}),
-    },
-    body: new URLSearchParams({
-      csrfToken: csrf.csrfToken,
-      email,
-      password,
-      callbackUrl: `${WEB_HOST}/`,
-      json: 'true',
-    }).toString(),
-  });
-
-  let callbackError: string | null = null;
-  try {
-    const payload = await res.json();
-    const url = typeof payload?.url === 'string' ? payload.url : '';
-    const match = url.match(/[?&]error=([^&]+)/);
-    if (match) callbackError = decodeURIComponent(match[1]);
-  } catch {
-    /* not JSON – fall through to the session check */
-  }
-
-  if (callbackError) {
-    throw new Error(
-      callbackError === 'CredentialsSignin'
-        ? 'Invalid email or password'
-        : 'Sign in failed. Please try again.'
-    );
-  }
-
-  const merged = { ...jar, ...extractAuthCookies(res) };
-  const captured = hasSessionCookie(merged);
-  const stored = captured ? serializeCookies(merged) : NATIVE_JAR_MARKER;
-
-  // When Android drops the Set-Cookie header, the session lives in the native
-  // cookie jar. `credentials: 'include'` lets fetch attach it, but the jar
-  // may not be populated yet right after the callback response. Retry once
-  // with a short delay so the jar has time to settle.
-  let user = await fetchSessionUser(stored);
-  if (!user && stored === NATIVE_JAR_MARKER) {
-    await new Promise((r) => setTimeout(r, 1200));
-    user = await fetchSessionUser(stored);
-  }
-  if (!user) {
-    // If we got no error from the callback but can't read the session, the
-    // credentials were likely wrong (or the network dropped the cookie).
-    throw new Error('Invalid email or password. Please check your credentials and try again.');
-  }
-  await saveSessionToStorage(stored, user);
-  return user;
+  // Single, browser-free path. The dedicated endpoint is deployed with this
+  // release, so there is no CSRF callback or external redirect to fall back to.
+  return loginWithMobileSession(email, password);
 }
 
 async function register(
@@ -601,11 +549,13 @@ async function clearNativeCookies(): Promise<void> {
 async function logout(): Promise<void> {
   try {
     await SecureStore.deleteItemAsync(SESSION_COOKIE_KEY);
+    await SecureStore.deleteItemAsync(SESSION_TOKEN_KEY);
   } catch {
     /* ignore */
   }
   try {
     await AsyncStorage.removeItem(SESSION_COOKIE_KEY);
+    await AsyncStorage.removeItem(SESSION_TOKEN_KEY);
     await AsyncStorage.removeItem('zv_cached_user');
   } catch {
     /* ignore */
@@ -632,7 +582,8 @@ async function clearReadCache(): Promise<void> {
 }
 
 export async function isLoggedIn(): Promise<boolean> {
-  return (await readCookie()) !== null;
+  const [cookie, token] = await Promise.all([readCookie(), readSessionToken()]);
+  return cookie !== null || token !== null;
 }
 
 /**
@@ -1724,7 +1675,7 @@ export async function setSessionCookie(cookie: string, user?: User | null): Prom
     } catch {}
     return;
   }
-  const live = await fetchSessionUser(cookie);
+  const live = await fetchSessionUser();
   if (live) {
     try {
       await AsyncStorage.setItem('zv_cached_user', JSON.stringify(live));
@@ -1740,7 +1691,7 @@ export async function setSessionCookie(cookie: string, user?: User | null): Prom
  */
 export async function useNativeCookieJar(): Promise<void> {
   await saveSessionToStorage(NATIVE_JAR_MARKER);
-  const user = await fetchSessionUser(NATIVE_JAR_MARKER);
+  const user = await fetchSessionUser();
   if (user) {
     try {
       await AsyncStorage.setItem('zv_cached_user', JSON.stringify(user));

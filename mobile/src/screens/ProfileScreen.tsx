@@ -484,12 +484,12 @@ export default function ProfileScreen() {
           icon="📡"
           title="Profile unavailable"
           message={authMessage || 'We could not reach your profile. Check your connection.'}
-          primaryLabel="Try Again"
-          onPrimary={load}
-          secondaryLabel="Sign Out"
-          onSecondary={clearSession}
-          tertiaryLabel="App Settings"
-          onTertiary={() => navigation.navigate('Settings')}
+          primaryLabel="Sign In / Sign Up"
+          onPrimary={() => navigation.navigate('Login')}
+          secondaryLabel="Try Again"
+          onSecondary={load}
+          tertiaryLabel="Sign Out"
+          onTertiary={clearSession}
         />
       );
     }

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,54 +12,13 @@ import {
   Image,
   Animated,
   Easing,
-  Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import * as WebBrowser from 'expo-web-browser';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../hooks/useTheme';
 import { api } from '../services/api';
-import { GoogleLogo, GitHubLogo, DiscordLogo } from '../components/SocialIcons';
-
-WebBrowser.maybeCompleteAuthSession();
 
 type Mode = 'login' | 'signup';
-type Provider = 'google' | 'github' | 'discord';
-
-const WEB_HOST = 'https://zyverse.in';
-/** Must match `expo.scheme` in app.json. */
-const OAUTH_REDIRECT = 'zyniverse://auth';
-
-/** Reads the session cookie the website hands back on our deep link. */
-function cookieFromRedirect(url: string): string | null {
-  const queryIndex = url.indexOf('?');
-  if (queryIndex === -1) return null;
-  const params = new URLSearchParams(url.slice(queryIndex + 1).split('#')[0]);
-  const cookie = params.get('cookie');
-  return cookie && cookie.includes('session-token') ? cookie : null;
-}
-
-/** Reads the user object if the server also sent it back in the deep link. */
-function userFromRedirect(url: string): any | null {
-  try {
-    const queryIndex = url.indexOf('?');
-    if (queryIndex === -1) return null;
-    const params = new URLSearchParams(url.slice(queryIndex + 1).split('#')[0]);
-    const userRaw = params.get('user');
-    if (!userRaw) return null;
-    const parsed = JSON.parse(userRaw);
-    if (!parsed || (!parsed.id && !parsed.email)) return null;
-    return {
-      id: parsed.id || '',
-      username: parsed.name || parsed.username || parsed.email || 'User',
-      email: parsed.email || '',
-      avatar: parsed.image || parsed.avatar || undefined,
-    };
-  } catch {
-    return null;
-  }
-}
 
 /** Floating neon orb, lifted from the website's login background. */
 function Orb({
@@ -132,24 +91,7 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Which social providers the server actually has credentials for. Assume
-  // none until the server says otherwise: an unconfigured provider would send
-  // people to a broken OAuth page in an external browser.
-  const [available, setAvailable] = useState<Record<Provider, boolean>>({
-    google: false,
-    github: false,
-    discord: false,
-  });
-
-  const anySocial = available.google || available.github || available.discord;
-
-  // Social OAuth runs in the system browser (Custom Tabs) so Google/GitHub can
-  // show their own consent screens without an embedded-WebView block.
-  const [oauthBusy, setOauthBusy] = useState<Provider | null>(null);
-
-  // Entrance + ambient animations
   const brandAnim = useRef(new Animated.Value(0)).current;
-  const socialAnim = useRef(new Animated.Value(0)).current;
   const formAnim = useRef(new Animated.Value(0)).current;
   const logoPulse = useRef(new Animated.Value(1)).current;
   const logoSpin = useRef(new Animated.Value(0)).current;
@@ -159,12 +101,6 @@ export default function LoginScreen() {
       Animated.timing(brandAnim, {
         toValue: 1,
         duration: 520,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-      Animated.timing(socialAnim, {
-        toValue: 1,
-        duration: 480,
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }),
@@ -191,24 +127,19 @@ export default function LoginScreen() {
         useNativeDriver: true,
       })
     ).start();
-
-    api.auth
-      .providers()
-      .then((list) => {
-        setAvailable({
-          google: !!list?.google,
-          github: !!list?.github,
-          discord: !!list?.discord,
-        });
-      })
-      .catch(() => {});
-  }, []);
+  }, [brandAnim, formAnim, logoPulse, logoSpin]);
 
   const canSubmit =
     email.trim().length > 0 &&
     password.length >= 6 &&
     (mode === 'login' || username.trim().length >= 3);
 
+  /**
+   * Everything happens in-app. The dedicated mobile endpoint verifies the
+   * password on the server and returns an Auth.js-compatible session token,
+   * which the API client stores and sends on every authenticated request.
+   * No Custom Tab, no external browser, no OAuth redirect is involved.
+   */
   const submit = async () => {
     if (!canSubmit || loading) return;
     setLoading(true);
@@ -227,96 +158,9 @@ export default function LoginScreen() {
     }
   };
 
-  /**
-   * Opens the website's own login flow in the system browser (Custom Tabs).
-   *
-   * The site starts the provider handshake on its own origin, so Google and
-   * GitHub see a normal browser instead of an embedded WebView (which they
-   * often block). When it finishes, the site redirects to
-   * `zyniverse://auth?cookie=…`; `openAuthSessionAsync` catches that and we
-   * store the session cookie for the app's own API client.
-   */
-  const openOAuth = useCallback(
-    async (provider: Provider) => {
-      if (oauthBusy) return;
-      if (!available[provider]) {
-        setError(
-          `${provider.charAt(0).toUpperCase() + provider.slice(1)} sign-in is not enabled on the server yet. Use email or another provider.`
-        );
-        return;
-      }
-      setError(null);
-      setOauthBusy(provider);
-
-      const startUrl = `${WEB_HOST}/login?provider=${provider}&mobile=1&redirect=${encodeURIComponent(
-        OAUTH_REDIRECT
-      )}&t=${Date.now()}`;
-
-      let finished = false;
-      const completeFromUrl = async (url: string) => {
-        if (finished) return false;
-        const cookie = cookieFromRedirect(url);
-        if (!cookie) return false;
-        const userFromUrl = userFromRedirect(url);
-        await api.auth.setCookie(cookie, userFromUrl);
-        let user = userFromUrl || (await api.auth.current());
-        if (!user) {
-          await new Promise((resolve) => setTimeout(resolve, 800));
-          user = await api.auth.current();
-        }
-        if (!user) throw new Error('Could not verify the new session. Please try again.');
-        finished = true;
-        navigation.goBack();
-        return true;
-      };
-
-      const sub = Linking.addEventListener('url', ({ url }) => {
-        if (url?.startsWith(OAUTH_REDIRECT)) {
-          void completeFromUrl(url).catch(() => {});
-        }
-      });
-
-      try {
-        const result = await WebBrowser.openAuthSessionAsync(startUrl, OAUTH_REDIRECT, {
-          showInRecents: false,
-        });
-
-        if (result.type === 'success') {
-          await completeFromUrl(result.url || '');
-          if (!finished) throw new Error('Sign-in did not return a session. Please try again.');
-          return;
-        }
-
-        if (result.type === 'cancel' || result.type === 'dismiss') {
-          // Some Android flows dismiss before JS receives the success result.
-          await new Promise((resolve) => setTimeout(resolve, 900));
-          if (finished) return;
-          const user = await api.auth.current().catch(() => null);
-          if (user) {
-            finished = true;
-            navigation.goBack();
-            return;
-          }
-          setError('Sign-in was cancelled or did not complete. If you finished signing in, please try again.');
-        }
-      } catch (e: any) {
-        if (!finished) setError(e?.message || 'Sign-in could not complete. Please try again.');
-      } finally {
-        sub.remove();
-        if (!finished) setOauthBusy(null);
-        else setOauthBusy(null);
-      }
-    },
-    [available, oauthBusy, navigation]
-  );
-
   const brandStyle = {
     opacity: brandAnim,
     transform: [{ translateY: brandAnim.interpolate({ inputRange: [0, 1], outputRange: [24, 0] }) }],
-  };
-  const socialStyle = {
-    opacity: socialAnim,
-    transform: [{ translateY: socialAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }],
   };
   const formStyle = {
     opacity: formAnim,
@@ -328,7 +172,6 @@ export default function LoginScreen() {
       style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      {/* Ambient orbs */}
       <Orb size={260} color={primaryAccent} from={{ x: -120, y: -60 }} to={{ x: 40, y: 60 }} duration={7000} delay={0} />
       <Orb size={220} color="#ff00e6" from={{ x: 220, y: 60 }} to={{ x: 120, y: -40 }} duration={9000} delay={300} />
       <Orb size={180} color="#38bdf8" from={{ x: -60, y: 460 }} to={{ x: 180, y: 380 }} duration={8000} delay={600} />
@@ -341,7 +184,6 @@ export default function LoginScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Brand */}
         <Animated.View style={[styles.brandContainer, brandStyle]}>
           <Animated.View
             style={[
@@ -383,7 +225,6 @@ export default function LoginScreen() {
           </Text>
         </Animated.View>
 
-        {/* Card */}
         <View
           style={[
             styles.card,
@@ -399,10 +240,6 @@ export default function LoginScreen() {
               : 'Join the community — track anime, dubs, reels and events.'}
           </Text>
 
-          {/* Email-first: the form is the primary path. Social buttons only
-              render below it when the server actually has them configured. */}
-
-          {/* Form */}
           <Animated.View style={formStyle}>
             {mode === 'signup' && (
               <View style={styles.inputWrap}>
@@ -511,102 +348,12 @@ export default function LoginScreen() {
               </Text>
             </TouchableOpacity>
           </Animated.View>
-
-          {anySocial && (
-            <>
-              <View style={styles.dividerRow}>
-                <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
-                <Text style={[styles.dividerText, { color: colors.textDim }]}>or continue with</Text>
-                <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
-              </View>
-
-              <Animated.View style={[styles.socialGroup, socialStyle]}>
-                {available.google && (
-                  <TouchableOpacity
-                    style={[
-                      styles.socialButton,
-                      { backgroundColor: '#ffffff', borderColor: '#e2e8f0' },
-                    ]}
-                    onPress={() => openOAuth('google')}
-                    activeOpacity={0.85}
-                  >
-                    <GoogleLogo size={20} />
-                    <Text style={styles.googleButtonText}>Continue with Google</Text>
-                  </TouchableOpacity>
-                )}
-
-                {(available.github || available.discord) && (
-                  <View style={styles.socialRow}>
-                    {available.github && (
-                      <TouchableOpacity
-                        style={[
-                          styles.socialMiniButton,
-                          { backgroundColor: '#181c24', borderColor: '#30363d' },
-                        ]}
-                        onPress={() => openOAuth('github')}
-                        activeOpacity={0.85}
-                      >
-                        <GitHubLogo size={18} color="#ffffff" />
-                        <Text style={styles.miniButtonText}>GitHub</Text>
-                      </TouchableOpacity>
-                    )}
-
-                    {available.discord && (
-                      <TouchableOpacity
-                        style={[
-                          styles.socialMiniButton,
-                          { backgroundColor: '#5865F2', borderColor: '#5865F2' },
-                        ]}
-                        onPress={() => openOAuth('discord')}
-                        activeOpacity={0.85}
-                      >
-                        <DiscordLogo size={18} color="#ffffff" />
-                        <Text style={styles.miniButtonText}>Discord</Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                )}
-              </Animated.View>
-            </>
-          )}
         </View>
 
         <Text style={[styles.secureNote, { color: colors.textDim }]}>
-          🔒 Sign in securely with your ZyniVerse email and password
+          🔒 Sign in securely with your ZyniVerse email and password — right here in the app.
         </Text>
       </ScrollView>
-
-      {/* OAuth runs in the system browser; this overlay just covers the wait. */}
-      {oauthBusy && (
-        <View style={styles.oauthOverlay}>
-          <View style={[styles.oauthSheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <View style={styles.oauthSheetIcons}>
-              {oauthBusy === 'google' ? (
-                <GoogleLogo size={26} />
-              ) : oauthBusy === 'github' ? (
-                <GitHubLogo size={26} color={colors.text} />
-              ) : (
-                <DiscordLogo size={26} color="#ffffff" />
-              )}
-            </View>
-            <ActivityIndicator size="small" color={primaryAccent} />
-            <Text style={[styles.oauthSheetTitle, { color: colors.text }]}>
-              Finish signing in with{' '}
-              {oauthBusy.charAt(0).toUpperCase() + oauthBusy.slice(1)}
-            </Text>
-            <Text style={[styles.oauthSheetHint, { color: colors.textMuted }]}>
-              Complete the steps in the browser window, then come back here. We'll sign you in
-              automatically.
-            </Text>
-            <TouchableOpacity
-              style={[styles.oauthSheetCancel, { borderColor: colors.border }]}
-              onPress={() => setOauthBusy(null)}
-            >
-              <Text style={[styles.oauthSheetCancelText, { color: colors.textMuted }]}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
     </KeyboardAvoidingView>
   );
 }
@@ -677,72 +424,6 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
     lineHeight: 18,
     marginBottom: 20,
-  },
-  socialGroup: {
-    gap: 10,
-    marginBottom: 18,
-  },
-  socialButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-    gap: 10,
-    elevation: 2,
-  },
-  socialDisabled: {
-    opacity: 0.55,
-  },
-  googleButtonText: {
-    color: '#1f2937',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  socialRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  socialMiniButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 11,
-    borderRadius: 14,
-    borderWidth: 1,
-    gap: 8,
-  },
-  miniButtonText: {
-    color: '#ffffff',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  soonTag: {
-    color: '#0b0b10',
-    backgroundColor: '#fbbf24',
-    fontSize: 8,
-    fontWeight: '900',
-    paddingHorizontal: 4,
-    paddingVertical: 1,
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  dividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 18,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-  },
-  dividerText: {
-    fontSize: 11,
-    fontWeight: '600',
-    textTransform: 'uppercase',
   },
   inputWrap: {
     marginBottom: 14,
@@ -823,48 +504,5 @@ const styles = StyleSheet.create({
     fontSize: 10.5,
     marginTop: 18,
     letterSpacing: 0.3,
-  },
-  oauthOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(4, 5, 10, 0.72)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 28,
-  },
-  oauthSheet: {
-    width: '100%',
-    maxWidth: 340,
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 26,
-    paddingHorizontal: 22,
-    borderRadius: 22,
-    borderWidth: 1,
-  },
-  oauthSheetIcons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  oauthSheetTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    textAlign: 'center',
-  },
-  oauthSheetHint: {
-    fontSize: 12,
-    lineHeight: 17,
-    textAlign: 'center',
-  },
-  oauthSheetCancel: {
-    marginTop: 4,
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 22,
-    paddingVertical: 9,
-  },
-  oauthSheetCancelText: {
-    fontSize: 12,
-    fontWeight: '700',
   },
 });
