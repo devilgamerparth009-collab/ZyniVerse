@@ -12,6 +12,7 @@
  */
 import * as cheerio from "cheerio";
 import type { AnyNode } from "domhandler";
+import { getDubSchedule, type DubScheduleDTO } from "@/lib/dub-import/queries";
 
 export interface LiveDubAiring {
   id: string;
@@ -40,7 +41,15 @@ const SOURCE_BASE = (
   process.env.DUB_SCHEDULE_BASE || "https://www.animedubhindi.link"
 ).replace(/\/$/, "");
 const SCHEDULE_URL = `${SOURCE_BASE}/schedule.php`;
+// Cloudflare sometimes blocks serverless egress. Jina Reader can return the
+// original HTML (`x-respond-with: html`) from its own network, so the app still
+// mirrors the live page instead of showing an error. Set to "none" to disable.
+const PROXY_BASE = (process.env.DUB_SCHEDULE_PROXY || "https://r.jina.ai").replace(/\/$/, "");
 const CACHE_TTL_MS = 5 * 60 * 1000;
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+const WEEKDAYS: Record<string, number> = {
+  sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6,
+};
 
 const HEADERS: Record<string, string> = {
   "User-Agent":
@@ -181,21 +190,134 @@ function parseSchedule(html: string): LiveDubSchedule | null {
   };
 }
 
-/** Returns fresh data at most once every five minutes. Never throws. */
+async function fetchHtml(
+  url: string,
+  headers: Record<string, string>,
+  timeoutMs: number
+): Promise<string | null> {
+  try {
+    const res = await fetch(url, {
+      headers,
+      cache: "no-store",
+      redirect: "follow",
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    return res.ok ? await res.text() : null;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchFreshSchedule(): Promise<LiveDubSchedule | null> {
+  const direct = await fetchHtml(SCHEDULE_URL, HEADERS, 12000);
+  if (direct) {
+    const parsed = parseSchedule(direct);
+    if (parsed) return parsed;
+  }
+
+  if (PROXY_BASE && PROXY_BASE !== "none") {
+    const proxied = await fetchHtml(
+      `${PROXY_BASE}/${SCHEDULE_URL}`,
+      { ...HEADERS, "x-respond-with": "html" },
+      15000
+    );
+    if (proxied) {
+      const parsed = parseSchedule(proxied);
+      if (parsed) return parsed;
+    }
+  }
+  return null;
+}
+
+/** Fallback countdown from the weekly slot when the stored timestamp has gone stale. */
+function nextIstRelease(row: DubScheduleDTO): string | null {
+  const existing = row.releaseAt ? new Date(row.releaseAt) : null;
+  if (existing && !Number.isNaN(existing.getTime()) && existing.getTime() > Date.now()) {
+    return existing.toISOString();
+  }
+  const time = row.timeLabel?.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+  if (!time || !row.dayLabel) return existing?.toISOString() || null;
+
+  const dayText = row.dayLabel.trim().toLowerCase();
+  const weekday = dayText === "daily" ? null : WEEKDAYS[dayText.slice(0, 3)];
+  if (dayText !== "daily" && weekday === undefined) return existing?.toISOString() || null;
+
+  let hours = Number(time[1]) % 12;
+  if ((time[3] || "").toUpperCase() === "PM") hours += 12;
+  const minutes = Number(time[2]);
+  const nowIst = new Date(Date.now() + IST_OFFSET_MS);
+  const dayDelta = weekday === null ? 0 : (weekday - nowIst.getUTCDay() + 7) % 7;
+  let candidate = Date.UTC(
+    nowIst.getUTCFullYear(),
+    nowIst.getUTCMonth(),
+    nowIst.getUTCDate() + dayDelta,
+    hours - 5,
+    minutes - 30
+  );
+  if (candidate <= Date.now()) candidate += (weekday === null ? 1 : 7) * 86_400_000;
+  return new Date(candidate).toISOString();
+}
+
+function isOngoingRow(row: DubScheduleDTO): boolean {
+  const episode = row.episodeInfo || "";
+  if (/coming soon|tba/i.test(episode)) return false;
+  return /ep\s*\d+/i.test(episode) || Boolean(row.releaseAt);
+}
+
+/** Last resort when both live fetches fail: the synced schedule in the database. */
+async function fromDatabase(): Promise<LiveDubSchedule | null> {
+  try {
+    const rows = await getDubSchedule({ limit: 200 });
+    if (!rows.length) return null;
+
+    const toAiring = (row: DubScheduleDTO): LiveDubAiring => ({
+      id: `${isOngoingRow(row) ? "ongoing" : "upcoming"}-${slug(row.title)}-${slug(row.season || "s1")}`,
+      title: row.title,
+      posterUrl: row.posterUrl,
+      season: row.season,
+      episodeInfo: row.episodeInfo,
+      languages: row.languages,
+      dayLabel: row.dayLabel,
+      timeLabel: row.timeLabel,
+      dateLabel: null,
+      releaseAt: nextIstRelease(row),
+      sourceUrl: `${SOURCE_BASE}/?s=${encodeURIComponent(row.title)}`,
+    });
+
+    const ongoing = rows.filter(isOngoingRow).map(toAiring);
+    const upcoming = rows.filter((row) => !isOngoingRow(row)).map(toAiring);
+    if (!ongoing.length && !upcoming.length) return null;
+
+    return {
+      source: "Anime Dub Hindi",
+      sourceUrl: SCHEDULE_URL,
+      timezone: "Asia/Kolkata",
+      fetchedAt: new Date().toISOString(),
+      ongoing,
+      upcoming,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Live HTML first, reader proxy second, synced database last. Never throws and
+ * caches a good result for five minutes so the APK's 60-second refresh is cheap.
+ */
 export async function getLiveDubSchedule(): Promise<LiveDubSchedule | null> {
   if (cached && Date.now() - cached.at < CACHE_TTL_MS) return cached.data;
-  try {
-    const res = await fetch(SCHEDULE_URL, {
-      headers: HEADERS,
-      cache: "no-store",
-      signal: AbortSignal.timeout(12000),
-    });
-    if (!res.ok) return cached?.data || null;
-    const parsed = parseSchedule(await res.text());
-    if (!parsed) return cached?.data || null;
-    cached = { at: Date.now(), data: parsed };
-    return parsed;
-  } catch {
-    return cached?.data || null;
+
+  const fresh = await fetchFreshSchedule();
+  if (fresh) {
+    cached = { at: Date.now(), data: fresh };
+    return fresh;
   }
+
+  const fallback = await fromDatabase();
+  if (fallback) {
+    cached = { at: Date.now(), data: fallback };
+    return fallback;
+  }
+  return cached?.data || null;
 }
