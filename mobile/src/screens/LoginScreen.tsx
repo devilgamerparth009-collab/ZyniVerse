@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,13 +12,18 @@ import {
   Image,
   Animated,
   Easing,
+  Modal,
 } from 'react-native';
+import { WebView } from 'react-native-webview';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../hooks/useTheme';
-import { api } from '../services/api';
+import { api, WEB_HOST } from '../services/api';
+import { DiscordLogo, GitHubLogo, GoogleLogo } from '../components/SocialIcons';
 
 type Mode = 'login' | 'signup';
+type Provider = 'google' | 'github' | 'discord';
+const SOCIAL_PROVIDERS: Provider[] = ['google', 'github', 'discord'];
 
 /** Floating neon orb, lifted from the website's login background. */
 function Orb({
@@ -91,6 +96,14 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Social sign-in stays inside the app: the provider page loads in a WebView
+  // and the website hands the finished session back through postMessage.
+  const [providers, setProviders] = useState<Record<string, { id: string; name: string }>>({});
+  const [oauthBusy, setOauthBusy] = useState<Provider | null>(null);
+  const [oauthUrl, setOauthUrl] = useState<string | null>(null);
+  const [oauthError, setOauthError] = useState<string | null>(null);
+  const oauthFinished = useRef(false);
+
   const brandAnim = useRef(new Animated.Value(0)).current;
   const formAnim = useRef(new Animated.Value(0)).current;
   const logoPulse = useRef(new Animated.Value(1)).current;
@@ -129,16 +142,28 @@ export default function LoginScreen() {
     ).start();
   }, [brandAnim, formAnim, logoPulse, logoSpin]);
 
+  useEffect(() => {
+    let alive = true;
+    api.auth
+      .providers()
+      .then((list) => {
+        if (alive) setProviders(list || {});
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   const canSubmit =
     email.trim().length > 0 &&
     password.length >= 6 &&
     (mode === 'login' || username.trim().length >= 3);
 
   /**
-   * Everything happens in-app. The dedicated mobile endpoint verifies the
-   * password on the server and returns an Auth.js-compatible session token,
-   * which the API client stores and sends on every authenticated request.
-   * No Custom Tab, no external browser, no OAuth redirect is involved.
+   * Email/password is verified by the dedicated mobile endpoint. Everything
+   * happens in-app: the returned Auth.js JWT is stored and sent as a Bearer
+   * token, so no Custom Tab, external browser or OAuth redirect is involved.
    */
   const submit = async () => {
     if (!canSubmit || loading) return;
@@ -158,6 +183,60 @@ export default function LoginScreen() {
     }
   };
 
+  const openSocial = useCallback(
+    async (provider: Provider) => {
+      if (oauthBusy || loading) return;
+      setError(null);
+      setOauthError(null);
+      setOauthBusy(provider);
+      oauthFinished.current = false;
+      try {
+        // The website starts Auth.js itself inside the WebView, so its CSRF and
+        // callback cookies are handled by the WebView's own cookie jar. No
+        // external Custom Tab, no deep link, no manual cookie forwarding.
+        setOauthUrl(`${WEB_HOST}/login?provider=${provider}&mobile=1`);
+      } catch (e: any) {
+        setOauthBusy(null);
+        setOauthError(e?.message || 'Could not start sign-in. Please try again.');
+      }
+    },
+    [oauthBusy, loading]
+  );
+
+  const closeSocial = useCallback(() => {
+    oauthFinished.current = true;
+    setOauthUrl(null);
+    setOauthBusy(null);
+  }, []);
+
+  const handleSocialMessage = useCallback(
+    async (raw: string) => {
+      if (oauthFinished.current) return;
+      let data: any;
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        return;
+      }
+      if (data?.type !== 'zyni-auth' || typeof data.cookie !== 'string') return;
+      if (!data.cookie.includes('session-token=')) return;
+
+      oauthFinished.current = true;
+      setOauthUrl(null);
+      setOauthBusy(null);
+      setOauthError(null);
+      try {
+        await api.auth.setCookie(data.cookie);
+        const user = await api.auth.current();
+        if (!user) throw new Error('Could not verify the social sign-in. Please try again.');
+        navigation.goBack();
+      } catch (e: any) {
+        setError(e?.message || 'Could not finish social sign-in. Please try again.');
+      }
+    },
+    [navigation]
+  );
+
   const brandStyle = {
     opacity: brandAnim,
     transform: [{ translateY: brandAnim.interpolate({ inputRange: [0, 1], outputRange: [24, 0] }) }],
@@ -166,6 +245,7 @@ export default function LoginScreen() {
     opacity: formAnim,
     transform: [{ translateY: formAnim.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }) }],
   };
+  const availableSocial = SOCIAL_PROVIDERS.filter((provider) => providers[provider]);
 
   return (
     <KeyboardAvoidingView
@@ -348,12 +428,85 @@ export default function LoginScreen() {
               </Text>
             </TouchableOpacity>
           </Animated.View>
+
+          {availableSocial.length > 0 && (
+            <View style={styles.socialBlock}>
+              <View style={styles.socialDivider}>
+                <View style={[styles.socialDividerLine, { backgroundColor: colors.border }]} />
+                <Text style={[styles.socialDividerText, { color: colors.textDim }]}>or continue with</Text>
+                <View style={[styles.socialDividerLine, { backgroundColor: colors.border }]} />
+              </View>
+              <View style={styles.socialRow}>
+                {availableSocial.map((provider) => (
+                  <TouchableOpacity
+                    key={provider}
+                    style={[
+                      styles.socialButton,
+                      { backgroundColor: colors.background, borderColor: colors.border },
+                      !!oauthBusy && styles.submitDisabled,
+                    ]}
+                    onPress={() => void openSocial(provider)}
+                    disabled={!!oauthBusy || loading}
+                    activeOpacity={0.8}
+                  >
+                    {provider === 'google' ? (
+                      <GoogleLogo size={19} />
+                    ) : provider === 'github' ? (
+                      <GitHubLogo size={19} color={colors.text} />
+                    ) : (
+                      <DiscordLogo size={19} color={colors.text} />
+                    )}
+                    <Text style={[styles.socialButtonText, { color: colors.text }]}>
+                      {provider === 'google' ? 'Google' : provider === 'github' ? 'GitHub' : 'Discord'}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              {oauthError && <Text style={styles.errorText}>⚠️ {oauthError}</Text>}
+            </View>
+          )}
         </View>
 
         <Text style={[styles.secureNote, { color: colors.textDim }]}>
-          🔒 Sign in securely with your ZyniVerse email and password — right here in the app.
+          🔒 Email sign-in and social sign-in both stay in the app — no external browser.
         </Text>
       </ScrollView>
+
+      <Modal
+        visible={!!oauthUrl}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={closeSocial}
+      >
+        <View
+          style={[
+            styles.oauthContainer,
+            { backgroundColor: colors.background, paddingTop: insets.top },
+          ]}
+        >
+          <View style={[styles.oauthHeader, { borderBottomColor: colors.border }]}>
+            <TouchableOpacity onPress={closeSocial} style={styles.oauthClose} activeOpacity={0.8}>
+              <Text style={[styles.oauthCloseText, { color: colors.text }]}>✕ Close</Text>
+            </TouchableOpacity>
+            <Text style={[styles.oauthTitle, { color: colors.text }]}>
+              {oauthBusy ? `Sign in with ${oauthBusy.charAt(0).toUpperCase() + oauthBusy.slice(1)}` : 'Signing in'}
+            </Text>
+            <View style={styles.oauthClose} />
+          </View>
+          {oauthUrl && (
+            <WebView
+              source={{ uri: oauthUrl }}
+              style={[styles.oauthWebView, { backgroundColor: colors.background }]}
+              javaScriptEnabled
+              domStorageEnabled
+              sharedCookiesEnabled
+              startInLoadingState
+              onMessage={(event) => void handleSocialMessage(event.nativeEvent.data)}
+              onError={() => setOauthError('Could not load the sign-in page. Please try again.')}
+            />
+          )}
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -469,6 +622,7 @@ const styles = StyleSheet.create({
     color: '#fca5a5',
     fontSize: 12,
     fontWeight: '600',
+    marginTop: 8,
   },
   submitButton: {
     paddingVertical: 14,
@@ -498,6 +652,71 @@ const styles = StyleSheet.create({
   },
   modeSwitchLink: {
     fontWeight: '800',
+  },
+  socialBlock: {
+    marginTop: 20,
+  },
+  socialDivider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 14,
+  },
+  socialDividerLine: {
+    flex: 1,
+    height: 1,
+    opacity: 0.6,
+  },
+  socialDividerText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  socialRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  socialButton: {
+    flexGrow: 1,
+    flexBasis: 90,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    paddingVertical: 11,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  socialButtonText: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  oauthContainer: {
+    flex: 1,
+  },
+  oauthHeader: {
+    height: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+  },
+  oauthClose: {
+    width: 70,
+  },
+  oauthCloseText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  oauthTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    flex: 1,
+    textAlign: 'center',
+  },
+  oauthWebView: {
+    flex: 1,
   },
   secureNote: {
     textAlign: 'center',

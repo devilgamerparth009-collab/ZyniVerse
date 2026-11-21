@@ -47,8 +47,8 @@ const STABLE_VERSION_CODE = 144000;
  */
 const PUBLISHED_BUILDS: Record<string, { sha256: string; sizeBytes: number }> = {
   "1.4.4": {
-    sha256: "0db7e3821bc6e72a5b1f8d3df6dae905e74beb44b20a167c88fecdf30d274f1c",
-    sizeBytes: 42095353,
+    sha256: "f26d19008602ae17ab6f93cf8fbcfa3d6dc35e3f9dd693b6ad35e4449db32aea",
+    sizeBytes: 42147521,
   },
   "1.4.3": {
     sha256: "4d092e816df37240a2fbbb50699196dd5848aeb25419bcddd507c017998a7fb8",
@@ -116,7 +116,7 @@ const TARGET_NOTES = [
   "Dub Hub schedule now mirrors the live site: Ongoing + Upcoming with real countdowns and auto-refresh.",
   "TV & Streaming guide shows accurate per-channel timings with live source labels.",
   "Anime pages now open direct platform links on the sites where the title is available.",
-  "Fixed sign-in inside the APK: email/password now works fully in-app, with no browser redirect.",
+  "Fixed sign-in: email/password and Google/GitHub both work in-app, with no external browser.",
   "More ad placements with frequency caps so the app stays fast and usable.",
 ];
 
@@ -143,6 +143,6 @@ export const MOBILE_RELEASE: MobileRelease = {
   ).map((line) => line.trim()).filter(Boolean),
   mandatory: process.env.MOBILE_RELEASE_MANDATORY === "true",
   rollback: process.env.MOBILE_RELEASE_ROLLBACK === "true",
-  publishedAt: process.env.MOBILE_RELEASE_PUBLISHED_AT || "2026-11-21T18:42:02.430Z",
+  publishedAt: process.env.MOBILE_RELEASE_PUBLISHED_AT || "2026-11-21T19:10:48.511Z",
   minSupportedVersionCode: envNumber(process.env.MOBILE_MIN_SUPPORTED_VERSION_CODE) || 130000,
 };
