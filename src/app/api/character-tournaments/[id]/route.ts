@@ -53,6 +53,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   } else if (deviceId) {
     const [votes, pollVote] = await Promise.all([
       prisma.characterTournamentVote.findMany({
+        take: 500,
         where: { deviceId, match: { tournamentId: id } },
         select: { matchId: true, choice: true },
       }),

@@ -18,6 +18,7 @@ export async function GET(req: NextRequest) {
   if (targetUserId) {
     const [earned, points] = await Promise.all([
       prisma.userAchievement.findMany({
+        take: 500,
         where: { userId: targetUserId },
         select: { achievementId: true, earnedAt: true, progress: true },
       }),
@@ -29,7 +30,7 @@ export async function GET(req: NextRequest) {
 
   const achievementMap = new Map(userAchievements.map((a) => [a.achievementId, a]));
 
-  const achievements = await prisma.achievement.findMany();
+  const achievements = await prisma.achievement.findMany({ take: 500 });
   const dbMap = new Map(achievements.map((a) => [a.code, a.id]));
 
   const result = allAchievements.map((a) => {

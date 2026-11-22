@@ -18,9 +18,14 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { session, isAdmin } = await getAdminSession();
-  if (!session?.user || !isAdmin) {
+  const { isAdmin, mfaEnabled } = await getAdminSession();
+  if (!isAdmin) {
     redirect("/login");
+  }
+  if (!mfaEnabled) {
+    // The API gate already blocks privileged writes. Send the admin to the
+    // enrollment UI instead of leaving them on a page that cannot work.
+    redirect("/profile");
   }
 
   return <AdminShell>{children}</AdminShell>;

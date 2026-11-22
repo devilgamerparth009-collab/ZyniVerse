@@ -3,9 +3,11 @@ import { promises as fs } from "fs";
 import path from "path";
 import { auth } from "@/lib/auth";
 import { apiLimiter } from "@/lib/rate-limiter";
+import { validateUploadedFile } from "@/lib/file-validation";
+import crypto from "crypto";
 
 const MAX_SIZE = 5 * 1024 * 1024;
-const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+const ALLOWED = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
 export async function POST(req: NextRequest) {
   const rateCheck = await apiLimiter.middleware(req);
@@ -20,15 +22,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No file provided" }, { status: 400 });
   }
 
-  if (!ALLOWED.has(file.type)) {
-    return NextResponse.json({ error: "Only JPG, PNG, WEBP, or GIF images are allowed" }, { status: 400 });
-  }
-  if (file.size > MAX_SIZE) {
-    return NextResponse.json({ error: "Image must be under 5MB" }, { status: 400 });
+  const validated = await validateUploadedFile(file, ALLOWED, MAX_SIZE, "Image");
+  if (!validated.ok) {
+    return NextResponse.json(
+      { error: validated.error === "Image is too large" ? "Image must be under 5MB" : validated.error },
+      { status: 400 }
+    );
   }
 
-  const ext = file.type === "image/jpeg" ? "jpg" : file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "gif";
-  const name = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${ext}`;
+  const name = `${Date.now()}-${crypto.randomUUID()}.${validated.extension}`;
   const uploadDir = path.join(process.cwd(), "public", "uploads");
 
   const buffer = Buffer.from(await file.arrayBuffer());

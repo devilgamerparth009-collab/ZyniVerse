@@ -159,6 +159,7 @@ export async function GET(
   if (!year) return NextResponse.json({ error: "Invalid year" }, { status: 400 });
 
   const awards = await prisma.zyniAward.findMany({
+    take: 500,
     where: { year },
     include: {
       nominees: {

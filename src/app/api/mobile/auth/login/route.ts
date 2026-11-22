@@ -1,8 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import { encode } from "next-auth/jwt";
 import { isDefaultAvatar } from "@/lib/avatar";
 import { prisma } from "@/lib/prisma";
+import { authLimiter } from "@/lib/rate-limiter";
+import { verifyBotProtection } from "@/lib/bot-protection";
+import { verifyTotp } from "@/lib/totp";
 
 export const dynamic = "force-dynamic";
 
@@ -17,9 +21,13 @@ export const dynamic = "force-dynamic";
  */
 const SESSION_MAX_AGE = 30 * 24 * 60 * 60; // 30 days, same as Auth.js default
 
-function errorMessage(message: string, status: number) {
+function errorMessage(
+  message: string,
+  status: number,
+  extra: Record<string, unknown> = {}
+) {
   return NextResponse.json(
-    { ok: false, error: message },
+    { ok: false, error: message, ...extra },
     { status, headers: { "Cache-Control": "no-store, max-age=0" } }
   );
 }
@@ -31,7 +39,15 @@ export async function POST(request: NextRequest) {
     return errorMessage("Unsupported client", 403);
   }
 
-  let body: { email?: unknown; password?: unknown };
+  const rateCheck = await authLimiter.middleware(request);
+  if (rateCheck) return rateCheck;
+
+  // The official client header makes the shared bot guard skip web-only fields.
+  // Keeping the call here means future bot rules apply to the APK as well.
+  const botCheck = await verifyBotProtection({ headers: request.headers });
+  if (!botCheck.ok) return errorMessage(botCheck.reason || "Bot check failed.", 403);
+
+  let body: { email?: unknown; password?: unknown; totp?: unknown };
   try {
     body = await request.json();
   } catch {
@@ -40,6 +56,7 @@ export async function POST(request: NextRequest) {
 
   const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
   const password = typeof body.password === "string" ? body.password : "";
+  const totp = typeof body.totp === "string" ? body.totp.trim() : "";
   if (!email || !password || password.length > 200) {
     return errorMessage("Enter a valid email and password.", 400);
   }
@@ -55,15 +72,79 @@ export async function POST(request: NextRequest) {
         avatar: true,
         onboarded: true,
         createdAt: true,
+        emailVerified: true,
+        failedLoginCount: true,
+        lockoutUntil: true,
+        mfaEnabled: true,
+        mfaSecret: true,
+        mfaRecoveryCodes: true,
+        tokenVersion: true,
+        role: true,
       },
     });
 
     // Run a dummy comparison when the account does not exist so the response
     // time does not reveal which emails are registered.
     const hashed = user?.password || "$2a$12$C6UzMDM.H6dfI/f/IKcEe.6YpNB2/OqDJT2K4RNgBjPDPBWZQJ7Gi";
+    const now = new Date();
+    if (user?.lockoutUntil && user.lockoutUntil > now) {
+      await bcrypt.compare(password, hashed);
+      return errorMessage("Invalid email or password.", 401);
+    }
     const valid = await bcrypt.compare(password, hashed);
     if (!user || !user.password || !valid) {
+      if (user && user.password) {
+        const failedLoginCount = (user.failedLoginCount ?? 0) + 1;
+        const lockoutUntil = failedLoginCount >= 10 ? new Date(Date.now() + 15 * 60 * 1000) : null;
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { failedLoginCount: lockoutUntil ? 0 : failedLoginCount, lockoutUntil },
+        }).catch(() => {});
+      }
       return errorMessage("Invalid email or password.", 401);
+    }
+
+    if (!user.emailVerified) {
+      const pendingVerification = await prisma.emailVerificationToken.findFirst({
+        where: { email: user.email },
+        select: { id: true },
+      });
+      if (pendingVerification) {
+        return errorMessage("Please verify your email before signing in.", 403);
+      }
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { emailVerified: user.createdAt ?? now, failedLoginCount: 0, lockoutUntil: null },
+      }).catch(() => {});
+    } else if ((user.failedLoginCount ?? 0) > 0 || user.lockoutUntil) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { failedLoginCount: 0, lockoutUntil: null },
+      }).catch(() => {});
+    }
+
+    if (user.mfaEnabled) {
+      if (!totp) {
+        return errorMessage("Enter the 6-digit code from your authenticator app.", 401, {
+          code: "MFA_REQUIRED",
+          mfaRequired: true,
+        });
+      }
+      let ok = user.mfaSecret ? verifyTotp(user.mfaSecret, totp) : false;
+      if (!ok) {
+        const hash = crypto.createHash("sha256").update(totp).digest("hex");
+        const codes = user.mfaRecoveryCodes || [];
+        if (codes.includes(hash)) {
+          ok = true;
+          await prisma.user.update({ where: { id: user.id }, data: { mfaRecoveryCodes: codes.filter((c) => c !== hash) } }).catch(() => {});
+        }
+      }
+      if (!ok) {
+        return errorMessage("Invalid authentication code.", 401, {
+          code: "MFA_INVALID",
+          mfaRequired: true,
+        });
+      }
     }
 
     const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
@@ -94,6 +175,9 @@ export async function POST(request: NextRequest) {
         provider: "credentials",
         onboarded: user.onboarded ?? false,
         createdAt: user.createdAt,
+        tokenVersion: user.tokenVersion ?? 0,
+        role: user.role,
+        mfaEnabled: user.mfaEnabled ?? false,
         profileAt: Date.now(),
       },
     });

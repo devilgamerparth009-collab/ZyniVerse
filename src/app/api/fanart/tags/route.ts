@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 // Distinct tags across all fan art, for autocomplete in the upload form.
 export async function GET() {
   const arts = await prisma.fanArt.findMany({
+    take: 500,
     select: { tags: true },
     where: { tags: { not: "" } },
   });

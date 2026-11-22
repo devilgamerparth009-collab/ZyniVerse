@@ -1,5 +1,7 @@
 import { prisma } from "./prisma";
 import { NextResponse } from "next/server";
+import crypto from "crypto";
+import { getClientIp } from "./request-ip";
 
 export interface ApiTier {
   name: string;
@@ -100,9 +102,7 @@ export async function canCreateKey(userId: string): Promise<{ allowed: boolean; 
 
 export function generateApiKey(): string {
   const prefix = "zvn";
-  const random = Array.from({ length: 32 }, () =>
-    "abcdefghijklmnopqrstuvwxyz0123456789".charAt(Math.floor(Math.random() * 36))
-  ).join("");
+  const random = crypto.randomBytes(24).toString("base64url");
   return `${prefix}_${random}`;
 }
 
@@ -149,7 +149,8 @@ export async function verifyApiKey(request: Request): Promise<{ userId?: string;
     },
   });
 
-  await logUsage(apiKey.id, request.url, 200, request.headers.get("x-forwarded-for") || undefined);
+  const clientIp = getClientIp(request);
+  await logUsage(apiKey.id, request.url, 200, clientIp === "unknown" ? undefined : clientIp);
 
   return { userId: apiKey.userId, tier: apiKey.tier };
 }

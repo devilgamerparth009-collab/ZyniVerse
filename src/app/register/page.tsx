@@ -5,6 +5,7 @@ import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { PageTransition } from "@/components/PageTransition";
+import { useBotProtectionFields } from "@/components/BotProtectionFields";
 
 function RegisterInner() {
   const router = useRouter();
@@ -15,6 +16,7 @@ function RegisterInner() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [refCode, setRefCode] = useState("");
+  const { fields: botFields, element: botFieldsUi } = useBotProtectionFields();
 
   useEffect(() => {
     const ref = searchParams.get("ref");
@@ -33,14 +35,14 @@ function RegisterInner() {
       const res = await fetch("/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "register", email, username, password, ref: refCode }),
+        body: JSON.stringify({ action: "register", email, username, password, ref: refCode, ...botFields }),
       });
       if (!res.ok) {
         const d = await res.json();
         setError(d.error || "Registration failed");
         return;
       }
-      await signIn("credentials", { email, password, redirect: false });
+      await signIn("credentials", { email, password, ...botFields, redirect: false });
       router.push("/");
       router.refresh();
     } catch {
@@ -123,6 +125,8 @@ function RegisterInner() {
                 <label>Password</label>
                 <span className="input-glow-line" />
               </div>
+
+              {botFieldsUi}
 
               {error && (
                 <p className="text-center text-sm text-red-400 tracking-wider">

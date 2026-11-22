@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextFetchEvent, NextRequest } from "next/server";
 import { detectBot } from "@/lib/bot-detect";
 import { BOT_COOKIE, BOT_COOKIE_MAX_AGE } from "@/lib/bot-cookie";
+import { getClientIp as getTrustedClientIp } from "@/lib/request-ip";
 
 const APP_CLIENT_HEADER = "x-zyniverse-client";
 const APP_CLIENT_VALUE = "zyniverse-mobile-v1";
@@ -21,6 +22,36 @@ function hostFromUrl(value: string | null): string | null {
   }
 }
 
+const CORS_METHODS = "GET, POST, PUT, PATCH, DELETE, OPTIONS";
+const CORS_HEADERS =
+  "authorization, content-type, x-zyniverse-client, x-api-key, x-internal-secret";
+
+function allowedCorsOrigin(request: NextRequest): string | null {
+  const origin = request.headers.get("origin");
+  if (!origin) return null;
+  const host = hostFromUrl(origin);
+  if (host && ALLOWED_API_HOSTS.has(host) && origin.startsWith("https://")) return origin;
+  if (host && (host === "localhost" || host === "127.0.0.1")) return origin;
+
+  const configured = (process.env.ALLOWED_CORS_ORIGINS || "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  return configured.includes(origin) ? origin : null;
+}
+
+function withCors(response: NextResponse, request: NextRequest): NextResponse {
+  const origin = allowedCorsOrigin(request);
+  if (!origin) return response;
+  response.headers.set("Access-Control-Allow-Origin", origin);
+  response.headers.set("Access-Control-Allow-Credentials", "true");
+  response.headers.set("Access-Control-Allow-Methods", CORS_METHODS);
+  response.headers.set("Access-Control-Allow-Headers", CORS_HEADERS);
+  response.headers.set("Access-Control-Max-Age", "86400");
+  response.headers.append("Vary", "Origin");
+  return response;
+}
+
 const SCRIPT_UA_RE =
   /(python-requests|python-urllib|aiohttp|httpx\/|scrapy|go-http-client|curl\/|wget\/|libwww-perl|node-fetch|axios\/|postmanruntime|insomnia)/i;
 
@@ -37,12 +68,13 @@ function hasAllowedApiClient(request: NextRequest): boolean {
   // Backward compatibility for existing/older mobile APKs that don't send the
   // client header yet. Native app requests typically omit browser Origin/Referer/
   // Sec-Fetch-* headers. Allow them only when they do not look like obvious
-  // scripting clients. Tighten further after all users are on a header-sending
-  // app version.
+  // scripting clients. Set ALLOW_LEGACY_NO_ORIGIN_API=0 after APK rollout to block.
+  const allowLegacyNoOrigin = process.env.ALLOW_LEGACY_NO_ORIGIN_API !== "0";
   const hasOrigin = !!request.headers.get("origin");
   const hasReferer = !!request.headers.get("referer");
   const hasSecFetch = !!request.headers.get("sec-fetch-site");
   if (!hasOrigin && !hasReferer && !hasSecFetch) {
+    if (!allowLegacyNoOrigin) return false;
     const ua = request.headers.get("user-agent") || "";
     if (ua && SCRIPT_UA_RE.test(ua)) return false;
     return true;
@@ -105,14 +137,7 @@ function getBuckets(): Map<string, Bucket> {
 }
 
 function getClientIp(request: NextRequest): string {
-  const forwarded = request.headers.get("x-forwarded-for");
-  if (forwarded) {
-    const first = forwarded.split(",")[0]?.trim();
-    if (first) return first;
-  }
-  const realIp = request.headers.get("x-real-ip");
-  if (realIp) return realIp.trim();
-  return "unknown";
+  return getTrustedClientIp(request);
 }
 
 function consume(ip: string, scope: string, limit: number, windowMs: number) {
@@ -179,6 +204,7 @@ function rateLimitResponse(retryAfter: number, asJson: boolean) {
   const headers = {
     "Retry-After": String(retryAfter),
     "Cache-Control": "no-store, max-age=0",
+    "X-Robots-Tag": "noindex, nofollow",
   };
   if (asJson) {
     return NextResponse.json(
@@ -206,9 +232,14 @@ export function proxy(request: NextRequest, event: NextFetchEvent) {
   // -------------------------------------------------------------------------
   if (pathname.startsWith("/api/analytics/")) {
     if (!userAgent.trim() || isBot) {
-      return new NextResponse(null, { status: 204 });
+      return withCors(
+        new NextResponse(null, { status: 204, headers: { "X-Robots-Tag": "noindex, nofollow" } }),
+        request
+      );
     }
-    return NextResponse.next();
+    const res = NextResponse.next();
+    res.headers.set("X-Robots-Tag", "noindex, nofollow");
+    return withCors(res, request);
   }
 
   // -------------------------------------------------------------------------
@@ -225,13 +256,24 @@ export function proxy(request: NextRequest, event: NextFetchEvent) {
   const isMutating = !isRead;
   const isApi = pathname.startsWith("/api/");
 
+  if (isApi && method === "OPTIONS") {
+    const preflight = new NextResponse(null, {
+      status: 204,
+      headers: { "Cache-Control": "no-store, max-age=0" },
+    });
+    return withCors(preflight, request);
+  }
+
   // Block third-party/unknown API clients. Official web (same-origin) and
   // official mobile app (client header) are allowed; cron/auth/internal/og
   // have their own controls or public needs.
   if (isApi && !isPublicApiException(pathname) && !hasAllowedApiClient(request)) {
-    return NextResponse.json(
-      { error: "Forbidden" },
-      { status: 403, headers: { "Cache-Control": "no-store, max-age=0" } }
+    return withCors(
+      NextResponse.json(
+        { error: "Forbidden" },
+        { status: 403, headers: { "Cache-Control": "no-store, max-age=0", "X-Robots-Tag": "noindex, nofollow" } }
+      ),
+      request
     );
   }
 
@@ -292,19 +334,13 @@ export function proxy(request: NextRequest, event: NextFetchEvent) {
   if (rate) {
     const result = consume(ip, rate.scope, rate.max, rate.windowMs);
     if (!result.allowed) {
-      return rateLimitResponse(result.retryAfter, isApi);
+      return withCors(rateLimitResponse(result.retryAfter, isApi), request);
     }
   }
 
-  // -------------------------------------------------------------------------
-  // Crawler / bot hit reporting (see /api/internal/bot-hit + src/lib/bot-stats).
-  //
-  // Only dispatched for known crawlers on GET/HEAD requests. The DB write
-  // happens in a route handler inside `event.waitUntil` after the response is
-  // sent to keep Prisma out of the Proxy bundle and off the critical path.
-  // Reporting uses POST, so it cannot re-trigger this GET/HEAD branch.
-  // -------------------------------------------------------------------------
-  if (isRead && userAgent && isBot) {
+  // Report crawler hits by default; set DISABLE_BOT_HIT_REPORTING=1 to opt out
+  // on deployments where the extra internal function invocation is unwanted.
+  if (process.env.DISABLE_BOT_HIT_REPORTING !== "1" && isRead && userAgent && isBot) {
     const report = new URL("/api/internal/bot-hit", request.url);
     const internalSecret = process.env.INTERNAL_API_SECRET || process.env.CRON_SECRET;
     event.waitUntil(
@@ -317,8 +353,6 @@ export function proxy(request: NextRequest, event: NextFetchEvent) {
         body: JSON.stringify({
           path: pathname,
           userAgent,
-          // The self-fetch is served from a datacenter IP, so the visitor's
-          // country has to be copied from the original request headers.
           country: request.headers.get("x-vercel-ip-country"),
         }),
         cache: "no-store",
@@ -364,46 +398,14 @@ export function proxy(request: NextRequest, event: NextFetchEvent) {
     response.cookies.delete(BOT_COOKIE);
   }
 
-  return response;
+  response.headers.set("X-Robots-Tag", "noindex, nofollow");
+  return withCors(response, request);
 }
 
 export const config = {
-  // Match high-cost and crawl-heavy surfaces so abusive traffic can be
-  // throttled in code, while preserving existing crawler observation behavior.
-  // `api/` is included for rate limiting (analytics ingest is answered early
-  // with 204 for crawlers/empty UAs to avoid route work).
-  matcher: [
-    "/",
-    "/sitemap.xml",
-    "/robots.txt",
-    "/api/:path*",
-    "/anime/:path*",
-    "/character/:path*",
-    "/staff/:path*",
-    "/manga/:path*",
-    "/alternatives/:path*",
-    "/filler",
-    "/filler/:path*",
-    "/search",
-    "/search/:path*",
-    "/news/:path*",
-    "/blog/:path*",
-    "/wiki/:path*",
-    "/forum/:path*",
-    "/schedule/:path*",
-    "/seasonal/:path*",
-    "/top-anime/:path*",
-    "/indian-dubs/:path*",
-    "/dubbed/:path*",
-    "/hindi-dub-schedule/:path*",
-    "/manga-releases/:path*",
-    "/watch-order/:path*",
-    "/live-action/:path*",
-    "/toons/:path*",
-    "/wallpapers/:path*",
-    "/voice-actors/:path*",
-    "/studio/:path*",
-    "/themes/:path*",
-    "/ost/:path*",
-  ],
+  // Keep proxy limited to API routes to minimize Vercel function invocations.
+  // Page-level bot cookie/rate limiting removed from matcher; bot detection
+  // falls back to client-side UA checks in src/lib/bot-cookie.ts. WAF handles
+  // edge bot blocking.
+  matcher: ["/api/:path*"],
 };

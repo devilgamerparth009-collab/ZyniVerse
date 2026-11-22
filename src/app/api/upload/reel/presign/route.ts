@@ -1,19 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
+import crypto from "crypto";
 import { auth } from "@/lib/auth";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { isR2Configured, r2PresignedPutUrl, r2PublicUrl } from "@/lib/r2";
+import { isR2Configured, r2PresignedPutUrl } from "@/lib/r2";
+import { normalizeMimeType } from "@/lib/file-validation";
 
 const ALLOWED_TYPES = ["video/mp4", "video/webm", "video/quicktime"];
 const MAX_SIZE = 50 * 1024 * 1024; // 50MB
 const BUCKET = "reels";
 
-function buildPaths(userId: string, fileName: string) {
-  const timestamp = Date.now();
-  const safeName = fileName.replace(/[^a-zA-Z0-9.-]/g, "_").slice(0, 50);
-  const ext = (fileName.split(".").pop() || "mp4").slice(0, 10);
+/**
+ * Uploads land in a temporary prefix first. Only /api/upload/reel/verify may
+ * promote them to a public key, after checking the actual file signatures.
+ */
+function buildTempPaths(userId: string, uploadId: string) {
   return {
-    videoPath: `${userId}/${timestamp}-${safeName}.${ext}`,
-    thumbPath: `${userId}/${timestamp}-thumb.jpg`,
+    videoPath: `tmp/${userId}/${uploadId}/video.bin`,
+    thumbPath: `tmp/${userId}/${uploadId}/thumb.bin`,
   };
 }
 
@@ -26,7 +29,7 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     const fileName = typeof body.fileName === "string" ? body.fileName : "";
-    const fileType = typeof body.fileType === "string" ? body.fileType : "";
+    const fileType = normalizeMimeType(body.fileType);
     const fileSize = typeof body.fileSize === "number" ? body.fileSize : 0;
     const needThumbnail = body.needThumbnail === true;
 
@@ -43,7 +46,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "File too large. Max 50MB." }, { status: 400 });
     }
 
-    const { videoPath, thumbPath } = buildPaths(session.user.id, fileName);
+    const uploadId = crypto.randomUUID();
+    const { videoPath, thumbPath } = buildTempPaths(session.user.id, uploadId);
 
     if (isR2Configured()) {
       const signedUrl = await r2PresignedPutUrl(videoPath, fileType);
@@ -51,14 +55,13 @@ export async function POST(req: NextRequest) {
         ? {
             path: thumbPath,
             signedUrl: await r2PresignedPutUrl(thumbPath, "image/jpeg"),
-            publicUrl: r2PublicUrl(thumbPath),
           }
         : null;
       return NextResponse.json({
         mode: "r2",
+        uploadId,
         path: videoPath,
         signedUrl,
-        publicUrl: r2PublicUrl(videoPath),
         thumb,
       });
     }
@@ -79,25 +82,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Failed to create upload link" }, { status: 500 });
     }
 
-    const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(videoPath);
-
-    let thumb: { path: string; token: string; publicUrl: string } | null = null;
+    let thumb: { path: string; token: string } | null = null;
     if (needThumbnail) {
       const { data: thumbData, error: thumbError } = await supabase.storage
         .from(BUCKET)
         .createSignedUploadUrl(thumbPath);
       if (!thumbError && thumbData) {
-        const { data: thumbPub } = supabase.storage.from(BUCKET).getPublicUrl(thumbPath);
-        thumb = { path: thumbData.path, token: thumbData.token, publicUrl: thumbPub.publicUrl };
+        thumb = { path: thumbData.path, token: thumbData.token };
       }
     }
 
     return NextResponse.json({
       mode: "supabase",
+      uploadId,
       path: data.path,
       token: data.token,
       signedUrl: data.signedUrl,
-      publicUrl: pub.publicUrl,
       thumb,
     });
   } catch (error) {

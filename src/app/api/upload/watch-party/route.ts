@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { isR2Configured, r2Put, r2PublicUrl } from "@/lib/r2";
+import { validateUploadedFile } from "@/lib/file-validation";
 
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 const MAX_SIZE = 5 * 1024 * 1024;
@@ -17,20 +18,22 @@ export async function POST(req: NextRequest) {
     const partyId = formData.get("partyId") as string | null;
 
     if (!file) return NextResponse.json({ error: "No file provided" }, { status: 400 });
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      return NextResponse.json({ error: "Invalid file type. Use JPG, PNG, WebP, or GIF." }, { status: 400 });
-    }
-    if (file.size > MAX_SIZE) {
-      return NextResponse.json({ error: "File too large. Max 5MB." }, { status: 400 });
+    const validated = await validateUploadedFile(file, ALLOWED_TYPES, MAX_SIZE, "Image");
+    if (!validated.ok) {
+      return NextResponse.json(
+        { error: validated.error === "Image is too large" ? "File too large. Max 5MB." : validated.error },
+        { status: 400 }
+      );
     }
 
-    const ext = file.name.split(".").pop() || "jpg";
-    const id = partyId || session.user.id;
+    const id = partyId
+      ? partyId.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 64)
+      : session.user.id;
     const timestamp = Date.now();
-    const path = `watch-party/${id}-${timestamp}.${ext}`;
+    const path = `watch-party/${id}-${timestamp}.${validated.extension}`;
 
     if (isR2Configured()) {
-      await r2Put(path, Buffer.from(await file.arrayBuffer()), file.type);
+      await r2Put(path, Buffer.from(await file.arrayBuffer()), validated.mimeType);
       return NextResponse.json({ url: r2PublicUrl(path) });
     }
 
@@ -43,7 +46,7 @@ export async function POST(req: NextRequest) {
 
     const { error: uploadError } = await supabase.storage
       .from(BUCKET)
-      .upload(path, file, { upsert: false, contentType: file.type, cacheControl: '31536000' });
+      .upload(path, file, { upsert: false, contentType: validated.mimeType, cacheControl: '31536000' });
 
     if (uploadError) {
       console.error("[/api/upload/watch-party] Supabase error:", uploadError);

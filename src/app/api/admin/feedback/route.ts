@@ -52,6 +52,7 @@ export async function GET(req: NextRequest) {
     const userMap = new Map<string, { username: string; avatar: string | null }>();
     if (userIds.length > 0) {
       const users = await prisma.user.findMany({
+        take: 500,
         where: { id: { in: userIds } },
         select: { id: true, username: true, avatar: true },
       });

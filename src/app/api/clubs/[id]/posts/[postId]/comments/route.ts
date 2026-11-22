@@ -10,6 +10,7 @@ async function GET_inner(_req: NextRequest,
     where: { clubPostId: postId },
     include: { user: { select: { id: true, username: true, avatar: true } } },
     orderBy: { createdAt: "asc" },
+    take: 200,
   });
   return NextResponse.json({ comments });
 }

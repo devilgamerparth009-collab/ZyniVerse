@@ -128,8 +128,7 @@ export async function GET() {
     });
   } catch (error) {
     console.error("[/api/profile] GET error:", error);
-    const message = error instanceof Error ? error.message : "Internal server error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
@@ -200,7 +199,6 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ user });
   } catch (error) {
     console.error("[/api/profile] PATCH error:", error);
-    const message = error instanceof Error ? error.message : "Internal server error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

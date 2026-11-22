@@ -43,6 +43,7 @@ export async function GET(req: NextRequest) {
   });
 
   const types = await prisma.externalAward.findMany({
+    take: 500,
     select: { type: true },
     distinct: ["type"],
     orderBy: { type: "asc" },

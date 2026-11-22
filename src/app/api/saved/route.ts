@@ -8,6 +8,7 @@ export async function GET(_req: NextRequest) {
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const saved = await prisma.savedPost.findMany({
+    take: 500,
     where: { userId: session.user.id },
     orderBy: { createdAt: "desc" },
     include: {

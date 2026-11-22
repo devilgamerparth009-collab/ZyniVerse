@@ -3,7 +3,7 @@ import { withPublicCache } from "@/lib/api-cache";
 import { prisma } from "@/lib/prisma";
 import { logError } from "@/lib/logger";
 import { auth } from "@/lib/auth";
-import { isAdminEmail } from "@/lib/admin";
+import { isAdminRole } from "@/lib/admin-identity";
 
 async function GET_inner(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -47,7 +47,14 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     if (!moment) {
       return NextResponse.json({ error: "Moment not found" }, { status: 404 });
     }
-    if (moment.userId !== session.user.id && !isAdminEmail(session.user?.email)) {
+    const dbUser = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { role: true, tokenVersion: true },
+    });
+    if (!dbUser || dbUser.tokenVersion !== (session.user.tokenVersion ?? 0)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (moment.userId !== session.user.id && !isAdminRole(dbUser.role)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

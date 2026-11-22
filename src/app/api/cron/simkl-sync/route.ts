@@ -13,6 +13,7 @@ export async function GET(request: Request) {
   }
 
   const accounts = await prisma.externalAccount.findMany({
+    take: 500,
     where: { provider: "simkl" },
   });
 

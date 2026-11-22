@@ -313,10 +313,9 @@ export default function RootLayout({
             <ChristmasSnow />
           </Providers>
         </AuthProvider>
-        {/* Vercel Analytics/Speed Insights inject their own scripts — VERCEL_URL is
-            only populated by the Vercel runtime (this repo's local .env sets
-            VERCEL=1, which would otherwise 404 /_vercel/* here) */}
-        {process.env.VERCEL_URL && (
+        {/* Vercel Analytics/Speed Insights disabled by default to save quota.
+            Enable with NEXT_PUBLIC_ENABLE_VERCEL_ANALYTICS=1 */}
+        {process.env.NEXT_PUBLIC_ENABLE_VERCEL_ANALYTICS === "1" && (
           <>
             <Analytics />
             <SpeedInsights />

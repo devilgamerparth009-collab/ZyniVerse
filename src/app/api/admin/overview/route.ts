@@ -91,6 +91,7 @@ export async function GET() {
         return { pending, replied, resolved, featured, today };
       })(),
       prisma.user.findMany({
+        take: 500,
         where: { createdAt: { gte: weekAgo } },
         select: { createdAt: true },
       }),

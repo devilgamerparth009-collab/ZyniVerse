@@ -31,6 +31,7 @@ export async function GET() {
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const notifications = await prisma.dubNotification.findMany({
+    take: 500,
     where: { userId: session.user.id, active: true },
     orderBy: { createdAt: "desc" },
   });

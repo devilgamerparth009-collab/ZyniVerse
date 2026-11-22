@@ -65,12 +65,14 @@ export async function GET() {
 
   const [following, followers] = await Promise.all([
     prisma.follow.findMany({
+      take: 500,
       where: { followerId: session.user.id },
       select: { followingId: true },
     }),
     prisma.follow.findMany({
       where: { followingId: session.user.id },
       select: { followerId: true },
+      take: 500,
     }),
   ]);
 

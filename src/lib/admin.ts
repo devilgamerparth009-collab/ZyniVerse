@@ -1,30 +1,42 @@
 import type { Session } from "next-auth";
-import { auth } from "@/lib/auth";
-import { isAdminEmail } from "@/lib/admin-identity";
+import { authorize, requireAdmin as requireAdminRole } from "@/lib/authorize";
+import { isAdminRole } from "@/lib/admin-identity";
 
-export { isAdminEmail, ADMIN_EMAILS } from "@/lib/admin-identity";
+export { isAdminRole } from "@/lib/admin-identity";
+export { authorize } from "@/lib/authorize";
 
 export async function getAdminSession() {
-  const session = await auth();
-  return { session, isAdmin: isAdminEmail(session?.user?.email) };
+  // The layout only needs a boolean for rendering, but the check still hits the
+  // database so a demoted admin loses access on the very next request.
+  const authorized = await authorize({
+    roles: ["ADMIN"],
+    audit: "admin_layout",
+  });
+  return {
+    session: authorized?.user ?? null,
+    isAdmin: Boolean(authorized),
+    mfaEnabled: authorized?.dbUser.mfaEnabled ?? false,
+  };
 }
 
 export interface AdminSession extends Session {
-  user: {
+  user: Session["user"] & {
     id: string;
     email: string;
-    name?: string | null;
-    image?: string | null;
   };
 }
 
 /**
- * Returns the session (narrowed to a non-optional id/email) if the requester
- * is an admin, otherwise null. Callers should return 401/403 when this is null.
+ * Returns the authorized session (narrowed to a non-optional id/email) when the
+ * caller is an admin with MFA enabled, otherwise null.
  */
 export async function requireAdmin(): Promise<AdminSession | null> {
-  const session = await auth();
-  if (!session?.user?.id) return null;
-  if (!isAdminEmail(session.user.email)) return null;
-  return session as AdminSession;
+  const authorized = await requireAdminRole();
+  if (!authorized) return null;
+  return authorized as AdminSession;
+}
+
+/** UI-only role hint. Server routes must call `authorize()` instead. */
+export function canShowAdminUi(role: unknown): boolean {
+  return isAdminRole(role);
 }

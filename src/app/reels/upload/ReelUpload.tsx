@@ -216,6 +216,8 @@ export default function ReelUpload() {
       const presign = await parseJsonOrThrow(presignRes);
       if (!presignRes.ok)
         throw new Error((presign.error as string) || "Failed to start upload");
+      const uploadId = presign.uploadId as string | undefined;
+      if (!uploadId) throw new Error("Upload session missing");
       setProgress(30);
 
       const isR2 = presign.mode === "r2";
@@ -268,15 +270,28 @@ export default function ReelUpload() {
             .uploadToSignedUrl(thumb.path, thumb.token, thumbFile);
           if (thumbErr) throw new Error(thumbErr.message || "Upload failed");
         }
-        thumbnailUrl = thumb.publicUrl;
       }
 
-      setProgress(70);
+      const verifyRes = await fetch("/api/upload/reel/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          uploadId,
+          fileName: file.name,
+          needThumbnail: Boolean(thumbnail && thumb),
+        }),
+      });
+      const verified = await parseJsonOrThrow(verifyRes);
+      if (!verifyRes.ok)
+        throw new Error((verified.error as string) || "Upload verification failed");
+      thumbnailUrl = (verified.thumb as { publicUrl?: string } | null)?.publicUrl ?? null;
+
+      setProgress(80);
       const createRes = await fetch("/api/reels", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          videoUrl: presign.publicUrl as string,
+          videoUrl: verified.publicUrl as string,
           thumbnailUrl,
           caption,
           duration,

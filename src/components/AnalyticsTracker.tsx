@@ -83,6 +83,15 @@ export default function AnalyticsTracker() {
     // bill proportional to real visitors.
     if (isAutomatedBrowser()) return;
 
+    // Sample analytics to reduce Vercel function invocations. UX unaffected.
+    const sampleKey = "analytics_sample_v2";
+    let sampled = sessionStorage.getItem(sampleKey);
+    if (!sampled) {
+      sampled = Math.random() < 0.1 ? "1" : "0";
+      sessionStorage.setItem(sampleKey, sampled);
+    }
+    if (sampled !== "1") return;
+
     let id = sessionStorage.getItem("analytics_session_id");
     if (!id) {
       id = crypto.randomUUID();

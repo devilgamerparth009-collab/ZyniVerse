@@ -17,6 +17,7 @@ export async function GET(req: NextRequest) {
       select: { status: true, score: true },
     }),
     prisma.mangaEntry.findMany({
+      take: 500,
       where: { userId },
       select: { status: true, chapters: true, score: true },
     }),

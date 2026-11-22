@@ -2,16 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { logError } from "@/lib/logger";
 import { auth } from "@/lib/auth";
-import { isAdminEmail } from "@/lib/admin";
+import { isAdminRole } from "@/lib/admin-identity";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
 async function isAdminOrOwner(userId: string, reelUserId: string) {
   if (userId === reelUserId) return true;
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { email: true },
+    select: { role: true },
   });
-  return isAdminEmail(user?.email);
+  return isAdminRole(user?.role);
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

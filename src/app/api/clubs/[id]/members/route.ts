@@ -10,6 +10,7 @@ async function GET_inner(req: NextRequest, { params }: { params: Promise<{ id: s
     where: { clubId: id },
     include: { user: { select: { id: true, username: true, avatar: true } } },
     orderBy: [{ role: "asc" }, { joinedAt: "asc" }],
+    take: 500,
   });
 
   return NextResponse.json({ members });

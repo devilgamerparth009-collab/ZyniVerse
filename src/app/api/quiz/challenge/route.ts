@@ -37,6 +37,7 @@ export async function GET() {
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const challenges = await prisma.quizChallenge.findMany({
+    take: 500,
     where: {
       OR: [
         { challengerId: session.user.id },

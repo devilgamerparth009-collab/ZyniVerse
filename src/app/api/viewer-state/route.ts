@@ -48,6 +48,7 @@ export async function GET(req: NextRequest) {
   switch (type) {
     case "memeVotes": {
       const votes = await prisma.memeVote.findMany({
+        take: 500,
         where: { userId, memeId: { in: ids } },
         select: { memeId: true, value: true },
       });
@@ -73,12 +74,14 @@ export async function GET(req: NextRequest) {
     case "listStates": {
       const [likes, votes, lists] = await Promise.all([
         prisma.userListLike.findMany({
+          take: 500,
           where: { userId, listId: { in: ids } },
           select: { listId: true },
         }),
         prisma.listVote.findMany({
           where: { userId, listId: { in: ids } },
           select: { listId: true, value: true },
+          take: 500,
         }),
         prisma.userList.findMany({
           where: { id: { in: ids } },
@@ -100,12 +103,14 @@ export async function GET(req: NextRequest) {
     case "blogStates": {
       const [likes, posts] = await Promise.all([
         prisma.blogPostLike.findMany({
+          take: 500,
           where: { userId, postId: { in: ids } },
           select: { postId: true },
         }),
         prisma.blogPost.findMany({
           where: { id: { in: ids } },
           select: { id: true, userId: true },
+          take: 500,
         }),
       ]);
       const liked = new Set(likes.map((like) => like.postId));

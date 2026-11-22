@@ -28,6 +28,7 @@ export async function GET(req: NextRequest) {
     prisma.affiliateClick.findMany({
       where: { createdAt: { gte: start } },
       select: { createdAt: true },
+      take: 5000,
     }),
   ]);
 

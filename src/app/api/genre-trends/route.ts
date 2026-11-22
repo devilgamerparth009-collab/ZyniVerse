@@ -8,6 +8,7 @@ export async function GET() {
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const entries = await prisma.listEntry.findMany({
+    take: 500,
     where: { userId: session.user.id },
     select: { mediaId: true, status: true, completedAt: true },
   });

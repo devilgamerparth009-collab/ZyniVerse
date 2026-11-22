@@ -1,4 +1,5 @@
 import "next-auth";
+import type { UserRole } from "@/lib/admin-identity";
 
 declare module "next-auth" {
   interface Session {
@@ -9,6 +10,10 @@ declare module "next-auth" {
       email?: string | null;
       image?: string | null;
       createdAt?: Date;
+      role?: UserRole;
+      tokenVersion?: number;
+      mfaEnabled?: boolean;
+      mfaRequired?: boolean;
     };
   }
 }

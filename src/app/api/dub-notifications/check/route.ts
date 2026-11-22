@@ -7,6 +7,7 @@ export async function GET() {
   const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
   const notifications = await prisma.dubNotification.findMany({
+    take: 500,
     where: {
       active: true,
       OR: [

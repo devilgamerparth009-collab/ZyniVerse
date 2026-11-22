@@ -69,6 +69,7 @@ const SESSION_COOKIE_KEY = 'zt_session_cookie';
 // it as a Bearer token even when Android drops a manually set Cookie header.
 const SESSION_TOKEN_KEY = 'zt_session_token';
 let cachedDevice: string | null = null;
+let legacySessionMigration: Promise<void> | null = null;
 
 // Lightweight last-known-good cache: serves fresh data when online and
 // falls back to the cached copy when the network is unavailable. This keeps
@@ -330,7 +331,36 @@ function tokenFromCookie(cookie: string | null): string | null {
   return (cookie.slice(index + marker.length).split(';')[0] || '').trim() || null;
 }
 
-async function saveSessionToStorage(stored: string, user?: User | null): Promise<void> {
+/**
+ * Older releases mirrored the session into AsyncStorage in plaintext. Move it
+ * into the Android Keystore-backed SecureStore once, then erase every legacy
+ * copy so a root/browser-based read cannot recover a usable JWT.
+ */
+function ensureLegacySessionMigrated(): Promise<void> {
+  if (!legacySessionMigration) {
+    legacySessionMigration = (async () => {
+      const keys = [SESSION_COOKIE_KEY, SESSION_TOKEN_KEY, 'zv_cached_user'];
+      try {
+        const [cookie, token] = await Promise.all([
+          AsyncStorage.getItem(SESSION_COOKIE_KEY),
+          AsyncStorage.getItem(SESSION_TOKEN_KEY),
+        ]);
+        if (cookie) await SecureStore.setItemAsync(SESSION_COOKIE_KEY, cookie);
+        if (token) await SecureStore.setItemAsync(SESSION_TOKEN_KEY, token);
+      } catch {
+        /* migration is best-effort; SecureStore is still authoritative */
+      }
+      try {
+        await AsyncStorage.multiRemove(keys);
+      } catch {
+        /* ignore */
+      }
+    })().catch(() => undefined);
+  }
+  return legacySessionMigration;
+}
+
+async function saveSessionToStorage(stored: string, _user?: User | null): Promise<void> {
   // A different account must never see the previous one's cached reads.
   await clearReadCache();
   const token = tokenFromCookie(stored);
@@ -339,35 +369,25 @@ async function saveSessionToStorage(stored: string, user?: User | null): Promise
     if (token) await SecureStore.setItemAsync(SESSION_TOKEN_KEY, token);
     else await SecureStore.deleteItemAsync(SESSION_TOKEN_KEY);
   } catch {}
+  // Defense in depth: never leave a plaintext copy behind.
   try {
-    await AsyncStorage.setItem(SESSION_COOKIE_KEY, stored);
-    if (token) await AsyncStorage.setItem(SESSION_TOKEN_KEY, token);
-    else await AsyncStorage.removeItem(SESSION_TOKEN_KEY);
-    if (user) {
-      await AsyncStorage.setItem('zv_cached_user', JSON.stringify(user));
-    }
+    await AsyncStorage.multiRemove([SESSION_COOKIE_KEY, SESSION_TOKEN_KEY, 'zv_cached_user']);
   } catch {}
 }
 
 async function readCookie(): Promise<string | null> {
+  await ensureLegacySessionMigrated();
   try {
-    const val = await SecureStore.getItemAsync(SESSION_COOKIE_KEY);
-    if (val) return val;
-  } catch {}
-  try {
-    return await AsyncStorage.getItem(SESSION_COOKIE_KEY);
+    return await SecureStore.getItemAsync(SESSION_COOKIE_KEY);
   } catch {
     return null;
   }
 }
 
 async function readSessionToken(): Promise<string | null> {
+  await ensureLegacySessionMigrated();
   try {
-    const val = await SecureStore.getItemAsync(SESSION_TOKEN_KEY);
-    if (val) return val;
-  } catch {}
-  try {
-    return await AsyncStorage.getItem(SESSION_TOKEN_KEY);
+    return await SecureStore.getItemAsync(SESSION_TOKEN_KEY);
   } catch {
     return null;
   }
@@ -451,12 +471,7 @@ export async function getCurrentUser(): Promise<User | null> {
   if (!storedCookie && !token) return null;
 
   const live = await fetchSessionUser();
-  if (live) {
-    try {
-      await AsyncStorage.setItem('zv_cached_user', JSON.stringify(live));
-    } catch {}
-    return live;
-  }
+  if (live) return live;
   // A cached user is not proof of a valid session. Never render it as a
   // signed-in profile; that is what produced the "Profile unavailable" loop.
   return null;
@@ -467,6 +482,8 @@ interface MobileSessionLoginResponse {
   user?: { id?: string; username?: string; email?: string; avatar?: string | null };
   cookie?: string;
   error?: string;
+  code?: string;
+  mfaRequired?: boolean;
 }
 
 /**
@@ -475,18 +492,24 @@ interface MobileSessionLoginResponse {
  * This avoids the CSRF callback/redirect round trip that React Native cannot
  * reliably preserve.
  */
-async function loginWithMobileSession(email: string, password: string): Promise<User> {
+async function loginWithMobileSession(
+  email: string,
+  password: string,
+  totp?: string
+): Promise<User> {
   const res = await fetchWithTimeout(`${WEB_API}/mobile/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email, password, ...(totp ? { totp } : {}) }),
   });
   const payload = (await res.json().catch(() => null)) as MobileSessionLoginResponse | null;
   if (!res.ok || !payload?.ok) {
     const error = new Error(
       payload?.error || (res.status === 401 ? 'Invalid email or password.' : 'Could not sign in right now.')
-    ) as Error & { status?: number };
+    ) as Error & { status?: number; mfaRequired?: boolean; code?: string };
     error.status = res.status;
+    error.mfaRequired = payload?.mfaRequired === true;
+    error.code = payload?.code;
     throw error;
   }
   if (!payload.cookie || !payload.user?.id) {
@@ -510,10 +533,10 @@ async function loginWithMobileSession(email: string, password: string): Promise<
   return user;
 }
 
-async function login(email: string, password: string): Promise<User> {
+async function login(email: string, password: string, totp?: string): Promise<User> {
   // Single, browser-free path. The dedicated endpoint is deployed with this
   // release, so there is no CSRF callback or external redirect to fall back to.
-  return loginWithMobileSession(email, password);
+  return loginWithMobileSession(email, password, totp);
 }
 
 async function register(
@@ -547,6 +570,24 @@ async function clearNativeCookies(): Promise<void> {
 }
 
 async function logout(): Promise<void> {
+  // Revoke on the server first so this JWT cannot be replayed from a copy.
+  // A failed request must not prevent the local sign-out below.
+  try {
+    const token = await readSessionToken();
+    if (token) {
+      await fetchWithTimeout(`${WEB_API}/auth/logout`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: '{}',
+      });
+    }
+  } catch {
+    /* offline logout still clears the device */
+  }
   try {
     await SecureStore.deleteItemAsync(SESSION_COOKIE_KEY);
     await SecureStore.deleteItemAsync(SESSION_TOKEN_KEY);
@@ -554,9 +595,9 @@ async function logout(): Promise<void> {
     /* ignore */
   }
   try {
-    await AsyncStorage.removeItem(SESSION_COOKIE_KEY);
-    await AsyncStorage.removeItem(SESSION_TOKEN_KEY);
-    await AsyncStorage.removeItem('zv_cached_user');
+    await AsyncStorage.multiRemove([SESSION_COOKIE_KEY, SESSION_TOKEN_KEY, 'zv_cached_user']);
+    // Reset the one-time migration so a future session is migrated afresh.
+    legacySessionMigration = null;
   } catch {
     /* ignore */
   }

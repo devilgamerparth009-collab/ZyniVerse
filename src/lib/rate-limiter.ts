@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { RedisClientType } from "redis";
 import { logError } from "@/lib/logger";
+import { getClientIp as getClientIpFromRequest } from "@/lib/request-ip";
 
 interface RateLimitEntry {
   count: number;
@@ -102,12 +103,7 @@ export function createRateLimiter(name: string, config: Partial<RateLimitConfig>
     },
 
     getClientIp(request: Request): string {
-      const forwarded = request.headers.get("x-forwarded-for");
-      if (forwarded) return forwarded.split(",")[0].trim();
-      const realIp = request.headers.get("x-real-ip");
-      if (realIp) return realIp;
-      const url = new URL(request.url);
-      return url.hostname;
+      return getClientIpFromRequest(request);
     },
 
     async middleware(request: Request): Promise<NextResponse | null> {
@@ -169,4 +165,9 @@ export const anilistLimiter = createRateLimiter("anilist", {
 export const affiliateLimiter = createRateLimiter("affiliate", {
   maxRequests: 30,
   windowMs: 60 * 1000,
+});
+
+export const passwordResetLimiter = createRateLimiter("password-reset", {
+  maxRequests: 5,
+  windowMs: 15 * 60 * 1000,
 });

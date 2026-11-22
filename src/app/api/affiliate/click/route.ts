@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { affiliateLimiter } from "@/lib/rate-limiter";
+import { getClientIp } from "@/lib/request-ip";
 
 const MAX_PARTNER_LENGTH = 100;
 const MAX_PAGE_LENGTH = 500;
@@ -18,7 +19,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing partner or page" }, { status: 400 });
     }
 
-    const ip = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || null;
+    const resolvedIp = getClientIp(req);
+    const ip = resolvedIp === "unknown" ? null : resolvedIp;
     const userAgent = req.headers.get("user-agent") || null;
 
     // Attribution is only recorded for the *authenticated* visitor — a

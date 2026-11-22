@@ -92,6 +92,8 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [totp, setTotp] = useState('');
+  const [mfaRequired, setMfaRequired] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -171,12 +173,18 @@ export default function LoginScreen() {
     setError(null);
     try {
       if (mode === 'login') {
-        await api.auth.login(email.trim(), password);
+        await api.auth.login(email.trim(), password, mfaRequired ? totp.trim() : undefined);
+        setMfaRequired(false);
+        setTotp('');
       } else {
         await api.auth.register(email.trim(), username.trim(), password);
       }
       navigation.goBack();
     } catch (e: any) {
+      if (e?.mfaRequired) {
+        setMfaRequired(true);
+        setTotp('');
+      }
       setError(e?.message || 'Invalid email or password. Please try again.');
     } finally {
       setLoading(false);
@@ -387,6 +395,27 @@ export default function LoginScreen() {
                 </TouchableOpacity>
               </View>
             </View>
+
+            {mode === 'login' && mfaRequired && (
+              <View style={styles.inputWrap}>
+                <Text style={[styles.label, { color: colors.textMuted }]}>Two-factor code</Text>
+                <TextInput
+                  style={[
+                    styles.input,
+                    { backgroundColor: colors.background, borderColor: colors.border, color: colors.text },
+                  ]}
+                  placeholder="6-digit authenticator code"
+                  placeholderTextColor={colors.textDim}
+                  keyboardType="number-pad"
+                  maxLength={6}
+                  value={totp}
+                  onChangeText={setTotp}
+                />
+                <Text style={{ marginTop: 6, fontSize: 11, color: colors.textDim }}>
+                  Enter the code from your authenticator app, then sign in again.
+                </Text>
+              </View>
+            )}
 
             {error && (
               <View style={styles.errorBox}>

@@ -218,7 +218,7 @@ export interface Viewer {
    *
    * Note this cannot be read off the session: `role` lives on the Prisma user
    * model, not on the NextAuth session payload. The rest of the app (Navbar)
-   * gates admin UI with `isAdminEmail()`, so the palette does the same rather
+   * gates admin UI with `isAdminRole()`, so the palette does the same rather
    * than inventing a second source of truth.
    */
   isAdmin: boolean;

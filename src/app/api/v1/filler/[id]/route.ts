@@ -29,7 +29,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const votesByEpisode: Record<number, Record<string, number>> = {};
   for (const v of voteStats) {
-    const votes = await prisma.fillerVote.findMany({ where: { mediaId: anilistId, episode: v.episode } });
+    const votes = await prisma.fillerVote.findMany({ take: 500, where: { mediaId: anilistId, episode: v.episode } });
     const tally: Record<string, number> = {};
     for (const v2 of votes) {
       tally[v2.vote] = (tally[v2.vote] || 0) + 1;

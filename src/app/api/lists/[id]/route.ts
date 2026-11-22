@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { isAdminEmail } from "@/lib/admin";
+import { isAdminRole } from "@/lib/admin-identity";
 import { NextRequest, NextResponse } from "next/server";
 import { withPrivateCache, withPublicCache } from "@/lib/api-cache";
 
@@ -46,7 +46,14 @@ export async function PUT(
 
   const { title, description, type, isPublic, isFeatured, sortOrder, category, items } = await req.json();
 
-  const featuredAllowed = isAdminEmail(session.user?.email);
+  const dbUser = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { role: true, tokenVersion: true },
+  });
+  if (!dbUser || dbUser.tokenVersion !== (session.user.tokenVersion ?? 0)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const featuredAllowed = isAdminRole(dbUser.role);
 
   const list = await prisma.$transaction(async (tx) => {
     if (items) {

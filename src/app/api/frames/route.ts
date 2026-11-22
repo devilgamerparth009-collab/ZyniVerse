@@ -24,6 +24,7 @@ export async function GET(req: NextRequest) {
   const userFrames: Record<string, { isActive: boolean; unlockedAt: Date }> = {};
   if (userId) {
     const uf = await prisma.userFrame.findMany({
+      take: 500,
       where: { userId },
     });
     for (const f of uf) {

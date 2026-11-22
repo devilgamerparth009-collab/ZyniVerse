@@ -2,9 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { isR2Configured, r2Put, r2PublicUrl } from "@/lib/r2";
+import { validateUploadedFile } from "@/lib/file-validation";
 
 const ALLOWED_TYPES = ["video/mp4", "video/webm", "video/quicktime"];
+const THUMB_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_SIZE = 50 * 1024 * 1024; // 50MB — Supabase free plan storage limit
+const MAX_THUMB_SIZE = 5 * 1024 * 1024;
 const BUCKET = "reels";
 
 export async function POST(req: NextRequest) {
@@ -21,27 +24,45 @@ export async function POST(req: NextRequest) {
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
-    if (!ALLOWED_TYPES.includes(file.type)) {
+    const validated = await validateUploadedFile(file, ALLOWED_TYPES, MAX_SIZE, "Video");
+    if (!validated.ok) {
       return NextResponse.json(
-        { error: "Invalid file type. Use MP4, WebM, or MOV." },
+        {
+          error:
+            validated.error === "Video is too large"
+              ? "File too large. Max 50MB."
+              : `${validated.error}. Use MP4, WebM, or MOV.`,
+        },
         { status: 400 }
       );
     }
-    if (file.size > MAX_SIZE) {
-      return NextResponse.json({ error: "File too large. Max 50MB." }, { status: 400 });
+    const thumbnailValidation = thumbnail
+      ? await validateUploadedFile(thumbnail, THUMB_TYPES, MAX_THUMB_SIZE, "Thumbnail")
+      : null;
+    if (thumbnail && (!thumbnailValidation || !thumbnailValidation.ok)) {
+      return NextResponse.json(
+        { error: thumbnailValidation?.error ?? "Invalid thumbnail" },
+        { status: 400 }
+      );
     }
 
+    const timestamp = Date.now();
+    const safeName = file.name
+      .replace(/[^a-zA-Z0-9.-]/g, "_")
+      .replace(/\.[a-zA-Z0-9]+$/, "")
+      .slice(0, 50);
+    const path = `${session.user.id}/${timestamp}-${safeName}.${validated.extension}`;
+
     if (isR2Configured()) {
-      const timestamp = Date.now();
-      const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_").slice(0, 50);
-      const ext = file.name.split(".").pop() || "mp4";
-      const path = `${session.user.id}/${timestamp}-${safeName}.${ext}`;
-      await r2Put(path, Buffer.from(await file.arrayBuffer()), file.type);
+      await r2Put(path, Buffer.from(await file.arrayBuffer()), validated.mimeType);
       let thumbnailUrl: string | null = null;
-      if (thumbnail) {
-        const thumbExt = thumbnail.name.split(".").pop() || "jpg";
-        const thumbPath = `${session.user.id}/${timestamp}-thumb.${thumbExt}`;
-        await r2Put(thumbPath, Buffer.from(await thumbnail.arrayBuffer()), thumbnail.type);
+      if (thumbnail && thumbnailValidation?.ok) {
+        const thumbPath = `${session.user.id}/${timestamp}-thumb.${thumbnailValidation.extension}`;
+        await r2Put(
+          thumbPath,
+          Buffer.from(await thumbnail.arrayBuffer()),
+          thumbnailValidation.mimeType
+        );
         thumbnailUrl = r2PublicUrl(thumbPath);
       }
       return NextResponse.json({
@@ -59,14 +80,9 @@ export async function POST(req: NextRequest) {
       await supabase.storage.createBucket(BUCKET, { public: true });
     }
 
-    const timestamp = Date.now();
-    const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_").slice(0, 50);
-    const ext = file.name.split(".").pop() || "mp4";
-    const path = `${session.user.id}/${timestamp}-${safeName}.${ext}`;
-
     const { error: uploadError } = await supabase.storage
       .from(BUCKET)
-      .upload(path, file, { upsert: false, contentType: file.type, cacheControl: '31536000' });
+      .upload(path, file, { upsert: false, contentType: validated.mimeType, cacheControl: '31536000' });
 
     if (uploadError) {
       console.error("[/api/upload/reel] Supabase error:", uploadError);
@@ -76,12 +92,11 @@ export async function POST(req: NextRequest) {
     const { data: video } = supabase.storage.from(BUCKET).getPublicUrl(path);
 
     let thumbnailUrl: string | null = null;
-    if (thumbnail) {
-      const thumbExt = thumbnail.name.split(".").pop() || "jpg";
-      const thumbPath = `${session.user.id}/${timestamp}-thumb.${thumbExt}`;
+    if (thumbnail && thumbnailValidation?.ok) {
+      const thumbPath = `${session.user.id}/${timestamp}-thumb.${thumbnailValidation.extension}`;
       const { error: thumbError } = await supabase.storage
         .from(BUCKET)
-        .upload(thumbPath, thumbnail, { upsert: false, contentType: thumbnail.type, cacheControl: '31536000' });
+        .upload(thumbPath, thumbnail, { upsert: false, contentType: thumbnailValidation.mimeType, cacheControl: '31536000' });
       if (!thumbError) {
         const { data: t } = supabase.storage.from(BUCKET).getPublicUrl(thumbPath);
         thumbnailUrl = t.publicUrl;

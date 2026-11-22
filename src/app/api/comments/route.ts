@@ -14,6 +14,7 @@ async function GET_inner(req: NextRequest) {
   const comments = await prisma.comment.findMany({
     where: { postId },
     orderBy: { createdAt: "asc" },
+    take: 200,
     include: { author: { select: { id: true, username: true } } },
   });
 

@@ -8,6 +8,7 @@ async function GET_inner(req: NextRequest, { params }: { params: Promise<{ manga
   if (isNaN(id)) return NextResponse.json({ error: "Invalid mangaId" }, { status: 400 });
 
   const chapters = await prisma.mangaChapterData.findMany({
+    take: 500,
     where: { mangaId: id },
     orderBy: { chapterNumber: "asc" },
   });
@@ -50,6 +51,7 @@ async function GET_inner(req: NextRequest, { params }: { params: Promise<{ manga
   }
 
   const saved = await prisma.mangaChapterData.findMany({
+    take: 500,
     where: { mangaId: id },
     orderBy: { chapterNumber: "asc" },
   });

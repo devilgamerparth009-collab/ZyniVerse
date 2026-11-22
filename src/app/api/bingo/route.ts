@@ -10,6 +10,7 @@ export async function GET() {
   }
 
   const cards = await prisma.bingoCard.findMany({
+    take: 500,
     where: { userId: session.user.id },
     orderBy: { createdAt: "desc" },
   });

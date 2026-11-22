@@ -19,7 +19,8 @@ export const metadata: Metadata = {
  * live AniList traversal and the canvas is client-only, so there was never a
  * static result worth reusing.
  */
-export const dynamic = "force-dynamic";
+// Static shell; GraphExplorer reads query params client-side.
+export const revalidate = 3600;
 
 export default function GraphPage() {
   return <GraphExplorer />;

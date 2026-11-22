@@ -44,7 +44,7 @@ async function GET_inner(req: NextRequest, { params }: { params: Promise<{ media
                 await prisma.animeEpisode.create({ data: ep });
               } catch (e) { logError(e); }
             }
-            const all = await prisma.animeEpisode.findMany({ where: { mediaId: id }, orderBy: { episode: "asc" } });
+            const all = await prisma.animeEpisode.findMany({ take: 500, where: { mediaId: id }, orderBy: { episode: "asc" } });
             return NextResponse.json({ episodes: all });
           }
         }

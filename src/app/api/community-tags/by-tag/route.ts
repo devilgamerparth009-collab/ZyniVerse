@@ -16,6 +16,7 @@ export async function GET(req: NextRequest) {
   const rows = await prisma.communityTag.findMany({
     where: { tag: normalized, isApproved: true },
     orderBy: { score: "desc" },
+    take: 100,
     select: { mediaId: true, score: true, upvotes: true, downvotes: true },
   });
 

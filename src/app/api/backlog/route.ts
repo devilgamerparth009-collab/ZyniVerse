@@ -14,6 +14,7 @@ export async function GET() {
       dropReason: true, updatedAt: true,
     },
     orderBy: { updatedAt: "desc" },
+    take: 2000,
   });
 
   const mediaMap = new Map<number, MediaBasic>();

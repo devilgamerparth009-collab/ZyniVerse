@@ -26,6 +26,7 @@ export async function GET(req: NextRequest) {
   }
 
   const likes = await prisma.cosplayLike.findMany({
+    take: 500,
     where: { userId: session.user.id, cosplayId: { in: ids } },
     select: { cosplayId: true },
   });

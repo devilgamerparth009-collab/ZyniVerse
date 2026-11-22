@@ -26,6 +26,7 @@ export async function GET(_req: NextRequest) {
   try {
     const rows = await prisma.broadcastChannel.findMany({
       select: channelSelect(viewerId),
+      take: 200,
     });
     const channels: ChannelSummary[] = rows
       .map((row) => toChannelSummary(row, viewerId))

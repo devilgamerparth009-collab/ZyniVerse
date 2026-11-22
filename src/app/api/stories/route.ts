@@ -25,6 +25,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const rows = await prisma.story.findMany({
+      take: 500,
       where: { expiresAt: { gt: new Date() } },
       select: storySelect(viewerId),
       orderBy: { createdAt: "desc" },

@@ -45,6 +45,7 @@ export async function GET() {
       take: 10,
     }),
     prisma.adImpression.findMany({
+      take: 500,
       where: { createdAt: { gte: new Date(now.getTime() - DAYS * 864e5) } },
       select: { createdAt: true },
     }),

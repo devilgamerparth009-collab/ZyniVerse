@@ -62,6 +62,15 @@ const conventionMock = vi.hoisted(() => {
     mk("comic-con-mumbai", "Comic Con Mumbai", "Mumbai", "Maharashtra", "2026-08-28", "2026-08-30"),
     mk("bengaluru-anime-con", "Bengaluru Anime Con", "Bengaluru", "Karnataka", "2026-07-18", "2026-07-19"),
     mk("comic-con-pune", "Comic Con Pune", "Pune", "Maharashtra", "2026-11-20", "2026-11-22"),
+    // Keep one event in the future regardless of when the suite is run.
+    mk(
+      "future-anime-con",
+      "Future Anime Con",
+      "Chennai",
+      "Tamil Nadu",
+      new Date(Date.now() + 60 * 86400000).toISOString().slice(0, 10),
+      new Date(Date.now() + 62 * 86400000).toISOString().slice(0, 10)
+    ),
   ];
 
   const matchWhere = (row: ConventionRow, where?: WhereInput): boolean => {

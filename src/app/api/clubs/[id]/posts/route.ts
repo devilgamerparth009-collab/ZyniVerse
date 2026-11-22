@@ -7,8 +7,8 @@ export const dynamic = "force-dynamic";
 async function GET_inner(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { searchParams } = new URL(req.url);
-  const page = parseInt(searchParams.get("page") || "1");
-  const limit = parseInt(searchParams.get("limit") || "20");
+  const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
+  const limit = Math.min(50, Math.max(1, parseInt(searchParams.get("limit") || "20")));
 
   const [posts, total] = await Promise.all([
     prisma.clubPost.findMany({
@@ -65,6 +65,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const members = await prisma.clubMember.findMany({
       where: { clubId: id, userId: { not: session.user.id } },
       select: { userId: true },
+      take: 1000,
     });
 
     if (members.length > 0) {

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET() {
   const cosplays = await prisma.cosplay.findMany({
+    take: 500,
     select: { tags: true },
     where: { tags: { not: "" } },
   });

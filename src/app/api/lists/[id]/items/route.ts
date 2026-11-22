@@ -17,6 +17,7 @@ export async function GET(
   if (!list.isPublic && list.userId !== session?.user?.id) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const items = await prisma.userListItem.findMany({
+    take: 500,
     where: { listId: id },
     orderBy: { order: "asc" },
   });

@@ -49,6 +49,7 @@ export async function POST(req: NextRequest, ctx: Context) {
     }
 
     const rows = await prisma.channelPostReaction.findMany({
+      take: 500,
       where: { postId: post.id },
       select: { emoji: true, userId: true },
     });

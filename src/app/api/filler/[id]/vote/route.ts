@@ -43,7 +43,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   // Tally votes for this episode
-  const votes = await prisma.fillerVote.findMany({ where: { mediaId, episode: epNum } });
+  const votes = await prisma.fillerVote.findMany({ take: 500, where: { mediaId, episode: epNum } });
   const tally: Record<string, number> = {};
   for (const v of votes) {
     tally[v.vote] = (tally[v.vote] || 0) + 1;
@@ -79,9 +79,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   let votes;
   if (episode) {
-    votes = await prisma.fillerVote.findMany({ where: { mediaId, episode } });
+    votes = await prisma.fillerVote.findMany({ take: 500, where: { mediaId, episode } });
   } else {
-    votes = await prisma.fillerVote.findMany({ where: { mediaId } });
+    votes = await prisma.fillerVote.findMany({ where: { mediaId }, take: 5000 });
   }
 
   const byEpisode: Record<number, { tally: Record<string, number>; total: number }> = {};

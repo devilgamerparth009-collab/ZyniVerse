@@ -52,9 +52,10 @@ export default function TermsPage() {
           <p className="mt-2">You agree not to:</p>
           <ul className="mt-2 list-disc space-y-2 pl-6">
             <li>Post illegal, infringing, harmful, hateful, harassing, or deceptive content.</li>
-            <li>Spam, scrape abusively, attempt unauthorized access, or disrupt the service.</li>
-            <li>Upload malware, phishing links, or content that violates others’ rights.</li>
-            <li>Impersonate others or misrepresent your affiliation.</li>
+                        <li>Spam, scrape, crawl, or harvest data abusively; use bots/scripts to bypass rate limits, access controls, or WAF protections; or disrupt the service.</li>
+            <li>Access ZyniVerse APIs, data, or content for commercial reuse, redistribution, model training, or mirroring without written permission. Public pages may be viewed by normal users, but automated bulk extraction is not allowed.</li>
+            <li>Upload malware, phishing links, or content that violates others&apos; rights.</li>
+            <li>Attempt unauthorized access, reverse-engineer protected systems, or impersonate others or misrepresent affiliation.</li>
           </ul>
           <p className="mt-2">
             You retain ownership of content you submit, but you grant ZyniVerse a non-exclusive, worldwide, royalty-free license to host,

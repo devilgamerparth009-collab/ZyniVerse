@@ -41,6 +41,7 @@ export async function GET(request: Request) {
 
   // 2. Events starting within the next 3 days
   const soonEvents = await prisma.animeEvent.findMany({
+    take: 500,
     where: { startDate: { gte: today, lt: new Date(today.getTime() + 3 * DAY_MS) } },
     select: { id: true, slug: true, name: true, shortName: true, location: true, startDate: true, endDate: true },
   });
@@ -67,6 +68,7 @@ export async function GET(request: Request) {
 
   // 3. Events ending today
   const endingEvents = await prisma.animeEvent.findMany({
+    take: 500,
     where: { endDate: { gte: today, lt: new Date(today.getTime() + DAY_MS) } },
     select: { id: true, slug: true, name: true, shortName: true, location: true, startDate: true, endDate: true },
   });
@@ -93,7 +95,7 @@ export async function GET(request: Request) {
   const toSend = candidates.filter((c) => !sentSet.has(c.title));
 
   // 5. Fan out to all registered users
-  const users = await prisma.user.findMany({ select: { id: true } });
+  const users = await prisma.user.findMany({ take: 500, select: { id: true } });
   let created = 0;
   if (toSend.length > 0 && users.length > 0) {
     const payload = toSend.flatMap((c) =>

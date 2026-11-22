@@ -11,7 +11,7 @@ import {
   commandsFor,
 } from "@/lib/commands";
 import { fuzzySearch, highlight } from "@/lib/fuzzy";
-import { isAdminEmail } from "@/lib/admin-identity";
+import { isAdminRole } from "@/lib/admin-identity";
 
 const MAX_PER_GROUP = 5;
 const ENTITY_DEBOUNCE_MS = 180;
@@ -50,7 +50,7 @@ export default function CommandPalette() {
   const seq = useRef(0);
 
   const isAuth = status === "authenticated";
-  const isAdmin = isAdminEmail((session?.user as { email?: string | null } | undefined)?.email ?? null);
+  const isAdmin = isAdminRole((session?.user as { role?: unknown } | undefined)?.role);
 
   const commands = useMemo(
     () => commandsFor({ isAuth, isAdmin }),

@@ -17,6 +17,7 @@ export async function GET(req: NextRequest) {
   if (status) where.status = status;
 
   const entries = await prisma.doujinshiEntry.findMany({
+    take: 500,
     where,
     orderBy: { updatedAt: "desc" },
   });

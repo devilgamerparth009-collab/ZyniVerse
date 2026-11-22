@@ -60,6 +60,7 @@ export async function GET(req: NextRequest, ctx: Context) {
     const hasMore = rows.length > limit;
     const page = hasMore ? rows.slice(0, limit) : rows;
     const reactionRows = await prisma.channelPostReaction.findMany({
+      take: 500,
       where: { postId: { in: page.map((post) => post.id) } },
       select: { postId: true, emoji: true, userId: true },
     });

@@ -38,7 +38,7 @@ async function hydrateFromWallhaven(term: string) {
     });
     const [res, existingRows] = await Promise.all([
       fetch(`${WALLHAVEN_SEARCH_URL}?${params}`, { cache: "no-store" }),
-      prisma.wallpaper.findMany({ select: { imageUrl: true } }),
+      prisma.wallpaper.findMany({ take: 500, select: { imageUrl: true } }),
     ]);
     if (!res.ok) return;
     const json = (await res.json()) as {

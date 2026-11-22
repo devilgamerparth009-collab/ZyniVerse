@@ -35,6 +35,7 @@ async function GET_inner(req: NextRequest) {
         select: { platform: true }, distinct: ["platform"], orderBy: { platform: "asc" },
       });
       const types = await prisma.externalAward.findMany({
+        take: 500,
         select: { type: true }, distinct: ["type"], orderBy: { type: "asc" },
       });
 

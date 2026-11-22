@@ -12,6 +12,7 @@ async function GET_inner(request: Request, { params }: { params: Promise<{ media
   if (!mediaIdNum || !epNum) return NextResponse.json({ error: "Invalid params" }, { status: 400 });
 
   const reactions = await prisma.episodeReaction.findMany({
+    take: 500,
     where: { mediaId: mediaIdNum, episode: epNum },
     select: { reaction: true },
   });
@@ -66,6 +67,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ med
   }
 
   const reactions = await prisma.episodeReaction.findMany({
+    take: 500,
     where: { mediaId: mediaIdNum, episode: epNum },
     select: { reaction: true },
   });

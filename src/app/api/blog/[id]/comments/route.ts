@@ -9,6 +9,7 @@ async function GET_inner(req: NextRequest, { params }: { params: Promise<{ id: s
   const comments = await prisma.blogComment.findMany({
     where: { postId: id, isDeleted: false },
     orderBy: { createdAt: "asc" },
+    take: 200,
     include: { user: { select: { id: true, username: true, avatar: true } } },
   });
 

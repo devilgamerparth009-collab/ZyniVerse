@@ -14,6 +14,7 @@ async function GET_inner(_req: NextRequest,
       },
     },
     orderBy: { startTime: "asc" },
+    take: 100,
   });
   return NextResponse.json({ events });
 }

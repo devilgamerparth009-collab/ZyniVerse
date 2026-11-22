@@ -59,6 +59,7 @@ export async function GET() {
       select: { entryId: true, contestId: true },
     }),
     prisma.contentContestEntry.findMany({
+      take: 500,
       where: { userId, contestId: { in: contestIds } },
       select: { id: true, contestId: true },
     }),

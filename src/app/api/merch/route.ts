@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 async function GET_inner() {
   try {
     const products = await prisma.product.findMany({
+      take: 500,
       where: { active: true },
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
     });

@@ -13,6 +13,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ malI
   }
 
   const dubData = await prisma.dubRequest.findMany({
+    take: 500,
     where: { mediaId: malIdNum },
     select: { language: true, createdAt: true },
     distinct: ["language"],

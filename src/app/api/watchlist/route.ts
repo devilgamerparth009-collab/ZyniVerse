@@ -12,6 +12,7 @@ export async function GET() {
   if (!userId) return NextResponse.json({ items: [] });
 
   const items = await prisma.listEntry.findMany({
+    take: 500,
     where: { userId },
     select: {
       mediaId: true, type: true, status: true, progress: true, total: true, score: true,

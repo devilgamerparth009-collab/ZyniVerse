@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
-import { isAdminEmail } from "@/lib/admin-identity";
+import { isAdminRole } from "@/lib/admin-identity";
 import { t } from "@/lib/i18n";
 import { useWatchlist } from "./WatchlistProvider";
 
@@ -490,7 +490,7 @@ export default function Navbar() {
                                 pathname === "/profile" ? "text-[var(--color-cyan)] bg-[var(--color-cyan)]/10 font-semibold" : "text-[var(--color-mute)] hover:bg-white/5 hover:text-[var(--color-text)]"
                               }`}
                             >Profile</Link>
-                            {isAdminEmail((session.user as Record<string, unknown>)?.email as string | null) && (
+                            {isAdminRole((session.user as Record<string, unknown>)?.role) && (
                               <Link href="/admin" onClick={() => setMoreOpen(false)}
                                 className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm transition-colors ${
                                   pathname.startsWith("/admin") ? "text-[var(--color-magenta)] bg-[var(--color-magenta)]/10 font-semibold" : "text-[var(--color-mute)] hover:bg-white/5 hover:text-[var(--color-text)]"
@@ -694,7 +694,7 @@ export default function Navbar() {
                   <Link href="/messages" onClick={() => setOpen(false)}
                     className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-[var(--color-mute)] hover:text-[var(--color-cyan)] transition-all"
                   >Messages</Link>
-                  {isAdminEmail((session.user as Record<string, unknown>)?.email as string | null) && (
+                  {isAdminRole((session.user as Record<string, unknown>)?.role) && (
                     <Link href="/admin" onClick={() => setOpen(false)}
                       className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-[var(--color-magenta)] hover:text-[var(--color-magenta)] transition-all"
                     >Admin Panel</Link>

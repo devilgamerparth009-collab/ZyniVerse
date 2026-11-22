@@ -34,7 +34,7 @@ async function sendTournamentNotification(c: TournamentNotice): Promise<number> 
   });
   if (already) return 0;
 
-  const users = await prisma.user.findMany({ select: { id: true } });
+  const users = await prisma.user.findMany({ take: 500, select: { id: true } });
   if (users.length === 0) return 0;
 
   const res = await prisma.notification.createMany({

@@ -14,6 +14,7 @@ export async function GET() {
   });
 
   const progress = await prisma.episodeProgress.findMany({
+    take: 500,
     where: { userId },
     orderBy: { watchedAt: "desc" },
   });

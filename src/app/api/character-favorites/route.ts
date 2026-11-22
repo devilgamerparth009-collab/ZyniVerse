@@ -11,6 +11,7 @@ export async function GET() {
   const favs = await prisma.characterFavorite.findMany({
     where: { userId },
     orderBy: [{ rank: "asc" }, { createdAt: "desc" }],
+    take: 500,
   });
 
   return NextResponse.json({ favorites: favs });
@@ -40,6 +41,7 @@ export async function PUT(request: Request) {
   const favs = await prisma.characterFavorite.findMany({
     where: { userId },
     orderBy: [{ rank: "asc" }, { createdAt: "desc" }],
+    take: 500,
   });
 
   return NextResponse.json({ favorite: favs.some((f) => f.characterId === characterId), favorites: favs });

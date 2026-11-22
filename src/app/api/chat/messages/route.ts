@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
   });
   if (!participant) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const limit = Number(searchParams.get("limit")) || 50;
+  const limit = Math.min(100, Math.max(1, Number(searchParams.get("limit")) || 50));
   const before = searchParams.get("before") || undefined;
 
   const messages = await getMessages(conversationId, limit, before);
@@ -41,12 +41,16 @@ export async function POST(req: NextRequest) {
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { conversationId, content, replyToId } = await req.json();
-  if (!conversationId || !content?.trim()) {
+  const trimmedContent = typeof content === "string" ? content.trim() : "";
+  if (!conversationId || !trimmedContent) {
     return NextResponse.json({ error: "Missing conversationId or content" }, { status: 400 });
+  }
+  if (trimmedContent.length > 4000) {
+    return NextResponse.json({ error: "Message too long" }, { status: 400 });
   }
 
   try {
-    const message = await sendMessage(conversationId, session.user.id, content.trim(), replyToId || undefined);
+    const message = await sendMessage(conversationId, session.user.id, trimmedContent, replyToId || undefined);
     // `after()` keeps the realtime publish alive past the response, which plain
     // fire-and-forget promises do not guarantee on serverless (Vercel).
     after(() =>

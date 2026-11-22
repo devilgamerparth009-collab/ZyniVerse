@@ -16,6 +16,7 @@ export async function GET(req: NextRequest) {
   if (!mediaId) return NextResponse.json({ episodes: [] });
 
   const episodes = await prisma.episodeProgress.findMany({
+    take: 500,
     where: { userId: session.user.id, mediaId },
     select: { episode: true },
     orderBy: { episode: "asc" },

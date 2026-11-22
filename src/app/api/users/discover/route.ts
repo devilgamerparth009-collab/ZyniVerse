@@ -38,6 +38,7 @@ export async function GET(req: NextRequest) {
           select: { senderId: true, receiverId: true },
         }),
         prisma.broadcastChannel.findMany({
+          take: 500,
           where: { isOfficial: true },
           select: { ownerId: true },
         }),
@@ -79,6 +80,7 @@ export async function GET(req: NextRequest) {
       ])
     );
     const mutualRows = await prisma.follow.findMany({
+      take: 500,
       where: {
         followingId: { in: candidateIds },
         followerId: { in: [...followerIds] },
@@ -102,6 +104,7 @@ export async function GET(req: NextRequest) {
 
     const titleRows = titleIds.size
       ? await prisma.activity.findMany({
+          take: 500,
           where: { mediaId: { in: [...titleIds] }, mediaTitle: { not: null } },
           select: { mediaId: true, mediaTitle: true },
           orderBy: { createdAt: "desc" },

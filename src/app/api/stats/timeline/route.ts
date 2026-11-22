@@ -83,6 +83,7 @@ export async function GET(req: NextRequest) {
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const episodes = await prisma.episodeProgress.findMany({
+    take: 500,
     where: { userId: session.user.id },
     orderBy: { watchedAt: "asc" },
     select: { mediaId: true, episode: true, title: true, watchedAt: true },

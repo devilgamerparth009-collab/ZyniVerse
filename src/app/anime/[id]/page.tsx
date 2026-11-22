@@ -17,7 +17,8 @@ import { prisma } from "@/lib/prisma";
 // the same pages. AniList detail fetches revalidate on their own cache window,
 // and `revalidatePath("/anime/<id>")` on reel upload still refreshes the page
 // on demand, so community clips stay prompt.
-export const revalidate = 604800;
+// Cache indefinitely to minimize ISR writes; AniList fetches have own cache windows.
+export const revalidate = false;
 
 // Empty array => no build-time prerender, but on-demand ISR at runtime
 // (Next.js only enables it for a dynamic segment when this function exists).

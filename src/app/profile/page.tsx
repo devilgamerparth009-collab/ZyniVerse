@@ -17,6 +17,7 @@ import DailyRewardCard from "@/components/DailyRewardCard";
 import EconomyWallet from "@/components/EconomyWallet";
 import FollowedAnimeStrip from "@/components/FollowedAnimeStrip";
 import AccountDataManager from "@/components/AccountDataManager";
+import MfaSettings from "@/components/MfaSettings";
 import StreamingSyncCard from "@/components/StreamingSyncCard";
 import { getRank, getNextRank } from "@/lib/achievements";
 
@@ -74,7 +75,7 @@ const ACTIVITY_ICONS: Record<string, string> = {
 };
 
 export default function ProfilePage() {
-  const { status } = useSession();
+  const { status, data: session } = useSession();
   const router = useRouter();
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -450,6 +451,18 @@ export default function ProfilePage() {
             {/* OVERVIEW TAB */}
             {tab === "overview" && (
               <div className="space-y-6">
+                {session?.user?.mfaRequired && (
+                  <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-300">
+                    Admin access requires two-factor authentication.{" "}
+                    <button
+                      type="button"
+                      onClick={() => setTab("account")}
+                      className="font-semibold underline hover:text-amber-200"
+                    >
+                      Set it up in Account settings
+                    </button>
+                  </div>
+                )}
                 <DailyRewardCard />
                 <EconomyWallet />
                 <FollowedAnimeStrip />
@@ -782,7 +795,12 @@ export default function ProfilePage() {
             {tab === "api" && <ApiKeyManager />}
 
             {/* ACCOUNT TAB */}
-            {tab === "account" && <AccountDataManager />}
+            {tab === "account" && (
+              <div className="space-y-6">
+                <MfaSettings />
+                <AccountDataManager />
+              </div>
+            )}
           </motion.div>
         </AnimatePresence>
       </div>

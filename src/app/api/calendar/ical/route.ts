@@ -34,6 +34,7 @@ export async function GET(req: NextRequest) {
   const watchingEntries = await prisma.listEntry.findMany({
     where: { userId, status: "CURRENT" },
     select: { mediaId: true },
+    take: 500,
   });
 
   const mediaIds = watchingEntries.map((e) => e.mediaId);
@@ -70,6 +71,7 @@ END:VCALENDAR`;
   const episodeProgress = await prisma.episodeProgress.findMany({
     where: { userId: { equals: userId } },
     select: { mediaId: true, episode: true },
+    take: 5000,
   });
 
   const watchedSet = new Set(episodeProgress.map((p) => `${p.mediaId}-${p.episode}`));

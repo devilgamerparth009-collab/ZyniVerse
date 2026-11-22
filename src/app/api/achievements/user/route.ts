@@ -13,6 +13,7 @@ export async function GET(req: NextRequest) {
 
   const [achievements, points] = await Promise.all([
     prisma.userAchievement.findMany({
+      take: 500,
       where: { userId },
       include: { achievement: true },
       orderBy: { earnedAt: "desc" },

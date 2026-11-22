@@ -18,6 +18,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   if (!role) return NextResponse.json({ error: "Not a member" }, { status: 403 });
 
   const items = await prisma.sharedWatchlistItem.findMany({
+    take: 500,
     where: { watchlistId: id },
     orderBy: { order: "asc" },
   });

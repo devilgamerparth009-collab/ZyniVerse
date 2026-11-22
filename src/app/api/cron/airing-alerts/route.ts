@@ -44,6 +44,7 @@ export async function GET(request: Request) {
 
   // ── Source B: globally followed anime (AnimeFollow "🔔 Follow") ──
   const follows = await prisma.animeFollow.findMany({
+    take: 500,
     select: { userId: true, mediaId: true },
   });
   const followedByMedia = new Map<number, Set<string>>();
@@ -75,6 +76,7 @@ export async function GET(request: Request) {
   const dedupeKeys = new Set<string>();
   if (alertableMedia.length > 0) {
     const existing = await prisma.airingAlert.findMany({
+      take: 500,
       where: {
         notified: true,
         mediaId: { in: alertableMedia.map(([id]) => id) },

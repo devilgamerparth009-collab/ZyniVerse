@@ -7,6 +7,8 @@ import { getDubGuideForFiller, getWatchOrderForFiller } from "@/lib/cross-links"
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "https://zyverse.in";
 
+export const revalidate = 86400;
+
 interface Props {
   params: Promise<{ slug: string }>;
 }

@@ -14,6 +14,7 @@ export async function GET(
       banner: { select: { username: true } },
     },
     orderBy: { createdAt: "desc" },
+    take: 200,
   });
   return NextResponse.json({ bans });
 }

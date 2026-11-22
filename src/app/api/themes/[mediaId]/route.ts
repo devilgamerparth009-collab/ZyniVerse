@@ -34,6 +34,7 @@ async function GET_inner(req: NextRequest, { params }: { params: Promise<{ media
   }
 
   const all = await prisma.themeSong.findMany({
+    take: 500,
     where: { mediaId: id },
     orderBy: [{ type: "asc" }, { sequence: "asc" }],
   });

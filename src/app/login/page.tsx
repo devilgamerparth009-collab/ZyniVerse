@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { PageTransition } from "@/components/PageTransition";
+import { useBotProtectionFields } from "@/components/BotProtectionFields";
 
 /* ─── Particles ─── */
 function Particles() {
@@ -133,9 +134,9 @@ function NeonBorder() {
 }
 
 /* ─── Glow line input ─── */
-function GlowInput({ type, value, onChange, placeholder, icon, toggle }: {
+function GlowInput({ type, value, onChange, placeholder, icon, toggle, optional }: {
   type: string; value: string; onChange: (v: string) => void; placeholder: string;
-  icon: React.ReactNode; toggle?: { show: boolean; onToggle: () => void };
+  icon: React.ReactNode; toggle?: { show: boolean; onToggle: () => void }; optional?: boolean;
 }) {
   return (
     <div className="group relative">
@@ -145,7 +146,7 @@ function GlowInput({ type, value, onChange, placeholder, icon, toggle }: {
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          required
+          required={!optional}
           className="w-full h-[56px] rounded-[16px] bg-transparent pl-12 pr-12 text-[14px] text-[var(--color-ink)] placeholder-[var(--color-mute)] outline-none transition-all duration-300 neon-rgb-border focus:border-[#00ffe0] focus:shadow-[0_0_30px_-10px_rgba(0,255,224,0.4),inset_0_0_20px_-15px_rgba(0,255,224,0.15)]"
         />
         <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#00ffe0] opacity-60 group-focus-within:opacity-100 transition-opacity">
@@ -201,7 +202,9 @@ export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [totp, setTotp] = useState("");
   const [showPw, setShowPw] = useState(false);
+  const { fields: botFields, element: botFieldsUi } = useBotProtectionFields();
   const [remember, setRemember] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -304,10 +307,16 @@ export default function LoginPage() {
     } else {
       localStorage.removeItem("zyniverse_remember_email");
     }
-    const result = await signIn("credentials", { email, password, redirect: false });
+    const result = await signIn("credentials", {
+      email,
+      password,
+      ...(totp.trim() ? { totp: totp.trim() } : {}),
+      ...botFields,
+      redirect: false,
+    });
     setLoading(false);
     if (result?.error) {
-      setError("Invalid email or password");
+      setError("Invalid email, password, or 2FA code");
     } else {
       router.push("/");
       router.refresh();
@@ -387,6 +396,17 @@ export default function LoginPage() {
                   icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>}
                   toggle={{ show: showPw, onToggle: () => setShowPw(!showPw) }}
                 />
+
+                <GlowInput
+                  type="text"
+                  value={totp}
+                  onChange={(value) => setTotp(value.replace(/\D/g, "").slice(0, 6))}
+                  placeholder="2FA code (if enabled)"
+                  optional
+                  icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg>}
+                />
+
+                {botFieldsUi}
 
                 {/* Options */}
                 <div className="flex items-center justify-between">

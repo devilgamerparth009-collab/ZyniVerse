@@ -43,6 +43,7 @@ export async function GET(req: NextRequest) {
   let likedIds = new Set<string>();
   if (session?.user?.id) {
     const likes = await prisma.sceneClipLike.findMany({
+      take: 500,
       where: { userId: session.user.id, clipId: { in: clips.map((c) => c.id) } },
       select: { clipId: true },
     });

@@ -14,7 +14,7 @@ async function GET_inner() {
       prisma.apiUsageLog.count(),
       prisma.apiKey.count({ where: { active: true } }),
       prisma.apiKey.count(),
-      prisma.apiKey.findMany({ where: { active: true }, select: { userId: true }, distinct: ["userId"] }),
+      prisma.apiKey.findMany({ take: 500, where: { active: true }, select: { userId: true }, distinct: ["userId"] }),
     ]);
 
     return NextResponse.json({

@@ -21,6 +21,7 @@ export async function GET(req: NextRequest) {
   if (!entry) return NextResponse.json({ chapters: [] });
 
   const chapters = await prisma.mangaChapter.findMany({
+    take: 500,
     where: { entryId: entry.id },
     orderBy: { chapter: "asc" },
   });

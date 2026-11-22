@@ -7,6 +7,7 @@ export async function GET() {
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const watchlists = await prisma.sharedWatchlist.findMany({
+    take: 500,
     where: {
       OR: [
         { ownerId: session.user.id },

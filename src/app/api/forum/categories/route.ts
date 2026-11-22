@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 
 async function GET_inner() {
   const categories = await prisma.forumCategory.findMany({
+    take: 500,
     where: { isActive: true },
     orderBy: { sortOrder: "asc" },
     include: {

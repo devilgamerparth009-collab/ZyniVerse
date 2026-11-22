@@ -13,7 +13,7 @@ export async function GET() {
   if (!(await requireAdmin())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const rows = await prisma.adConfig.findMany({ orderBy: { id: "asc" } });
+  const rows = await prisma.adConfig.findMany({ take: 500, orderBy: { id: "asc" } });
   return NextResponse.json({ placements: rows });
 }
 

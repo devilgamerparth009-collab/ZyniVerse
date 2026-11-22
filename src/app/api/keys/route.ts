@@ -12,6 +12,7 @@ export async function GET(req: NextRequest) {
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const keys = await prisma.apiKey.findMany({
+    take: 500,
     where: { userId: session.user.id },
     select: {
       id: true,

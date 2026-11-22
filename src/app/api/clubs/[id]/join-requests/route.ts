@@ -20,6 +20,7 @@ export async function GET(
     where: { clubId, status: "pending" },
     include: { user: { select: { id: true, username: true, avatar: true } } },
     orderBy: { createdAt: "asc" },
+    take: 100,
   });
 
   return NextResponse.json({ requests });

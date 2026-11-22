@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
     const ranked = await dedupedFetch(
       `memes:hot:${tagKey}`,
       async () => {
-        const all = await prisma.meme.findMany({ where, include: memeInclude });
+        const all = await prisma.meme.findMany({ take: 500, where, include: memeInclude });
         const now = Date.now();
         return all
           .map((m) => {

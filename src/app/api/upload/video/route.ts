@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { isR2Configured, r2Put, r2PublicUrl } from "@/lib/r2";
+import { validateUploadedFile } from "@/lib/file-validation";
 
 const ALLOWED_TYPES = [
   "video/mp4",
@@ -27,30 +28,32 @@ export async function POST(req: NextRequest) {
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
-    if (!ALLOWED_TYPES.includes(file.type)) {
+    const validated = await validateUploadedFile(file, ALLOWED_TYPES, MAX_SIZE, "Video");
+    if (!validated.ok) {
       return NextResponse.json(
-        { error: "Invalid file type. Use MP4, WebM, OGG, or MOV." },
-        { status: 400 }
-      );
-    }
-    if (file.size > MAX_SIZE) {
-      return NextResponse.json(
-        { error: "File too large. Max 200MB." },
+        {
+          error:
+            validated.error === "Video is too large"
+              ? "File too large. Max 200MB."
+              : `${validated.error}. Use MP4, WebM, OGG, AVI, or MOV.`,
+        },
         { status: 400 }
       );
     }
 
-    const ext = file.name.split(".").pop() || "mp4";
-    const id = partyId || session.user.id;
+    const id = partyId
+      ? partyId.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 64)
+      : session.user.id;
     const timestamp = Date.now();
     const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_").slice(0, 50);
-    const path = `watch-party-videos/${id}-${timestamp}-${safeName}.${ext}`;
+    const path = `watch-party-videos/${id}-${timestamp}-${safeName}.${validated.extension}`;
+    const videoType = validated.extension === "webm" ? "webm" : "mp4";
 
     if (isR2Configured()) {
-      await r2Put(path, Buffer.from(await file.arrayBuffer()), file.type);
+      await r2Put(path, Buffer.from(await file.arrayBuffer()), validated.mimeType);
       return NextResponse.json({
         url: r2PublicUrl(path),
-        videoType: ext === "mp4" ? "mp4" : ext === "webm" ? "webm" : "mp4",
+        videoType,
         fileName: file.name,
         fileSize: file.size,
       });
@@ -65,7 +68,7 @@ export async function POST(req: NextRequest) {
 
     const { error: uploadError } = await supabase.storage
       .from(BUCKET)
-      .upload(path, file, { upsert: false, contentType: file.type, cacheControl: '31536000' });
+      .upload(path, file, { upsert: false, contentType: validated.mimeType, cacheControl: '31536000' });
 
     if (uploadError) {
       console.error("[/api/upload/video] Supabase error:", uploadError);
@@ -75,7 +78,7 @@ export async function POST(req: NextRequest) {
     const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
     return NextResponse.json({
       url: data.publicUrl,
-      videoType: ext === "mp4" ? "mp4" : ext === "webm" ? "webm" : "mp4",
+      videoType,
       fileName: file.name,
       fileSize: file.size,
     });

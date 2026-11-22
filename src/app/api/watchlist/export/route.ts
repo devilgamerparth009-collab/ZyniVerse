@@ -21,6 +21,7 @@ export async function GET(req: NextRequest) {
   const format = req.nextUrl.searchParams.get("format") || "csv";
 
   const entries = await prisma.listEntry.findMany({
+    take: 500,
     where: { userId },
     select: {
       mediaId: true,

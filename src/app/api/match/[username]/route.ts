@@ -12,8 +12,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ user
   const targetUser = await prisma.user.findUnique({ where: { username } });
   if (!targetUser) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-  const myEntries = await prisma.listEntry.findMany({ where: { userId: session.user.id } });
-  const theirEntries = await prisma.listEntry.findMany({ where: { userId: targetUser.id } });
+  const myEntries = await prisma.listEntry.findMany({ take: 500, where: { userId: session.user.id } });
+  const theirEntries = await prisma.listEntry.findMany({ where: { userId: targetUser.id }, take: 500 });
 
   if (myEntries.length === 0 || theirEntries.length === 0) {
     return NextResponse.json({ match: 0, shared: 0, total: Math.max(myEntries.length, theirEntries.length) });

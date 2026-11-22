@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { PageTransition } from "@/components/PageTransition";
+import { useBotProtectionFields } from "@/components/BotProtectionFields";
 
 /* ─── Particles ─── */
 function Particles() {
@@ -192,6 +193,7 @@ export default function ForgotPasswordPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
+  const { fields: botFields, element: botFieldsUi } = useBotProtectionFields();
 
   async function handleSendEmail(e: React.FormEvent) {
     e.preventDefault();
@@ -202,7 +204,7 @@ export default function ForgotPasswordPage() {
       const res = await fetch("/api/auth/forgot-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, ...botFields }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -226,7 +228,7 @@ export default function ForgotPasswordPage() {
       const res = await fetch("/api/auth/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, token: otp, newPassword }),
+        body: JSON.stringify({ email, token: otp, newPassword, ...botFields }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -309,6 +311,8 @@ export default function ForgotPasswordPage() {
                     icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2" /><path d="M22 7l-10 7L2 7" /></svg>}
                   />
 
+                  {botFieldsUi}
+
                   {/* Error */}
                   <AnimatePresence>
                     {error && (
@@ -345,6 +349,8 @@ export default function ForgotPasswordPage() {
                     icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>}
                     toggle={{ show: showPw, onToggle: () => setShowPw(!showPw) }}
                   />
+
+                  {botFieldsUi}
 
                   {/* Error / Success */}
                   <AnimatePresence>

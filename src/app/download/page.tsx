@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { MOBILE_RELEASE } from "@/lib/mobile-release";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 3600;
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "https://zyverse.in";
 

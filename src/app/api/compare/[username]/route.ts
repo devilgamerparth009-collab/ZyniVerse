@@ -15,8 +15,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ user
   if (!otherUser) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
   const [myEntries, theirEntries] = await Promise.all([
-    prisma.listEntry.findMany({ where: { userId: session.user.id }, select: { mediaId: true, status: true, score: true } }),
-    prisma.listEntry.findMany({ where: { userId: otherUser.id }, select: { mediaId: true, status: true, score: true } }),
+    prisma.listEntry.findMany({ where: { userId: session.user.id }, select: { mediaId: true, status: true, score: true }, take: 2000 }),
+    prisma.listEntry.findMany({ where: { userId: otherUser.id }, select: { mediaId: true, status: true, score: true }, take: 2000 }),
   ]);
 
   const myMap = new Map(myEntries.map((e) => [e.mediaId, e]));

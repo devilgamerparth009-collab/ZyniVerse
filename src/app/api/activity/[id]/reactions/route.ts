@@ -37,6 +37,7 @@ export async function POST(
   });
 
   const myReactions = await prisma.activityReaction.findMany({
+    take: 500,
     where: { userId: session.user.id, activityId },
     select: { type: true },
   });

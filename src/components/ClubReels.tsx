@@ -65,12 +65,13 @@ export default function ClubReels({
         body: JSON.stringify({ fileName: file.name, fileType: file.type, fileSize: file.size }),
       });
       const presign = (await parseJsonOrThrow(res)) as {
+        uploadId?: string;
         path: string;
         token: string;
-        publicUrl: string;
         error?: string;
       };
       if (!res.ok) throw new Error(presign.error || "Failed to start upload");
+      if (!presign.uploadId) throw new Error("Upload session missing");
 
       const supabase = getSupabase();
       const { error: uploadError } = await supabase.storage
@@ -79,8 +80,20 @@ export default function ClubReels({
 
       if (uploadError) throw new Error(uploadError.message || "Upload failed");
 
-      const { data: pub } = supabase.storage.from("reels").getPublicUrl(presign.path);
-      onUpload({ videoUrl: pub.publicUrl, caption: caption || undefined });
+      const verifyRes = await fetch("/api/upload/reel/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          uploadId: presign.uploadId,
+          fileName: file.name,
+          needThumbnail: false,
+        }),
+      });
+      const verified = await parseJsonOrThrow(verifyRes);
+      if (!verifyRes.ok)
+        throw new Error((verified.error as string) || "Upload verification failed");
+
+      onUpload({ videoUrl: verified.publicUrl as string, caption: caption || undefined });
       setCaption("");
     } catch (err) { setError(err instanceof Error ? err.message : "Upload failed"); }
     setUploading(false);
