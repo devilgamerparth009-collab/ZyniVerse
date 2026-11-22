@@ -24,7 +24,18 @@ export default function HumanVerificationGate() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (pathname === "/verify-human") { setVerified(true); setReady(true); return; }
+    // The APK runs OAuth inside an in-app WebView with a fresh browser profile,
+    // so it has no human-verification flag yet. Never put a full-screen overlay
+    // between the WebView and the sign-in/hand-off pages.
+    const params = new URLSearchParams(window.location.search);
+    const isMobileOAuth =
+      (pathname === "/login" && params.get("mobile") === "1") ||
+      pathname === "/auth/mobile-done";
+    if (pathname === "/verify-human" || isMobileOAuth) {
+      setVerified(true);
+      setReady(true);
+      return;
+    }
     const ok = isVerified();
     setVerified(ok);
     setReady(true);

@@ -234,8 +234,19 @@ export default function LoginScreen() {
       setOauthBusy(null);
       setOauthError(null);
       try {
-        await api.auth.setCookie(data.cookie);
-        const user = await api.auth.current();
+        // The hand-off page already has the authenticated session and profile.
+        // Passing the profile along keeps a momentary /api/mobile/me hiccup from
+        // turning a successful OAuth sign-in into a false failure.
+        const profile = data.user?.id
+          ? {
+              id: String(data.user.id),
+              username: String(data.user.name || data.user.email || 'User'),
+              email: String(data.user.email || ''),
+              avatar: data.user.image || null,
+            }
+          : undefined;
+        await api.auth.setCookie(data.cookie, profile);
+        const user = await api.auth.current() || profile;
         if (!user) throw new Error('Could not verify the social sign-in. Please try again.');
         navigation.goBack();
       } catch (e: any) {

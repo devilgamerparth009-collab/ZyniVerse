@@ -95,13 +95,24 @@ confirm the active account can see the target project
 
 ### Rule 1 — Throttle aggressive crawlers (action: `rate_limit`)
 Per-IP rate limit **100 requests / 60s**, exceeded → challenge/429. Search
-engines and AI crawlers are exempt, and static asset paths do not count.
+engines and AI crawlers are exempt, and static asset paths, app/API traffic and
+the OAuth hand-off pages do not count.
 
 - Condition A (NOT): `path` matches
   `^/(_next/|favicon\.ico|.*\.(js|css|png|jpg|jpeg|gif|svg|ico|webp|woff|woff2|txt|xml|json))$`
 - Condition B (NOT): `user_agent` matches
   `(googlebot|mediapartners-google|adsbot-google|bingbot|msnbot|applebot|duckduckbot|duckassistbot|yandex|baiduspider|sogou|seznambot|oai-searchbot|chatgpt-user|gptbot|perplexity|claudebot|claude-user|claude-web|anthropic|meta-external|facebookexternalhit|amazonbot|cohere|petalbot)`
+- Condition C (NOT): `path` matches
+  `^/(?:api/|auth/|login$|verify-human$)`
 - `rateLimit`: `{ algo: "fixed_window", window: 60, limit: 100, keys: ["ip"], action: "challenge" }`
+
+> 2026-11-22 — Condition C was added after a Vercel challenge on a shared/carrier
+> IP made the APK intermittently show `Profile unavailable`, `Server error` and
+> `Could not verify the social sign-in`. The app issues many `/api/*` calls per
+> screen; those routes are already rate-limited in `src/proxy.ts`, so challenging
+> them at the edge only hurt real users. Exempting `/login`, `/auth/*` and
+> `/verify-human` keeps OAuth and the human-verification hand-off working on a
+> challenged IP too.
 
 > Note: a *distributed* crawler (many IPs) is not stopped by an per-IP limit.
 

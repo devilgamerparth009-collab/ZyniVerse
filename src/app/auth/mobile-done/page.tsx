@@ -50,7 +50,13 @@ export default function MobileDonePage() {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const rn = (window as any).ReactNativeWebView;
           if (rn?.postMessage) {
-            rn.postMessage(JSON.stringify({ type: "zyni-auth", cookie: data.cookie }));
+            rn.postMessage(
+              JSON.stringify({
+                type: "zyni-auth",
+                cookie: data.cookie,
+                user: data.user,
+              })
+            );
             setState("done");
             return;
           }

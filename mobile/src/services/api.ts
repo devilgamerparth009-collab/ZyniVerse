@@ -68,6 +68,9 @@ const SESSION_COOKIE_KEY = 'zt_session_cookie';
 // The raw Auth.js JWT is stored separately so authenticated requests can send
 // it as a Bearer token even when Android drops a manually set Cookie header.
 const SESSION_TOKEN_KEY = 'zt_session_token';
+// Last known profile is kept in the Keystore too. It is only a display
+// fallback for transient API failures, never proof that a session is valid.
+const CACHED_USER_KEY = 'zv_cached_user';
 let cachedDevice: string | null = null;
 let legacySessionMigration: Promise<void> | null = null;
 
@@ -220,6 +223,11 @@ async function fetchWithTimeout(
 }
 
 const RETRYABLE_STATUSES = new Set([421, 425, 429]);
+// 5xx is safe to retry for reads only; replaying a POST could duplicate a write.
+const isIdempotentRequest = (init?: RequestInit) => {
+  const method = (init?.method || 'GET').toUpperCase();
+  return method === 'GET' || method === 'HEAD';
+};
 
 function friendlyHttpError(status: number, serverMessage?: string): string {
   if (status === 401) return 'Your session expired. Please sign in again.';
@@ -251,7 +259,10 @@ async function requestJson<T>(
 
       // Vercel / carrier middleboxes occasionally answer a valid request with
       // 421 (Misdirected Request) or 429; both are transient and safe to retry.
-      if (attempt === 0 && RETRYABLE_STATUSES.has(res.status)) {
+      if (
+        attempt === 0 &&
+        (RETRYABLE_STATUSES.has(res.status) || (isIdempotentRequest(init) && res.status >= 500))
+      ) {
         await new Promise((r) => setTimeout(r, 450));
         continue;
       }
@@ -339,7 +350,7 @@ function tokenFromCookie(cookie: string | null): string | null {
 function ensureLegacySessionMigrated(): Promise<void> {
   if (!legacySessionMigration) {
     legacySessionMigration = (async () => {
-      const keys = [SESSION_COOKIE_KEY, SESSION_TOKEN_KEY, 'zv_cached_user'];
+      const keys = [SESSION_COOKIE_KEY, SESSION_TOKEN_KEY, CACHED_USER_KEY];
       try {
         const [cookie, token] = await Promise.all([
           AsyncStorage.getItem(SESSION_COOKIE_KEY),
@@ -371,7 +382,10 @@ async function saveSessionToStorage(stored: string, _user?: User | null): Promis
   } catch {}
   // Defense in depth: never leave a plaintext copy behind.
   try {
-    await AsyncStorage.multiRemove([SESSION_COOKIE_KEY, SESSION_TOKEN_KEY, 'zv_cached_user']);
+    await SecureStore.deleteItemAsync(CACHED_USER_KEY);
+  } catch {}
+  try {
+    await AsyncStorage.multiRemove([SESSION_COOKIE_KEY, SESSION_TOKEN_KEY, CACHED_USER_KEY]);
   } catch {}
 }
 
@@ -447,34 +461,106 @@ function cookieForHeader(stored: string | null): string | undefined {
   return stored && stored !== NATIVE_JAR_MARKER ? stored : undefined;
 }
 
-async function fetchSessionUser(): Promise<User | null> {
+async function writeCachedUser(user: User): Promise<void> {
   try {
-    const res = await fetchWithTimeout(`${WEB_API}/mobile/me`, {
-      headers: { Accept: 'application/json', ...(await authHeader()) },
-    });
-    if (!res.ok) return null;
-    const json = await res.json().catch(() => null);
-    if (!json?.user?.id) return null;
-    return {
-      id: json.user.id,
-      username: json.user.name || json.user.email || 'User',
-      email: json.user.email || '',
-      avatar: json.user.image || undefined,
-    };
+    await SecureStore.setItemAsync(CACHED_USER_KEY, JSON.stringify(user));
+  } catch {
+    /* cache is optional */
+  }
+}
+
+async function readCachedUser(): Promise<User | null> {
+  await ensureLegacySessionMigrated();
+  try {
+    const raw = await SecureStore.getItemAsync(CACHED_USER_KEY);
+    const parsed = raw ? (JSON.parse(raw) as User) : null;
+    return parsed?.id ? parsed : null;
   } catch {
     return null;
   }
+}
+
+async function clearCachedUser(): Promise<void> {
+  try {
+    await SecureStore.deleteItemAsync(CACHED_USER_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+type SessionLookup =
+  | { kind: 'user'; user: User }
+  | { kind: 'unauthorized' }
+  | { kind: 'transient'; status: number };
+
+/**
+ * Live session check. A 429/5xx/network failure is *not* a signed-out user —
+ * it is usually a busy edge or a weak mobile link. Callers may fall back to the
+ * last known profile for those, but never after a real 401.
+ */
+async function fetchSessionUser(): Promise<SessionLookup> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const res = await fetchWithTimeout(`${WEB_API}/mobile/me`, {
+        headers: { Accept: 'application/json', ...(await authHeader()) },
+      });
+      if (res.ok) {
+        const json = await res.json().catch(() => null);
+        if (!json?.user?.id) return { kind: 'transient', status: 200 };
+        const user: User = {
+          id: json.user.id,
+          username: json.user.name || json.user.email || 'User',
+          email: json.user.email || '',
+          avatar: json.user.image || undefined,
+        };
+        await writeCachedUser(user);
+        return { kind: 'user', user };
+      }
+      if (res.status === 401) return { kind: 'unauthorized' };
+      if (
+        attempt === 0 &&
+        (res.status === 421 || res.status === 425 || res.status === 429 || res.status >= 500)
+      ) {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        continue;
+      }
+      return { kind: 'transient', status: res.status };
+    } catch {
+      if (attempt === 0) {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        continue;
+      }
+    }
+  }
+  return { kind: 'transient', status: 0 };
+}
+
+let sessionLookupInFlight: Promise<SessionLookup> | null = null;
+
+/** Share one `/mobile/me` check across the screens that mount together. */
+function lookupSession(): Promise<SessionLookup> {
+  if (!sessionLookupInFlight) {
+    sessionLookupInFlight = fetchSessionUser().finally(() => {
+      sessionLookupInFlight = null;
+    });
+  }
+  return sessionLookupInFlight;
 }
 
 export async function getCurrentUser(): Promise<User | null> {
   const [storedCookie, token] = await Promise.all([readCookie(), readSessionToken()]);
   if (!storedCookie && !token) return null;
 
-  const live = await fetchSessionUser();
-  if (live) return live;
-  // A cached user is not proof of a valid session. Never render it as a
-  // signed-in profile; that is what produced the "Profile unavailable" loop.
-  return null;
+  const result = await lookupSession();
+  if (result.kind === 'user') return result.user;
+  if (result.kind === 'unauthorized') {
+    // A real 401/expired session must not keep showing a stale signed-in UI.
+    await clearCachedUser();
+    return null;
+  }
+  // Edge challenge, rate limit or offline: keep the last known profile visible
+  // instead of showing "Profile unavailable" for a connection hiccup.
+  return readCachedUser();
 }
 
 interface MobileSessionLoginResponse {
@@ -591,11 +677,12 @@ async function logout(): Promise<void> {
   try {
     await SecureStore.deleteItemAsync(SESSION_COOKIE_KEY);
     await SecureStore.deleteItemAsync(SESSION_TOKEN_KEY);
+    await SecureStore.deleteItemAsync(CACHED_USER_KEY);
   } catch {
     /* ignore */
   }
   try {
-    await AsyncStorage.multiRemove([SESSION_COOKIE_KEY, SESSION_TOKEN_KEY, 'zv_cached_user']);
+    await AsyncStorage.multiRemove([SESSION_COOKIE_KEY, SESSION_TOKEN_KEY, CACHED_USER_KEY]);
     // Reset the one-time migration so a future session is migrated afresh.
     legacySessionMigration = null;
   } catch {
@@ -1208,7 +1295,14 @@ async function rateAnime(mediaId: number, score: number, type = 'ANIME'): Promis
 }
 
 async function getProfile(): Promise<ProfileResponse> {
-  return authedGet<ProfileResponse>('/profile');
+  // A brief cache keeps the profile screen usable when the edge returns a
+  // transient 429/5xx. `getCurrentUser()` still performs the live session
+  // check, so a signed-out user never sees this cached copy.
+  return fetchWithCache<ProfileResponse>(
+    'profile',
+    () => authedGet<ProfileResponse>('/profile'),
+    5 * 60 * 1000
+  );
 }
 
 async function updateProfile(patch: {
@@ -1711,17 +1805,11 @@ async function postReel(payload: {
 export async function setSessionCookie(cookie: string, user?: User | null): Promise<void> {
   await saveSessionToStorage(cookie, user);
   if (user) {
-    try {
-      await AsyncStorage.setItem('zv_cached_user', JSON.stringify(user));
-    } catch {}
+    await writeCachedUser(user);
     return;
   }
   const live = await fetchSessionUser();
-  if (live) {
-    try {
-      await AsyncStorage.setItem('zv_cached_user', JSON.stringify(live));
-    } catch {}
-  }
+  if (live.kind === 'user') await writeCachedUser(live.user);
 }
 
 /**
@@ -1732,12 +1820,8 @@ export async function setSessionCookie(cookie: string, user?: User | null): Prom
  */
 export async function useNativeCookieJar(): Promise<void> {
   await saveSessionToStorage(NATIVE_JAR_MARKER);
-  const user = await fetchSessionUser();
-  if (user) {
-    try {
-      await AsyncStorage.setItem('zv_cached_user', JSON.stringify(user));
-    } catch {}
-  }
+  const live = await fetchSessionUser();
+  if (live.kind === 'user') await writeCachedUser(live.user);
 }
 
 /** Which social providers are actually enabled on the server right now. */

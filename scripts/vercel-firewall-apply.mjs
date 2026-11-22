@@ -162,7 +162,8 @@ async function api(method, endpoint, body) {
 const RULES = [
   {
     name: "Throttle aggressive crawlers",
-    description: "Per-IP rate limit; search engines and AI answer/search crawlers exempt",
+    description:
+      "Per-IP rate limit for page crawls; search/AI crawlers, app APIs and OAuth/auth routes exempt",
     action: {
       mitigate: {
         action: "rate_limit",
@@ -192,6 +193,19 @@ const RULES = [
             type: "user_agent",
             value:
               "(googlebot|mediapartners-google|adsbot-google|bingbot|msnbot|applebot|duckduckbot|duckassistbot|yandex|baiduspider|sogou|seznambot|oai-searchbot|chatgpt-user|gptbot|perplexity|claudebot|claude-user|claude-web|anthropic|meta-external|facebookexternalhit|amazonbot|cohere|petalbot)",
+          },
+          // The APK and the web app make dozens of API calls per screen. A
+          // shared mobile/carrier IP can cross 100 requests in a minute and the
+          // edge then served a Vercel challenge instead of JSON, which showed up
+          // as intermittent "Profile unavailable", "Server error" and social
+          // sign-in verification failures. `/api/*` is already rate-limited in
+          // `src/proxy.ts`, so exclude it here. Login/OAuth hand-off pages are
+          // also excluded so a challenged IP cannot break sign-in itself.
+          {
+            neg: true,
+            op: "re",
+            type: "path",
+            value: "^/(?:api/|auth/|login$|verify-human$)",
           },
         ],
       },

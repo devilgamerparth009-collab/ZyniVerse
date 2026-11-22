@@ -222,6 +222,8 @@ function rateLimitResponse(retryAfter: number, asJson: boolean) {
 function isHumanVerificationExempt(pathname: string): boolean {
   if (
     pathname === "/verify-human" ||
+    pathname === "/login" ||
+    pathname === "/auth/mobile-done" ||
     pathname === "/api/verify-human" ||
     pathname === "/robots.txt" ||
     pathname === "/sitemap.xml" ||

@@ -59,10 +59,16 @@ const AD_HOSTS = [
   'zyverse.in',
 ];
 
-function adHtml(size: 'banner' | 'medium' | 'native', attempt: number): string {
-  const cacheBust = attempt > 0 ? `?cb=${Date.now()}` : '';
-  const loader = (key: string) => `https://${LOADER_HOST}/${key}/invoke.js${cacheBust}`;
-  const readyScript = `
+function readyScript(size: 'banner' | 'medium' | 'native'): string {
+  // Native ads inject markup into a container instead of an iframe. Checking
+  // the empty container alone made every native ad report "ready" even when
+  // the script was blocked, so require actual child content.
+  const nativeCheck =
+    size === 'native'
+      ? `var host = document.getElementById('container-${UNITS.native}');
+         if (host && host.innerHTML.trim().length > 0) ready();`
+      : '';
+  return `
     (function () {
       var sent = false;
       function ready() {
@@ -73,12 +79,18 @@ function adHtml(size: 'banner' | 'medium' | 'native', attempt: number): string {
       var ticks = 0;
       var timer = setInterval(function () {
         ticks += 1;
-        if (document.querySelector('iframe, #container-${UNITS.native} iframe, #container-${UNITS.native}')) ready();
+        if (document.querySelector('iframe')) ready();
+        ${nativeCheck}
         if (sent || ticks > 100) clearInterval(timer);
       }, 100);
     })();
     true;
   `;
+}
+
+function adHtml(size: 'banner' | 'medium' | 'native', attempt: number): string {
+  const cacheBust = attempt > 0 ? `?cb=${Date.now()}` : '';
+  const loader = (key: string) => `https://${LOADER_HOST}/${key}/invoke.js${cacheBust}`;
 
   if (size === 'banner') {
     const scale = Math.min(1, (SCREEN_WIDTH - 24) / 728);
@@ -96,7 +108,7 @@ function adHtml(size: 'banner' | 'medium' | 'native', attempt: number): string {
     </script>
     <script type="text/javascript" src="${loader(UNITS.banner)}"></script>
   </div>
-  <script>${readyScript}</script>
+  <script>${readyScript(size)}</script>
 </body></html>`;
   }
 
@@ -109,7 +121,7 @@ function adHtml(size: 'banner' | 'medium' | 'native', attempt: number): string {
 </style></head><body>
   <script async="async" data-cfasync="false" src="${loader(UNITS.native)}"></script>
   <div id="container-${UNITS.native}"></div>
-  <script>${readyScript}</script>
+  <script>${readyScript(size)}</script>
 </body></html>`;
   }
 
@@ -124,7 +136,7 @@ function adHtml(size: 'banner' | 'medium' | 'native', attempt: number): string {
     atOptions = { 'key':'${UNITS.medium}', 'format':'iframe', 'height':250, 'width':300, 'params':{} };
   </script>
   <script type="text/javascript" src="${loader(UNITS.medium)}"></script>
-  <script>${readyScript}</script>
+  <script>${readyScript(size)}</script>
 </body></html>`;
 }
 
@@ -223,6 +235,11 @@ export default function AdBanner({
           onShouldStartLoadWithRequest={(request) => {
             const url = request.url || '';
             if (url === 'about:blank' || url.startsWith('data:') || url.startsWith('https://')) {
+              // Ad networks load creatives from many rotating domains. Blocking
+              // every host outside a short list killed the ad iframe itself.
+              // Only top-level navigation should leave the WebView; subframes
+              // and script/image requests must always be allowed through.
+              if (request.isTopFrame === false) return true;
               if (AD_HOSTS.some((host) => url.includes(host))) return true;
               // An ad tap must leave the app, never navigate the WebView away.
               Linking.openURL(url).catch(() => {});

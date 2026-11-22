@@ -47,8 +47,8 @@ const STABLE_VERSION_CODE = 144000;
  */
 const PUBLISHED_BUILDS: Record<string, { sha256: string; sizeBytes: number }> = {
   "1.4.4": {
-    sha256: "fb5ade321ad7d59c36c312ec27ce80909fd23b591441c4b1c1ddd2b5313642c7",
-    sizeBytes: 42149053,
+    sha256: "f6f877354ef1a260b3cde5f180fcc4e96241d5ab5f2f6169c9b773dc2e71ad94",
+    sizeBytes: 42150145,
   },
   "1.4.3": {
     sha256: "4d092e816df37240a2fbbb50699196dd5848aeb25419bcddd507c017998a7fb8",
@@ -143,6 +143,6 @@ export const MOBILE_RELEASE: MobileRelease = {
   ).map((line) => line.trim()).filter(Boolean),
   mandatory: process.env.MOBILE_RELEASE_MANDATORY === "true",
   rollback: process.env.MOBILE_RELEASE_ROLLBACK === "true",
-  publishedAt: process.env.MOBILE_RELEASE_PUBLISHED_AT || "2026-11-22T17:47:08.338Z",
+  publishedAt: process.env.MOBILE_RELEASE_PUBLISHED_AT || "2026-11-22T19:19:31.363Z",
   minSupportedVersionCode: envNumber(process.env.MOBILE_MIN_SUPPORTED_VERSION_CODE) || 130000,
 };
