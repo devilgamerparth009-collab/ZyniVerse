@@ -13,6 +13,7 @@ import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
 import OfflineStatus from "@/components/OfflineStatus";
 import InstallPrompt from "@/components/InstallPrompt";
 import RouteTransition from "@/components/RouteTransition";
+import HumanVerificationGate from "@/components/HumanVerificationGate";
 import MobileNav from "@/components/MobileNav";
 import AdBanner from "@/components/AdBanner";
 import DeferredWidgets from "@/components/DeferredWidgets";
@@ -277,6 +278,7 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-full flex flex-col pb-[calc(4.25rem+env(safe-area-inset-bottom))] md:pb-0">
+        <HumanVerificationGate />
         <Script
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5241033119281791"
           strategy="lazyOnload"

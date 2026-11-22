@@ -3,6 +3,7 @@ import type { NextFetchEvent, NextRequest } from "next/server";
 import { detectBot } from "@/lib/bot-detect";
 import { BOT_COOKIE, BOT_COOKIE_MAX_AGE } from "@/lib/bot-cookie";
 import { getClientIp as getTrustedClientIp } from "@/lib/request-ip";
+import { HUMAN_COOKIE, verifyHumanToken } from "@/lib/human-verification";
 
 const APP_CLIENT_HEADER = "x-zyniverse-client";
 const APP_CLIENT_VALUE = "zyniverse-mobile-v1";
@@ -218,13 +219,62 @@ function rateLimitResponse(retryAfter: number, asJson: boolean) {
   });
 }
 
-export function proxy(request: NextRequest, event: NextFetchEvent) {
+function isHumanVerificationExempt(pathname: string): boolean {
+  if (
+    pathname === "/verify-human" ||
+    pathname === "/api/verify-human" ||
+    pathname === "/robots.txt" ||
+    pathname === "/sitemap.xml" ||
+    pathname === "/ads.txt" ||
+    pathname === "/manifest.webmanifest" ||
+    pathname === "/sw.js" ||
+    pathname === "/favicon.ico" ||
+    pathname === "/opensearch.xml"
+  ) return true;
+  if (pathname.startsWith("/_next")) return true;
+  if (pathname.startsWith("/api/auth/")) return true;
+  if (pathname.startsWith("/api/cron/")) return true;
+  if (pathname.startsWith("/api/internal/")) return true;
+  if (pathname.startsWith("/api/og/")) return true;
+  if (pathname.startsWith("/api/webhooks/")) return true;
+  if (/\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|map|txt|xml|woff2?|ttf|eot|mp4|webm|mp3|wav|pdf)$/i.test(pathname)) return true;
+  return false;
+}
+
+function isProtectedPageRequest(request: NextRequest): boolean {
+  if (request.method !== "GET" && request.method !== "HEAD") return false;
+  if (request.headers.get("next-router-prefetch")) return false;
+  if ((request.headers.get("purpose") || "").toLowerCase() === "prefetch") return false;
+  const dest = (request.headers.get("sec-fetch-dest") || "").toLowerCase();
+  const accept = request.headers.get("accept") || "";
+  const isRsc = request.headers.get("rsc") === "1" || accept.includes("text/x-component");
+  if (dest === "document") return true;
+  if (isRsc) return true;
+  if (!dest && accept.includes("text/html")) return true;
+  return false;
+}
+
+export async function proxy(request: NextRequest, event: NextFetchEvent) {
   const pathname = request.nextUrl.pathname;
   const method = request.method;
   const userAgent = request.headers.get("user-agent") || "";
   const botInfo = userAgent ? detectBot(userAgent) : null;
   const isBot = botInfo !== null;
   const isDiscoveryBot = botInfo?.kind === "search" || botInfo?.kind === "ai-search";
+  const isApi = pathname.startsWith("/api/");
+
+  // Human verification gate: first visit requires verification, then cookie allows browsing.
+  // Discovery crawlers are exempt to avoid breaking SEO/AdSense indexing.
+  if (!isApi && !isDiscoveryBot && !isHumanVerificationExempt(pathname) && isProtectedPageRequest(request)) {
+    const humanOk = await verifyHumanToken(request.cookies.get(HUMAN_COOKIE)?.value);
+    if (!humanOk) {
+      const verifyUrl = request.nextUrl.clone();
+      verifyUrl.pathname = "/verify-human";
+      const nextPath = `${request.nextUrl.pathname}${request.nextUrl.search}`;
+      verifyUrl.search = `?next=${encodeURIComponent(nextPath.startsWith("/") ? nextPath : "/")}`;
+      return NextResponse.redirect(verifyUrl, 307);
+    }
+  }
 
   // -------------------------------------------------------------------------
   // Analytics ingest: refuse crawlers and empty/missing UAs here.
@@ -254,7 +304,6 @@ export function proxy(request: NextRequest, event: NextFetchEvent) {
   const hasQuery = request.nextUrl.search.length > 0;
   const isRead = method === "GET" || method === "HEAD";
   const isMutating = !isRead;
-  const isApi = pathname.startsWith("/api/");
 
   if (isApi && method === "OPTIONS") {
     const preflight = new NextResponse(null, {
@@ -275,6 +324,30 @@ export function proxy(request: NextRequest, event: NextFetchEvent) {
       ),
       request
     );
+  }
+
+  // Require human verification cookie for browser-originated API requests.
+  // Exempts verify/auth/cron/internal/og/webhooks/analytics and official mobile header.
+  if (
+    isApi &&
+    pathname !== "/api/verify-human" &&
+    !isPublicApiException(pathname) &&
+    !pathname.startsWith("/api/analytics/") &&
+    request.headers.get(APP_CLIENT_HEADER) !== APP_CLIENT_VALUE
+  ) {
+    const hasBrowserSignals = !!(request.headers.get("origin") || request.headers.get("referer") || request.headers.get("sec-fetch-site") || request.headers.get("sec-fetch-mode"));
+    if (hasBrowserSignals) {
+      const humanOk = await verifyHumanToken(request.cookies.get(HUMAN_COOKIE)?.value);
+      if (!humanOk) {
+        return withCors(
+          NextResponse.json(
+            { error: "Human verification required" },
+            { status: 403, headers: { "Cache-Control": "no-store, max-age=0", "X-Robots-Tag": "noindex, nofollow" } }
+          ),
+          request
+        );
+      }
+    }
   }
 
   let rate: { scope: string; max: number; windowMs: number } | null = null;
@@ -398,14 +471,13 @@ export function proxy(request: NextRequest, event: NextFetchEvent) {
     response.cookies.delete(BOT_COOKIE);
   }
 
-  response.headers.set("X-Robots-Tag", "noindex, nofollow");
+  if (isApi) response.headers.set("X-Robots-Tag", "noindex, nofollow");
   return withCors(response, request);
 }
 
 export const config = {
-  // Keep proxy limited to API routes to minimize Vercel function invocations.
-  // Page-level bot cookie/rate limiting removed from matcher; bot detection
-  // falls back to client-side UA checks in src/lib/bot-cookie.ts. WAF handles
-  // edge bot blocking.
-  matcher: ["/api/:path*"],
+  // Keep matcher narrow to control function invocations.
+  // Human verification is enforced for browser-originated API requests here,
+  // and by a client-side gate in the app layout for page UX.
+  matcher: ["/api/:path*", "/verify-human"],
 };

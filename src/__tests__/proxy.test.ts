@@ -1,31 +1,22 @@
-import { describe, it, expect, vi } from "vitest";
+﻿import { describe, it, expect, vi } from "vitest";
 import { NextRequest } from "next/server";
 import type { NextFetchEvent } from "next/server";
 import { proxy } from "@/proxy";
-
-/**
- * The Proxy answers two kinds of crawler traffic before the route/page runs:
- *
- *  - the analytics ingest endpoints (204, so the route handler is never
- *    invoked — the crawl storm cost ~19.6k invocations/day there);
- *  - the /forum/create form page (404, so the page render is skipped).
- *
- * Both are bot-only. Humans must never be affected.
- */
+import { HUMAN_COOKIE, createHumanToken } from "@/lib/human-verification";
 
 const GOOGLEBOT = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)";
 const HUMAN =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 
-function makeRequest(url: string, userAgent?: string, method = "GET") {
+function makeRequest(url: string, userAgent?: string, method = "GET", cookie?: string) {
   const headers: Record<string, string> = {};
   if (userAgent !== undefined) headers["user-agent"] = userAgent;
+  if (cookie) headers["cookie"] = cookie;
   return new NextRequest(new Request(url, { method, headers }));
 }
 
 function makeEvent() {
   const waitUntil = vi.fn();
-  // The global setup mocks `fetch`, so the self-report request has to resolve.
   vi.mocked(fetch).mockResolvedValue(new Response("{}", { status: 200 }));
   return { event: { waitUntil } as unknown as NextFetchEvent, waitUntil };
 }
@@ -34,82 +25,88 @@ function isNext(response: Response): boolean {
   return response.headers.get("x-middleware-next") === "1";
 }
 
-describe("proxy — analytics ingest", () => {
-  it("answers a known crawler with 204 so the route never runs", () => {
+async function verifiedHumanRequest(url: string, userAgent = HUMAN, method = "GET") {
+  const token = await createHumanToken();
+  return makeRequest(url, userAgent, method, `${HUMAN_COOKIE}=${token}`);
+}
+
+describe("proxy - analytics ingest", () => {
+  it("answers a known crawler with 204 so the route never runs", async () => {
     const { event } = makeEvent();
-    const res = proxy(makeRequest("https://zyverse.in/api/analytics/session", GOOGLEBOT, "POST"), event);
+    const res = await proxy(makeRequest("https://zyverse.in/api/analytics/session", GOOGLEBOT, "POST"), event);
     expect(res.status).toBe(204);
   });
 
-  it("answers a request without a User-Agent with 204", () => {
+  it("answers a request without a User-Agent with 204", async () => {
     const { event } = makeEvent();
-    const res = proxy(makeRequest("https://zyverse.in/api/analytics/pageview", undefined, "POST"), event);
+    const res = await proxy(makeRequest("https://zyverse.in/api/analytics/pageview", undefined, "POST"), event);
     expect(res.status).toBe(204);
   });
 
-  it("lets a real browser through to the route", () => {
+  it("lets a real browser through to the route", async () => {
     const { event } = makeEvent();
-    const res = proxy(makeRequest("https://zyverse.in/api/analytics/session", HUMAN, "POST"), event);
+    const res = await proxy(makeRequest("https://zyverse.in/api/analytics/session", HUMAN, "POST"), event);
     expect(isNext(res)).toBe(true);
   });
 });
 
-describe("proxy — /forum/create", () => {
-  it("answers a crawler with 404 so the page is never rendered", () => {
+describe("proxy - /forum/create", () => {
+  it("answers a crawler with 404 so the page is never rendered", async () => {
     const { event } = makeEvent();
-    const res = proxy(makeRequest("https://zyverse.in/forum/create", GOOGLEBOT), event);
+    const res = await proxy(makeRequest("https://zyverse.in/forum/create", GOOGLEBOT), event);
     expect(res.status).toBe(404);
   });
 
-  it("keeps the form reachable for people", () => {
+  it("keeps the form reachable for verified people", async () => {
     const { event } = makeEvent();
-    const res = proxy(makeRequest("https://zyverse.in/forum/create", HUMAN), event);
+    const res = await proxy(await verifiedHumanRequest("https://zyverse.in/forum/create"), event);
     expect(isNext(res)).toBe(true);
   });
 
-  it("does not touch the rest of /forum/ (indexed threads must keep working)", () => {
+  it("does not touch the rest of /forum/ (indexed threads must keep working)", async () => {
     const { event } = makeEvent();
-    const res = proxy(makeRequest("https://zyverse.in/forum/thread/123", GOOGLEBOT), event);
+    const res = await proxy(makeRequest("https://zyverse.in/forum/thread/123", GOOGLEBOT), event);
     expect(isNext(res)).toBe(true);
   });
 });
 
-describe("proxy — crawler reporting", () => {
+describe("proxy - crawler reporting", () => {
   it("reports a crawler hit on a content page", async () => {
     const { event, waitUntil } = makeEvent();
-    proxy(makeRequest("https://zyverse.in/anime/1", GOOGLEBOT), event);
+    await proxy(makeRequest("https://zyverse.in/anime/1", GOOGLEBOT), event);
     expect(waitUntil).toHaveBeenCalledTimes(1);
   });
 
-  it("does not report human traffic", () => {
+  it("does not report human traffic", async () => {
     const { event, waitUntil } = makeEvent();
-    proxy(makeRequest("https://zyverse.in/anime/1", HUMAN), event);
+    await proxy(await verifiedHumanRequest("https://zyverse.in/anime/1"), event);
     expect(waitUntil).not.toHaveBeenCalled();
   });
 });
 
-describe("proxy — bot cookie for ad slots", () => {
-  it("flags a known crawler with zyni_bot=1", () => {
+describe("proxy - bot cookie for ad slots", () => {
+  it("flags a known crawler with zyni_bot=1", async () => {
     const { event } = makeEvent();
-    const res = proxy(makeRequest("https://zyverse.in/anime/1", GOOGLEBOT), event);
+    const res = await proxy(makeRequest("https://zyverse.in/anime/1", GOOGLEBOT), event);
     const setCookie = res.headers.get("set-cookie") ?? "";
     expect(setCookie).toContain("zyni_bot=1");
   });
 
-  it("never sets the cookie for a real visitor", () => {
+  it("never sets the cookie for a real visitor", async () => {
     const { event } = makeEvent();
-    const res = proxy(makeRequest("https://zyverse.in/anime/1", HUMAN), event);
+    const res = await proxy(await verifiedHumanRequest("https://zyverse.in/anime/1"), event);
     expect(res.headers.get("set-cookie")).toBeNull();
   });
 
-  it("clears a stale bot cookie once the request looks human", () => {
+  it("clears a stale bot cookie once the request looks human", async () => {
     const { event } = makeEvent();
+    const token = await createHumanToken();
     const request = new NextRequest(
       new Request("https://zyverse.in/anime/1", {
-        headers: { "user-agent": HUMAN, cookie: "zyni_bot=1" },
+        headers: { "user-agent": HUMAN, cookie: `zyni_bot=1; ${HUMAN_COOKIE}=${token}` },
       })
     );
-    const res = proxy(request, event);
+    const res = await proxy(request, event);
     const setCookie = res.headers.get("set-cookie") ?? "";
     expect(setCookie).toContain("zyni_bot=");
     expect(setCookie.toLowerCase()).toContain("expires=thu, 01 jan 1970");
