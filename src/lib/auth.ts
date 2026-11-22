@@ -14,6 +14,18 @@ import { normalizeRole } from "./admin-identity";
 import { verifyBotProtection } from "./bot-protection";
 import { revokeUserSessions } from "./session-token";
 
+// Older env imports can carry the development AUTH_URL into production.
+// Auth.js uses it to rewrite the request origin, which would send OAuth
+// callbacks to localhost and break Google/GitHub sign-in on the live site.
+// In production always derive the origin from the real request.
+if (process.env.NODE_ENV === "production") {
+  const authUrl = (process.env.AUTH_URL || process.env.NEXTAUTH_URL || "").trim();
+  if (/^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?\/?$/i.test(authUrl)) {
+    delete process.env.AUTH_URL;
+    delete process.env.NEXTAUTH_URL;
+  }
+}
+
 const providers = [
   Credentials({
     credentials: {
