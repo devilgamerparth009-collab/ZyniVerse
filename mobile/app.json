@@ -17,7 +17,7 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "app.zyverse.mobile",
+      "bundleIdentifier": "app.zyniverse.mobile",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "ZyniVerse uses your microphone for voice chat in watch parties.",
         "NSCameraUsageDescription": "ZyniVerse uses your camera only when you choose to share video.",
@@ -29,7 +29,7 @@
         "foregroundImage": "./assets/adaptive-icon-foreground.png",
         "backgroundColor": "#000000"
       },
-      "package": "app.zyverse.mobile",
+      "package": "app.zyniverse.mobile",
       "versionCode": 144000,
       "permissions": ["RECORD_AUDIO", "MODIFY_AUDIO_SETTINGS", "CAMERA", "REQUEST_INSTALL_PACKAGES"]
     },

@@ -253,7 +253,12 @@ export default function LoginScreen() {
     opacity: formAnim,
     transform: [{ translateY: formAnim.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }) }],
   };
-  const availableSocial = SOCIAL_PROVIDERS.filter((provider) => providers[provider]);
+  // Google/GitHub stay visible even if provider discovery is slow or the
+  // server only reports credentials. Discord remains opt-in because it was
+  // never part of the standard website/app login.
+  const availableSocial = SOCIAL_PROVIDERS.filter(
+    (provider) => provider !== 'discord' || !!providers[provider]
+  );
 
   return (
     <KeyboardAvoidingView
@@ -267,7 +272,7 @@ export default function LoginScreen() {
       <ScrollView
         contentContainerStyle={[
           styles.scroll,
-          { paddingTop: insets.top + 32, paddingBottom: insets.bottom + 40 },
+          { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 24 },
         ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -550,16 +555,16 @@ const styles = StyleSheet.create({
   },
   brandContainer: {
     alignItems: 'center',
-    marginBottom: 22,
+    marginBottom: 12,
   },
   logoBorderBox: {
-    width: 84,
-    height: 84,
-    borderRadius: 26,
+    width: 68,
+    height: 68,
+    borderRadius: 22,
     borderWidth: 2.5,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 14,
+    marginBottom: 8,
     elevation: 20,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.6,
@@ -569,19 +574,19 @@ const styles = StyleSheet.create({
   },
   logoHalo: {
     position: 'absolute',
-    width: 96,
-    height: 96,
-    borderRadius: 48,
+    width: 78,
+    height: 78,
+    borderRadius: 39,
     borderWidth: 1,
     opacity: 0.5,
   },
   logoImage: {
-    width: 62,
-    height: 62,
-    borderRadius: 16,
+    width: 50,
+    height: 50,
+    borderRadius: 14,
   },
   brandTitle: {
-    fontSize: 27,
+    fontSize: 24,
     fontWeight: '900',
     letterSpacing: 2,
   },
@@ -593,7 +598,7 @@ const styles = StyleSheet.create({
   },
   card: {
     borderRadius: 24,
-    padding: 22,
+    padding: 16,
     borderWidth: 1,
     elevation: 8,
   },
@@ -605,10 +610,10 @@ const styles = StyleSheet.create({
   cardSubheading: {
     fontSize: 12.5,
     lineHeight: 18,
-    marginBottom: 20,
+    marginBottom: 12,
   },
   inputWrap: {
-    marginBottom: 14,
+    marginBottom: 10,
   },
   label: {
     fontSize: 12,
@@ -673,7 +678,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   modeSwitch: {
-    marginTop: 18,
+    marginTop: 12,
     alignItems: 'center',
   },
   modeSwitchText: {
@@ -683,13 +688,13 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   socialBlock: {
-    marginTop: 20,
+    marginTop: 12,
   },
   socialDivider: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    marginBottom: 14,
+    marginBottom: 10,
   },
   socialDividerLine: {
     flex: 1,

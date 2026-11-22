@@ -446,7 +446,7 @@ export async function openInstallPermissionSettings(): Promise<void> {
   try {
     await IntentLauncher.startActivityAsync(
       'android.settings.MANAGE_UNKNOWN_APP_SOURCES',
-      { data: 'package:app.zyverse.mobile' }
+      { data: 'package:app.zyniverse.mobile' }
     );
   } catch {
     try {

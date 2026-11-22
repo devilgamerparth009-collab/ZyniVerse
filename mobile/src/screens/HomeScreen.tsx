@@ -18,7 +18,6 @@ import { checkForUpdate, getReadyUpdate, type UpdateRelease } from '../services/
 import { Anime, AnimeOfTheDay, User, WatchlistItem } from '../types';
 import { animePoster, animeTitle, LIST_STATUS_LABEL } from '../utils/helpers';
 import ShowcaseRail from '../components/ShowcaseRail';
-import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorView from '../components/ErrorView';
 import FadeInView from '../components/FadeInView';
 import PressableScale from '../components/PressableScale';
@@ -207,8 +206,9 @@ export default function HomeScreen() {
 
   const featured = trending[0];
 
-  if (loading) return <LoadingSpinner fullScreen />;
-
+  // Never block the first frame behind a full-screen spinner. It looked like a
+  // reload button after the splash and made the app feel closed until it was
+  // tapped. The static shell renders immediately and fills in when data lands.
   if (error && trending.length === 0) {
     return <ErrorView message={error} onRetry={() => fetchData()} />;
   }
