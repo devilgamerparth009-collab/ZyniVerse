@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
+import boxStyles from "../detailBoxes.module.css";
 
 type Rec = {
   id: string;
@@ -18,7 +20,7 @@ type Rec = {
   createdAt: string;
 };
 
-export default function FanRecommendations({ mediaId, mediaTitle }: { mediaId: number; mediaTitle: string }) {
+export default function FanRecommendations({ mediaId, mediaTitle, className = "" }: { mediaId: number; mediaTitle: string; className?: string }) {
   const [recs, setRecs] = useState<Rec[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -28,6 +30,8 @@ export default function FanRecommendations({ mediaId, mediaTitle }: { mediaId: n
   const [msg, setMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [votes, setVotes] = useState<Record<string, number>>({});
+  const { data: session } = useSession();
+  const signedIn = Boolean(session?.user);
 
   useEffect(() => {
     let active = true;
@@ -46,6 +50,10 @@ export default function FanRecommendations({ mediaId, mediaTitle }: { mediaId: n
   }, [mediaId]);
 
   const submit = async () => {
+    if (!signedIn) {
+      setMsg({ type: "err", text: "Sign in to add a pick." });
+      return;
+    }
     setBusy(true);
     setMsg(null);
     try {
@@ -75,6 +83,10 @@ export default function FanRecommendations({ mediaId, mediaTitle }: { mediaId: n
   };
 
   const vote = async (id: string, value: number) => {
+    if (!signedIn) {
+      setMsg({ type: "err", text: "Sign in to vote on picks." });
+      return;
+    }
     if (votes[id] === value) return;
     const res = await fetch(`/api/recommendations/${id}/vote`, {
       method: "POST",
@@ -89,38 +101,44 @@ export default function FanRecommendations({ mediaId, mediaTitle }: { mediaId: n
   };
 
   return (
-    <section className="mt-8">
-      <div className="flex items-center justify-between gap-3">
+    <section className={`${boxStyles.fanBox} mt-8 ${className}`}>
+      <div className={`${boxStyles.sectionHead} items-start`}>
         <div>
-          <h2 className="font-display text-2xl font-bold sm:text-3xl">Fan Recommendations</h2>
-          <p className="mt-1 text-sm text-[var(--color-mute)]">Hand-written picks from the community &amp; why they recommend them.</p>
+          <h2 className={`${boxStyles.boxTitle} font-display text-2xl font-bold sm:text-3xl`}>Fan Recommendations</h2>
+          <p className={`${boxStyles.mutedText} mt-1`}>Hand-written picks from the community &amp; why they recommend them.</p>
+          {!signedIn && (
+            <p className={`${boxStyles.tinyMuted} mt-1`}>
+              <Link href="/login" className={boxStyles.textLink}>Sign in</Link> to add a pick or vote.
+            </p>
+          )}
         </div>
         <button
           onClick={() => setShowForm((s) => !s)}
-          className="shrink-0 rounded-lg px-4 py-2 text-xs font-bold text-black transition-all hover:scale-105"
-          style={{ background: "var(--color-magenta)" }}
+          className={`${boxStyles.primaryButton} shrink-0`}
         >
           {showForm ? "Cancel" : "+ Add a Pick"}
         </button>
       </div>
 
+      {msg && !showForm && <p className={`${boxStyles.errorText} mt-3`}>{msg.text}</p>}
+
       {showForm && (
-        <div className="mt-4 grid gap-3 rounded-xl border border-[var(--color-magenta)]/30 bg-[var(--color-panel)] p-4 sm:grid-cols-1">
-          <div className="text-sm text-[var(--color-mute)]">
+        <div className={`${boxStyles.subCard} mt-4 grid gap-3 sm:grid-cols-1`}>
+          <div className={boxStyles.mutedText}>
             Recommend a <span className="font-bold text-[var(--color-cyan)]">{mediaTitle}</span> alternative to other fans.
           </div>
           <input
             value={toTitle}
             onChange={(e) => setToTitle(e.target.value)}
             placeholder="Recommended title (e.g. A Silent Voice)"
-            className="rounded-lg border border-[var(--color-line)] bg-[var(--color-void)] px-3 py-2 text-sm text-[var(--color-text)] outline-none placeholder:text-[var(--color-mute)] focus:border-[var(--color-cyan)]"
+            className={boxStyles.field}
           />
           <input
             value={toId}
             onChange={(e) => setToId(e.target.value)}
             placeholder="Recommended AniList media ID (numbers only)"
             type="number"
-            className="rounded-lg border border-[var(--color-line)] bg-[var(--color-void)] px-3 py-2 text-sm text-[var(--color-text)] outline-none placeholder:text-[var(--color-mute)] focus:border-[var(--color-cyan)]"
+            className={boxStyles.field}
           />
           <textarea
             value={meaning}
@@ -128,15 +146,15 @@ export default function FanRecommendations({ mediaId, mediaTitle }: { mediaId: n
             placeholder="Why you'll like it (this is the heart of the rec)..."
             maxLength={500}
             rows={3}
-            className="rounded-lg border border-[var(--color-line)] bg-[var(--color-void)] px-3 py-2 text-sm text-[var(--color-text)] outline-none placeholder:text-[var(--color-mute)] focus:border-[var(--color-cyan)]"
+            className={boxStyles.field}
           />
           <div className="flex items-center justify-end gap-3">
-            <span className="text-[10px] text-[var(--color-mute)]">{meaning.length}/500</span>
-            <button onClick={submit} disabled={busy} className="rounded-lg bg-[var(--color-cyan)] px-5 py-2 text-xs font-bold text-black transition-all hover:scale-105 disabled:opacity-50">
+            <span className={boxStyles.tinyMuted}>{meaning.length}/500</span>
+            <button onClick={submit} disabled={busy} className={boxStyles.primaryButton}>
               {busy ? "..." : "Post Recommendation"}
             </button>
           </div>
-          {msg && <p className="text-xs text-red-400">{msg.text}</p>}
+          {msg && <p className={boxStyles.errorText}>{msg.text}</p>}
         </div>
       )}
 
@@ -147,35 +165,35 @@ export default function FanRecommendations({ mediaId, mediaTitle }: { mediaId: n
           ))}
         </div>
       ) : recs.length === 0 ? (
-        <p className="mt-4 text-sm text-[var(--color-mute)]">
+        <div className={`${boxStyles.emptyState} mt-4`}>
           No fan picks yet. Be the first to recommend something after{" "}
           <span className="font-bold text-[var(--color-cyan)]">{mediaTitle}</span>!
-        </p>
+        </div>
       ) : (
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           {recs.map((r) => (
-            <div key={r.id} className="rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] p-4">
+            <div key={r.id} className={boxStyles.recCard}>
               <div className="flex items-start justify-between gap-3">
                 <Link href={`/anime/${r.toMediaId}`} className="min-w-0">
                   <p className="text-sm font-bold text-[var(--color-cyan)] hover:underline truncate">{r.toTitle}</p>
                 </Link>
-                <span className="shrink-0 rounded-full bg-[var(--color-line)]/40 px-2 py-0.5 text-[9px] font-medium uppercase tracking-wider text-[var(--color-mute)]">
+                <span className={`${boxStyles.typeChip} shrink-0`}>
                   {r.fromType === "MANGA" ? "Manga" : "Anime"}
                 </span>
               </div>
-              <p className="mt-2 text-sm leading-relaxed text-[var(--color-mute)]">“{r.meaning}”</p>
+              <p className={`${boxStyles.quoteText} mt-2`}>“{r.meaning}”</p>
               <div className="mt-3 flex items-center justify-between">
-                <span className="text-[10px] text-[var(--color-mute)]">by {r.authorUsername || "a fan"}</span>
+                <span className={boxStyles.tinyMuted}>by {r.authorUsername || "a fan"}</span>
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => vote(r.id, 1)}
-                    className={`rounded-lg px-2 py-1 text-[11px] font-semibold transition-all ${votes[r.id] === 1 ? "bg-[var(--color-cyan)] text-black" : "bg-[var(--color-line)]/30 text-[var(--color-mute)] hover:text-white"}`}
+                    className={`${boxStyles.voteButton} ${votes[r.id] === 1 ? boxStyles.voteButtonActive : ""}`}
                   >
                     ▲ {r.upvotes}
                   </button>
                   <button
                     onClick={() => vote(r.id, -1)}
-                    className={`rounded-lg px-2 py-1 text-[11px] font-semibold transition-all ${votes[r.id] === -1 ? "bg-red-500 text-black" : "bg-[var(--color-line)]/30 text-[var(--color-mute)] hover:text-white"}`}
+                    className={`${boxStyles.voteButton} ${votes[r.id] === -1 ? boxStyles.voteButtonActive : ""}`}
                   >
                     ▼ {r.downvotes}
                   </button>

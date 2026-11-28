@@ -5,49 +5,70 @@ import Link from "next/link";
 import Image from "next/image";
 import type { DoujinshiEntry } from "@/lib/mangadex-api";
 
+function CoverFallback({ item }: { item: DoujinshiEntry }) {
+  return (
+    <div className="djflex-fallback">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="djflex-fallback-icon">
+        <path d="M4 19.5A2.5 2.5 0 016.5 17H20M4 19.5V4.5A2.5 2.5 0 016.5 2H20v15H6.5A2.5 2.5 0 004 19.5z" />
+      </svg>
+      <p className="djflex-fallback-title">{item.title}</p>
+      {item.circle ? <p className="djflex-fallback-circle">{item.circle}</p> : null}
+    </div>
+  );
+}
+
+function CardCover({ item, mobile = false }: { item: DoujinshiEntry; mobile?: boolean }) {
+  const [failed, setFailed] = useState(false);
+  if (!item.image || failed) return <CoverFallback item={item} />;
+  return (
+    <Image
+      src={item.image}
+      alt={item.title}
+      fill
+      className={mobile ? "djflex-img djflex-img-mobile" : "djflex-img"}
+      sizes={mobile ? "140px" : "(max-width: 768px) 50vw, 25vw"}
+      loading="lazy"
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
 export default function DoujinshiFlexCard({ items }: { items: DoujinshiEntry[] }) {
   const [hovered, setHovered] = useState<string | null>(null);
 
   return (
     <>
       {/* Mobile: horizontal scroll */}
-      <div className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory md:hidden -mx-4 px-4">
+      <div className="djflex-mobile-rail">
         {items.slice(0, 8).map((item) => (
           <Link
             key={item.id}
             href={`/doujinshi/${item.id}`}
-            className="relative w-[140px] shrink-0 snap-start overflow-hidden rounded-2xl neon-rgb-border group"
+            className="djflex-m-card group"
           >
-            <div className="relative h-[210px] w-full">
-              <Image
-                src={item.image || ""}
-                alt={item.title}
-                fill
-                className="object-cover transition-transform duration-500 group-hover:scale-105"
-                sizes="140px"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/10 to-transparent" />
+            <div className="djflex-m-cover">
+              <CardCover item={item} mobile />
+              <span className="djflex-m-shade" aria-hidden="true" />
             </div>
-            <div className="absolute bottom-0 left-0 right-0 p-3">
-              <p className="font-display text-sm font-bold leading-tight drop-shadow-lg line-clamp-2">
-                {item.title}
-              </p>
-              <div className="mt-1 flex items-center gap-2 text-[10px] text-[var(--color-mute)]">
+            <div className="djflex-m-info">
+              <p className="djflex-m-title">{item.title}</p>
+              <div className="djflex-m-meta">
                 {item.circle && <span>{item.circle}</span>}
                 {item.pages ? <span>{item.pages} pg</span> : null}
               </div>
             </div>
-            <div className="absolute left-2 top-2">
-              <span className="font-mono text-[10px] font-bold text-white/40 drop-shadow-lg">
+            <div className="djflex-num-wrap">
+              <span className="djflex-num">
                 {(items.indexOf(item) + 1).toString().padStart(2, "0")}
               </span>
             </div>
+            <span className="djflex-card-line" aria-hidden="true" />
           </Link>
         ))}
       </div>
 
       {/* Desktop: expanding flex card */}
-      <div className="hidden md:flex h-[400px] gap-2 w-full">
+      <div className="djflex-stage">
         {items.slice(0, 8).map((item) => {
           const isHovered = hovered === item.id;
 
@@ -56,92 +77,52 @@ export default function DoujinshiFlexCard({ items }: { items: DoujinshiEntry[] }
               key={item.id}
               onMouseEnter={() => setHovered(item.id)}
               onMouseLeave={() => setHovered(null)}
-              className="relative overflow-hidden rounded-2xl neon-rgb-border cursor-pointer group"
-              style={{
-                flex: isHovered ? 3 : 1,
-                minWidth: 0,
-                transition: "flex 0.5s cubic-bezier(0.23, 1, 0.32, 1)",
-              }}
+              className="djflex-item group"
+              data-hover={isHovered ? "true" : "false"}
+              style={{ flex: isHovered ? 3 : 1, minWidth: 0 }}
             >
-              <Link href={`/doujinshi/${item.id}`} className="block h-full w-full">
-                <Image
-                  src={item.image || ""}
-                  alt={item.title}
-                  fill
-                  className="object-cover transition-transform duration-700 group-hover:scale-110"
-                  sizes="(max-width: 768px) 50vw, 25vw"
-                />
-
-                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
-                {!isHovered && (
-                  <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-transparent to-black/60" />
-                )}
-
-                <div className="absolute bottom-0 left-0 right-0 p-3">
-                  <p
-                    className="font-display text-xs font-bold leading-tight [writing-mode:vertical-lr] rotate-180 truncate"
-                    style={{
-                      opacity: isHovered ? 0 : 1,
-                      transition: "opacity 0.3s ease",
-                    }}
-                  >
-                    {item.title}
-                  </p>
+              <Link href={`/doujinshi/${item.id}`} className="djflex-item-link">
+                <div className="djflex-cover">
+                  <CardCover item={item} />
                 </div>
+                <span className="djflex-shade" aria-hidden="true" />
+                <span className="djflex-side-shade" aria-hidden="true" />
+                <span className="djflex-card-line" aria-hidden="true" />
 
-                <div
-                  className="absolute inset-x-0 bottom-0 p-5"
-                  style={{
-                    opacity: isHovered ? 1 : 0,
-                    transition: "opacity 0.2s ease",
-                  }}
-                >
-                  <p className="font-display text-lg font-bold leading-tight drop-shadow-lg">
-                    {item.title}
-                  </p>
+                <p className="djflex-vertical-title">{item.title}</p>
 
-                  <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-[var(--color-mute)]">
-                    {item.circle && <span className="text-[var(--color-cyan)]">{item.circle}</span>}
+                <div className="djflex-detail">
+                  <p className="djflex-detail-title">{item.title}</p>
+
+                  <div className="djflex-meta">
+                    {item.circle && <span className="djflex-meta-circle">{item.circle}</span>}
                     {item.artist && <span>{item.artist}</span>}
                     {item.pages ? <span>{item.pages} pages</span> : null}
                   </div>
 
-                  <div className="mt-2 flex flex-wrap gap-1.5">
+                  <div className="djflex-badges">
                     {item.parody && item.parody !== "Original" && (
-                      <span className="rounded-full border border-white/20 bg-white/10 px-2 py-0.5 text-[9px] backdrop-blur">
-                        {item.parody}
-                      </span>
+                      <span className="djflex-badge djflex-badge-parody">{item.parody}</span>
                     )}
-                    <span className="rounded-full border border-white/20 bg-white/10 px-2 py-0.5 text-[9px] uppercase backdrop-blur">
-                      {item.language}
-                    </span>
+                    <span className="djflex-badge djflex-badge-lang">{item.language}</span>
                     {item.isTranslated && (
-                      <span className="rounded-full border border-white/20 bg-green-500/20 px-2 py-0.5 text-[9px] backdrop-blur">
-                        Translated
-                      </span>
+                      <span className="djflex-badge djflex-badge-translated">Translated</span>
                     )}
                   </div>
 
-                  <div className="mt-2 flex flex-wrap gap-1.5">
+                  <div className="djflex-tags">
                     {item.tags.slice(0, 3).map((tag) => (
-                      <span key={tag} className="text-[9px] text-[var(--color-mute)] opacity-80">#{tag}</span>
+                      <span key={tag} className="djflex-tag">#{tag}</span>
                     ))}
                   </div>
 
-                  <span
-                    className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-[var(--color-magenta)]"
-                    style={{
-                      opacity: 1,
-                      transform: isHovered ? "translateX(0)" : "translateX(-10px)",
-                      transition: "transform 0.3s ease 0.15s",
-                    }}
-                  >
-                    View Details →
+                  <span className="djflex-cta">
+                    <span>View Details →</span>
                   </span>
                 </div>
 
-                <div className="absolute left-3 top-3">
-                  <span className="font-mono text-[10px] font-bold text-white/40">
+                <div className="djflex-num-wrap">
+                  <span className="djflex-num">
                     {(items.indexOf(item) + 1).toString().padStart(2, "0")}
                   </span>
                 </div>

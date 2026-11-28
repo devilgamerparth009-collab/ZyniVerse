@@ -1,7 +1,6 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   Dimensions,
   Linking,
@@ -21,7 +20,9 @@ export type AdPlacement =
   | 'detail-inline'
   | 'tournaments-top'
   | 'tv-guide'
-  | 'dub-schedule';
+  | 'dub-schedule'
+  | 'discover-bottom'
+  | 'channels-bottom';
 
 interface AdBannerProps {
   placement?: AdPlacement;
@@ -29,6 +30,8 @@ interface AdBannerProps {
   style?: object;
   /** Delay initial load so the first scroll/interaction stays smooth. */
   lazy?: boolean;
+  /** Lets a full-screen host dismiss itself when no advert can be served. */
+  onFailure?: () => void;
 }
 
 /**
@@ -145,12 +148,14 @@ export default function AdBanner({
   size = 'medium',
   style,
   lazy = true,
+  onFailure,
 }: AdBannerProps) {
   const [attempt, setAttempt] = useState(0);
   const [status, setStatus] = useState<'waiting' | 'loading' | 'loaded' | 'failed'>(
     lazy ? 'waiting' : 'loading'
   );
   const mounted = useRef(true);
+  const failed = useRef(false);
 
   const contentWidth = SCREEN_WIDTH - 24;
   const scale = Math.min(1, contentWidth / 728);
@@ -163,6 +168,13 @@ export default function AdBanner({
       mounted.current = false;
     };
   }, []);
+
+  const fail = useCallback(() => {
+    if (!mounted.current || failed.current) return;
+    failed.current = true;
+    setStatus('failed');
+    onFailure?.();
+  }, [onFailure]);
 
   // Let the host screen finish its first interaction before loading a WebView.
   useEffect(() => {
@@ -180,13 +192,18 @@ export default function AdBanner({
         setAttempt((a) => a + 1);
         setStatus('loading');
       } else {
-        setStatus('failed');
+        fail();
       }
     }, LOAD_TIMEOUT_MS);
     return () => clearTimeout(timer);
-  }, [status, attempt]);
+  }, [status, attempt, fail]);
 
-  if (status === 'failed') return null;
+  if (status === 'failed') {
+    console.warn(`[AdBanner] failed placement=${placement} size=${size} attempts=${attempt + 1}`);
+    // A failed unit collapses completely. No placeholder means no broken ad
+    // label in the UI and no tap target that cannot load an advert.
+    return null;
+  }
 
   return (
     <View
@@ -228,7 +245,7 @@ export default function AdBanner({
               setAttempt((a) => a + 1);
               setStatus('loading');
             } else {
-              setStatus('failed');
+              fail();
             }
           }}
           renderError={() => <View />}

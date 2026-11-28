@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { logError } from "@/lib/logger";
 import { auth } from "@/lib/auth";
-import { revalidatePath } from "next/cache";
 import { getReelsFeed, invalidateReelsFeed } from "@/lib/reels-feed";
 export const dynamic = "force-dynamic";
 
@@ -79,10 +78,10 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // The reels feed is invalidated in its own (low-cardinality) cache. Do not
+    // revalidate /anime/<id> here: a single upload used to invalidate one
+    // per-anime ISR entry and force a fresh Node render on the next crawl hit.
     invalidateReelsFeed();
-    if (reel.animeId) {
-      revalidatePath(`/anime/${reel.animeId}`);
-    }
 
     return NextResponse.json(
       {

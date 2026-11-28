@@ -2,14 +2,15 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
-  Image,
+  ActivityIndicator,
   TouchableOpacity,
   FlatList,
   StyleSheet,
   RefreshControl,
   Alert,
 } from 'react-native';
-import { useRoute, useNavigation } from '@react-navigation/native';
+import { clearScreenCache, getScreenCache, setScreenCache } from '../utils/screenCache';
+import { useFocusEffect, useRoute, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, themed, spacing, fontSize, borderRadius } from '../theme';
 import { useTheme } from '../hooks/useTheme';
@@ -18,6 +19,7 @@ import { CharacterTournamentDetail, TournamentParticipant, TournamentMatch } fro
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorView from '../components/ErrorView';
 import FadeInView from '../components/FadeInView';
+import SafeImage from '../components/SafeImage';
 
 function pad(n: number): string {
   return n < 10 ? `0${n}` : String(n);
@@ -61,6 +63,7 @@ export default function TournamentDetailScreen() {
   const { colors, isLaunch } = useTheme();
   const primaryAccent = isLaunch ? '#22d3ee' : colors.primary;
   const tournamentId: string = route.params?.id;
+  const cacheKey = useMemo(() => `tournament:${tournamentId}`, [tournamentId]);
 
   const [detail, setDetail] = useState<CharacterTournamentDetail | null>(null);
   const [myPollVote, setMyPollVote] = useState<string | null>(null);
@@ -69,34 +72,55 @@ export default function TournamentDetailScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [votingFor, setVotingFor] = useState<string | null>(null);
   const [votingMatch, setVotingMatch] = useState<string | null>(null);
+  const [managing, setManaging] = useState<string | null>(null);
   const [voteError, setVoteError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchData = useCallback(async () => {
-    try {
-      setError(null);
-      const [d, poll] = await Promise.all([
-        api.tournaments.detail(tournamentId),
-        api.tournaments.pollVoteGet(tournamentId).catch(() => ({ myPollVote: null as string | null })),
-      ]);
-      setDetail(d);
-      setMyPollVote(poll.myPollVote ?? null);
-      setMyVotes(d.myVotes || {});
-    } catch {
-      setError('Could not load tournament');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [tournamentId]);
+  const fetchData = useCallback(
+    async (force = false) => {
+      const cached = force
+        ? null
+        : getScreenCache<{ detail: CharacterTournamentDetail; myPollVote: string | null }>(
+            cacheKey,
+            2 * 60_000
+          );
+      if (cached) {
+        setDetail(cached.detail);
+        setMyPollVote(cached.myPollVote ?? null);
+        setMyVotes(cached.detail.myVotes || {});
+        setLoading(false);
+      }
+      try {
+        setError(null);
+        const [d, poll] = await Promise.all([
+          api.tournaments.detail(tournamentId),
+          api.tournaments
+            .pollVoteGet(tournamentId)
+            .catch(() => ({ myPollVote: null as string | null })),
+        ]);
+        setDetail(d);
+        setMyPollVote(poll.myPollVote ?? null);
+        setMyVotes(d.myVotes || {});
+        setScreenCache(cacheKey, { detail: d, myPollVote: poll.myPollVote ?? null });
+      } catch {
+        if (force || !getScreenCache(cacheKey)) setError('Could not load tournament');
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [cacheKey, tournamentId]
+  );
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  useFocusEffect(
+    useCallback(() => {
+      fetchData();
+    }, [fetchData])
+  );
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchData();
+    fetchData(true);
   };
 
   const castVote = async (participantId: string) => {
@@ -104,8 +128,9 @@ export default function TournamentDetailScreen() {
     setVotingFor(participantId);
     try {
       await api.tournaments.pollVoteCast(tournamentId, participantId);
+      clearScreenCache(cacheKey);
       setMyPollVote(participantId);
-      await fetchData();
+      await fetchData(true);
     } catch (e: any) {
       Alert.alert('Vote failed', e?.message || 'Could not cast your vote');
     } finally {
@@ -154,6 +179,7 @@ export default function TournamentDetailScreen() {
     try {
       const result = await api.tournaments.matchVote(tournamentId, match.id, choice);
       applyMatchCounts(match.id, result.votesA, result.votesB, choice);
+      clearScreenCache(cacheKey);
     } catch (e: any) {
       setDetail(before);
       setMyVotes(before?.myVotes || {});
@@ -161,6 +187,39 @@ export default function TournamentDetailScreen() {
     } finally {
       setVotingMatch(null);
     }
+  };
+
+  const runCreatorAction = async (action: 'start' | 'finalizeQualifying' | 'finalize') => {
+    if (managing) return;
+    const labels = {
+      start: { title: 'Start this bracket?', body: 'Voting opens for every app and website user.' },
+      finalizeQualifying: {
+        title: 'Close qualifying now?',
+        body: 'The top candidates move into the bracket for everyone.',
+      },
+      finalize: { title: 'Finalize this round?', body: 'Winners advance and the next round is created.' },
+    };
+    Alert.alert(labels[action].title, labels[action].body, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Continue',
+        onPress: async () => {
+          setManaging(action);
+          try {
+            if (action === 'start') await api.tournaments.start(tournamentId);
+            else if (action === 'finalizeQualifying')
+              await api.tournaments.finalizeQualifying(tournamentId);
+            else await api.tournaments.finalize(tournamentId);
+            clearScreenCache(cacheKey);
+            await fetchData(true);
+          } catch (e: any) {
+            Alert.alert('Could not update', e?.message || 'Please try again.');
+          } finally {
+            setManaging(null);
+          }
+        },
+      },
+    ]);
   };
 
   const tournament = detail?.tournament;
@@ -184,44 +243,50 @@ export default function TournamentDetailScreen() {
     const voted = myPollVote === item.id;
     const votes = item.pollVotes || 0;
     const imageUrl = item.charImage || item.franchiseCover;
-    const accent = rank <= 3 ? '#34d399' : '#22d3ee';
+    const accent = rank <= 3 ? '#34d399' : rank <= 16 ? '#22d3ee' : colors.textDim;
+    const busy = votingFor === item.id;
     return (
       <FadeInView
-        style={styles.participantRow}
-        delay={Math.min(index * 40, 320)}
-        offset={12}
-        duration={340}
+        style={styles.participantCard}
+        delay={Math.min(index * 30, 240)}
+        offset={10}
+        duration={320}
       >
-        <View style={styles.rankBox}>
-          <Text style={[styles.rankText, { color: accent }]}>#{rank}</Text>
-        </View>
-        <View style={styles.participantImageWrap}>
+        <View style={styles.participantPosterWrap}>
           {imageUrl ? (
-            <Image source={{ uri: imageUrl }} style={styles.participantImage} resizeMode="cover" />
+            <SafeImage uri={imageUrl} style={styles.participantPoster} fallbackLabel={item.charName || 'Character'} />
           ) : (
-            <View style={[styles.participantImage, styles.participantPlaceholder]}>
-              <Text style={styles.participantPlaceholderText}>{item.charName[0]}</Text>
+            <View style={[styles.participantPoster, styles.participantPlaceholder]}>
+              <Text style={styles.participantPlaceholderText}>{(item.charName || '?')[0]}</Text>
             </View>
           )}
+          <View style={[styles.rankBadge, { backgroundColor: `${accent}22`, borderColor: `${accent}66` }]}>
+            <Text style={[styles.rankText, { color: accent }]}>#{rank}</Text>
+          </View>
+          {voted ? (
+            <View style={styles.votedBadge}>
+              <Text style={styles.votedBadgeText}>✓ Voted</Text>
+            </View>
+          ) : null}
         </View>
-        <View style={styles.participantInfo}>
+        <View style={styles.participantCardBody}>
           <Text style={styles.participantName} numberOfLines={2}>{item.charName}</Text>
           <Text style={styles.participantVotes}>{votes} vote{votes === 1 ? '' : 's'}</Text>
+          <TouchableOpacity
+            style={[
+              styles.voteButton,
+              voted && styles.voteButtonVoted,
+              myPollVote && !voted && styles.voteButtonDisabled,
+            ]}
+            disabled={!!myPollVote || busy}
+            activeOpacity={0.8}
+            onPress={() => castVote(item.id)}
+          >
+            <Text style={[styles.voteButtonText, voted && styles.voteButtonTextVoted]}>
+              {busy ? 'Voting…' : voted ? '✓ Voted' : 'Vote'}
+            </Text>
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity
-          style={[
-            styles.voteButton,
-            voted && styles.voteButtonVoted,
-            myPollVote && !voted && styles.voteButtonDisabled,
-          ]}
-          disabled={!!myPollVote || votingFor === item.id}
-          activeOpacity={0.7}
-          onPress={() => castVote(item.id)}
-        >
-          <Text style={[styles.voteButtonText, voted && styles.voteButtonTextVoted]}>
-            {votingFor === item.id ? '…' : voted ? '✓ Voted' : 'Vote'}
-          </Text>
-        </TouchableOpacity>
       </FadeInView>
     );
   };
@@ -231,6 +296,14 @@ export default function TournamentDetailScreen() {
     const winnerB = m.winnerId === m.charB?.id;
     const matchVotes = m.votesA + m.votesB;
     const totalPct = matchVotes > 0 ? (m.votesA / matchVotes) * 100 : 50;
+    const avatar = (participant?: TournamentParticipant | null) => (
+      <SafeImage
+        uri={participant?.charImage || participant?.franchiseCover}
+        style={styles.matchAvatar}
+        fallbackLabel={(participant?.charName || '?').slice(0, 1)}
+        resizeMode="cover"
+      />
+    );
     return (
       <View key={m.id} style={styles.matchCard}>
         <Text style={styles.roundLabel}>
@@ -238,6 +311,7 @@ export default function TournamentDetailScreen() {
         </Text>
         <View style={styles.matchup}>
           <View style={styles.matchSide}>
+            {avatar(m.charA)}
             <Text style={[styles.matchName, winnerA && styles.matchWinner]} numberOfLines={2}>
               {winnerA ? '🏆 ' : ''}{m.charA?.charName || 'TBD'}
             </Text>
@@ -249,6 +323,7 @@ export default function TournamentDetailScreen() {
             <Text style={[styles.matchName, styles.matchNameRight, winnerB && styles.matchWinner]} numberOfLines={2}>
               {winnerB ? '🏆 ' : ''}{m.charB?.charName || 'TBD'}
             </Text>
+            {avatar(m.charB)}
           </View>
         </View>
         <View style={styles.barTrack}>
@@ -309,8 +384,11 @@ export default function TournamentDetailScreen() {
   return (
     <FlatList
       data={isQualifying ? sortedParticipants : []}
+      key={isQualifying ? 'qualifying-grid' : 'bracket-list'}
       keyExtractor={(item) => item.id}
       renderItem={renderParticipant}
+      numColumns={isQualifying ? 2 : 1}
+      columnWrapperStyle={isQualifying ? styles.participantColumn : undefined}
       showsVerticalScrollIndicator={false}
       style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}
       contentContainerStyle={{ paddingBottom: spacing.xxl, paddingHorizontal: spacing.md }}
@@ -335,6 +413,52 @@ export default function TournamentDetailScreen() {
               <Text style={styles.description}>{tournament.description}</Text>
             ) : null}
             {!!voteError && <Text style={styles.voteError}>{voteError}</Text>}
+            {detail.isCreator ? (
+              <View style={styles.creatorPanel}>
+                <Text style={styles.creatorPanelTitle}>CREATOR CONTROLS</Text>
+                <View style={styles.creatorRow}>
+                  {tournament.status === 'upcoming' ? (
+                    <TouchableOpacity
+                      style={styles.creatorBtn}
+                      disabled={!!managing}
+                      onPress={() => runCreatorAction('start')}
+                    >
+                      {managing === 'start' ? (
+                        <ActivityIndicator size="small" color="#fff" />
+                      ) : (
+                        <Text style={styles.creatorBtnText}>▶ Start battle</Text>
+                      )}
+                    </TouchableOpacity>
+                  ) : null}
+                  {tournament.status === 'qualifying' ? (
+                    <TouchableOpacity
+                      style={styles.creatorBtn}
+                      disabled={!!managing}
+                      onPress={() => runCreatorAction('finalizeQualifying')}
+                    >
+                      {managing === 'finalizeQualifying' ? (
+                        <ActivityIndicator size="small" color="#fff" />
+                      ) : (
+                        <Text style={styles.creatorBtnText}>⚡ Close qualifying</Text>
+                      )}
+                    </TouchableOpacity>
+                  ) : null}
+                  {tournament.status === 'active' ? (
+                    <TouchableOpacity
+                      style={styles.creatorBtn}
+                      disabled={!!managing}
+                      onPress={() => runCreatorAction('finalize')}
+                    >
+                      {managing === 'finalize' ? (
+                        <ActivityIndicator size="small" color="#fff" />
+                      ) : (
+                        <Text style={styles.creatorBtnText}>🏁 Finalize round</Text>
+                      )}
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+              </View>
+            ) : null}
           </FadeInView>
 
           {isQualifying && tournament.status === 'qualifying' ? (
@@ -486,29 +610,26 @@ const styles = themed(() => ({
     fontSize: fontSize.xs,
     marginTop: 2,
   },
-  participantRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  participantColumn: {
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  participantCard: {
+    flex: 1,
     backgroundColor: colors.surface,
-    borderRadius: borderRadius.md,
-    padding: spacing.sm,
-    marginBottom: spacing.xs,
+    borderRadius: borderRadius.lg,
+    overflow: 'hidden',
+    borderWidth: 0.5,
+    borderColor: colors.border,
   },
-  rankBox: {
-    width: 40,
-  },
-  rankText: {
-    fontSize: fontSize.xs,
-    fontWeight: '800',
-  },
-  participantImageWrap: {
-    marginRight: spacing.sm,
-  },
-  participantImage: {
-    width: 46,
-    height: 62,
-    borderRadius: borderRadius.sm,
+  participantPosterWrap: {
+    width: '100%',
+    aspectRatio: 3 / 4,
     backgroundColor: colors.surfaceLight,
+  },
+  participantPoster: {
+    width: '100%',
+    height: '100%',
   },
   participantPlaceholder: {
     justifyContent: 'center',
@@ -516,29 +637,56 @@ const styles = themed(() => ({
   },
   participantPlaceholderText: {
     color: colors.textDim,
-    fontSize: fontSize.lg,
-    fontWeight: '700',
+    fontSize: 28,
+    fontWeight: '800',
   },
-  participantInfo: {
-    flex: 1,
-    marginRight: spacing.sm,
+  rankBadge: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+  },
+  rankText: {
+    fontSize: 10,
+    fontWeight: '900',
+  },
+  votedBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(34,197,94,0.92)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: borderRadius.full,
+  },
+  votedBadgeText: {
+    color: '#052e16',
+    fontSize: 10,
+    fontWeight: '900',
+  },
+  participantCardBody: {
+    padding: spacing.sm,
   },
   participantName: {
     color: colors.text,
     fontSize: fontSize.sm,
-    fontWeight: '600',
+    fontWeight: '800',
+    minHeight: 36,
   },
   participantVotes: {
     color: colors.textMuted,
     fontSize: fontSize.xs,
     marginTop: 2,
+    marginBottom: spacing.sm,
   },
   voteButton: {
     backgroundColor: colors.primary,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingVertical: 10,
     borderRadius: borderRadius.md,
-    minWidth: 74,
     alignItems: 'center',
   },
   voteButtonVoted: {
@@ -552,7 +700,7 @@ const styles = themed(() => ({
   voteButtonText: {
     color: '#fff',
     fontSize: fontSize.xs,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   voteButtonTextVoted: {
     color: '#22c55e',
@@ -590,6 +738,13 @@ const styles = themed(() => ({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
+  },
+  matchAvatar: {
+    width: 38,
+    height: 50,
+    borderRadius: 7,
+    overflow: 'hidden',
+    backgroundColor: colors.surfaceLight,
   },
   matchSideRight: {
     justifyContent: 'flex-end',
@@ -632,6 +787,39 @@ const styles = themed(() => ({
     color: colors.error,
     fontSize: fontSize.xs,
     marginTop: spacing.sm,
+  },
+  creatorPanel: {
+    marginTop: spacing.md,
+    padding: spacing.sm,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: `${colors.primary}66`,
+    backgroundColor: `${colors.primary}12`,
+  },
+  creatorPanelTitle: {
+    color: colors.primary,
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1,
+    marginBottom: 8,
+  },
+  creatorRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  creatorBtn: {
+    minHeight: 36,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.sm,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  creatorBtnText: {
+    color: '#ffffff',
+    fontSize: fontSize.xs,
+    fontWeight: '900',
   },
   matchVoteSection: {
     marginTop: spacing.md,

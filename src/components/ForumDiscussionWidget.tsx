@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import boxStyles from "./detailBoxes.module.css";
 
 interface ForumDiscussionWidgetProps {
   animeId: number;
   animeTitle: string;
   animeImage?: string;
+  className?: string;
 }
 
 interface ForumThreadSummary {
@@ -14,7 +16,7 @@ interface ForumThreadSummary {
   title: string;
 }
 
-export default function ForumDiscussionWidget({ animeId, animeTitle, animeImage }: ForumDiscussionWidgetProps) {
+export default function ForumDiscussionWidget({ animeId, animeTitle, animeImage, className = "" }: ForumDiscussionWidgetProps) {
   const [threads, setThreads] = useState<ForumThreadSummary[]>([]);
 
   useEffect(() => {
@@ -25,8 +27,8 @@ export default function ForumDiscussionWidget({ animeId, animeTitle, animeImage 
   }, [animeId]);
 
   return (
-    <div className="rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5">
-      <h3 className="font-display text-sm font-bold mb-3 flex items-center gap-2">
+    <div className={className}>
+      <h3 className={`${boxStyles.boxTitle} font-display text-sm font-bold mb-3 flex items-center gap-2`}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[var(--color-cyan)]">
           <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
         </svg>
@@ -34,12 +36,12 @@ export default function ForumDiscussionWidget({ animeId, animeTitle, animeImage 
       </h3>
 
       {threads.length === 0 ? (
-        <p className="text-xs text-[var(--color-mute)]">No discussions yet.</p>
+        <div className={boxStyles.emptyState}>No discussions yet.</div>
       ) : (
         <div className="space-y-2">
           {threads.map((t) => (
             <Link key={t.id} href={`/forum/thread/${t.id}`}
-              className="block rounded-lg px-2 py-1.5 text-xs text-[var(--color-mute)] hover:text-[var(--color-cyan)] hover:bg-white/5 transition-colors truncate"
+              className={`${boxStyles.threadLink} truncate`}
             >
               {t.title}
             </Link>
@@ -47,12 +49,12 @@ export default function ForumDiscussionWidget({ animeId, animeTitle, animeImage 
         </div>
       )}
 
-      <div className="mt-3 flex gap-2">
+      <div className={`${boxStyles.pillRow} mt-3`}>
         <Link href={`/forum/anime/${animeId}`}
-          className="flex-1 rounded-lg border border-[var(--color-line)] px-5 py-2.5 text-xs font-semibold text-[var(--color-mute)] hover:text-[var(--color-cyan)] hover:border-[var(--color-cyan)] text-center transition-colors"
+          className={`${boxStyles.miniLink} flex-1`}
         >View All Threads</Link>
         <Link href={`/forum/create?animeId=${animeId}&animeTitle=${encodeURIComponent(animeTitle)}&animeImage=${encodeURIComponent(animeImage || "")}`}
-          className="flex-1 rounded-lg bg-[var(--color-cyan)] px-5 py-2.5 text-xs font-bold text-black text-center hover:opacity-90 transition"
+          className={`${boxStyles.miniLink} ${boxStyles.miniLinkPrimary} flex-1`}
         >+ New Thread</Link>
       </div>
     </div>

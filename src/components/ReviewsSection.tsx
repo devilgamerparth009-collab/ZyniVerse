@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { logError } from "@/lib/logger";
+import styles from "./reviews.module.css";
 
 interface Review {
   id: string;
@@ -17,6 +18,7 @@ interface Review {
 
 export default function ReviewsSection({ mediaId }: { mediaId: number }) {
   const { data: session } = useSession();
+  const reduce = useReducedMotion();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
   const [rating, setRating] = useState(5);
@@ -53,57 +55,71 @@ export default function ReviewsSection({ mediaId }: { mediaId: number }) {
   if (loading) return null;
 
   return (
-    <section>
-      <h2 className="font-display text-xl font-bold mb-4 flex items-center gap-2">
-        <span className="h-4 w-1 rounded-full bg-[var(--color-magenta)]" />
+    <section className={styles.reviewSection}>
+      <h2 className={styles.sectionTitle}>
         Reviews ({reviews.length})
       </h2>
 
       {/* Review Form */}
       {session ? (
-        <form onSubmit={submitReview} className="mb-6 rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] p-4 space-y-3">
-          <div className="flex flex-wrap items-center gap-2">
+        <form onSubmit={submitReview} className={styles.reviewForm}>
+          <div className={styles.formRow}>
             {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-              <button key={n} type="button" onClick={() => setRating(n)}
-                className={`h-7 w-7 rounded text-xs font-bold transition-all ${
-                  n <= rating
-                    ? "bg-[var(--color-magenta)] text-black"
-                    : "bg-[var(--color-void)] text-[var(--color-mute)]"
-                }`}
-              >{n}</button>
+              <button
+                key={n}
+                type="button"
+                onClick={() => setRating(n)}
+                className={`${styles.scoreButton} ${n <= rating ? styles.scoreButtonActive : ""}`}
+              >
+                {n}
+              </button>
             ))}
-            <span className="text-sm text-[var(--color-mute)] ml-2">/10</span>
+            <span className={styles.scoreSuffix}>/10</span>
           </div>
-          <textarea value={comment} onChange={(e) => setComment(e.target.value)}
-            className="w-full rounded-lg border border-[var(--color-line)] bg-[var(--color-void)] px-3 py-2 text-sm resize-none focus:outline-none focus:border-[var(--color-magenta)] transition-colors"
-            rows={2} placeholder="Write a review (optional)" />
-          <button type="submit" disabled={submitting}
-            className="rounded-full bg-[var(--color-magenta)] px-5 py-2.5 text-xs font-bold text-black disabled:opacity-50"
-          >{submitting ? "Submitting..." : "Submit Review"}</button>
+          <textarea
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            className={styles.textarea}
+            rows={2}
+            placeholder="Write a review (optional)"
+          />
+          <div className={styles.formActions}>
+            <button type="submit" disabled={submitting} className={styles.submitButton}>
+              {submitting ? "Submitting..." : "Submit Review"}
+            </button>
+          </div>
         </form>
       ) : (
-        <p className="mb-6 text-sm text-[var(--color-mute)]">
-          <a href="/login" className="text-[var(--color-magenta)] underline">Sign in</a> to leave a review.
+        <p className={styles.signinHint}>
+          <a href="/login" className={styles.signinLink}>Sign in</a> to leave a review.
         </p>
       )}
 
       {/* Reviews List */}
-      <div className="space-y-2">
+      <div className={styles.reviewList}>
         <AnimatePresence>
           {reviews.map((r) => (
-            <motion.div key={r.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-              className="rounded-lg border border-[var(--color-line)] bg-[var(--color-panel)] p-3"
+            <motion.div
+              key={r.id}
+              initial={reduce ? false : { opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={styles.reviewCard}
             >
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-semibold">{r.user.username}</span>
-                <span className="text-xs font-mono font-bold text-[var(--color-magenta)]">{r.rating}/10</span>
+              <div className={styles.reviewHead}>
+                <span className={styles.reviewUser}>{r.user.username}</span>
+                <span className={styles.reviewScore}>{r.rating}/10</span>
               </div>
-              {r.comment && <p className="mt-1 text-sm text-[var(--color-mute)]">{r.comment}</p>}
-              <p className="mt-1 text-[9px] text-[var(--color-mute)]">{new Date(r.createdAt).toLocaleDateString()}</p>
+              {r.comment && <p className={styles.reviewComment}>{r.comment}</p>}
+              <p className={styles.reviewDate}>{new Date(r.createdAt).toLocaleDateString()}</p>
             </motion.div>
           ))}
         </AnimatePresence>
-        {reviews.length === 0 && <p className="text-sm text-[var(--color-mute)]">No reviews yet.</p>}
+        {reviews.length === 0 && (
+          <div className={styles.emptyState}>
+            <span className={styles.emptyGlyph} aria-hidden="true" />
+            <p className={styles.emptyText}>No reviews yet.</p>
+          </div>
+        )}
       </div>
     </section>
   );

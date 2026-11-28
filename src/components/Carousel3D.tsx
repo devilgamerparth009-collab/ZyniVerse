@@ -21,10 +21,14 @@ export default function Carousel3D({
   items,
   accent = "magenta",
   hrefFn,
+  size = "default",
+  variant = "default",
 }: {
   items: CarouselItem[];
   accent?: "magenta" | "violet";
   hrefFn: (item: CarouselItem) => string;
+  size?: "default" | "wide";
+  variant?: "default" | "trending";
 }) {
   const safeItems = useMemo(() => items.filter((item): item is CarouselItem => item != null && item.type != null), [items]);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -103,7 +107,7 @@ export default function Carousel3D({
         className="flex gap-4 overflow-x-auto scrollbar-hide snap-x snap-mandatory pb-4"
         style={{ perspective: "1200px", scrollbarWidth: "none", msOverflowStyle: "none" }}
       >
-        {safeItems.map((item) => {
+        {safeItems.map((item, index) => {
           const href = hrefFn(item);
           const score = item.averageScore ? (item.averageScore / 10).toFixed(1) : null;
           const sub = item.episodes ? `${item.episodes} ep` : item.chapters ? `${item.chapters} ch` : null;
@@ -117,6 +121,9 @@ export default function Carousel3D({
               sub={sub}
               scrollPct={scrollPct}
               accentColor={accentColor}
+              size={size}
+              variant={variant}
+              index={index}
             />
           );
         })}
@@ -126,39 +133,39 @@ export default function Carousel3D({
 }
 
 function CarouselCard({
-  item, href, score, sub, scrollPct, accentColor,
+  item, href, score, sub, scrollPct, accentColor, size, variant, index,
 }: {
   item: CarouselItem; href: string; score: string | null; sub: string | null;
-  scrollPct: number; accentColor: string;
+  scrollPct: number; accentColor: string; size: "default" | "wide";
+  variant: "default" | "trending"; index: number;
 }) {
   return (
     <div
-      className="snap-center shrink-0 first:ml-8 last:mr-8"
-      style={{ width: 200 }}
+      className={`mdt-carousel-slide snap-center shrink-0 first:ml-8 last:mr-8${size === "wide" ? " is-wide" : ""}${variant === "trending" ? " is-trending" : ""}`}
     >
       <div
         style={{
           transform: `rotateY(${(scrollPct - 0.5) * 20}deg)`,
           transition: "transform 0.2s ease-out",
         }}
-        className="card-glow relative rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] overflow-hidden transition-shadow duration-300 hover:shadow-[0_0_30px_-5px_var(--tw-shadow-color)] hover:scale-105 hover:z-10"
+        className="card-glow mdt-trend-card relative overflow-hidden rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] transition-shadow duration-300 hover:z-10 hover:scale-105 hover:shadow-[0_0_30px_-5px_var(--tw-shadow-color)]"
       >
-        <Link href={href} className="block group">
-          <div className="relative aspect-[2/3] overflow-hidden">
+        <Link href={href} className="mdt-trend-link block group">
+          <div className="mdt-trend-cover relative aspect-[2/3] overflow-hidden" data-index={String(index + 1).padStart(2, "0")}>
             <Image
-              src={item.coverImage?.large || item.coverImage?.extraLarge || ""}
+              src={item.coverImage?.extraLarge || item.coverImage?.large || item.coverImage?.medium || ""}
               alt={bestTitle(item.title)}
               fill
               className="object-cover transition-transform duration-700 group-hover:scale-110"
               sizes="(max-width: 768px) 50vw, 25vw"
             />
 
-            <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
+            <div className="mdt-trend-shade absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
 
             {/* Score badge */}
             {score && (
               <span
-                className="absolute right-2 top-2 rounded-full bg-black/70 px-2 py-1 text-[10px] font-mono font-semibold backdrop-blur"
+                className="mdt-trend-score absolute right-2 top-2 rounded-full bg-black/70 px-2 py-1 font-mono text-[10px] font-semibold backdrop-blur"
                 style={{ color: accentColor }}
               >
                 {score}
@@ -166,8 +173,8 @@ function CarouselCard({
             )}
 
             {/* Format badge */}
-            <div className="absolute inset-x-0 bottom-0 p-3">
-              <h3 className="font-display text-sm font-semibold leading-tight text-[var(--color-ink)] truncate">
+            <div className="mdt-trend-meta absolute inset-x-0 bottom-0 p-3">
+              <h3 className="mdt-trend-title truncate font-display text-sm font-semibold leading-tight text-[var(--color-ink)]">
                 {bestTitle(item.title)}
               </h3>
               <div className="mt-1 flex items-center gap-2 text-[10px] text-[var(--color-mute)]">

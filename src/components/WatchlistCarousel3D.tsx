@@ -1,14 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { bestTitle } from "@/lib/anilist";
 import { LIST_STATUS_LABELS, type WatchlistItem } from "./WatchlistProvider";
+import styles from "./watchlist.module.css";
 
 export default function WatchlistCarousel3D({ items }: { items: WatchlistItem[] }) {
   const [active, setActive] = useState(0);
+  const reduced = useReducedMotion();
   const total = items.length;
   // `active` can outlive a shrinking list (e.g. after filtering), so clamp it
   // at render time instead of trusting it to always be in range.
@@ -16,6 +18,17 @@ export default function WatchlistCarousel3D({ items }: { items: WatchlistItem[] 
 
   function goNext() { setActive((a) => (a + 1) % total); }
   function goPrev() { setActive((a) => (a - 1 + total) % total); }
+
+  function onKeyDown(e: ReactKeyboardEvent<HTMLDivElement>) {
+    if (total < 2) return;
+    if (e.key === "ArrowRight") {
+      e.preventDefault();
+      goNext();
+    } else if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      goPrev();
+    }
+  }
 
   if (total === 0) return null;
 
@@ -26,7 +39,14 @@ export default function WatchlistCarousel3D({ items }: { items: WatchlistItem[] 
   const getIndex = (offset: number) => (current + offset + total) % total;
 
   return (
-    <div className="relative flex items-center justify-center py-10 perspective-[1200px]">
+    <div
+      role="region"
+      aria-roledescription="carousel"
+      aria-label="Watchlist carousel — use the arrow keys to browse"
+      tabIndex={0}
+      onKeyDown={onKeyDown}
+      className="relative flex items-center justify-center py-10 perspective-[1200px] focus:outline-none"
+    >
       {/* Carousel stage */}
       <div className="relative flex items-center justify-center h-[300px] sm:h-[420px] w-full" style={{ transformStyle: "preserve-3d" }}>
         {/* Left cards */}
@@ -45,7 +65,9 @@ export default function WatchlistCarousel3D({ items }: { items: WatchlistItem[] 
               className="absolute cursor-pointer"
               style={{ transformStyle: "preserve-3d" }}
               animate={{ x, z: z - 200, scale, opacity: Math.max(0, opacity), rotateY }}
-              transition={{ type: "spring", stiffness: 200, damping: 25 }}
+              transition={
+                reduced ? { duration: 0 } : { type: "spring", stiffness: 200, damping: 25 }
+              }
               onClick={goPrev}
             >
               <div className="relative h-64 w-40 overflow-hidden rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] shadow-xl">
@@ -68,13 +90,17 @@ export default function WatchlistCarousel3D({ items }: { items: WatchlistItem[] 
             key={`active-${items[current].id}`}
             className="absolute z-10 cursor-pointer"
             style={{ transformStyle: "preserve-3d" }}
-            initial={{ opacity: 0, scale: 0.8, rotateY: -10, z: -100 }}
+            initial={reduced ? false : { opacity: 0, scale: 0.8, rotateY: -10, z: -100 }}
             animate={{ opacity: 1, scale: 1, rotateY: 0, z: 0 }}
-            exit={{ opacity: 0, scale: 0.8, rotateY: 10, z: -100 }}
-            transition={{ type: "spring", stiffness: 200, damping: 25 }}
+            exit={reduced ? { opacity: 0 } : { opacity: 0, scale: 0.8, rotateY: 10, z: -100 }}
+            transition={
+              reduced ? { duration: 0 } : { type: "spring", stiffness: 200, damping: 25 }
+            }
           >
             <Link href={`/${items[current].type === "MANGA" ? "manga" : "anime"}/${items[current].id}`} className="block">
-              <div className="relative h-80 w-52 overflow-hidden rounded-2xl border-2 border-[var(--color-magenta)]/50 bg-[var(--color-panel)] shadow-2xl shadow-[var(--color-magenta)]/20">
+              <div
+                className={`relative h-80 w-52 overflow-hidden rounded-2xl border-2 border-[var(--color-magenta)]/50 bg-[var(--color-panel)] shadow-2xl shadow-[var(--color-magenta)]/20 ${styles.carouselCard}`}
+              >
                 {items[current].coverImage?.large || items[current].coverImage?.extraLarge ? (
                   <Image src={(items[current].coverImage?.large || items[current].coverImage?.extraLarge)!} alt="" fill className="object-cover" sizes="(max-width: 768px) 50vw, 25vw" />
                 ) : (
@@ -114,7 +140,9 @@ export default function WatchlistCarousel3D({ items }: { items: WatchlistItem[] 
               className="absolute cursor-pointer"
               style={{ transformStyle: "preserve-3d" }}
               animate={{ x, z: -200, scale, opacity: Math.max(0, opacity), rotateY }}
-              transition={{ type: "spring", stiffness: 200, damping: 25 }}
+              transition={
+                reduced ? { duration: 0 } : { type: "spring", stiffness: 200, damping: 25 }
+              }
               onClick={goNext}
             >
               <div className="relative h-64 w-40 overflow-hidden rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] shadow-xl">

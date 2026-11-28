@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { apiLimiter } from "@/lib/rate-limiter";
 import { castTournamentVote } from "@/lib/character-tournaments";
 import { prisma } from "@/lib/prisma";
-import { getSessionUserId } from "@/lib/session-user";
+import { resolveUserId } from "@/lib/resolve-user";
 
 const DEVICE_ID_RE = /^[a-zA-Z0-9_-]{8,64}$/;
 
@@ -12,13 +12,21 @@ function readDeviceId(req: NextRequest): string | null {
   return raw;
 }
 
+async function readUserId(req: NextRequest): Promise<string | null> {
+  const hasBearer = /^Bearer\s+/i.test(req.headers.get("authorization") || "");
+  const hasSessionCookie = /(?:^|;\s*)(?:__Secure-)?(?:authjs|next-auth)\.session-token=/.test(
+    req.headers.get("cookie") || ""
+  );
+  return hasBearer || hasSessionCookie ? resolveUserId() : null;
+}
+
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string; matchId: string }> }) {
   const rateCheck = await apiLimiter.middleware(req);
   if (rateCheck) return rateCheck;
 
-  // Voting is open to guests, matching the qualifying poll. getSessionUserId
-  // skips the auth() call entirely when there is no session cookie.
-  const userId = await getSessionUserId(req.headers);
+  // Voting is open to guests, matching the qualifying poll. Session resolution
+  // is skipped entirely for anonymous requests.
+  const userId = await readUserId(req);
   const deviceId = readDeviceId(req);
   if (!userId && !deviceId) {
     return NextResponse.json({ error: "Vote requires a device" }, { status: 400 });

@@ -2,11 +2,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getConventionById } from "@/lib/conventions";
+import { addDaysToDateOnly, formatDetailDateRange } from "@/lib/convention-dates";
 
 // Next.js only enables on-demand ISR for a dynamic segment when
 // `generateStaticParams` exists. Empty array => no build-time prerender, but
 // hits after the first are served from the CDN instead of a billed Node render.
-export const revalidate = 172800;
+// Match the conventions API TTL so status labels do not lag by days.
+export const revalidate = 300;
 
 export function generateStaticParams() {
   return [];
@@ -34,13 +36,12 @@ export default async function ConventionDetailPage({ params }: Props) {
   const c = await getConventionById(id);
   if (!c) notFound();
 
-  const start = new Date(c.startDate);
-  const end = new Date(c.endDate);
-
-  const dateStr = `${start.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })} — ${end.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}`;
+  const dateStr = formatDetailDateRange(c.startDate, c.endDate);
 
   const googleMapsQuery = encodeURIComponent(`${c.venue}, ${c.city}, ${c.state}`);
-  const googleCalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(c.name)}&dates=${c.startDate.replace(/-/g, "")}/${c.endDate.replace(/-/g, "")}&details=${encodeURIComponent(c.description)}&location=${encodeURIComponent(c.venue)}`;
+  // Google all-day events use an exclusive end date.
+  const googleCalEnd = addDaysToDateOnly(c.endDate, 1).replace(/-/g, "");
+  const googleCalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(c.name)}&dates=${c.startDate.replace(/-/g, "")}/${googleCalEnd}&details=${encodeURIComponent(c.description)}&location=${encodeURIComponent(c.venue)}`;
 
   const STATUS_COLORS: Record<string, string> = {
     upcoming: "text-green-400 border-green-500/50 bg-green-500/10",
@@ -109,6 +110,9 @@ export default async function ConventionDetailPage({ params }: Props) {
         <div className="mb-6">
           <h3 className="font-display font-bold text-sm mb-2">About</h3>
           <p className="text-sm text-[var(--color-mute)] leading-relaxed">{c.description}</p>
+          <p className="mt-2 text-[11px] text-[var(--color-mute)]/60">
+            Official organiser and ticket fields are checked daily; baseline source check on 28 Nov 2026.
+          </p>
         </div>
 
         {c.tags.length > 0 && (

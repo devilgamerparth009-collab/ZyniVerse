@@ -13,6 +13,7 @@ prisma/dev.db
 # server logs
 *.log
 .vercel
+.vercel.old/
 .env*
 !.env.example
 

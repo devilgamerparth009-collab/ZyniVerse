@@ -1,0 +1,777 @@
+/* Zyni AI Lab visual layer. Motion is CSS-only and reduced-motion safe. */
+
+.labSection {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  padding: 1.15rem;
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 16%, var(--color-line));
+  border-radius: 1.25rem;
+  background:
+    radial-gradient(320px 180px at 100% 0%, color-mix(in srgb, var(--color-cyan) 12%, transparent), transparent 72%),
+    radial-gradient(300px 180px at 0% 100%, color-mix(in srgb, var(--color-magenta) 10%, transparent), transparent 74%),
+    linear-gradient(150deg, color-mix(in srgb, var(--color-panel) 96%, var(--color-void)), color-mix(in srgb, var(--color-void) 66%, var(--color-panel)));
+  box-shadow: 0 26px 64px -48px color-mix(in srgb, var(--color-cyan) 72%, transparent);
+  animation: labIn 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.labGlow {
+  position: absolute;
+  top: -4rem;
+  right: -3rem;
+  width: 12rem;
+  height: 12rem;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--color-cyan) 16%, transparent);
+  filter: blur(3rem);
+  pointer-events: none;
+}
+
+.labHead {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.labTitle {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.labMark {
+  width: 0.25rem;
+  height: 1rem;
+  border-radius: 9999px;
+  background: linear-gradient(180deg, var(--color-cyan), var(--color-magenta));
+  box-shadow: 0 0 12px -4px var(--color-cyan);
+}
+
+.labBadge,
+.labLink,
+.freshButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border-radius: 9999px;
+  padding: 0.35rem 0.65rem;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.labBadge {
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 40%, transparent);
+  background: color-mix(in srgb, var(--color-cyan) 10%, transparent);
+  color: var(--color-cyan);
+}
+
+.labActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.labLink {
+  border: 1px solid color-mix(in srgb, var(--color-magenta) 42%, transparent);
+  background: color-mix(in srgb, var(--color-magenta) 10%, transparent);
+  color: var(--color-magenta);
+  transition: transform 0.22s ease, border-color 0.22s ease, background 0.22s ease, box-shadow 0.22s ease;
+}
+
+.labLink:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--color-magenta) 68%, transparent);
+  background: color-mix(in srgb, var(--color-magenta) 18%, transparent);
+  box-shadow: 0 12px 26px -18px var(--color-magenta);
+}
+
+.freshButton {
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 46%, transparent);
+  background: linear-gradient(120deg, color-mix(in srgb, var(--color-cyan) 20%, transparent), color-mix(in srgb, var(--color-magenta) 16%, transparent));
+  color: var(--color-ink);
+  cursor: pointer;
+  transition: transform 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease;
+}
+
+.freshButton:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--color-cyan) 72%, transparent);
+  box-shadow: 0 12px 28px -18px var(--color-cyan);
+}
+
+.freshButton:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.tabRail {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+  margin-bottom: 0.9rem;
+}
+
+@media (min-width: 640px) {
+  .tabRail {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .tabRail {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+.tab {
+  position: relative;
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--color-line) 92%, transparent);
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--color-panel) 88%, var(--color-void));
+  padding: 0.55rem 0.6rem;
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: var(--color-mute);
+  cursor: pointer;
+  transition: transform 0.22s ease, border-color 0.22s ease, background 0.22s ease, color 0.22s ease, box-shadow 0.22s ease;
+}
+
+.tab:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--color-cyan) 48%, transparent);
+  color: var(--color-cyan);
+}
+
+.tabActive {
+  border-color: color-mix(in srgb, var(--color-cyan) 58%, transparent);
+  background: linear-gradient(120deg, color-mix(in srgb, var(--color-cyan) 18%, var(--color-panel)), color-mix(in srgb, var(--color-magenta) 12%, var(--color-panel)));
+  color: var(--color-ink);
+  box-shadow: 0 14px 32px -22px var(--color-cyan), inset 0 0 0 1px color-mix(in srgb, var(--color-cyan) 12%, transparent);
+}
+
+.tabEmoji {
+  flex: none;
+  font-size: 0.9rem;
+}
+
+.tabLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.labPanel {
+  position: relative;
+  z-index: 1;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 20%, var(--color-line));
+  border-radius: 1rem;
+  background:
+    radial-gradient(260px 140px at 100% 0%, color-mix(in srgb, var(--color-magenta) 8%, transparent), transparent 72%),
+    linear-gradient(145deg, color-mix(in srgb, var(--color-void) 72%, var(--color-panel)), color-mix(in srgb, var(--color-panel) 96%, var(--color-void)));
+  padding: 1.1rem;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--color-cyan) 10%, transparent), 0 18px 48px -38px color-mix(in srgb, var(--color-magenta) 70%, transparent);
+}
+
+.labPanel > * {
+  position: relative;
+  z-index: 1;
+}
+
+.skeletonStack {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.skeletonLine {
+  border-radius: 0.5rem;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--color-cyan) 8%, transparent) 25%,
+    color-mix(in srgb, var(--color-magenta) 12%, transparent) 50%,
+    color-mix(in srgb, var(--color-cyan) 8%, transparent) 75%
+  );
+  background-size: 220% 100%;
+  animation: skeletonShimmer 1.5s linear infinite;
+}
+
+.skeletonLg {
+  width: 75%;
+  height: 1rem;
+}
+
+.skeletonMd {
+  width: 100%;
+  height: 0.75rem;
+}
+
+.skeletonSm {
+  width: 82%;
+  height: 0.75rem;
+}
+
+.loadingNote {
+  margin: 0.35rem 0 0;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  color: var(--color-mute);
+}
+
+.errorState {
+  padding: 1.3rem 0.4rem;
+  text-align: center;
+}
+
+.errorIcon {
+  font-size: 1.6rem;
+}
+
+.errorText {
+  margin: 0.55rem auto 0;
+  max-width: 32rem;
+  font-size: 0.82rem;
+  line-height: 1.6;
+  color: var(--color-mute);
+}
+
+.errorButton {
+  display: inline-block;
+  margin-top: 0.85rem;
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 50%, transparent);
+  border-radius: 9999px;
+  background: linear-gradient(120deg, color-mix(in srgb, var(--color-cyan) 18%, transparent), color-mix(in srgb, var(--color-magenta) 14%, transparent));
+  padding: 0.5rem 1.2rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--color-ink);
+  transition: transform 0.22s ease, box-shadow 0.22s ease;
+}
+
+.errorButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 30px -20px var(--color-cyan);
+}
+
+.theoryCard {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--color-magenta) 22%, transparent);
+  border-radius: 0.9rem;
+  background:
+    radial-gradient(260px 150px at 100% 0%, color-mix(in srgb, var(--color-cyan) 12%, transparent), transparent 70%),
+    linear-gradient(145deg, color-mix(in srgb, var(--color-void) 84%, #1a1030), color-mix(in srgb, var(--color-void) 94%, #0d0b16));
+  padding: 1.05rem;
+}
+
+.theoryTop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--color-cyan);
+}
+
+.theoryDivider {
+  color: color-mix(in srgb, var(--color-mute) 62%, transparent);
+}
+
+.theoryAnime {
+  color: var(--color-mute);
+  letter-spacing: 0.04em;
+  text-transform: none;
+}
+
+.theoryTitle {
+  margin: 0.75rem 0 0;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 800;
+  line-height: 1.35;
+  color: var(--color-ink);
+}
+
+.confidenceTrack {
+  height: 0.35rem;
+  overflow: hidden;
+  margin-top: 0.85rem;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--color-line) 82%, transparent);
+}
+
+.confidenceFill {
+  height: 100%;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, var(--color-cyan), var(--color-magenta));
+  box-shadow: 0 0 12px -4px var(--color-cyan);
+}
+
+.confidenceNote {
+  margin: 0.35rem 0 0;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.58rem;
+  color: var(--color-mute);
+}
+
+.predictionList {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 1.1rem;
+}
+
+.predictionCard {
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 18%, transparent);
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--color-cyan) 5%, rgba(5, 5, 10, 0.52));
+  padding: 0.75rem;
+  transition: border-color 0.22s ease, background 0.22s ease, transform 0.22s ease;
+}
+
+.predictionCard:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--color-magenta) 44%, transparent);
+  background: color-mix(in srgb, var(--color-magenta) 7%, rgba(5, 5, 10, 0.52));
+}
+
+.predictionMeta {
+  margin: 0;
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-magenta);
+}
+
+.predictionText {
+  margin: 0.35rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.6;
+  color: color-mix(in srgb, var(--color-ink) 86%, var(--color-mute));
+}
+
+.theoryFooter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  border-top: 1px solid color-mix(in srgb, var(--color-cyan) 14%, transparent);
+  padding-top: 0.75rem;
+}
+
+.theoryGenerated {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.55rem;
+  color: var(--color-mute);
+}
+
+.theoryBrand {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: color-mix(in srgb, var(--color-cyan) 72%, var(--color-ink));
+}
+
+.actionBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.9rem;
+}
+
+.actionButton {
+  border: 1px solid color-mix(in srgb, var(--color-line) 88%, transparent);
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--color-panel) 84%, var(--color-void));
+  padding: 0.5rem 0.85rem;
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: var(--color-mute);
+  cursor: pointer;
+  transition: transform 0.22s ease, border-color 0.22s ease, color 0.22s ease, box-shadow 0.22s ease;
+}
+
+.actionButton:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--color-cyan) 48%, transparent);
+  color: var(--color-cyan);
+}
+
+.actionButton:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.actionAgreeActive {
+  border-color: color-mix(in srgb, var(--color-cyan) 62%, transparent);
+  background: color-mix(in srgb, var(--color-cyan) 16%, var(--color-void));
+  color: var(--color-cyan);
+}
+
+.actionCapActive {
+  border-color: color-mix(in srgb, var(--color-magenta) 62%, transparent);
+  background: color-mix(in srgb, var(--color-magenta) 16%, var(--color-void));
+  color: var(--color-magenta);
+}
+
+.actionSave:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--color-magenta) 52%, transparent);
+  color: var(--color-magenta);
+}
+
+.viewStack {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.viewKicker {
+  display: block;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--color-cyan);
+}
+
+.viewTitle {
+  margin: 0.35rem 0 0;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.4;
+  color: var(--color-ink);
+}
+
+.viewLead {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.65;
+  color: color-mix(in srgb, var(--color-ink) 82%, var(--color-mute));
+}
+
+.hookLead {
+  font-style: italic;
+  font-weight: 700;
+  color: var(--color-cyan);
+}
+
+.viewIcon {
+  font-size: 1.4rem;
+  filter: drop-shadow(0 8px 18px color-mix(in srgb, var(--color-cyan) 30%, transparent));
+}
+
+.chipRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.infoChip {
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 24%, transparent);
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--color-cyan) 9%, transparent);
+  padding: 0.3rem 0.65rem;
+  font-size: 0.7rem;
+  color: var(--color-cyan);
+}
+
+.castList {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.castRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  border: 1px solid color-mix(in srgb, var(--color-magenta) 18%, transparent);
+  border-radius: 0.8rem;
+  background: color-mix(in srgb, var(--color-magenta) 5%, rgba(5, 5, 10, 0.48));
+  padding: 0.7rem;
+  transition: border-color 0.22s ease, transform 0.22s ease;
+}
+
+.castRow:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--color-magenta) 44%, transparent);
+}
+
+.castNumber {
+  flex: none;
+  border-radius: 0.4rem;
+  background: color-mix(in srgb, var(--color-magenta) 16%, transparent);
+  padding: 0.15rem 0.45rem;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.58rem;
+  font-weight: 800;
+  color: var(--color-magenta);
+}
+
+.castBody {
+  min-width: 0;
+}
+
+.castLine {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: var(--color-ink);
+}
+
+.castArrow {
+  margin: 0 0.25rem;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.65rem;
+  font-weight: 400;
+  color: var(--color-mute);
+}
+
+.castActor {
+  color: var(--color-cyan);
+}
+
+.castReason {
+  margin: 0.25rem 0 0;
+  font-size: 0.72rem;
+  line-height: 1.55;
+  color: var(--color-mute);
+}
+
+.stakesBox,
+.teaseBox {
+  border-radius: 0.75rem;
+  padding: 0.7rem 0.8rem;
+  font-size: 0.78rem;
+  line-height: 1.6;
+}
+
+.stakesBox {
+  border: 1px solid color-mix(in srgb, var(--color-line) 88%, transparent);
+  background: color-mix(in srgb, var(--color-panel) 70%, var(--color-void));
+}
+
+.stakesLabel {
+  font-weight: 800;
+  color: var(--color-magenta);
+}
+
+.teaseBox {
+  border: 1px solid color-mix(in srgb, var(--color-magenta) 34%, transparent);
+  background: color-mix(in srgb, var(--color-magenta) 10%, transparent);
+  font-style: italic;
+  color: var(--color-magenta);
+}
+
+.newFaces {
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.6;
+  color: var(--color-mute);
+}
+
+.newFacesStrong {
+  font-weight: 800;
+  color: var(--color-ink);
+}
+
+.teamGrid {
+  display: grid;
+  gap: 0.55rem;
+}
+
+@media (min-width: 640px) {
+  .teamGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.teamCard {
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 18%, transparent);
+  border-radius: 0.8rem;
+  background: color-mix(in srgb, var(--color-cyan) 5%, rgba(5, 5, 10, 0.48));
+  padding: 0.7rem;
+  transition: border-color 0.22s ease, transform 0.22s ease;
+}
+
+.teamCard:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--color-cyan) 46%, transparent);
+}
+
+.teamMember {
+  margin: 0;
+  font-size: 0.84rem;
+  font-weight: 800;
+  color: var(--color-ink);
+}
+
+.teamRole {
+  margin: 0.2rem 0 0;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--color-magenta);
+}
+
+.teamPower {
+  margin: 0.4rem 0 0;
+  font-size: 0.72rem;
+  line-height: 1.55;
+  color: var(--color-mute);
+}
+
+.tasteCard {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.tasteHead {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.scoreRing {
+  position: relative;
+  display: grid;
+  flex: none;
+  width: 4.75rem;
+  height: 4.75rem;
+  place-items: center;
+  border-radius: 9999px;
+}
+
+.scoreInner {
+  display: grid;
+  width: 3.85rem;
+  height: 3.85rem;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--color-line) 82%, transparent);
+  border-radius: 9999px;
+  background: var(--color-panel);
+}
+
+.scoreValue {
+  font-family: var(--font-mono, monospace);
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.tasteQuestion {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: var(--color-ink);
+}
+
+.verdict {
+  display: inline-block;
+  margin-top: 0.45rem;
+  border: 1px solid transparent;
+  border-radius: 9999px;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.reasonList {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.reasonRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 16%, transparent);
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--color-cyan) 5%, rgba(5, 5, 10, 0.48));
+  padding: 0.65rem;
+}
+
+.reasonBullet {
+  flex: none;
+  color: var(--color-cyan);
+}
+
+.reasonText {
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.6;
+  color: var(--color-mute);
+}
+
+.tasteNote {
+  margin: 0;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.55rem;
+  line-height: 1.5;
+  color: var(--color-mute);
+}
+
+@keyframes labIn {
+  from { opacity: 0; transform: translateY(12px); filter: blur(3px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+
+@keyframes skeletonShimmer {
+  from { background-position: 180% 0; }
+  to { background-position: -40% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .labSection,
+  .labGlow,
+  .tab,
+  .labLink,
+  .freshButton,
+  .predictionCard,
+  .actionButton,
+  .errorButton,
+  .castRow,
+  .teamCard,
+  .skeletonLine {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .tab:hover,
+  .labLink:hover,
+  .freshButton:hover:not(:disabled),
+  .predictionCard:hover,
+  .actionButton:hover:not(:disabled),
+  .errorButton:hover,
+  .castRow:hover,
+  .teamCard:hover {
+    transform: none !important;
+  }
+}

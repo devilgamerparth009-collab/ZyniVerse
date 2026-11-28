@@ -3,7 +3,15 @@ import Link from "next/link";
 import { cache } from "react";
 import { getAnimeDetailFull, getPopular, bestTitle } from "@/lib/anilist";
 import { getAnimeEditorial } from "@/lib/anime-editorials";
+import styles from "./anime-info.module.css";
 
+// Keep the page TTL and the low-cardinality "Popular Anime Guides" fetch on the
+// same window. Previously `getPopular(60)` used the 24h list default, which
+// dragged this whole route's effective ISR window down to 24h and caused ~7x
+// the revalidation work.
+const ANIME_PAGE_REVALIDATE = 604800;
+// Next's build-time segment-config parser only accepts a literal here, so keep
+// the shared constant for fetch TTLs and repeat the literal for the segment.
 export const revalidate = 604800;
 
 // No generateStaticParams on purpose: prerendering anime pages at build
@@ -25,20 +33,20 @@ function isoDate(
 }
 
 async function PopularAnimeLinks() {
-  const popular = await getPopular(60).catch(() => [] as PopularMedia[]);
+  const popular = await getPopular(60, ANIME_PAGE_REVALIDATE).catch(() => [] as PopularMedia[]);
   if (popular.length === 0) return null;
   return (
-    <nav className="mx-auto my-8 max-w-7xl px-4 sm:px-6" aria-label="Popular anime guides">
-      <div className="rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)]/50 p-5">
-        <h2 className="mb-3 font-display text-sm font-bold uppercase tracking-wider text-[var(--color-mute)]">
+    <nav className={styles.linkNav} aria-label="Popular anime guides">
+      <div className={styles.linkPanel}>
+        <h2 className={styles.linkHeading}>
           Popular Anime Guides
         </h2>
-        <div className="flex flex-wrap gap-x-4 gap-y-2">
+        <div className={styles.linkGrid}>
           {popular.map((m) => (
             <Link
               key={m.id}
               href={`/anime/${m.id}`}
-              className="text-sm text-[var(--color-mute)] underline decoration-[var(--color-line)] underline-offset-4 transition-colors hover:text-[var(--color-cyan)]"
+              className={styles.linkChip}
             >
               {bestTitle(m.title)}
             </Link>
@@ -201,17 +209,17 @@ export default async function AnimeLayout({ children, params }: { children: Reac
       )}
       {children}
       {related.length > 0 && (
-        <nav className="mx-auto my-8 max-w-7xl px-4 sm:px-6" aria-label="Related anime and manga">
-          <div className="rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)]/50 p-5">
-            <h2 className="mb-3 font-display text-sm font-bold uppercase tracking-wider text-[var(--color-mute)]">
+        <nav className={styles.linkNav} aria-label="Related anime and manga">
+          <div className={styles.linkPanel}>
+            <h2 className={styles.linkHeading}>
               Related Titles
             </h2>
-            <div className="flex flex-wrap gap-x-4 gap-y-2">
+            <div className={styles.linkGrid}>
               {related.slice(0, 6).map((m) => (
                 <Link
                   key={`${m.type}-${m.id}`}
                   href={`/${m.type === "MANGA" ? "manga" : "anime"}/${m.id}`}
-                  className="text-sm text-[var(--color-mute)] underline decoration-[var(--color-line)] underline-offset-4 transition-colors hover:text-[var(--color-cyan)]"
+                  className={styles.linkChip}
                 >
                   {bestTitle(m.title)}
                 </Link>

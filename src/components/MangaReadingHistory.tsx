@@ -48,15 +48,25 @@ export default function MangaReadingHistory({ mediaId }: { mediaId: number }) {
   if (loading) return null;
 
   return (
-    <div className="rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5">
-      <h3 className="font-display text-sm font-bold mb-3 flex items-center gap-2">
-        <span className="h-3 w-1 rounded-full bg-[var(--color-violet)]" />
-        Reading History
-      </h3>
+    <div className="mdt-card mdt-history">
+      <div className="mdt-card-head">
+        <h3 className="font-display text-sm font-bold">
+          <span className="mdt-history-mark" aria-hidden />
+          Reading History
+        </h3>
+        <span className="mdt-card-badge">{history.length} saved</span>
+      </div>
       {history.length === 0 ? (
-        <p className="text-xs text-[var(--color-mute)]">No chapters read yet. Track your reading to build a history.</p>
+        <div className="mdt-history-empty">
+          <span className="mdt-history-empty-track" aria-hidden>
+            <span className="mdt-history-empty-dot" />
+            <span className="mdt-history-empty-dot" />
+            <span className="mdt-history-empty-dot" />
+          </span>
+          <p>No chapters read yet. Track your reading to build a history.</p>
+        </div>
       ) : (
-        <ol className="space-y-1.5 max-h-80 overflow-y-auto">
+        <ol className="mdt-history-list">
           {history.map((h) => {
             const readerHref = h.entry.mangaDexId
               ? `/manga/read/${h.entry.mangaDexId}?mediaId=${h.entry.mediaId}&chapter=${h.chapter}&title=${encodeURIComponent(h.entry.title)}`
@@ -66,25 +76,21 @@ export default function MangaReadingHistory({ mediaId }: { mediaId: number }) {
             <li key={`${h.entry.mediaId}-${h.chapter}`}>
               <Link
                 href={href}
-                className={`group flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-white/5 ${
-                  h.entry.mediaId === mediaId ? "bg-[var(--color-violet)]/10" : ""
-                }`}
+                className={`mdt-history-row ${h.entry.mediaId === mediaId ? "is-current" : ""}`}
               >
-                <div className="relative h-10 w-8 shrink-0 rounded overflow-hidden border border-[var(--color-line)]">
+                <span className="mdt-history-cover">
                   {h.entry.coverImage && (
-                    <Image src={h.entry.coverImage} alt="" fill className="object-cover" sizes="32px" unoptimized />
+                    <Image src={h.entry.coverImage} alt="" fill className="mdt-history-img" sizes="32px" unoptimized />
                   )}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-semibold truncate group-hover:text-[var(--color-violet)] transition-colors">
-                    {h.entry.title}
-                  </p>
-                  <p className="text-[10px] text-[var(--color-mute)]">
+                </span>
+                <span className="mdt-history-body">
+                  <span className="mdt-history-title">{h.entry.title}</span>
+                  <span className="mdt-history-meta">
                     {h.entry.subType === "manga" ? "Manga" : h.entry.subType.replace("_", " ")} • Ch. {h.chapter}
                     {h.title ? ` — ${h.title}` : ""}
-                  </p>
-                </div>
-                <span className="shrink-0 text-[10px] font-mono text-[var(--color-mute)]">{timeAgo(h.readAt)}</span>
+                  </span>
+                </span>
+                <span className="mdt-history-time">{timeAgo(h.readAt)}</span>
               </Link>
             </li>
             );

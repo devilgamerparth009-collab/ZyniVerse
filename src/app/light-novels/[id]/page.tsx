@@ -14,13 +14,25 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { PageTransition } from "@/components/PageTransition";
 import MangaProgress from "@/components/MangaProgress";
 import AffiliateLink from "@/components/AffiliateLink";
+import PlayAsiaPill from "@/components/PlayAsiaPill";
 import ShareButton from "@/components/ShareButton";
+import AdBanner from "@/components/AdBanner";
 import { STATUS_LABELS, STATUS_COLORS } from "@/lib/manga";
 import type { MediaMangaFull } from "@/lib/anilist";
 import { logError } from "@/lib/logger";
 
 function stripHtml(str: string | null | undefined = "") { return str ? str.replace(/<[^>]*>/g, "") : ""; }
 function formatScore(score?: number) { return score ? (score / 10).toFixed(1) : "—"; }
+
+// Some AniList entries only carry a native-script title. Show the readable
+// romanized/Latin title instead and keep the source value as a tooltip.
+function readableNative(native: string | undefined | null, fallback: string) {
+  if (!native) return "";
+  const foreignScript = /[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af\u0400-\u04ff\u0600-\u06ff]/;
+  return foreignScript.test(native) ? fallback : native;
+}
+
+const COUNTRY_LABELS: Record<string, string> = { JP: "Japan" };
 
 // Route a related/recommended title to its correct detail page. Light novels
 // (format === "NOVEL") live under /light-novels, not /manga.
@@ -194,6 +206,7 @@ export default function LightNovelDetailsPage() {
   if (!ln) return null;
 
   const title = bestTitle(ln.title);
+  const nativeTitle = readableNative(ln.title.native, title);
   const chars = ln.characters?.edges || [];
   const staffEdges = ln.staff?.edges || [];
   const links = (ln.externalLinks || []).filter((l) => !l.isDisabled);
@@ -205,11 +218,15 @@ export default function LightNovelDetailsPage() {
   const scoreDist = ln.stats?.scoreDistribution || [];
 
   return (
-    <PageTransition><ErrorBoundary label="LightNovelDetails"><div>
+    <PageTransition><ErrorBoundary label="LightNovelDetails"><div className="lnh-page">
       {/* Hero */}
-      <div className="relative border-b border-[var(--color-line)]">
+      <div className="lnh-hero relative border-b border-[var(--color-line)]">
+        <span className="lnh-hero-grid" aria-hidden="true" />
+        <span className="lnh-hero-orb lnh-hero-orb-a" aria-hidden="true" />
+        <span className="lnh-hero-orb lnh-hero-orb-b" aria-hidden="true" />
+        <span className="lnh-hero-scan" aria-hidden="true" />
         {ln.bannerImage && (
-          <motion.div className="absolute inset-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.8, ease: "easeOut" }}>
+          <motion.div className="lnh-banner absolute inset-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.8, ease: "easeOut" }}>
             <div className="relative h-full w-full">
               <Image src={ln.bannerImage} alt="" fill loading="eager" fetchPriority="high" className="object-cover opacity-20" sizes="100vw" />
             </div>
@@ -217,13 +234,13 @@ export default function LightNovelDetailsPage() {
           </motion.div>
         )}
 
-        <div className="relative mx-auto flex max-w-6xl flex-col gap-6 px-4 py-10 sm:flex-row sm:px-6 sm:py-14">
+        <div className="lnh-hero-inner relative mx-auto flex max-w-[1600px] flex-col gap-6 px-4 py-10 sm:flex-row sm:px-6 sm:py-14">
           <motion.div
             initial={{ opacity: 0, scale: 0.94 }}
             animate={{ opacity: 1, scale: 1 }}
             whileHover={{ y: -6, transition: { duration: 0.25, ease: "easeOut" } }}
             transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-            className="relative shrink-0 h-64 w-44 sm:h-80 sm:w-56 rounded-xl border border-[var(--color-line)] shadow-2xl overflow-hidden"
+            className="lnh-cover relative shrink-0 h-64 w-44 sm:h-80 sm:w-56 rounded-xl border border-[var(--color-line)] shadow-2xl overflow-hidden"
           >
             <Image
               src={ln.coverImage?.large || ln.coverImage?.extraLarge || ""}
@@ -234,31 +251,49 @@ export default function LightNovelDetailsPage() {
             />
           </motion.div>
 
-          <div className="min-w-0 flex-1">
-            <span className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-[var(--color-cyan)]/20 px-2.5 py-1 text-xs font-bold text-[var(--color-cyan)] uppercase tracking-wider">
+          <div className="lnh-copy min-w-0 flex-1">
+            <span className="lnh-kicker mb-2 inline-flex items-center gap-1.5 rounded-full bg-[var(--color-cyan)]/20 px-2.5 py-1 text-xs font-bold text-[var(--color-cyan)] uppercase tracking-wider">
+              <span className="lnh-kicker-dot" aria-hidden="true" />
               Light Novel
+              <span className="lnh-kicker-rule" aria-hidden="true" />
             </span>
-            <RevealTitle as="h1" text={title} className="font-display text-3xl font-bold leading-tight sm:text-5xl mt-2" />
-            {ln.title.native && <p className="mt-1 text-[var(--color-mute)]">{ln.title.native}</p>}
+            <RevealTitle as="h1" text={title} className="lnh-title font-display text-3xl font-bold leading-tight sm:text-5xl mt-2" />
+            <span className="lnh-title-rule" aria-hidden="true" />
+            {nativeTitle && (
+              <p
+                className="lnh-native mt-1 text-[var(--color-mute)]"
+                title={ln.title.native && ln.title.native !== nativeTitle ? ln.title.native : undefined}
+              >
+                {nativeTitle}
+              </p>
+            )}
 
-            <div className="mt-4 flex flex-wrap gap-2">
-              {ln.genres?.map((g) => (
+            <div className="lnh-genres mt-4 flex flex-wrap gap-2">
+              {ln.genres?.map((g, index) => (
                 <Link key={g} href={`/search?genre=${g}&type=MANGA&format=NOVEL`}
-                  className="rounded-full border border-[var(--color-line)] px-3 py-1 text-xs text-[var(--color-mute)] hover:border-[var(--color-cyan)] hover:text-[var(--color-cyan)] transition-colors"
+                  className="lnh-chip rounded-full border border-[var(--color-line)] px-3 py-1 text-xs text-[var(--color-mute)] hover:border-[var(--color-cyan)] hover:text-[var(--color-cyan)] transition-colors"
+                  style={{ animationDelay: `${80 + index * 55}ms` }}
                 >{g}</Link>
               ))}
             </div>
 
-            <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-[var(--color-mute)]">
+            <div className="lnh-stats mt-4 flex flex-wrap items-center gap-4 text-sm text-[var(--color-mute)]">
               {ln.averageScore ? (
-                <span className="font-mono text-[var(--color-cyan)]">★ {formatScore(ln.averageScore)}</span>
+                <span className="lnh-stat lnh-stat-score font-mono text-[var(--color-cyan)]">★ {formatScore(ln.averageScore)}</span>
               ) : null}
-              {ln.chapters ? <span>{ln.chapters} ch</span> : null}
-              {ln.volumes ? <span>{ln.volumes} vol</span> : null}
-              {ln.source ? <span className="text-[10px] uppercase">{ln.source.replace(/_/g, " ")}</span> : null}
-              {ln.countryOfOrigin ? <span>{ln.countryOfOrigin}</span> : null}
+              {ln.chapters ? <span className="lnh-stat">{ln.chapters} ch</span> : null}
+              {ln.volumes ? <span className="lnh-stat">{ln.volumes} vol</span> : null}
+              {ln.source ? <span className="lnh-stat text-[10px] uppercase">{ln.source.replace(/_/g, " ")}</span> : null}
+              {ln.countryOfOrigin ? (
+                <span
+                  className="lnh-stat"
+                  title={ln.countryOfOrigin !== (COUNTRY_LABELS[ln.countryOfOrigin] ?? ln.countryOfOrigin) ? ln.countryOfOrigin : undefined}
+                >
+                  {COUNTRY_LABELS[ln.countryOfOrigin] ?? ln.countryOfOrigin}
+                </span>
+              ) : null}
               {ln.startDate?.year ? (
-                <span>
+                <span className="lnh-stat">
                   {ln.startDate.year}
                   {ln.endDate?.year ? ` — ${ln.endDate.year}` : ln.status === "RELEASING" ? " — Present" : ""}
                 </span>
@@ -266,22 +301,22 @@ export default function LightNovelDetailsPage() {
             </div>
 
             {/* Add to List / Status selector */}
-            <div className="mt-6 flex flex-wrap items-center gap-3">
+            <div className="lnh-actions mt-6 flex flex-wrap items-center gap-3">
               {entry ? (
                 <>
-                  <span className="rounded-full px-3 py-1 text-xs font-semibold text-black"
+                  <span className="lnh-status-pill rounded-full px-3 py-1 text-xs font-semibold text-black"
                     style={{ backgroundColor: STATUS_COLORS[entry.status] || "var(--color-mute)" }}
                   >{STATUS_LABELS[entry.status] || entry.status}</span>
                   <select value={entry.status} onChange={(e) => handleStatusChange(e.target.value)}
-                    className="rounded-lg border border-[var(--color-line)] bg-[var(--color-panel)] px-3 py-1.5 text-xs outline-none focus:border-[var(--color-cyan)]"
+                    className="lnh-select rounded-lg border border-[var(--color-line)] bg-[var(--color-panel)] px-3 py-1.5 text-xs outline-none focus:border-[var(--color-cyan)]"
                   >
                     {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{STATUS_LABELS[s] || s}</option>)}
                   </select>
                   <button onClick={removeFromList}
-                    className="rounded-lg border border-red-500/30 px-3 py-1.5 text-xs text-red-400 hover:bg-red-500/10 transition-colors"
+                    className="lnh-remove rounded-lg border border-red-500/30 px-3 py-1.5 text-xs text-red-400 hover:bg-red-500/10 transition-colors"
                   >Remove</button>
                   {entry && (
-                    <span className="text-xs text-[var(--color-mute)]">
+                    <span className="lnh-progress text-xs text-[var(--color-mute)]">
                       Ch: {entry.chapters}{entry.totalChapters ? `/${entry.totalChapters}` : ""}
                       {entry.volumes > 0 && ` | Vol: ${entry.volumes}${entry.totalVolumes ? `/${entry.totalVolumes}` : ""}`}
                     </span>
@@ -290,50 +325,68 @@ export default function LightNovelDetailsPage() {
               ) : session?.user?.id ? (
                 <>
                   <select value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)}
-                    className="rounded-lg border border-[var(--color-line)] bg-[var(--color-panel)] px-3 py-1.5 text-xs outline-none focus:border-[var(--color-cyan)]"
+                    className="lnh-select rounded-lg border border-[var(--color-line)] bg-[var(--color-panel)] px-3 py-1.5 text-xs outline-none focus:border-[var(--color-cyan)]"
                   >
                     {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{STATUS_LABELS[s] || s}</option>)}
                   </select>
                   <button onClick={() => addToList(selectedStatus)}
-                    className="rounded-full bg-[var(--color-cyan)] px-5 py-2 text-sm font-semibold text-black hover:opacity-90 transition-opacity"
+                    className="lnh-primary rounded-full bg-[var(--color-cyan)] px-5 py-2 text-sm font-semibold text-black hover:opacity-90 transition-opacity"
                   >Add to My List</button>
                 </>
               ) : (
                 <Link href="/login"
-                  className="rounded-full bg-[var(--color-cyan)] px-5 py-2 text-sm font-semibold text-black hover:opacity-90 transition-opacity"
+                  className="lnh-primary rounded-full bg-[var(--color-cyan)] px-5 py-2 text-sm font-semibold text-black hover:opacity-90 transition-opacity"
                 >Sign in to track</Link>
               )}
-              <ShareButton
-                mediaId={ln.id}
-                title={title}
-                href={`https://zyverse.in/light-novels/${ln.id}`}
-                kind="novel"
-              />
+              <span className="lnh-share">
+                <ShareButton
+                  mediaId={ln.id}
+                  title={title}
+                  href={`https://zyverse.in/light-novels/${ln.id}`}
+                  kind="novel"
+                />
+              </span>
             </div>
+            <span className="lnh-hero-rule" aria-hidden="true" />
           </div>
         </div>
       </div>
 
       {/* Main */}
-      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-10 sm:px-6 lg:grid-cols-[1fr_320px]">
+      <div className="mx-auto grid max-w-[1600px] gap-10 px-4 py-10 sm:px-6 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="space-y-12 min-w-0">
           {/* Story */}
-          <Reveal>
-            <SectionTitle>Story</SectionTitle>
-            <p className="leading-relaxed text-[var(--color-mute)] whitespace-pre-line">
-              {stripHtml(ln.description) || "No description available."}
-            </p>
-            {ln.tags && ln.tags.length > 0 && (
-              <div className="mt-4 flex flex-wrap gap-1.5">
-                {ln.tags.filter((t) => t.rank >= 60 && !t.isMediaSpoiler).slice(0, 12).map((t) => (
-                  <span key={t.id} className="rounded-full bg-[var(--color-void)] px-2.5 py-1 text-[10px] text-[var(--color-mute)] border border-[var(--color-line)]">
-                    {t.name}
-                    {t.isAdult && <span className="ml-1 text-[var(--color-magenta)]">●</span>}
-                  </span>
-                ))}
+          <Reveal className="lnst-story">
+            <div className="lnst-panel">
+              <span className="lnst-aura" aria-hidden="true" />
+              <SectionTitle>Story</SectionTitle>
+              <div className="lnst-copy-wrap">
+                <span className="lnst-quote" aria-hidden="true">“</span>
+                <p className="lnst-description leading-relaxed text-[var(--color-mute)] whitespace-pre-line">
+                  {stripHtml(ln.description) || "No description available."}
+                </p>
               </div>
-            )}
+              {ln.tags && ln.tags.length > 0 && (
+                <div className="lnst-tags">
+                  {ln.tags.filter((t) => t.rank >= 60 && !t.isMediaSpoiler).slice(0, 12).map((t, index) => (
+                    <span key={t.id} className="lnst-tag" style={{ animationDelay: `${60 + index * 45}ms` }}>
+                      {t.name}
+                      {t.isAdult && <span className="lnst-tag-adult">●</span>}
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div className="lnst-footer" aria-hidden="true">
+                <span className="lnst-line" />
+                <span className="lnst-node" />
+              </div>
+            </div>
           </Reveal>
+
+          {/* In-content Adsterra slot */}
+          <div className="lnad-slot lnad-inline">
+            <AdBanner placement="light-novel-detail-inline" type="sidebar" />
+          </div>
 
           {/* Chapter list */}
           {entry && showChapters && chapters.length > 0 && (
@@ -366,105 +419,136 @@ export default function LightNovelDetailsPage() {
 
           {/* Rankings */}
           {rankings.length > 0 && (
-            <Reveal>
-              <SectionTitle>Rankings</SectionTitle>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {rankings.slice(0, 6).map((r) => (
-                  <div key={r.id} className="rounded-lg border border-[var(--color-line)] bg-[var(--color-panel)] p-3 text-center">
-                    <div className="text-xl font-bold font-mono text-[var(--color-magenta)]">#{r.rank}</div>
-                    <div className="text-[10px] text-[var(--color-mute)] mt-0.5 uppercase tracking-wider">
-                      {r.context}{r.year ? ` (${r.year})` : ""}
+            <Reveal className="lnst-rank">
+              <div className="lnst-rank-panel">
+                <span className="lnst-rank-aura" aria-hidden="true" />
+                <SectionTitle>Rankings</SectionTitle>
+                <div className="lnst-rank-grid grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2">
+                  {rankings.slice(0, 6).map((r, index) => (
+                    <div key={r.id} className="lnst-rank-card" style={{ animationDelay: `${80 + index * 70}ms` }}>
+                      <span className="lnst-rank-shine" aria-hidden="true" />
+                      <div className="lnst-rank-num">#{r.rank}</div>
+                      <div className="lnst-rank-context">
+                        {r.context}{r.year ? ` (${r.year})` : ""}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </Reveal>
           )}
 
           {/* Characters */}
           {chars.length > 0 && (
-            <Reveal>
-              <SectionTitle>Characters</SectionTitle>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {chars.slice(0, 20).map((edge) => (
-                  <Link key={edge.node.id} href={`/character/${edge.node.id}`}
-                    className="flex items-center gap-2 rounded-lg border border-[var(--color-line)] bg-[var(--color-panel)] p-2 hover:border-[var(--color-cyan)]/30 transition-colors"
-                  >
-                    <div className="relative h-8 w-8 rounded-full overflow-hidden border border-[var(--color-line)] shrink-0">
-                      <Image src={edge.node.image?.medium || ""} alt={edge.node.name?.full || ""} fill className="object-cover" sizes="32px" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-medium truncate">{edge.node.name?.full}</p>
-                      <p className="text-[9px] text-[var(--color-mute)] truncate uppercase tracking-wider">{edge.role}</p>
-                    </div>
-                  </Link>
-                ))}
+            <Reveal className="lncs-characters">
+              <div className="lncs-panel lncs-chars">
+                <span className="lncs-aura" aria-hidden="true" />
+                <SectionTitle>Characters</SectionTitle>
+                <div className="lncs-grid grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2">
+                  {chars.slice(0, 20).map((edge, index) => (
+                    <Link key={edge.node.id} href={`/character/${edge.node.id}`}
+                      className={`lncs-card ${edge.role === "MAIN" ? "lncs-card-main" : "lncs-card-support"}`}
+                      style={{ animationDelay: `${60 + index * 35}ms` }}
+                    >
+                      <div className="lncs-avatar relative h-10 w-10 rounded-full overflow-hidden border border-[var(--color-line)] shrink-0">
+                        <Image src={edge.node.image?.medium || ""} alt={edge.node.name?.full || ""} fill className="object-cover" sizes="40px" />
+                        <span className="lncs-avatar-ring" aria-hidden="true" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="lncs-name text-xs font-medium truncate">{edge.node.name?.full}</p>
+                        <p className="lncs-role">{edge.role}</p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
               </div>
             </Reveal>
           )}
 
           {/* Staff */}
           {staffEdges.length > 0 && (
-            <Reveal>
-              <SectionTitle>
-                Staff
-                {staffEdges.length > 15 && (
-                  <button onClick={() => setShowAllStaff((o) => !o)}
-                    className="ml-auto text-[10px] font-mono text-[var(--color-mute)] hover:text-[var(--color-cyan)] transition-colors"
-                  >{showAllStaff ? "Show less" : `View all (${staffEdges.length})`}</button>
-                )}
-              </SectionTitle>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {(showAllStaff ? staffEdges : staffEdges.slice(0, 15)).map((s, i) => (
-                  <Link key={`${s.node.id}-${i}`} href={`/staff/${s.node.id}`}
-                    className="flex items-center gap-2 rounded-lg border border-[var(--color-line)] bg-[var(--color-panel)] p-2 hover:border-[var(--color-cyan)]/30 transition-colors"
-                  >
-                    <div className="relative h-8 w-8 rounded-full overflow-hidden shrink-0">
-                      <Image src={s.node.image?.medium || ""} alt={s.node.name?.full || ""} fill className="object-cover" sizes="32px" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-medium truncate">{s.node.name?.full}</p>
-                      <p className="text-[9px] text-[var(--color-mute)] truncate">{s.role}</p>
-                    </div>
-                  </Link>
-                ))}
+            <Reveal className="lncs-staff">
+              <div className="lncs-panel lncs-staff-panel">
+                <span className="lncs-aura" aria-hidden="true" />
+                <SectionTitle>
+                  Staff
+                  {staffEdges.length > 15 && (
+                    <button onClick={() => setShowAllStaff((o) => !o)}
+                      className="lncs-toggle ml-auto text-[10px] font-mono text-[var(--color-mute)] hover:text-[var(--color-cyan)] transition-colors"
+                    >{showAllStaff ? "Show less" : `View all (${staffEdges.length})`}</button>
+                  )}
+                </SectionTitle>
+                <div className="lncs-grid grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2">
+                  {(showAllStaff ? staffEdges : staffEdges.slice(0, 15)).map((s, i) => (
+                    <Link key={`${s.node.id}-${i}`} href={`/staff/${s.node.id}`}
+                      className="lncs-card lncs-card-staff"
+                      style={{ animationDelay: `${60 + i * 35}ms` }}
+                    >
+                      <div className="lncs-avatar relative h-10 w-10 rounded-full overflow-hidden shrink-0">
+                        <Image src={s.node.image?.medium || ""} alt={s.node.name?.full || ""} fill className="object-cover" sizes="40px" />
+                        <span className="lncs-avatar-ring" aria-hidden="true" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="lncs-name text-xs font-medium truncate">{s.node.name?.full}</p>
+                        <p className="lncs-role lncs-role-full">{s.role}</p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
               </div>
             </Reveal>
           )}
 
           {/* Relations */}
           {relations.length > 0 && (
-            <Reveal>
-              <SectionTitle>Related</SectionTitle>
-              <Carousel3D
-                items={relations.map((r) => ({
-                  id: r.node.id, coverImage: r.node.coverImage, title: r.node.title,
-                  averageScore: r.node.averageScore,
-                  format: r.node.type === "ANIME" ? `${r.node.episodes || ""} ep` : `${r.node.chapters || ""} ch`,
-                  mediaFormat: r.node.format,
-                  type: r.node.type,
-                }))}
-                accent="magenta"
-                hrefFn={mediaHref}
-              />
+            <Reveal className="lncr-related">
+              <div className="lncr-panel lncr-rel">
+                <span className="lncr-aura" aria-hidden="true" />
+                <SectionTitle>Related</SectionTitle>
+                <div className="lncr-carousel">
+                  <Carousel3D
+                    items={relations.map((r) => ({
+                      id: r.node.id, coverImage: r.node.coverImage, title: r.node.title,
+                      averageScore: r.node.averageScore,
+                      format: r.node.type === "ANIME" ? `${r.node.episodes || ""} ep` : `${r.node.chapters || ""} ch`,
+                      mediaFormat: r.node.format,
+                      type: r.node.type,
+                    }))}
+                    accent="magenta"
+                    hrefFn={mediaHref}
+                  />
+                </div>
+                <span className="lncr-rail" aria-hidden="true" />
+              </div>
             </Reveal>
           )}
 
           {/* Recommendations */}
           {recs.length > 0 && (
-            <Reveal>
-              <SectionTitle>You May Also Like</SectionTitle>
-              <Carousel3D
-                items={recs.map((e) => e.node.mediaRecommendation)}
-                accent="magenta"
-                hrefFn={mediaHref}
-              />
+            <Reveal className="lncr-recs">
+              <div className="lncr-panel lncr-rec">
+                <span className="lncr-aura" aria-hidden="true" />
+                <SectionTitle>You May Also Like</SectionTitle>
+                <div className="lncr-carousel">
+                  <Carousel3D
+                    items={recs.map((e) => e.node.mediaRecommendation)}
+                    accent="magenta"
+                    hrefFn={mediaHref}
+                  />
+                </div>
+                <span className="lncr-rail" aria-hidden="true" />
+              </div>
             </Reveal>
           )}
+
+          {/* Bottom Adsterra slot */}
+          <div className="lnad-slot lnad-bottom">
+            <AdBanner placement="light-novel-bottom" type="banner" />
+          </div>
         </div>
 
         {/* Sidebar */}
-        <aside className="space-y-6 lg:sticky lg:top-24 lg:self-start">
+        <aside className="lnsb-sidebar space-y-6 lg:sticky lg:top-24 lg:self-start">
           {/* Progress (when added to list) */}
           {entry && (
             <MangaProgress
@@ -478,36 +562,46 @@ export default function LightNovelDetailsPage() {
             />
           )}
 
+          {/* Sidebar Adsterra slot */}
+          <div className="lnad-slot lnad-side">
+            <AdBanner placement="light-novel-detail" type="sidebar" />
+          </div>
+
           {/* Buy / Affiliate */}
-          <div className="rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5">
-            <h3 className="font-display text-sm font-bold mb-3">Buy this Light Novel</h3>
-            <div className="flex flex-col gap-2">
+          <div className="lnsb-panel lnsb-buy">
+            <span className="lnsb-aura" aria-hidden="true" />
+            <h3 className="lnsb-title font-display text-sm font-bold mb-3">Buy this Light Novel</h3>
+            <div className="lnsb-buy-links flex flex-col gap-2">
               <AffiliateLink
                 partner="amazon"
                 path={`https://www.amazon.in/s?k=${encodeURIComponent(`${title} light novel`)}`}
-                className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#ff9900] to-[#ff5c00] px-4 py-2 text-xs font-bold text-black hover:opacity-90 transition-opacity"
+                className="lnsb-buy-btn lnsb-buy-amazon inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#ff9900] to-[#ff5c00] px-4 py-2 text-xs font-bold text-black hover:opacity-90 transition-opacity"
               >📦 Buy on Amazon</AffiliateLink>
               <AffiliateLink
                 partner="bookwalker"
                 path={`https://global.bookwalker.jp/search/?word=${encodeURIComponent(title)}`}
-                className="inline-flex items-center justify-center gap-2 rounded-full neon-rgb-border px-4 py-2 text-xs font-semibold text-[var(--color-mute)] hover:text-[#00ffff] transition-colors"
+                className="lnsb-buy-btn lnsb-buy-bookwalker inline-flex items-center justify-center gap-2 rounded-full neon-rgb-border px-4 py-2 text-xs font-semibold text-[var(--color-mute)] hover:text-[#00ffff] transition-colors"
               >📖 Buy on BookWalker</AffiliateLink>
+              <div className="lnsb-playasia">
+                <PlayAsiaPill query={`${title} light novel`} label="Play-Asia merch" className="justify-center" />
+              </div>
             </div>
           </div>
 
           {/* External Links */}
           {links.length > 0 && (
-            <div className="rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5">
-              <h3 className="font-display text-sm font-bold mb-3">Official Sites</h3>
-              <ul className="space-y-1">
+            <div className="lnsb-panel lnsb-links-panel">
+              <span className="lnsb-aura" aria-hidden="true" />
+              <h3 className="lnsb-title font-display text-sm font-bold mb-3">Official Sites</h3>
+              <ul className="lnsb-link-list space-y-1">
                 {links.map((l) => (
-                  <li key={l.id}>
+                  <li key={l.id} className="lnsb-link-item">
                     <a href={l.url} target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-2 rounded px-2 py-1 text-xs text-[var(--color-mute)] hover:text-[var(--color-cyan)]"
+                      className="lnsb-link flex items-center gap-2 rounded px-2 py-1 text-xs text-[var(--color-mute)] hover:text-[var(--color-cyan)]"
                     >
                       <span>{l.site}</span>
-                      {l.notes && <span className="text-[9px] opacity-60">— {l.notes}</span>}
-                      <span className="ml-auto">↗</span>
+                      {l.notes && <span className="lnsb-link-note text-[9px] opacity-60">— {l.notes}</span>}
+                      <span className="lnsb-link-arrow ml-auto">↗</span>
                     </a>
                   </li>
                 ))}
@@ -517,22 +611,23 @@ export default function LightNovelDetailsPage() {
 
           {/* Score Distribution */}
           {scoreDist.length > 0 && (
-            <div className="rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5">
-              <h3 className="font-display text-sm font-bold mb-3">Score Distribution</h3>
-              <div className="space-y-1">
-                {scoreDist.filter((s) => s.amount > 0).slice(0, 10).map((s) => (
-                  <div key={s.score} className="flex items-center gap-2 text-[11px]">
-                    <span className="w-4 text-right font-mono text-[var(--color-mute)]">{s.score * 10}%</span>
-                    <div className="flex-1 h-2 rounded-full bg-[var(--color-line)] overflow-hidden">
+            <div className="lnsb-panel lnsb-score">
+              <span className="lnsb-aura" aria-hidden="true" />
+              <h3 className="lnsb-title font-display text-sm font-bold mb-3">Score Distribution</h3>
+              <div className="lnsb-score-list space-y-1">
+                {scoreDist.filter((s) => s.amount > 0).slice(0, 10).map((s, index) => (
+                  <div key={s.score} className="lnsb-score-row flex items-center gap-2 text-[11px]" style={{ animationDelay: `${40 + index * 45}ms` }}>
+                    <span className="lnsb-score-pct text-right font-mono text-[var(--color-mute)]">{s.score * 10}%</span>
+                    <div className="lnsb-score-track flex-1 h-2 rounded-full bg-[var(--color-line)] overflow-hidden">
                       <motion.div
-                        className="h-full rounded-full bg-[var(--color-cyan)]"
+                        className="lnsb-score-fill h-full rounded-full bg-[var(--color-cyan)]"
                         initial={{ width: 0 }}
                         whileInView={{ width: `${Math.min(100, (s.amount / Math.max(...scoreDist.map((d) => d.amount))) * 100)}%` }}
                         viewport={{ once: true }}
                         transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
                       />
                     </div>
-                    <span className="w-8 text-right font-mono text-[var(--color-mute)]">{s.amount}</span>
+                    <span className="lnsb-score-amount text-right font-mono text-[var(--color-mute)]">{s.amount}</span>
                   </div>
                 ))}
               </div>
@@ -540,15 +635,17 @@ export default function LightNovelDetailsPage() {
           )}
 
           {ln.favourites ? (
-            <div className="rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5 text-center">
-              <div className="text-2xl font-bold font-mono text-[var(--color-magenta)]">{ln.favourites.toLocaleString()}</div>
-              <div className="text-xs text-[var(--color-mute)] mt-0.5">Favorites</div>
+            <div className="lnsb-panel lnsb-fav text-center">
+              <span className="lnsb-aura" aria-hidden="true" />
+              <div className="lnsb-fav-num text-2xl font-bold font-mono text-[var(--color-magenta)]">{ln.favourites.toLocaleString()}</div>
+              <div className="lnsb-fav-label text-xs text-[var(--color-mute)] mt-0.5">Favorites</div>
             </div>
           ) : null}
 
-          <div className="rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5 text-xs text-[var(--color-mute)]">
-            Data from <a href={ln.siteUrl} target="_blank" rel="noopener noreferrer" className="underline hover:text-[var(--color-cyan)]">AniList</a>.
-            {ln.idMal && <> Also on <a href={`https://myanimelist.net/manga/${ln.idMal}`} target="_blank" rel="noopener noreferrer" className="underline hover:text-[var(--color-cyan)]">MyAnimeList</a>.</>}
+          <div className="lnsb-panel lnsb-data text-xs text-[var(--color-mute)]">
+            <span className="lnsb-aura" aria-hidden="true" />
+            Data from <a href={ln.siteUrl} target="_blank" rel="noopener noreferrer" className="lnsb-data-link underline hover:text-[var(--color-cyan)]">AniList</a>.
+            {ln.idMal && <> Also on <a href={`https://myanimelist.net/manga/${ln.idMal}`} target="_blank" rel="noopener noreferrer" className="lnsb-data-link underline hover:text-[var(--color-cyan)]">MyAnimeList</a>.</>}
           </div>
         </aside>
       </div>

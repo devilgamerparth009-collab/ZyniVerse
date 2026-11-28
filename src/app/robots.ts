@@ -196,8 +196,8 @@ export default function robots(): MetadataRoute.Robots {
       // wildcard rule keeps the site fully indexable for search engines.
       { userAgent: AI_TRAINING_BOTS, disallow: "/" },
       // Catalog harvesters: whole-site opt-out. They ignore it often enough
-      // that the WAF rule is the actual enforcement; this just stops the
-      // polite ones from downloading every dynamic route.
+      // that the app-level proxy rule is the actual enforcement; this just
+      // stops the polite ones from downloading every dynamic route.
       { userAgent: CATALOG_HARVESTERS, disallow: "/" },
     ],
     // Main sitemap covers all public pages, including /news, /blog and

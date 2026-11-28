@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import type { AnimeEvent } from "@/lib/anime-events";
 import EventCard from "./EventCard";
 
@@ -11,160 +11,150 @@ interface EventFiltersProps {
   countries: string[];
 }
 
+const STATUSES = ["all", "upcoming", "ongoing", "past"] as const;
+
 export default function EventFilters({
   events,
   types,
   countries,
 }: EventFiltersProps) {
-  const [status, setStatus] = useState<"all" | "upcoming" | "ongoing" | "past">("all");
+  const reduceMotion = useReducedMotion();
+  const [status, setStatus] = useState<(typeof STATUSES)[number]>("all");
   const [type, setType] = useState("all");
   const [country, setCountry] = useState("all");
   const [search, setSearch] = useState("");
 
-  const filtered = events.filter((e) => {
-    if (status !== "all" && e.status !== status) return false;
-    if (type !== "all" && e.type !== type) return false;
-    if (country !== "all" && e.country !== country) return false;
+  const filtered = events.filter((event) => {
+    if (status !== "all" && event.status !== status) return false;
+    if (type !== "all" && event.type !== type) return false;
+    if (country !== "all" && event.country !== country) return false;
     if (search) {
-      const s = search.toLowerCase();
+      const needle = search.toLowerCase();
       if (
-        !e.name.toLowerCase().includes(s) &&
-        !e.description.toLowerCase().includes(s) &&
-        !e.tags.some((t) => t.includes(s))
-      )
+        !event.name.toLowerCase().includes(needle) &&
+        !event.description.toLowerCase().includes(needle) &&
+        !event.tags.some((tag) => tag.includes(needle))
+      ) {
         return false;
+      }
     }
     return true;
   });
 
-  const upcoming = filtered.filter((e) => e.status === "upcoming");
-  const ongoing = filtered.filter((e) => e.status === "ongoing");
-  const past = filtered.filter((e) => e.status === "past");
+  const ongoing = filtered.filter((event) => event.status === "ongoing");
+  const upcoming = filtered.filter((event) => event.status === "upcoming");
+  const past = filtered.filter((event) => event.status === "past");
+
+  const groups = [
+    { key: "ongoing", label: "Happening now", items: ongoing, tone: "blue" },
+    { key: "upcoming", label: "Upcoming", items: upcoming, tone: "green" },
+    { key: "past", label: "Past", items: past, tone: "muted" },
+  ];
 
   return (
-    <div>
-      <div className="flex flex-col gap-3 mb-6">
-        <div className="neon-input rounded-xl">
-          <div className="flex items-center gap-3 px-4 py-2.5">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[var(--color-mute)]/40 shrink-0">
-              <circle cx="11" cy="11" r="8" />
-              <path d="m21 21-4.35-4.35" />
-            </svg>
-            <input
-              type="text"
-              placeholder="Search events by name, description, or tag..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="text-sm bg-transparent py-0.5 text-[var(--color-text)] placeholder:text-[var(--color-mute)]/40 focus:outline-none"
-            />
-          </div>
-        </div>
+    <div className="evp-filters">
+      <div className="evp-filter-top evp-filter-top-events">
+        <label className="evp-search">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <circle cx="11" cy="11" r="8" />
+            <path d="m21 21-4.35-4.35" />
+          </svg>
+          <input
+            type="text"
+            placeholder="Search events by name, description, or tag..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </label>
 
-        <div className="flex flex-wrap gap-2">
-          <div className="flex gap-1">
-            {(["all", "upcoming", "ongoing", "past"] as const).map((s) => (
+        <div className="evp-filter-row">
+          <div className="evp-segments" role="group" aria-label="Filter by status">
+            {STATUSES.map((value) => (
               <button
-                key={s}
-                onClick={() => setStatus(s)}
-                className={`text-[10px] font-bold px-3 py-1 rounded-full border capitalize transition-all duration-200 ${
-                  status === s
-                    ? "text-[var(--color-cyan)] border-[var(--color-cyan)]/50 bg-[var(--color-cyan)]/10 shadow-[0_0_12px_-4px_rgba(0,255,224,0.3)]"
-                    : "text-[var(--color-mute)] border-[var(--color-line)] hover:border-[var(--color-mute)]/50 hover:text-[var(--color-text)]"
-                }`}
+                key={value}
+                type="button"
+                onClick={() => setStatus(value)}
+                className={`evp-segment ${status === value ? "evp-segment-active" : ""}`}
               >
-                {s === "all" ? "All" : s}
+                {value === "all" ? "All" : value}
               </button>
             ))}
           </div>
 
-          <div className="neon-input rounded-full">
-            <select
-              value={type}
-              onChange={(e) => setType(e.target.value)}
-              className="text-[10px] font-bold px-3 py-1 bg-[var(--color-void)] text-[var(--color-mute)] focus:outline-none capitalize cursor-pointer"
-            >
-              <option value="all">All Types</option>
-              {types.map((t) => (
-                <option key={t} value={t}>
-                  {t}
+          <label className="evp-select-wrap">
+            <span className="sr-only">Filter by type</span>
+            <select value={type} onChange={(e) => setType(e.target.value)} className="evp-select">
+              <option value="all">All types</option>
+              {types.map((value) => (
+                <option key={value} value={value}>
+                  {value}
                 </option>
               ))}
             </select>
-          </div>
+          </label>
 
-          <div className="neon-input rounded-full">
-            <select
-              value={country}
-              onChange={(e) => setCountry(e.target.value)}
-              className="text-[10px] font-bold px-3 py-1 bg-[var(--color-void)] text-[var(--color-mute)] focus:outline-none cursor-pointer"
-            >
-              <option value="all">All Countries</option>
-              {countries.map((c) => (
-                <option key={c} value={c}>
-                  {c}
+          <label className="evp-select-wrap">
+            <span className="sr-only">Filter by country</span>
+            <select value={country} onChange={(e) => setCountry(e.target.value)} className="evp-select">
+              <option value="all">All countries</option>
+              {countries.map((value) => (
+                <option key={value} value={value}>
+                  {value}
                 </option>
               ))}
             </select>
-          </div>
+          </label>
+        </div>
+
+        <div className="evp-filter-summary" aria-live="polite">
+          <span className="evp-filter-summary-dot" />
+          Showing <strong>{filtered.length}</strong> of <strong>{events.length}</strong> tracked events
+          <span className="evp-filter-summary-line" aria-hidden="true" />
         </div>
       </div>
 
       <AnimatePresence mode="popLayout">
-      {filtered.length === 0 ? (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="text-center py-16 text-[var(--color-mute)]/60"
-        >
-          <p className="text-lg mb-1">No events found</p>
-          <p className="text-sm">Try adjusting your filters or search.</p>
-        </motion.div>
-      ) : (
-        <motion.div layout className="space-y-8">
-          {ongoing.length > 0 && (
-            <motion.section layout initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
-              <h2 className="font-display text-lg font-bold text-blue-400 mb-3 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
-                Happening Now ({ongoing.length})
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                {ongoing.map((e, i) => (
-                  <EventCard key={e.id} event={e} index={i} />
-                ))}
-              </div>
-            </motion.section>
-          )}
-
-          {upcoming.length > 0 && (
-            <motion.section layout initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
-              <h2 className="font-display text-lg font-bold text-green-400 mb-3 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-green-400" />
-                Upcoming ({upcoming.length})
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                {upcoming.map((e, i) => (
-                  <EventCard key={e.id} event={e} index={i} />
-                ))}
-              </div>
-            </motion.section>
-          )}
-
-          {past.length > 0 && (
-            <motion.section layout initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
-              <h2 className="font-display text-lg font-bold text-gray-400 mb-3 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-gray-400" />
-                Past ({past.length})
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                {past.map((e, i) => (
-                  <EventCard key={e.id} event={e} index={i} />
-                ))}
-              </div>
-            </motion.section>
-          )}
-        </motion.div>
-      )}
+        {filtered.length === 0 ? (
+          <motion.div
+            initial={reduceMotion ? false : { opacity: 0 }}
+            animate={reduceMotion ? undefined : { opacity: 1 }}
+            exit={reduceMotion ? undefined : { opacity: 0 }}
+            className="evp-empty"
+          >
+            <span className="evp-empty-icon">⌁</span>
+            <p>No events match these filters.</p>
+            <p className="evp-empty-sub">Clear the search or choose another status.</p>
+          </motion.div>
+        ) : (
+          <motion.div layout className="evp-groups">
+            {groups.map((group) =>
+              group.items.length > 0 ? (
+                <motion.section
+                  layout
+                  key={group.key}
+                  initial={reduceMotion ? false : { opacity: 0, y: 14 }}
+                  animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
+                  className="evp-group"
+                >
+                  <div className={`evp-group-head evp-group-head-${group.tone}`}>
+                    <span className={`evp-group-dot evp-group-dot-${group.tone}`} />
+                    <h3>{group.label}</h3>
+                    <span className="evp-group-rule" aria-hidden="true" />
+                    <span className="evp-group-count">
+                      <span className="evp-group-count-num">{group.items.length}</span>
+                      events
+                    </span>
+                  </div>
+                  <div className="evp-card-grid">
+                    {group.items.map((event, index) => (
+                      <EventCard key={event.id} event={event} index={index} />
+                    ))}
+                  </div>
+                </motion.section>
+              ) : null
+            )}
+          </motion.div>
+        )}
       </AnimatePresence>
     </div>
   );

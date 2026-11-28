@@ -7,6 +7,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -17,6 +18,7 @@ import { useTheme } from '../hooks/useTheme';
 import { spacing, fontSize, borderRadius } from '../theme';
 import {
   checkForUpdate,
+  GITHUB_RELEASES_URL,
   downloadUpdate,
   getReadyUpdate,
   installUpdate,
@@ -28,7 +30,6 @@ import {
   DownloadedUpdate,
   UpdateRelease,
 } from '../services/updater';
-import { openSafeWebUrl } from '../utils/safeLinks';
 
 export default function UpdateScreen() {
   const insets = useSafeAreaInsets();
@@ -296,11 +297,13 @@ export default function UpdateScreen() {
           )}
 
           <TouchableOpacity
-            onPress={() => openSafeWebUrl('/download')}
+            onPress={() =>
+              Linking.openURL(release?.downloadPage || GITHUB_RELEASES_URL).catch(() => {})
+            }
             style={styles.skipBtn}
           >
             <Text style={[styles.skipText, { color: colors.textDim }]}>
-              Download page on zyverse.in
+              Open download page
             </Text>
           </TouchableOpacity>
         </FadeInView>

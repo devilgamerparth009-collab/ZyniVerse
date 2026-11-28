@@ -49,7 +49,7 @@ function FeedRow({ entry }: { entry: DubFeedEntry }) {
   const day = istDay(d) === istDay(new Date()) ? "Today" : istDateShort(d);
 
   return (
-    <li className="flex items-center gap-3 rounded-xl border border-white/5 bg-white/[0.03] p-2.5 transition-colors hover:border-[var(--color-cyan)]/40 hover:bg-white/[0.06]">
+    <li className="idub-feed-row flex items-center gap-3 rounded-xl border border-white/5 bg-white/[0.03] p-2.5 transition-colors hover:border-[var(--color-cyan)]/40 hover:bg-white/[0.06]">
       {entry.thumbnail ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -101,15 +101,15 @@ function Skeleton() {
   );
 }
 
-function SourceSection({ source, index }: { source: DubFeedSource; index: number }) {
+function SourceSection({ source }: { source: DubFeedSource }) {
   return (
-    <section className="min-w-0" aria-label={`Live dub feed ${index + 1}`}>
+    <section className="min-w-0" aria-label={`${source.channelName} uploads`}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2.5">
           <span className="flex h-2 w-2 rounded-full bg-[var(--color-magenta)] pulse-dot" />
-          <h3 className="font-display text-lg font-bold text-white">Live feed {index + 1}</h3>
+          <h3 className="idub-feed-title font-display text-lg font-bold">{source.channelName}</h3>
           <span className="font-mono text-[10px] uppercase tracking-widest text-[var(--color-mute)]">
-            Official YouTube
+            Official channel
           </span>
         </div>
         {source.ok && source.entries.length > 0 && (
@@ -227,9 +227,9 @@ export default function LiveDubFeeds() {
           <Skeleton />
         ) : (
           <div className="grid gap-6 lg:grid-cols-2">
-            {data.sources.map((source, index) => (
-              <div key={source.id} className="rounded-2xl border border-white/5 bg-white/[0.02] p-4">
-                <SourceSection source={source} index={index} />
+            {data.sources.map((source) => (
+              <div key={source.id} className="idub-feed-card">
+                <SourceSection source={source} />
               </div>
             ))}
           </div>

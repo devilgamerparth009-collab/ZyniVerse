@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toPng } from "html-to-image";
+import styles from "./AiLab.module.css";
 
 type CardId = "theory" | "taste" | "fancast" | "s2predict" | "dreamteam";
 
@@ -67,10 +68,15 @@ export default function AiLab({ animeId, title }: { animeId: number; title: stri
   const captureRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
-  const load = useCallback(async (cardId: CardId) => {
+  const load = useCallback(async (cardId: CardId, fresh = false) => {
     setCards((prev) => ({ ...prev, [cardId]: { status: "loading", data: null, error: "" } }));
+    setCopied(false);
     try {
-      const res = await fetch(`/api/anime/${animeId}/ai-lab?card=${cardId}`, { cache: "no-store" });
+      const params = new URLSearchParams({ card: cardId });
+      if (fresh) params.set("refresh", "1");
+      const res = await fetch(`/api/anime/${animeId}/ai-lab?${params.toString()}`, {
+        cache: "no-store",
+      });
       if (res.status === 401) {
         setCards((prev) => ({
           ...prev,
@@ -105,7 +111,7 @@ export default function AiLab({ animeId, title }: { animeId: number; title: stri
   function openTab(id: CardId) {
     setActive(id);
     const s = cards[id];
-    if (s.status === "idle") load(id);
+    if (s.status === "idle" || s.status === "error") load(id);
   }
 
   async function toggleVote(agree: boolean) {
@@ -166,126 +172,143 @@ export default function AiLab({ animeId, title }: { animeId: number; title: stri
   }
 
   const activeState = cards[active];
+  const activeTab = TABS.find((t) => t.id === active);
 
   return (
-    <section>
-      <h2 className="font-display text-xl font-bold mb-4 flex items-center gap-2">
-        <span className="h-4 w-1 rounded-full bg-[var(--color-cyan)]" />
-        Zyni AI Lab
-        <span className="ml-auto rounded-full border border-[var(--color-cyan)]/40 bg-[var(--color-cyan)]/10 px-2.5 py-1 font-mono text-[10px] text-[var(--color-cyan)]">
-          AI · speculative
-        </span>
-        <Link
-          href="/theories"
-          className="rounded-full border border-[var(--color-magenta)]/40 bg-[var(--color-magenta)]/10 px-2.5 py-1 font-mono text-[10px] font-bold text-[var(--color-magenta)] transition-colors hover:bg-[var(--color-magenta)]/20"
-        >
-          Top theories →
-        </Link>
-      </h2>
+    <section className={styles.labSection}>
+      <span className={styles.labGlow} aria-hidden="true" />
+      <div className={styles.labHead}>
+        <h2 className={styles.labTitle}>
+          <span className={styles.labMark} aria-hidden="true" />
+          Zyni AI Lab
+        </h2>
+        <span className={styles.labBadge}>AI · speculative</span>
+        <div className={styles.labActions}>
+          <Link href="/theories" className={styles.labLink}>
+            Top theories →
+          </Link>
+          <button
+            type="button"
+            onClick={() => void load(active, true)}
+            disabled={activeState.status === "loading"}
+            aria-label="Add new Zyni AI card"
+            title="Generate a fresh card (uses 1 AI credit)"
+            className={styles.freshButton}
+          >
+            + New card
+          </button>
+        </div>
+      </div>
 
       {/* Tab pills */}
-      <div className="mb-4 flex flex-wrap gap-2">
+      <div className={styles.tabRail} role="tablist" aria-label="Zyni AI Lab cards">
         {TABS.map((tab) => (
           <button
             key={tab.id}
+            type="button"
+            role="tab"
+            aria-selected={active === tab.id}
             onClick={() => openTab(tab.id)}
-            className={`rounded-full px-4 py-2 text-xs font-bold transition-all ${
-              active === tab.id
-                ? "neon-rgb-border bg-white/10 text-white shadow-[0_0_18px_-6px_var(--color-cyan)]"
-                : "border border-[var(--color-line)] bg-[var(--color-panel)] text-[var(--color-mute)] hover:border-[var(--color-cyan)]/50 hover:text-[var(--color-cyan)]"
-            }`}
+            className={`${styles.tab} ${active === tab.id ? styles.tabActive : ""}`}
             title={tab.blurb}
           >
-            {tab.emoji} {tab.label}
+            <span aria-hidden="true" className={styles.tabEmoji}>
+              {tab.emoji}
+            </span>
+            <span className={styles.tabLabel}>{tab.label}</span>
           </button>
         ))}
       </div>
 
-      <div className="rounded-xl neon-rgb-border bg-[var(--color-panel)] p-5">
+      <div className={styles.labPanel} role="tabpanel">
         {activeState.status === "loading" && (
-          <div className="space-y-3">
-            <div className="h-4 w-3/4 animate-pulse rounded bg-white/10" />
-            <div className="h-3 w-full animate-pulse rounded bg-white/5" />
-            <div className="h-3 w-5/6 animate-pulse rounded bg-white/5" />
-            <p className="pt-2 font-mono text-[10px] text-[var(--color-mute)]">Zyni AI is thinking…</p>
+          <div className={styles.skeletonStack}>
+            <div className={`${styles.skeletonLine} ${styles.skeletonLg}`} />
+            <div className={`${styles.skeletonLine} ${styles.skeletonMd}`} />
+            <div className={`${styles.skeletonLine} ${styles.skeletonSm}`} />
+            <p className={styles.loadingNote}>Zyni AI is thinking…</p>
           </div>
         )}
 
         {activeState.status === "error" && (
-          <div className="py-4 text-center">
+          <div className={styles.errorState}>
             {activeState.error === "signin" ? (
               <>
-                <p className="text-2xl">🔮</p>
-                <p className="mt-2 text-sm text-[var(--color-mute)]">
-                  Sign in to let Zyni AI cook up a {TABS.find((t) => t.id === active)?.label.toLowerCase() || "card"} for this anime.
+                <p className={styles.errorIcon} aria-hidden="true">🔮</p>
+                <p className={styles.errorText}>
+                  Sign in to let Zyni AI cook up a {activeTab?.label.toLowerCase() || "card"} for this anime.
                 </p>
-                <Link href="/login" className="mt-3 inline-block rounded-full neon-rgb-border bg-white/10 px-6 py-2 text-xs font-bold text-white hover:bg-[var(--color-magenta)]">
+                <Link href="/login" className={styles.errorButton}>
                   Sign in free
                 </Link>
               </>
             ) : (
-              <p className="text-sm text-[var(--color-mute)]">{activeState.error}</p>
+              <p className={styles.errorText}>{activeState.error}</p>
             )}
           </div>
         )}
 
         {activeState.status === "done" && active === "theory" && theory && (
           <div>
-            <div ref={captureRef} className="rounded-xl bg-gradient-to-br from-[#0d0b16] via-[#1a1030] to-[#0d0b16] p-6">
-              <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-[var(--color-cyan)]">
+            <div ref={captureRef} className={styles.theoryCard}>
+              <div className={styles.theoryTop}>
                 <span>🔮 Zyni AI Future Theory</span>
-                <span className="text-white/30">·</span>
-                <span className="text-white/40">{title}</span>
+                <span className={styles.theoryDivider}>·</span>
+                <span className={styles.theoryAnime}>{title}</span>
               </div>
-              <h3 className="mt-3 font-display text-lg font-bold leading-snug text-white">{theory.headline}</h3>
-              <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
-                <div className="h-full rounded-full bg-gradient-to-r from-[var(--color-cyan)] to-[var(--color-magenta)]" style={{ width: `${Math.min(100, Math.max(0, theory.confidence || 50))}%` }} />
+              <h3 className={styles.theoryTitle}>{theory.headline}</h3>
+              <div className={styles.confidenceTrack}>
+                <div
+                  className={styles.confidenceFill}
+                  style={{ width: `${Math.min(100, Math.max(0, theory.confidence || 50))}%` }}
+                />
               </div>
-              <p className="mt-1 font-mono text-[10px] text-white/40">
+              <p className={styles.confidenceNote}>
                 {theory.confidence ?? 50}% AI confidence · speculation, not canon
               </p>
-              <div className="mt-5 space-y-3">
+              <div className={styles.predictionList}>
                 {(theory.predictions || []).map((p, i) => (
-                  <div key={i} className="rounded-lg border border-white/10 bg-black/30 p-3">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-magenta)]">
+                  <div key={i} className={styles.predictionCard}>
+                    <p className={styles.predictionMeta}>
                       {PREDICTION_META[p.type]?.emoji || "▪"} {PREDICTION_META[p.type]?.label || p.type} — {p.title}
                     </p>
-                    <p className="mt-1 text-sm leading-relaxed text-white/85">{p.text}</p>
+                    <p className={styles.predictionText}>{p.text}</p>
                   </div>
                 ))}
               </div>
-              <div className="mt-4 flex items-center justify-between rounded-lg border border-white/10 bg-black/30 px-3 py-2">
-                <span className="font-mono text-[9px] text-white/40">Generated by ZyniVerse AI · fan theory · may be legendary</span>
-                <span className="font-mono text-[10px] font-bold tracking-wider text-white/70">✦ zyverse.in</span>
+              <div className={styles.theoryFooter}>
+                <span className={styles.theoryGenerated}>
+                  Generated by ZyniVerse AI · fan theory · may be legendary
+                </span>
+                <span className={styles.theoryBrand}>✦ zyverse.in</span>
               </div>
             </div>
 
             {/* Vote + share bar */}
-            <div className="mt-4 flex flex-wrap items-center gap-2">
+            <div className={styles.actionBar}>
               <button
+                type="button"
                 onClick={() => toggleVote(true)}
-                className={`rounded-full px-4 py-2 text-xs font-bold transition-all ${
-                  votes?.myVote === true
-                    ? "bg-[var(--color-cyan)] text-black"
-                    : "border border-[var(--color-line)] text-[var(--color-mute)] hover:border-[var(--color-cyan)] hover:text-[var(--color-cyan)]"
-                }`}
+                className={`${styles.actionButton} ${votes?.myVote === true ? styles.actionAgreeActive : ""}`}
               >
                 🙏 I think so {votes ? `· ${votes.agree}` : ""}
               </button>
               <button
+                type="button"
                 onClick={() => toggleVote(false)}
-                className={`rounded-full px-4 py-2 text-xs font-bold transition-all ${
-                  votes?.myVote === false
-                    ? "bg-[var(--color-magenta)] text-black"
-                    : "border border-[var(--color-line)] text-[var(--color-mute)] hover:border-[var(--color-magenta)] hover:text-[var(--color-magenta)]"
-                }`}
+                className={`${styles.actionButton} ${votes?.myVote === false ? styles.actionCapActive : ""}`}
               >
                 🧢 Cap {votes ? `· ${votes.refute}` : ""}
               </button>
-              <button onClick={copyTheory} className="rounded-full border border-[var(--color-line)] px-4 py-2 text-xs font-bold text-[var(--color-mute)] hover:border-[var(--color-cyan)] hover:text-[var(--color-cyan)]">
+              <button type="button" onClick={copyTheory} className={styles.actionButton}>
                 {copied ? "✓ Copied" : "Copy text"}
               </button>
-              <button onClick={downloadTheoryCard} disabled={downloading} className="rounded-full border border-[var(--color-line)] px-4 py-2 text-xs font-bold text-[var(--color-mute)] hover:border-[var(--color-magenta)] hover:text-[var(--color-magenta)] disabled:opacity-50">
+              <button
+                type="button"
+                onClick={downloadTheoryCard}
+                disabled={downloading}
+                className={`${styles.actionButton} ${styles.actionSave}`}
+              >
                 {downloading ? "Rendering…" : "Save card 📸"}
               </button>
             </div>
@@ -296,16 +319,20 @@ export default function AiLab({ animeId, title }: { animeId: number; title: stri
           <TasteView card={cards.taste.data as TasteCard} title={title} />
         )}
         {activeState.status === "done" && active === "fancast" && (
-          <div className="space-y-4">
-            <p className="text-2xl">🎬</p>
-            <p className="text-sm font-semibold italic text-[var(--color-cyan)]">{(cards.fancast.data as FancastCard)?.hook}</p>
-            <div className="space-y-2">
+          <div className={styles.viewStack}>
+            <span className={styles.viewIcon} aria-hidden="true">🎬</span>
+            <p className={`${styles.viewLead} ${styles.hookLead}`}>
+              {(cards.fancast.data as FancastCard)?.hook}
+            </p>
+            <div className={styles.castList}>
               {((cards.fancast.data as FancastCard)?.casting || []).map((c, i) => (
-                <div key={i} className="flex items-start gap-3 rounded-lg border border-[var(--color-line)] bg-black/20 p-3">
-                  <span className="rounded-md bg-[var(--color-magenta)]/15 px-2 py-0.5 font-mono text-[10px] font-bold text-[var(--color-magenta)]">#{i + 1}</span>
-                  <div className="min-w-0">
-                    <p className="text-sm font-bold text-white">{c.role} <span className="font-mono text-[10px] font-normal text-white/40">→</span> <span className="text-[var(--color-cyan)]">{c.actor}</span></p>
-                    <p className="text-xs text-[var(--color-mute)]">{c.reason}</p>
+                <div key={i} className={styles.castRow}>
+                  <span className={styles.castNumber}>#{i + 1}</span>
+                  <div className={styles.castBody}>
+                    <p className={styles.castLine}>
+                      {c.role} <span className={styles.castArrow}>→</span> <span className={styles.castActor}>{c.actor}</span>
+                    </p>
+                    <p className={styles.castReason}>{c.reason}</p>
                   </div>
                 </div>
               ))}
@@ -313,40 +340,42 @@ export default function AiLab({ animeId, title }: { animeId: number; title: stri
           </div>
         )}
         {activeState.status === "done" && active === "s2predict" && (
-          <div className="space-y-4">
-            <div className="space-y-1">
-              <p className="font-mono text-[10px] uppercase tracking-widest text-[var(--color-cyan)]">🚀 Predicted continuation</p>
-              <h3 className="font-display text-lg font-bold text-white">{(cards.s2predict.data as S2Card)?.headline}</h3>
+          <div className={styles.viewStack}>
+            <div>
+              <span className={styles.viewKicker}>🚀 Predicted continuation</span>
+              <h3 className={styles.viewTitle}>{(cards.s2predict.data as S2Card)?.headline}</h3>
             </div>
-            <p className="text-sm leading-relaxed text-[var(--color-mute)]">{(cards.s2predict.data as S2Card)?.story}</p>
-            <div className="flex flex-wrap gap-2">
+            <p className={styles.viewLead}>{(cards.s2predict.data as S2Card)?.story}</p>
+            <div className={styles.chipRow}>
               {((cards.s2predict.data as S2Card)?.arcs || []).map((a, i) => (
-                <span key={i} className="rounded-full bg-[var(--color-cyan)]/10 px-3 py-1 text-xs text-[var(--color-cyan)]">{a}</span>
+                <span key={i} className={styles.infoChip}>{a}</span>
               ))}
             </div>
-            <div className="rounded-lg border border-[var(--color-line)] bg-black/20 p-3 text-sm">
-              <span className="font-bold text-[var(--color-magenta)]">Stakes:</span> <span className="text-[var(--color-mute)]">{(cards.s2predict.data as S2Card)?.stakes}</span>
+            <div className={styles.stakesBox}>
+              <span className={styles.stakesLabel}>Stakes:</span>{" "}
+              <span>{(cards.s2predict.data as S2Card)?.stakes}</span>
             </div>
             {(cards.s2predict.data as S2Card)?.new_chars?.length > 0 && (
-              <p className="text-xs text-[var(--color-mute)]">
-                <span className="font-bold text-white">Possible new faces:</span> {((cards.s2predict.data as S2Card).new_chars || []).join(", ")}
+              <p className={styles.newFaces}>
+                <span className={styles.newFacesStrong}>Possible new faces:</span>{" "}
+                {((cards.s2predict.data as S2Card).new_chars || []).join(", ")}
               </p>
             )}
-            <p className="rounded-lg border border-[var(--color-magenta)]/30 bg-[var(--color-magenta)]/10 p-3 text-xs italic text-[var(--color-magenta)]">
+            <p className={styles.teaseBox}>
               {`Season tease: `}{(cards.s2predict.data as S2Card)?.reveal}
             </p>
           </div>
         )}
         {activeState.status === "done" && active === "dreamteam" && (
-          <div className="space-y-4">
-            <p className="font-mono text-[10px] uppercase tracking-widest text-[var(--color-cyan)]">⚔️ Dream squad</p>
-            <p className="text-sm font-semibold text-white">{(cards.dreamteam.data as DreamTeamCard)?.mission}</p>
-            <div className="grid gap-2 sm:grid-cols-2">
+          <div className={styles.viewStack}>
+            <span className={styles.viewKicker}>⚔️ Dream squad</span>
+            <p className={styles.viewLead}>{(cards.dreamteam.data as DreamTeamCard)?.mission}</p>
+            <div className={styles.teamGrid}>
               {((cards.dreamteam.data as DreamTeamCard)?.team || []).map((m, i) => (
-                <div key={i} className="rounded-lg border border-[var(--color-line)] bg-black/20 p-3">
-                  <p className="text-sm font-bold text-white">{m.member}</p>
-                  <p className="font-mono text-[10px] text-[var(--color-magenta)]">{m.role}</p>
-                  <p className="mt-1 text-xs text-[var(--color-mute)]">{m.power}</p>
+                <div key={i} className={styles.teamCard}>
+                  <p className={styles.teamMember}>{m.member}</p>
+                  <p className={styles.teamRole}>{m.role}</p>
+                  <p className={styles.teamPower}>{m.power}</p>
                 </div>
               ))}
             </div>
@@ -364,33 +393,46 @@ function TasteView({ card, title }: { card: TasteCard; title: string }) {
   const verdict = card.verdict || "Watch now";
   const verdictColor = VERDICT_COLOR[verdict.toLowerCase().split(" ")[0]] || "var(--color-cyan)";
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-4">
-        <div className="relative flex h-20 w-20 shrink-0 items-center justify-center rounded-full"
-          style={{ background: `conic-gradient(${barColor} ${score * 3.6}deg, rgba(255,255,255,0.08) 0deg)` }}>
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[var(--color-panel)]">
-            <span className="font-mono text-xl font-bold" style={{ color: barColor }}>{score}%</span>
+    <div className={styles.tasteCard}>
+      <div className={styles.tasteHead}>
+        <div
+          className={styles.scoreRing}
+          style={{
+            background: `conic-gradient(${barColor} ${score * 3.6}deg, color-mix(in srgb, var(--color-line) 78%, transparent) 0deg)`,
+          }}
+        >
+          <div className={styles.scoreInner}>
+            <span className={styles.scoreValue} style={{ color: barColor }}>{score}%</span>
           </div>
         </div>
         <div>
-          <p className="text-sm font-bold text-white">
+          <p className={styles.tasteQuestion}>
             Will you like {title}?
           </p>
-          <p className="mt-1 inline-block rounded-full px-3 py-1 text-xs font-bold" style={{ backgroundColor: `${verdictColor}1a`, color: verdictColor, border: `1px solid ${verdictColor}55` }}>
+          <span
+            className={styles.verdict}
+            style={{
+              backgroundColor: `color-mix(in srgb, ${verdictColor} 12%, transparent)`,
+              borderColor: `color-mix(in srgb, ${verdictColor} 44%, transparent)`,
+              color: verdictColor,
+            }}
+          >
             {verdict}
-          </p>
+          </span>
         </div>
       </div>
-      <p className="text-sm leading-relaxed text-[var(--color-mute)]">{card.brief}</p>
-      <div className="space-y-2">
+      <p className={styles.viewLead}>{card.brief}</p>
+      <div className={styles.reasonList}>
         {(card.reasons || []).map((r, i) => (
-          <div key={i} className="flex items-start gap-2 rounded-lg border border-[var(--color-line)] bg-black/20 p-3">
-            <span className="text-[var(--color-cyan)]">▸</span>
-            <p className="text-xs leading-relaxed text-[var(--color-mute)]">{r}</p>
+          <div key={i} className={styles.reasonRow}>
+            <span className={styles.reasonBullet} aria-hidden="true">▸</span>
+            <p className={styles.reasonText}>{r}</p>
           </div>
         ))}
       </div>
-      <p className="font-mono text-[9px] text-white/30">Scored against your favourite genres, moods & tracked shows · Zyni AI</p>
+      <p className={styles.tasteNote}>
+        Scored against your favourite genres, moods &amp; tracked shows · Zyni AI
+      </p>
     </div>
   );
 }

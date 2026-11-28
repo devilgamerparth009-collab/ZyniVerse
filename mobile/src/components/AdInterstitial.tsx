@@ -36,6 +36,7 @@ const BLOCKED_ROUTES = new Set([
 export default function AdInterstitial() {
   const [visible, setVisible] = useState(false);
   const [canClose, setCanClose] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState(CLOSE_DELAY_MS / 1000);
   const transitions = useRef(0);
   const visibleRef = useRef(false);
   const lastRouteRef = useRef<string | null>(null);
@@ -85,11 +86,16 @@ export default function AdInterstitial() {
   useEffect(() => {
     if (!visible) return;
     setCanClose(false);
+    setSecondsLeft(Math.ceil(CLOSE_DELAY_MS / 1000));
     const closeTimer = setTimeout(() => setCanClose(true), CLOSE_DELAY_MS);
     const autoTimer = setTimeout(closeAd, AUTO_CLOSE_MS);
+    const countdown = setInterval(() => {
+      setSecondsLeft((prev) => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
     return () => {
       clearTimeout(closeTimer);
       clearTimeout(autoTimer);
+      clearInterval(countdown);
     };
   }, [visible, closeAd]);
 
@@ -121,14 +127,14 @@ export default function AdInterstitial() {
               <Text style={styles.closeText}>{canClose ? '✕' : '…'}</Text>
             </TouchableOpacity>
           </View>
-          <AdBanner placement="sidebar" size="medium" lazy={false} />
+          <AdBanner placement="sidebar" size="medium" lazy={false} onFailure={closeAd} />
           <TouchableOpacity
-            onPress={() => setVisible(false)}
+            onPress={closeAd}
             disabled={!canClose}
             style={[styles.continueButton, !canClose && styles.continueDisabled]}
           >
             <Text style={styles.continueText}>
-              {canClose ? 'Continue to ZyniVerse' : `Please wait ${CLOSE_DELAY_MS / 1000}s`}
+              {canClose ? 'Continue to ZyniVerse' : `Please wait ${secondsLeft}s`}
             </Text>
           </TouchableOpacity>
         </View>

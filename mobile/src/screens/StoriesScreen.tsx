@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Alert,
   Animated,
   Easing,
   FlatList,
@@ -13,6 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ScreenHeader from '../components/ScreenHeader';
 import SafeImage from '../components/SafeImage';
@@ -68,6 +70,7 @@ export default function StoriesScreen() {
   const [channelsError, setChannelsError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [uploadingMedia, setUploadingMedia] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -193,10 +196,42 @@ export default function StoriesScreen() {
     return () => animation.stop();
   }, [viewerIndex, stories, markViewed, advance, progress]);
 
+  const pickStoryMedia = async () => {
+    if (uploadingMedia) return;
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert('Photo permission needed', 'Allow photo access to choose a story image.');
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.85,
+      });
+      if (result.canceled || !result.assets?.length) return;
+      const asset = result.assets[0];
+      setUploadingMedia(true);
+      const uploaded = await api.profile.uploadImage({
+        uri: asset.uri,
+        name: asset.fileName || `story-${Date.now()}.jpg`,
+        type: asset.mimeType || 'image/jpeg',
+      });
+      const absolute = uploaded.startsWith('http') ? uploaded : `https://zyverse.in${uploaded}`;
+      setMediaUrl(absolute);
+      setMediaType('image');
+      setFormError(null);
+    } catch (e: unknown) {
+      setFormError(e instanceof Error ? e.message : 'Could not upload image');
+    } finally {
+      setUploadingMedia(false);
+    }
+  };
+
   const createStory = async () => {
     const url = mediaUrl.trim();
     if (!/^https?:\/\//i.test(url)) {
-      setFormError('Enter an image or video link that starts with https://');
+      setFormError('Enter an image/video link or pick an image from gallery.');
       return;
     }
     setCreating(true);
@@ -243,12 +278,21 @@ export default function StoriesScreen() {
           <TextInput
             value={mediaUrl}
             onChangeText={setMediaUrl}
-            placeholder="Image or video link"
+            placeholder="Image/video link or pick from gallery"
             placeholderTextColor={colors.textDim}
             style={[styles.input, { color: colors.text, backgroundColor: colors.background, borderColor: colors.border }]}
             autoCapitalize="none"
             autoCorrect={false}
           />
+          <TouchableOpacity
+            onPress={() => void pickStoryMedia()}
+            disabled={uploadingMedia}
+            style={[styles.mediaTypeBtn, { borderColor: colors.primary, marginBottom: 8, alignSelf: 'flex-start' }]}
+          >
+            <Text style={[styles.mediaTypeText, { color: colors.primary }]}>
+              {uploadingMedia ? 'Uploading…' : 'Pick image from gallery'}
+            </Text>
+          </TouchableOpacity>
           <View style={styles.mediaTypes}>
             {(['image', 'video'] as MediaType[]).map((type) => (
               <TouchableOpacity

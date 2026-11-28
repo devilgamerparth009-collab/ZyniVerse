@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -82,20 +82,19 @@ export default function TournamentsScreen() {
     }
   }, []);
 
-  useEffect(() => {
-    fetchTournaments();
-  }, [fetchTournaments]);
-
   const onRefresh = () => {
     setRefreshing(true);
     fetchTournaments();
   };
 
+  // Refetch every time the Arena tab becomes visible: a tournament created on
+  // the website (or on another device) must show up without reinstalling.
   useFocusEffect(
     useCallback(() => {
+      fetchTournaments();
       const timer = setInterval(() => setClockTick((tick) => tick + 1), 60_000);
       return () => clearInterval(timer);
-    }, [])
+    }, [fetchTournaments])
   );
 
   const primaryColor = isLaunch ? '#22d3ee' : colors.primary;
@@ -203,6 +202,14 @@ export default function TournamentsScreen() {
             </View>
             <Text style={[styles.title, { color: colors.text }]}>Tournament Arena</Text>
           </View>
+          <TouchableOpacity
+            accessibilityLabel="Create tournament"
+            activeOpacity={0.85}
+            onPress={() => navigation.navigate('TournamentCreate')}
+            style={[styles.createBtn, { backgroundColor: primaryColor }]}
+          >
+            <Text style={styles.createBtnText}>＋ Create</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Featured battle: the arena's main event, not just another row. */}
@@ -385,7 +392,23 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   headerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
     marginBottom: 12,
+  },
+  createBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  createBtnText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '900',
   },
   featuredCard: {
     borderWidth: 1,

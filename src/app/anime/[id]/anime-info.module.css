@@ -1,0 +1,339 @@
+/* Server-rendered info/link boxes on anime detail pages.
+   Motion is CSS-only and fully disabled under prefers-reduced-motion. */
+
+.infoSection {
+  margin: 0 auto;
+  padding: 0 1rem 3rem;
+  max-width: 80rem;
+}
+
+@media (min-width: 640px) {
+  .infoSection {
+    padding-right: 1.5rem;
+    padding-left: 1.5rem;
+  }
+}
+
+.infoPanel {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: 1.5rem;
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 16%, var(--color-line));
+  background:
+    radial-gradient(620px 220px at 8% -20%, color-mix(in srgb, var(--color-magenta) 14%, transparent), transparent 66%),
+    radial-gradient(540px 200px at 94% -12%, color-mix(in srgb, var(--color-cyan) 11%, transparent), transparent 68%),
+    color-mix(in srgb, var(--color-panel) 88%, var(--color-void));
+  box-shadow: 0 28px 72px -50px color-mix(in srgb, var(--color-magenta) 65%, transparent);
+  padding: 1.5rem;
+  animation: panelIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.infoPanel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-cyan) 5%, transparent),
+    transparent 48%,
+    color-mix(in srgb, var(--color-magenta) 5%, transparent)
+  );
+}
+
+.infoHeading {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--color-ink);
+  background: linear-gradient(100deg, var(--color-ink), var(--color-cyan), var(--color-magenta), var(--color-ink));
+  background-size: 240% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: headingSheen 9s ease-in-out infinite;
+}
+
+.infoIntro {
+  margin-top: 0.75rem;
+  max-width: 72ch;
+  color: var(--color-mute);
+  font-size: 0.875rem;
+  line-height: 1.75;
+}
+
+.tipGrid {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+@media (min-width: 640px) {
+  .tipGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.tipCard {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1rem;
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 14%, var(--color-line));
+  background: linear-gradient(
+    150deg,
+    color-mix(in srgb, var(--color-cyan) 7%, var(--color-panel)),
+    color-mix(in srgb, var(--color-void) 52%, var(--color-panel))
+  );
+  padding: 1rem;
+  animation: cardIn 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+  transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.tipCard::before {
+  content: "";
+  position: absolute;
+  top: -2.5rem;
+  right: -2.5rem;
+  width: 6rem;
+  height: 6rem;
+  border-radius: 9999px;
+  pointer-events: none;
+  background: radial-gradient(circle, color-mix(in srgb, var(--color-magenta) 22%, transparent), transparent 70%);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.tipCard:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--color-cyan) 36%, var(--color-line));
+  box-shadow: 0 18px 40px -32px color-mix(in srgb, var(--color-cyan) 80%, transparent);
+}
+
+.tipCard:hover::before {
+  opacity: 1;
+}
+
+.tipCard:nth-child(1) { animation-delay: 0.07s; }
+.tipCard:nth-child(2) { animation-delay: 0.13s; }
+.tipCard:nth-child(3) { animation-delay: 0.19s; }
+
+.tipTitle {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--color-ink);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.tipTitle::before {
+  content: "";
+  flex: none;
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, var(--color-magenta), var(--color-cyan));
+  box-shadow: 0 0 10px -2px color-mix(in srgb, var(--color-magenta) 80%, transparent);
+}
+
+.tipText {
+  position: relative;
+  margin-top: 0.4rem;
+  color: var(--color-mute);
+  font-size: 0.75rem;
+  line-height: 1.65;
+}
+
+.faqBlock {
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid color-mix(in srgb, var(--color-magenta) 16%, transparent);
+}
+
+.faqHeading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--color-ink);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.faqHeading::before {
+  content: "";
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 9999px;
+  background: var(--color-cyan);
+  box-shadow: 0 0 12px -2px color-mix(in srgb, var(--color-cyan) 85%, transparent);
+  animation: dotPulse 2.2s ease-in-out infinite;
+}
+
+.faqItem {
+  position: relative;
+  padding-left: 1rem;
+  color: var(--color-mute);
+  font-size: 0.8rem;
+  line-height: 1.7;
+  animation: cardIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.faqItem:nth-of-type(1) { animation-delay: 0.24s; }
+.faqItem:nth-of-type(2) { animation-delay: 0.3s; }
+
+.faqItem::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.55rem;
+  width: 0.35rem;
+  height: 0.35rem;
+  border-radius: 0.15rem;
+  background: linear-gradient(180deg, var(--color-magenta), var(--color-cyan));
+}
+
+.strongText {
+  color: var(--color-ink);
+  font-weight: 600;
+}
+
+.linkNav {
+  margin: 2rem auto;
+  max-width: 80rem;
+  padding: 0 1rem;
+}
+
+@media (min-width: 640px) {
+  .linkNav {
+    padding-right: 1.5rem;
+    padding-left: 1.5rem;
+  }
+}
+
+.linkPanel {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1rem;
+  border: 1px solid color-mix(in srgb, var(--color-magenta) 16%, var(--color-line));
+  background:
+    radial-gradient(520px 180px at 6% -30%, color-mix(in srgb, var(--color-magenta) 13%, transparent), transparent 68%),
+    radial-gradient(460px 170px at 94% -24%, color-mix(in srgb, var(--color-cyan) 10%, transparent), transparent 70%),
+    color-mix(in srgb, var(--color-panel) 82%, var(--color-void));
+  box-shadow: 0 20px 50px -42px color-mix(in srgb, var(--color-cyan) 70%, transparent);
+  padding: 1.15rem 1.25rem;
+  animation: panelIn 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.linkHeading {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 0;
+  color: var(--color-mute);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.linkHeading::before {
+  content: "";
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 9999px;
+  background: var(--color-magenta);
+  box-shadow: 0 0 10px -2px color-mix(in srgb, var(--color-magenta) 85%, transparent);
+}
+
+.linkGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.9rem;
+}
+
+.linkChip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 14%, var(--color-line));
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--color-void) 42%, transparent);
+  padding: 0.45rem 0.8rem;
+  color: color-mix(in srgb, var(--color-ink) 78%, var(--color-mute));
+  font-size: 0.8rem;
+  line-height: 1.2;
+  text-decoration: none;
+  animation: chipIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+  transition: transform 0.22s ease, border-color 0.22s ease, background 0.22s ease, color 0.22s ease;
+}
+
+.linkChip::before {
+  content: "";
+  flex: none;
+  width: 0.3rem;
+  height: 0.3rem;
+  border-radius: 9999px;
+  background: var(--color-cyan);
+  opacity: 0.8;
+}
+
+.linkChip:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--color-cyan) 42%, var(--color-line));
+  background: color-mix(in srgb, var(--color-cyan) 9%, transparent);
+  color: var(--color-cyan);
+}
+
+.linkChip:nth-child(3n + 1) { animation-delay: 0.04s; }
+.linkChip:nth-child(3n + 2) { animation-delay: 0.09s; }
+.linkChip:nth-child(3n + 3) { animation-delay: 0.14s; }
+
+@keyframes panelIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes chipIn {
+  from { opacity: 0; transform: translateY(6px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes headingSheen {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@keyframes dotPulse {
+  0%, 100% { opacity: 0.75; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .infoPanel,
+  .infoHeading,
+  .tipCard,
+  .faqHeading::before,
+  .faqItem,
+  .linkPanel,
+  .linkChip {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .tipCard:hover,
+  .linkChip:hover {
+    transform: none !important;
+  }
+}

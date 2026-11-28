@@ -1,8 +1,11 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { useWatchlist } from "@/components/WatchlistProvider";
 import type { SubScores } from "@/components/WatchlistProvider";
+import boxStyles from "./detailBoxes.module.css";
 
 const CATEGORIES: { key: keyof SubScores; label: string; hint: string }[] = [
   { key: "story", label: "Story", hint: "Plot & writing" },
@@ -27,7 +30,17 @@ function computeOverall(subs: SubScores): number | null {
   return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
 }
 
-export default function AnimeRatingInput({ mediaId, type = "ANIME" }: { mediaId: number; type?: string }) {
+export default function AnimeRatingInput({
+  mediaId,
+  type = "ANIME",
+  className = "",
+}: {
+  mediaId: number;
+  type?: string;
+  className?: string;
+}) {
+  const { data: session } = useSession();
+  const signedIn = Boolean(session?.user);
   const { getScore, getSubScores, rate } = useWatchlist();
   const savedSubs = getSubScores(mediaId);
   const savedOverall = getScore(mediaId);
@@ -47,6 +60,7 @@ export default function AnimeRatingInput({ mediaId, type = "ANIME" }: { mediaId:
   const isSubScoreMode = hasAny || Object.values(savedSubs).some((s) => s != null);
 
   async function handleSet(key: keyof SubScores, value: number | null) {
+    if (!signedIn) return;
     const next = { ...draft, [key]: value };
     setDraft(next);
     if (value === null && !Object.values(next).some((s) => s != null)) {
@@ -60,6 +74,7 @@ export default function AnimeRatingInput({ mediaId, type = "ANIME" }: { mediaId:
   }
 
   async function handleClearAll() {
+    if (!signedIn) return;
     setSaving(true);
     try {
       setDraft({ story: null, art: null, sound: null, characters: null, enjoyment: null });
@@ -68,29 +83,35 @@ export default function AnimeRatingInput({ mediaId, type = "ANIME" }: { mediaId:
   }
 
   return (
-    <div className="rounded-xl neon-rgb-border bg-[var(--color-panel)] p-5">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="font-display text-sm font-bold flex items-center gap-2">
-          <span className="h-3 w-1 rounded-full bg-[var(--color-magenta)]" />
+    <div className={`${boxStyles.box} ${className}`}>
+      <div className={boxStyles.sectionHead}>
+        <h3 className={`font-display text-sm font-bold flex items-center gap-2 ${boxStyles.boxTitle}`}>
+          <span className={boxStyles.headingMark} />
           Your Rating
         </h3>
         {overall || (isSubScoreMode ? null : savedOverall) ? (
           <div className="flex items-center gap-2">
             <div
-              className="flex h-10 w-10 items-center justify-center rounded-full font-mono text-sm font-bold text-black shadow-lg"
+              className={`${boxStyles.scoreOrb} font-mono text-sm font-bold text-black shadow-lg`}
               style={{ backgroundColor: scoreColor((overall ?? savedOverall) as number) }}
             >
               {overall ?? savedOverall}
             </div>
-            <span className="text-[10px] font-mono text-[var(--color-mute)]">
+            <span className={boxStyles.tinyMuted}>
               {isSubScoreMode ? "overall" : "score"}/10
             </span>
           </div>
         ) : null}
       </div>
 
+      {!signedIn && (
+        <div className={`${boxStyles.noteCard} ${boxStyles.mutedText} mb-3`} role="status">
+          <Link href="/login" className={boxStyles.textLink}>Sign in</Link> to save your rating.
+        </div>
+      )}
+
       {!isSubScoreMode && savedOverall && (
-        <p className="mb-3 text-[10px] text-[var(--color-mute)]">
+        <p className={`mb-3 ${boxStyles.tinyMuted}`}>
           You rated {savedOverall}/10. Set sub-scores below for a detailed breakdown (AniList style).
         </p>
       )}
@@ -111,7 +132,7 @@ export default function AnimeRatingInput({ mediaId, type = "ANIME" }: { mediaId:
                   </span>
                 )}
               </div>
-              <div className="flex flex-wrap gap-1">
+              <div className={`flex flex-wrap gap-1 ${boxStyles.ratingRow}`}>
                 {SCORE_VALUES.map((v) => {
                   const active = display === v;
                   return (
@@ -121,10 +142,8 @@ export default function AnimeRatingInput({ mediaId, type = "ANIME" }: { mediaId:
                       onMouseEnter={() => setHovering((h) => ({ ...h, [cat.key]: v }))}
                       onMouseLeave={() => setHovering((h) => ({ ...h, [cat.key]: null }))}
                       disabled={saving}
-                      className={`flex h-6 w-6 items-center justify-center rounded-md text-[10px] font-bold transition-all ${
-                        active
-                          ? "text-black shadow scale-110"
-                          : "border border-[var(--color-line)] text-[var(--color-mute)] hover:border-[var(--color-magenta)] hover:text-[var(--color-magenta)]"
+                      className={`${boxStyles.scoreButton} ${
+                        active ? `${boxStyles.scoreButtonActive} text-black scale-105` : ""
                       }`}
                       style={
                         active
@@ -143,14 +162,14 @@ export default function AnimeRatingInput({ mediaId, type = "ANIME" }: { mediaId:
       </div>
 
       {(hasAny || isSubScoreMode) && (
-        <div className="mt-4 flex items-center justify-between border-t border-[var(--color-line)] pt-3">
-          <span className="text-[10px] text-[var(--color-mute)]">
+        <div className={`mt-4 flex items-center justify-between pt-3 ${boxStyles.rowDivider}`}>
+          <span className={boxStyles.tinyMuted}>
             Overall = average of your sub-scores
           </span>
           <button
             onClick={handleClearAll}
             disabled={saving}
-            className="text-[10px] text-[var(--color-mute)] hover:text-[var(--color-magenta)] transition-colors"
+            className={boxStyles.clearButton}
           >
             Clear rating
           </button>

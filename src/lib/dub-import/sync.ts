@@ -292,6 +292,8 @@ async function syncAnimeDubHindiSchedule(baseUrl: string): Promise<{ fetched: nu
       )`
     );
     if (values.length) {
+      // The source HTML is authoritative: an undated "Coming Soon" row must
+      // clear an old timestamp instead of inheriting one forever.
       await prisma.$executeRaw`
         INSERT INTO "DubScheduleEntry"
           ("id", "source", "sourceId", "title", "posterUrl", "season", "episodeInfo",
@@ -306,7 +308,7 @@ async function syncAnimeDubHindiSchedule(baseUrl: string): Promise<{ fetched: nu
             THEN EXCLUDED."languages" ELSE "DubScheduleEntry"."languages" END,
           "dayLabel" = COALESCE(EXCLUDED."dayLabel", "DubScheduleEntry"."dayLabel"),
           "timeLabel" = COALESCE(EXCLUDED."timeLabel", "DubScheduleEntry"."timeLabel"),
-          "releaseAt" = COALESCE(EXCLUDED."releaseAt", "DubScheduleEntry"."releaseAt"),
+          "releaseAt" = EXCLUDED."releaseAt",
           "sourceUrl" = EXCLUDED."sourceUrl",
           "updatedAt" = now()
       `;

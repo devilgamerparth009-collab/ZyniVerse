@@ -12,6 +12,7 @@ export interface TheatricalRelease {
   languages: string[];
   boxOfficeIndia?: string;
   boxOfficeWorldwide?: string;
+  boxOfficeSource?: string;
   budget?: string;
   rating: string;
   screenCount?: number;
@@ -165,7 +166,9 @@ export const THEATRICAL_RELEASES: TheatricalRelease[] = [
     distributor: "Crunchyroll, Sony Pictures India",
     languages: ["Japanese", "English", "Hindi", "Tamil", "Telugu"],
     boxOfficeIndia: "₹90.09 Crore",
-    boxOfficeWorldwide: "$674M",
+    boxOfficeWorldwide: "$793.5 million",
+    boxOfficeSource: "Wikipedia",
+    wikipediaUrl: "https://en.wikipedia.org/wiki/Demon_Slayer:_Kimetsu_no_Yaiba_%E2%80%93_The_Movie:_Infinity_Castle",
     rating: "UA",
     screenCount: 1700,
     status: "released",
@@ -220,6 +223,9 @@ export const THEATRICAL_RELEASES: TheatricalRelease[] = [
     distributor: "Crunchyroll, Sony Pictures India",
     languages: ["Japanese", "Hindi"],
     boxOfficeIndia: "₹4.8 Crore",
+    boxOfficeWorldwide: "$191.4 million",
+    boxOfficeSource: "Wikipedia",
+    wikipediaUrl: "https://en.wikipedia.org/wiki/Chainsaw_Man_%E2%80%93_The_Movie:_Reze_Arc",
     rating: "A",
     status: "released",
     malUrl: "https://myanimelist.net/anime/56696",
@@ -272,6 +278,9 @@ export const THEATRICAL_RELEASES: TheatricalRelease[] = [
     distributor: "PVR Inox Pictures, Medialink",
     languages: ["Japanese (English Sub)"],
     boxOfficeIndia: "₹5.04 Crore",
+    boxOfficeWorldwide: "$100.1 million",
+    boxOfficeSource: "Wikipedia",
+    wikipediaUrl: "https://en.wikipedia.org/wiki/Haikyu!!_The_Dumpster_Battle",
     rating: "UA",
     screenCount: 200,
     status: "released",
@@ -290,6 +299,9 @@ export const THEATRICAL_RELEASES: TheatricalRelease[] = [
     distributor: "Warner Bros. India, Encore Films",
     languages: ["Japanese", "English"],
     boxOfficeIndia: "₹3.05 Crore",
+    boxOfficeWorldwide: "$294.2 million",
+    boxOfficeSource: "Wikipedia",
+    wikipediaUrl: "https://en.wikipedia.org/wiki/The_Boy_and_the_Heron",
     rating: "UA",
     screenCount: 209,
     status: "released",
@@ -345,7 +357,9 @@ export const THEATRICAL_RELEASES: TheatricalRelease[] = [
     distributor: "Crunchyroll, Sony Pictures India",
     languages: ["Japanese (Hindi Sub)", "Hindi Dub"],
     boxOfficeIndia: "₹15.60 Crore",
-    boxOfficeWorldwide: "$503.1M",
+    boxOfficeWorldwide: "$512.7 million",
+    boxOfficeSource: "Wikipedia",
+    wikipediaUrl: "https://en.wikipedia.org/wiki/Demon_Slayer:_Kimetsu_no_Yaiba_%E2%80%93_The_Movie:_Mugen_Train",
     rating: "UA",
     status: "released",
     malUrl: "https://myanimelist.net/anime/101922",
@@ -363,7 +377,9 @@ export const THEATRICAL_RELEASES: TheatricalRelease[] = [
     distributor: "PVR Inox Pictures",
     languages: ["Japanese (Hindi Sub)", "Hindi Dub"],
     boxOfficeIndia: "₹9.80 Crore",
-    boxOfficeWorldwide: "$196.2M",
+    boxOfficeWorldwide: "$191.1 million",
+    boxOfficeSource: "Wikipedia",
+    wikipediaUrl: "https://en.wikipedia.org/wiki/Jujutsu_Kaisen_0_(film)",
     rating: "UA",
     status: "released",
     malUrl: "https://myanimelist.net/anime/44347",
@@ -381,7 +397,9 @@ export const THEATRICAL_RELEASES: TheatricalRelease[] = [
     distributor: "PVR Inox Pictures",
     languages: ["Japanese (Hindi Sub)", "Hindi Dub"],
     boxOfficeIndia: "₹10 Crore",
-    boxOfficeWorldwide: "$327.6M",
+    boxOfficeWorldwide: "$315 million",
+    boxOfficeSource: "Wikipedia",
+    wikipediaUrl: "https://en.wikipedia.org/wiki/Suzume",
     rating: "UA",
     status: "released",
     malUrl: "https://myanimelist.net/anime/52522",
@@ -399,7 +417,9 @@ export const THEATRICAL_RELEASES: TheatricalRelease[] = [
     distributor: "PVR Inox Pictures",
     languages: ["Japanese (Hindi Sub)", "Hindi Dub"],
     boxOfficeIndia: "₹14.20 Crore",
-    boxOfficeWorldwide: "$208.4M",
+    boxOfficeWorldwide: "$246.5 million",
+    boxOfficeSource: "Wikipedia",
+    wikipediaUrl: "https://en.wikipedia.org/wiki/One_Piece_Film:_Red",
     rating: "UA",
     status: "released",
     malUrl: "https://myanimelist.net/anime/107937",
@@ -416,7 +436,9 @@ export const THEATRICAL_RELEASES: TheatricalRelease[] = [
     releaseYear: 2017,
     distributor: "PVR Inox Pictures",
     languages: ["Japanese (Hindi Sub)"],
-    boxOfficeWorldwide: "$380.2M",
+    boxOfficeWorldwide: "$408.3 million",
+    boxOfficeSource: "Wikipedia",
+    wikipediaUrl: "https://en.wikipedia.org/wiki/Your_Name",
     rating: "U",
     status: "released",
     malUrl: "https://myanimelist.net/anime/32281",
@@ -433,7 +455,9 @@ export const THEATRICAL_RELEASES: TheatricalRelease[] = [
     releaseYear: 2019,
     distributor: "PVR Inox Pictures",
     languages: ["Japanese (Hindi Sub)"],
-    boxOfficeWorldwide: "$193.3M",
+    boxOfficeWorldwide: "$193.8 million",
+    boxOfficeSource: "Wikipedia",
+    wikipediaUrl: "https://en.wikipedia.org/wiki/Weathering_with_You",
     rating: "U",
     status: "released",
     malUrl: "https://myanimelist.net/anime/103702",
@@ -479,9 +503,9 @@ export function computeTheatricalStats(releases: TheatricalRelease[]) {
     topBoxOffice: [...releases]
       .filter((r) => r.boxOfficeIndia)
       .sort((a, b) => parseBoxOfficeToCrore(b.boxOfficeIndia) - parseBoxOfficeToCrore(a.boxOfficeIndia))
-      .slice(0, 5),
+      .slice(0, 10),
     distributors: [...THEATRICAL_DISTRIBUTORS],
-    lastUpdated: "2026-07-25",
+    lastUpdated: "2026-11-28",
   };
 }
 

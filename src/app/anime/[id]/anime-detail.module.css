@@ -1,0 +1,1443 @@
+/* Anime detail visual layer. All motion is CSS-only and reduced-motion safe. */
+
+.hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-height: 50vh;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-magenta) 20%, transparent);
+  background:
+    radial-gradient(720px 260px at 12% -18%, color-mix(in srgb, var(--hero-accent, var(--color-magenta)) 22%, transparent), transparent 64%),
+    radial-gradient(620px 240px at 88% -8%, color-mix(in srgb, var(--color-cyan) 14%, transparent), transparent 66%),
+    var(--color-void);
+  animation: pageLift 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (min-width: 640px) {
+  .hero {
+    min-height: 72vh;
+  }
+}
+
+.heroBanner {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.heroBannerImage {
+  object-fit: cover;
+  opacity: 0.34;
+  filter: saturate(1.15) contrast(1.05);
+}
+
+.heroBannerFallback {
+  opacity: 0.18;
+  filter: blur(18px) saturate(1.35);
+  transform: scale(1.08);
+}
+
+.heroVeil {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-void) 26%, transparent),
+      color-mix(in srgb, var(--color-void) 74%, transparent) 56%,
+      var(--color-void)
+    ),
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--color-void) 86%, transparent),
+      color-mix(in srgb, var(--color-void) 42%, transparent) 58%,
+      color-mix(in srgb, var(--color-void) 54%, transparent)
+    );
+}
+
+.heroAura {
+  position: absolute;
+  z-index: 0;
+  width: 20rem;
+  height: 20rem;
+  border-radius: 9999px;
+  pointer-events: none;
+  filter: blur(58px);
+  opacity: 0.46;
+  animation: auraDrift 10s ease-in-out infinite;
+}
+
+.heroAuraCyan {
+  top: -9rem;
+  right: 8%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--color-cyan) 26%, transparent), transparent 70%);
+}
+
+.heroAuraMagenta {
+  bottom: -12rem;
+  left: 8%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--color-magenta) 24%, transparent), transparent 70%);
+  animation-delay: -3.4s;
+}
+
+.heroAuraAmber {
+  top: 22%;
+  left: 46%;
+  width: 14rem;
+  height: 14rem;
+  background: radial-gradient(circle, color-mix(in srgb, var(--color-amber) 18%, transparent), transparent 72%);
+  animation-delay: -6.6s;
+}
+
+.heroArt {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .heroArt {
+    position: absolute;
+    right: -3rem;
+    bottom: -1rem;
+    z-index: 0;
+    display: block;
+    width: min(42vw, 34rem);
+    height: min(78vh, 44rem);
+    pointer-events: none;
+    opacity: 0.88;
+  }
+}
+
+.heroArtFrame {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.heroArtImage {
+  object-fit: contain;
+  object-position: bottom right;
+  -webkit-mask-image: linear-gradient(to left, #000 68%, transparent 96%);
+  mask-image: linear-gradient(to left, #000 68%, transparent 96%);
+  filter: drop-shadow(0 24px 48px color-mix(in srgb, var(--hero-accent, var(--color-magenta)) 28%, transparent));
+}
+
+.heroContent {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  max-width: 90rem;
+  margin: 0 auto;
+  padding: clamp(4.5rem, 8vw, 7rem) clamp(1rem, 3vw, 2.5rem) clamp(2rem, 4vw, 3.5rem);
+}
+
+.heroLayout {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: end;
+  gap: clamp(1.25rem, 3vw, 2.5rem);
+}
+
+.cover {
+  position: relative;
+  z-index: 2;
+  grid-column: 1;
+  grid-row: 1;
+  align-self: end;
+  animation: coverIn 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.coverFrame {
+  position: relative;
+  width: 9.5rem;
+  aspect-ratio: 2 / 3;
+  border-radius: 1rem;
+}
+
+@media (min-width: 640px) {
+  .coverFrame {
+    width: 12rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  .coverFrame {
+    width: 14rem;
+  }
+}
+
+.coverImage {
+  border: 1px solid color-mix(in srgb, var(--color-magenta) 34%, transparent);
+  border-radius: 1rem;
+  box-shadow: 0 24px 60px -28px color-mix(in srgb, var(--color-magenta) 70%, transparent);
+  transition: transform 0.35s ease, border-color 0.35s ease, box-shadow 0.35s ease;
+}
+
+.cover:hover .coverImage {
+  transform: translateY(-4px) scale(1.015);
+  border-color: color-mix(in srgb, var(--color-cyan) 46%, transparent);
+  box-shadow: 0 30px 70px -28px color-mix(in srgb, var(--color-cyan) 60%, transparent);
+}
+
+.scoreBadge {
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  border: 1px solid color-mix(in srgb, var(--color-void) 30%, transparent);
+  border-radius: 9999px;
+  background: linear-gradient(135deg, var(--color-cyan), var(--color-magenta));
+  box-shadow: 0 0 24px -6px var(--color-magenta);
+  color: var(--color-void);
+  font-size: 0.78rem;
+  font-weight: 900;
+  animation: badgePop 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.18s both;
+}
+
+.heroInfo {
+  position: relative;
+  z-index: 2;
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+}
+
+.statusPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  width: max-content;
+  margin-bottom: 0.7rem;
+  border: 1px solid color-mix(in srgb, var(--color-magenta) 38%, transparent);
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--color-void) 72%, transparent);
+  padding: 0.35rem 0.75rem;
+  color: var(--color-magenta);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  backdrop-filter: blur(10px);
+  animation: chipIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.08s both;
+}
+
+.statusDot {
+  width: 0.42rem;
+  height: 0.42rem;
+  border-radius: 9999px;
+  background: var(--color-magenta);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--color-magenta) 70%, transparent);
+  animation: softPulse 1.8s ease-in-out infinite;
+}
+
+.heroTitle {
+  margin: 0;
+  max-width: 62rem;
+  overflow-wrap: anywhere;
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 4.8vw, 4rem);
+  font-weight: 800;
+  line-height: 1.02;
+  letter-spacing: -0.045em;
+  background: linear-gradient(100deg, var(--color-ink), var(--color-cyan), var(--color-magenta), var(--color-ink));
+  background-size: 260% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  animation: titleSheen 9s ease-in-out infinite, chipIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.12s both;
+}
+
+.heroNative {
+  margin: 0.45rem 0 0;
+  font-size: clamp(0.85rem, 1.4vw, 1.05rem);
+  color: color-mix(in srgb, var(--color-ink) 72%, var(--color-mute));
+}
+
+.metaRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 1rem;
+  font-size: 0.78rem;
+  color: var(--color-mute);
+}
+
+.metaRow > :is(span, a) {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 16%, var(--color-line));
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--color-void) 54%, transparent);
+  padding: 0.3rem 0.65rem;
+  line-height: 1.1;
+  transition: border-color 0.22s ease, color 0.22s ease, background 0.22s ease;
+}
+
+.metaPrimary {
+  border-color: color-mix(in srgb, var(--color-magenta) 26%, var(--color-line)) !important;
+  background: color-mix(in srgb, var(--color-magenta) 8%, var(--color-void)) !important;
+  color: var(--color-ink);
+  font-weight: 700;
+}
+
+.metaLink:hover,
+.metaRow > :is(span, a):hover {
+  border-color: color-mix(in srgb, var(--color-cyan) 42%, transparent);
+  background: color-mix(in srgb, var(--color-cyan) 8%, transparent);
+  color: var(--color-cyan);
+}
+
+.metaBadge {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.metaSource {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.genreRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.85rem;
+}
+
+.genreChip {
+  border: 1px solid color-mix(in srgb, var(--color-magenta) 24%, transparent);
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--color-magenta) 8%, transparent);
+  padding: 0.32rem 0.7rem;
+  color: color-mix(in srgb, var(--color-ink) 82%, var(--color-mute));
+  font-size: 0.7rem;
+  font-weight: 700;
+  backdrop-filter: blur(10px);
+  transition: border-color 0.22s ease, background 0.22s ease, color 0.22s ease;
+}
+
+.genreChip:hover {
+  border-color: color-mix(in srgb, var(--color-magenta) 52%, transparent);
+  background: color-mix(in srgb, var(--color-magenta) 18%, transparent);
+  color: var(--color-ink);
+}
+
+.dubRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 0.95rem;
+}
+
+.dubLabel {
+  color: var(--color-mute);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.dubChip {
+  border-radius: 9999px;
+  padding: 0.22rem 0.6rem;
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.dubEmpty {
+  color: var(--color-mute);
+  font-size: 0.64rem;
+}
+
+.dubNotifySlot {
+  display: inline-flex;
+}
+
+.dubNotifySlot > button {
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 26%, var(--color-line)) !important;
+  border-radius: 0.65rem !important;
+  background: color-mix(in srgb, var(--color-cyan) 8%, var(--color-void)) !important;
+  padding: 0.32rem 0.55rem !important;
+  font-size: 0.66rem !important;
+}
+
+.dubNotifySlot > button:hover {
+  border-color: color-mix(in srgb, var(--color-cyan) 52%, transparent) !important;
+  background: color-mix(in srgb, var(--color-cyan) 14%, var(--color-void)) !important;
+}
+
+.heroActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.primaryActions,
+.secondaryActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.primaryCta,
+.ghostCta,
+.followSlot > :is(a, button),
+.shareSlot button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.55rem;
+  border-radius: 9999px;
+  padding: 0.62rem 1.05rem;
+  font-size: 0.76rem;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+  transition: transform 0.22s ease, border-color 0.22s ease, background 0.22s ease, box-shadow 0.22s ease, color 0.22s ease;
+}
+
+.primaryCta {
+  border: 1px solid color-mix(in srgb, var(--color-magenta) 70%, transparent);
+  background: linear-gradient(120deg, color-mix(in srgb, var(--color-magenta) 88%, var(--color-void)), color-mix(in srgb, var(--color-cyan) 78%, var(--color-void)));
+  box-shadow: 0 12px 30px -20px color-mix(in srgb, var(--color-magenta) 90%, transparent);
+  color: var(--color-void);
+}
+
+.primaryCtaSaved {
+  background: linear-gradient(120deg, var(--color-cyan), var(--color-magenta));
+}
+
+.primaryCta:hover,
+.ghostCta:hover,
+.followSlot > :is(a, button):hover,
+.shareSlot button:hover {
+  transform: translateY(-2px);
+}
+
+.primaryCta:hover {
+  box-shadow: 0 16px 34px -18px color-mix(in srgb, var(--color-cyan) 70%, transparent);
+}
+
+.followSlot,
+.alertSlot {
+  display: inline-flex;
+  min-width: 0;
+}
+
+.followSlot > :is(a, button) {
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 28%, var(--color-line));
+  background: color-mix(in srgb, var(--color-cyan) 8%, var(--color-void));
+  color: color-mix(in srgb, var(--color-ink) 82%, var(--color-mute));
+}
+
+.followSlot > :is(a, button):hover {
+  border-color: color-mix(in srgb, var(--color-cyan) 54%, transparent);
+  color: var(--color-cyan);
+}
+
+.ghostCta {
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 22%, var(--color-line));
+  background: color-mix(in srgb, var(--color-void) 58%, transparent);
+  color: color-mix(in srgb, var(--color-ink) 78%, var(--color-mute));
+  backdrop-filter: blur(10px);
+}
+
+.ghostCta:hover {
+  border-color: color-mix(in srgb, var(--color-cyan) 48%, transparent);
+  background: color-mix(in srgb, var(--color-cyan) 10%, transparent);
+}
+
+.accentCta {
+  border-color: color-mix(in srgb, var(--color-cyan) 36%, transparent);
+  color: var(--color-cyan);
+}
+
+.mutedCta {
+  border-color: color-mix(in srgb, var(--color-magenta) 18%, var(--color-line));
+  color: var(--color-mute);
+}
+
+.shareSlot > div {
+  gap: 0.35rem;
+}
+
+.shareSlot button {
+  min-width: 2.55rem;
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 20%, var(--color-line));
+  padding: 0;
+  background: color-mix(in srgb, var(--color-void) 58%, transparent);
+  color: color-mix(in srgb, var(--color-ink) 72%, var(--color-mute));
+}
+
+.shareSlot button:hover {
+  border-color: color-mix(in srgb, var(--color-cyan) 48%, transparent);
+  background: color-mix(in srgb, var(--color-cyan) 10%, transparent);
+  color: var(--color-cyan);
+}
+
+.heroNextDock {
+  position: relative;
+  z-index: 2;
+  grid-column: 1 / -1;
+  grid-row: 2;
+  display: flex;
+  flex-direction: column;
+  align-self: end;
+  gap: 0.65rem;
+  width: 100%;
+  max-width: 42rem;
+  animation: chipIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.34s both;
+}
+
+@media (min-width: 1024px) {
+  .heroNextDock {
+    grid-column: 2;
+    max-width: 38rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  .heroNextDock {
+    grid-column: 3;
+    grid-row: 1;
+    max-width: none;
+  }
+}
+
+.airingStrip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  width: fit-content;
+  max-width: 100%;
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 16%, var(--color-line));
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--color-void) 62%, transparent);
+  padding: 0.35rem;
+  backdrop-filter: blur(10px);
+}
+
+.countdownSlot {
+  display: inline-flex;
+}
+
+.countdownSlot > span {
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 34%, transparent);
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--color-cyan) 10%, transparent);
+  padding: 0.42rem 0.7rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.alertSlot > button {
+  min-height: 2.1rem;
+  border-radius: 9999px;
+  padding: 0.42rem 0.7rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.alertSlot > button[class*="bg-white"] {
+  border-color: color-mix(in srgb, var(--color-cyan) 26%, transparent);
+  background: color-mix(in srgb, var(--color-void) 62%, transparent);
+}
+
+.alertSlot > button:hover {
+  border-color: color-mix(in srgb, var(--color-cyan) 52%, transparent);
+}
+
+.alertSlot > span[aria-hidden] {
+  width: 3.5rem;
+  height: 2.1rem;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--color-cyan) 8%, transparent);
+}
+
+.calendarCard {
+  width: 100%;
+}
+
+@media (max-width: 639px) {
+  .heroLayout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+  }
+
+  .coverFrame {
+    width: 8.5rem;
+  }
+
+  .heroInfo {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .heroNextDock {
+    grid-column: 1;
+    grid-row: 3;
+    max-width: none;
+  }
+}
+
+.quickStats {
+  border-bottom: 1px solid color-mix(in srgb, var(--color-line) 80%, transparent);
+  background: color-mix(in srgb, var(--color-panel) 92%, var(--color-void));
+}
+
+.quickStatsInner > span {
+  border: 1px solid color-mix(in srgb, var(--color-magenta) 14%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-void) 46%, transparent);
+  padding: 0.25rem 0.6rem;
+}
+
+.sectionTitle {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.sectionMark {
+  background: linear-gradient(180deg, var(--color-magenta), var(--color-cyan));
+  box-shadow: 0 0 12px -4px var(--color-magenta);
+}
+
+/* Synopsis + AniList tags: an editorial story card with compact chips. */
+.synopsisSection {
+  position: relative;
+  isolation: isolate;
+}
+
+.synopsisPanel {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--color-magenta) 18%, var(--color-line));
+  border-radius: 1rem;
+  background:
+    radial-gradient(280px 150px at 0% 0%, color-mix(in srgb, var(--color-magenta) 9%, transparent), transparent 72%),
+    linear-gradient(145deg, color-mix(in srgb, var(--color-panel) 96%, var(--color-void)), color-mix(in srgb, var(--color-void) 58%, var(--color-panel)));
+  padding: 1rem 1.1rem;
+  box-shadow: 0 22px 54px -46px color-mix(in srgb, var(--color-magenta) 72%, transparent);
+  animation: cardIn 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.synopsisPanel::before {
+  content: "";
+  position: absolute;
+  top: 0.85rem;
+  bottom: 0.85rem;
+  left: 0;
+  width: 0.2rem;
+  border-radius: 0 9999px 9999px 0;
+  background: linear-gradient(180deg, var(--color-magenta), var(--color-cyan));
+  box-shadow: 0 0 16px -5px var(--color-magenta);
+}
+
+.synopsisText {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  font-size: 0.94rem;
+  line-height: 1.75;
+  white-space: pre-line;
+  color: color-mix(in srgb, var(--color-ink) 76%, var(--color-mute));
+}
+
+.synopsisTags {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 1rem;
+  border-top: 1px solid color-mix(in srgb, var(--color-cyan) 12%, transparent);
+  padding-top: 0.9rem;
+}
+
+.synopsisTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 20%, var(--color-line));
+  border-radius: 9999px;
+  background: linear-gradient(120deg, color-mix(in srgb, var(--color-cyan) 8%, var(--color-void)), color-mix(in srgb, var(--color-magenta) 5%, var(--color-void)));
+  padding: 0.3rem 0.6rem;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: color-mix(in srgb, var(--color-ink) 78%, var(--color-mute));
+  transition: transform 0.22s ease, border-color 0.22s ease, color 0.22s ease, box-shadow 0.22s ease;
+}
+
+.synopsisTag:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--color-cyan) 52%, transparent);
+  color: var(--color-cyan);
+  box-shadow: 0 12px 24px -20px var(--color-cyan);
+}
+
+.tagAdultDot {
+  color: var(--color-magenta);
+}
+
+.communityBlock {
+  position: relative;
+  overflow: hidden;
+  margin-top: 1rem;
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 16%, var(--color-line));
+  border-radius: 1rem;
+  background: linear-gradient(145deg, color-mix(in srgb, var(--color-cyan) 5%, var(--color-panel)), color-mix(in srgb, var(--color-magenta) 4%, var(--color-panel)));
+  padding: 0.9rem;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--color-cyan) 8%, transparent);
+  animation: cardIn 0.55s cubic-bezier(0.16, 1, 0.3, 1) 0.06s both;
+}
+
+.communityHead {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.75rem;
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.communityMark {
+  width: 0.2rem;
+  height: 0.8rem;
+  border-radius: 9999px;
+  background: linear-gradient(180deg, var(--color-magenta), var(--color-cyan));
+  box-shadow: 0 0 12px -4px var(--color-magenta);
+}
+
+.editorialCard {
+  border: 1px solid color-mix(in srgb, var(--color-magenta) 26%, transparent);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--color-magenta) 7%, var(--color-panel)), var(--color-void));
+  box-shadow: 0 24px 60px -46px color-mix(in srgb, var(--color-magenta) 80%, transparent);
+  animation: cardIn 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.editorialGlow {
+  background: color-mix(in srgb, var(--color-magenta) 22%, transparent);
+}
+
+.adSlot {
+  width: 100%;
+  max-width: 100%;
+}
+
+.sidebarAd {
+  width: 100%;
+  animation: cardIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+}
+
+.sidebarCard {
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 12%, var(--color-line));
+  background: linear-gradient(150deg, color-mix(in srgb, var(--color-cyan) 5%, var(--color-panel)), var(--color-panel));
+  box-shadow: 0 18px 44px -38px color-mix(in srgb, var(--color-cyan) 70%, transparent);
+  animation: cardIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  transition: transform 0.25s ease, border-color 0.25s ease;
+}
+
+.sidebarCard:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--color-cyan) 28%, var(--color-line));
+}
+
+.internalLinkCard {
+  border: 1px solid color-mix(in srgb, var(--color-magenta) 20%, var(--color-line));
+  background: linear-gradient(145deg, color-mix(in srgb, var(--color-magenta) 7%, var(--color-panel)), var(--color-panel));
+  box-shadow: 0 18px 44px -40px color-mix(in srgb, var(--color-magenta) 80%, transparent);
+  animation: cardIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  transition: transform 0.25s ease, border-color 0.25s ease, background 0.25s ease;
+}
+
+.internalLinkCard:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--color-magenta) 46%, var(--color-line));
+  background: linear-gradient(145deg, color-mix(in srgb, var(--color-magenta) 13%, var(--color-panel)), var(--color-panel));
+}
+
+.internalMiniLink {
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 10%, var(--color-line));
+  background: color-mix(in srgb, var(--color-void) 38%, transparent);
+  color: var(--color-mute);
+  transition: border-color 0.22s ease, color 0.22s ease, background 0.22s ease;
+}
+
+.internalMiniLink:hover {
+  border-color: color-mix(in srgb, var(--color-cyan) 38%, var(--color-line));
+  background: color-mix(in srgb, var(--color-cyan) 8%, transparent);
+  color: var(--color-cyan);
+}
+
+.idNote {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.reelsSection {
+  animation: cardIn 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.reelCard {
+  border: 1px solid color-mix(in srgb, var(--color-magenta) 18%, var(--color-line));
+  background: var(--color-panel);
+  transition: border-color 0.25s ease, transform 0.25s ease;
+}
+
+.reelCard:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--color-magenta) 52%, var(--color-line));
+}
+
+/* Staff credits: compact editorial cards with a subtle accent sheen. */
+.staffSection {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  padding: 1.1rem;
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 14%, var(--color-line));
+  border-radius: 1.2rem;
+  background:
+    radial-gradient(320px 160px at 100% 0%, color-mix(in srgb, var(--color-cyan) 11%, transparent), transparent 70%),
+    radial-gradient(280px 160px at 0% 100%, color-mix(in srgb, var(--color-magenta) 9%, transparent), transparent 72%),
+    linear-gradient(150deg, color-mix(in srgb, var(--color-panel) 96%, var(--color-void)), color-mix(in srgb, var(--color-void) 70%, var(--color-panel)));
+  box-shadow: 0 24px 60px -48px color-mix(in srgb, var(--color-cyan) 70%, transparent);
+  animation: cardIn 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.staffHead {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.staffHead > h2 {
+  margin-bottom: 0;
+}
+
+.staffToggle {
+  position: relative;
+  z-index: 2;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 30%, transparent);
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--color-cyan) 9%, transparent);
+  padding: 0.35rem 0.7rem;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-cyan);
+  transition: transform 0.22s ease, border-color 0.22s ease, background 0.22s ease, box-shadow 0.22s ease;
+}
+
+.staffToggle:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--color-cyan) 55%, transparent);
+  background: color-mix(in srgb, var(--color-cyan) 16%, transparent);
+  box-shadow: 0 12px 26px -18px var(--color-cyan);
+}
+
+.staffToggleArrow {
+  display: inline-block;
+  transition: transform 0.22s ease;
+}
+
+.staffToggle:hover .staffToggleArrow {
+  transform: translateX(3px);
+}
+
+.staffGrid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+@media (min-width: 640px) {
+  .staffGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.staffCard {
+  --staff-accent: var(--color-cyan);
+  position: relative;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.7rem;
+  overflow: hidden;
+  padding: 0.65rem;
+  border: 1px solid color-mix(in srgb, var(--staff-accent) 20%, var(--color-line));
+  border-radius: 0.95rem;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--staff-accent) 8%, var(--color-panel)),
+    color-mix(in srgb, var(--color-void) 38%, var(--color-panel))
+  );
+  box-shadow: 0 14px 36px -30px color-mix(in srgb, var(--staff-accent) 85%, transparent);
+  animation: staffCardIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: calc(var(--staff-index, 0) * 35ms);
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.28s ease, box-shadow 0.28s ease;
+}
+
+.staffCard::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    110deg,
+    transparent 35%,
+    color-mix(in srgb, var(--staff-accent) 14%, transparent) 50%,
+    transparent 65%
+  );
+  transform: translateX(-120%);
+}
+
+.staffCard:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--staff-accent) 48%, var(--color-line));
+  box-shadow: 0 20px 42px -28px color-mix(in srgb, var(--staff-accent) 95%, transparent);
+}
+
+.staffCard:hover::after {
+  animation: staffSheen 0.85s ease-out;
+}
+
+.staffAvatar {
+  position: relative;
+  flex: none;
+  width: 2.75rem;
+  height: 2.75rem;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--staff-accent) 42%, transparent);
+  border-radius: 0.8rem;
+  background: color-mix(in srgb, var(--staff-accent) 12%, var(--color-void));
+  box-shadow: 0 8px 20px -14px var(--staff-accent);
+}
+
+.staffAvatar img {
+  object-fit: cover;
+  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.staffCard:hover .staffAvatar img {
+  transform: scale(1.08);
+}
+
+.staffFallback {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  font-family: var(--font-display, inherit);
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--staff-accent);
+}
+
+.staffInfo {
+  min-width: 0;
+  flex: 1;
+}
+
+.staffName {
+  display: block;
+  overflow: hidden;
+  color: var(--color-ink);
+  font-size: 0.82rem;
+  font-weight: 750;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.staffRole {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  margin-top: 0.3rem;
+  border: 1px solid color-mix(in srgb, var(--staff-accent) 28%, transparent);
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--staff-accent) 10%, rgba(5, 5, 10, 0.78));
+  padding: 0.12rem 0.45rem;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: color-mix(in srgb, var(--staff-accent) 72%, var(--color-mute));
+}
+
+.staffIndex {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.5rem;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.5rem;
+  font-weight: 800;
+  opacity: 0.72;
+  color: color-mix(in srgb, var(--staff-accent) 70%, var(--color-mute));
+}
+
+.staffArrow {
+  position: absolute;
+  right: 0.55rem;
+  bottom: 0.4rem;
+  font-size: 0.62rem;
+  opacity: 0;
+  color: var(--staff-accent);
+  transform: translateX(-4px);
+  transition: opacity 0.22s ease, transform 0.22s ease;
+}
+
+.staffCard:hover .staffArrow {
+  opacity: 1;
+  transform: none;
+}
+
+.staffCard:focus-visible,
+.staffToggle:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-cyan) 78%, transparent);
+  outline-offset: 3px;
+}
+
+/* Characters + voice actors: poster-led cards with compact VA chips. */
+.castSection {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  padding: 1.1rem;
+  border: 1px solid color-mix(in srgb, var(--color-magenta) 16%, var(--color-line));
+  border-radius: 1.2rem;
+  background:
+    radial-gradient(320px 170px at 0% 0%, color-mix(in srgb, var(--color-magenta) 11%, transparent), transparent 70%),
+    radial-gradient(300px 170px at 100% 100%, color-mix(in srgb, var(--color-cyan) 10%, transparent), transparent 72%),
+    linear-gradient(150deg, color-mix(in srgb, var(--color-panel) 96%, var(--color-void)), color-mix(in srgb, var(--color-void) 70%, var(--color-panel)));
+  box-shadow: 0 24px 60px -48px color-mix(in srgb, var(--color-magenta) 70%, transparent);
+  animation: cardIn 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.castGrid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.7rem;
+}
+
+@media (min-width: 640px) {
+  .castGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.castCard {
+  --cast-accent: var(--color-magenta);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--cast-accent) 20%, var(--color-line));
+  border-radius: 1rem;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--cast-accent) 8%, var(--color-panel)),
+    color-mix(in srgb, var(--color-void) 38%, var(--color-panel))
+  );
+  box-shadow: 0 14px 38px -30px color-mix(in srgb, var(--cast-accent) 85%, transparent);
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.28s ease, box-shadow 0.28s ease;
+}
+
+.castCard::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    110deg,
+    transparent 35%,
+    color-mix(in srgb, var(--cast-accent) 14%, transparent) 50%,
+    transparent 65%
+  );
+  transform: translateX(-120%);
+}
+
+.castCard:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--cast-accent) 48%, var(--color-line));
+  box-shadow: 0 20px 44px -28px color-mix(in srgb, var(--cast-accent) 95%, transparent);
+}
+
+.castCard:hover::after {
+  animation: staffSheen 0.85s ease-out;
+}
+
+.castMain {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.7rem;
+  color: inherit;
+}
+
+.castAvatar {
+  position: relative;
+  flex: none;
+  width: 3.25rem;
+  height: 3.25rem;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--cast-accent) 46%, transparent);
+  border-radius: 0.9rem;
+  background: color-mix(in srgb, var(--cast-accent) 12%, var(--color-void));
+  box-shadow: 0 8px 22px -14px var(--cast-accent);
+}
+
+.castAvatar img {
+  object-fit: cover;
+  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.castCard:hover .castAvatar img {
+  transform: scale(1.07);
+}
+
+.castFallback {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  font-family: var(--font-display, inherit);
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--cast-accent);
+}
+
+.castInfo {
+  min-width: 0;
+  flex: 1;
+}
+
+.castName {
+  display: block;
+  overflow: hidden;
+  color: var(--color-ink);
+  font-size: 0.88rem;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.castRole {
+  display: inline-flex;
+  max-width: 100%;
+  overflow: hidden;
+  margin-top: 0.35rem;
+  border: 1px solid color-mix(in srgb, var(--cast-accent) 34%, transparent);
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--cast-accent) 12%, rgba(5, 5, 10, 0.78));
+  padding: 0.12rem 0.5rem;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.55rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--cast-accent);
+}
+
+.castIndex {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.55rem;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.5rem;
+  font-weight: 800;
+  opacity: 0.72;
+  color: color-mix(in srgb, var(--cast-accent) 70%, var(--color-mute));
+}
+
+.castFoot {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.castVote {
+  flex: none;
+}
+
+.castVa {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.45rem;
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 18%, transparent);
+  border-radius: 0.65rem;
+  background: rgba(5, 5, 10, 0.55);
+  transition: border-color 0.22s ease, background 0.22s ease;
+}
+
+.castVa:hover {
+  border-color: color-mix(in srgb, var(--color-cyan) 42%, transparent);
+  background: color-mix(in srgb, var(--color-cyan) 8%, rgba(5, 5, 10, 0.55));
+}
+
+.castVaAvatar {
+  position: relative;
+  flex: none;
+  width: 1.35rem;
+  height: 1.35rem;
+  overflow: hidden;
+  border-radius: 0.45rem;
+  background: color-mix(in srgb, var(--color-cyan) 12%, var(--color-void));
+}
+
+.castVaAvatar img {
+  object-fit: cover;
+}
+
+.castVaFallback {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.55rem;
+  font-weight: 800;
+  color: var(--color-cyan);
+}
+
+.castVaText {
+  min-width: 0;
+  text-align: left;
+}
+
+.castVaName {
+  display: block;
+  max-width: 7.5rem;
+  overflow: hidden;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-ink);
+}
+
+.castVaLang {
+  display: block;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.5rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-mute);
+}
+
+.castMore {
+  position: relative;
+  z-index: 1;
+  margin-top: 0.9rem;
+  text-align: center;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.62rem;
+  color: var(--color-mute);
+}
+
+.castMain:focus-visible,
+.castCard:focus-within {
+  outline: 2px solid color-mix(in srgb, var(--color-cyan) 78%, transparent);
+  outline-offset: 3px;
+}
+
+.modalBackdrop {
+  background: color-mix(in srgb, var(--color-void) 88%, transparent);
+  backdrop-filter: blur(14px);
+  animation: fadeIn 0.2s ease both;
+}
+
+.modalPanel {
+  animation: modalIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.modalFrame {
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 24%, transparent);
+  box-shadow: 0 30px 90px -40px color-mix(in srgb, var(--color-cyan) 70%, transparent);
+}
+
+.modalClose {
+  color: color-mix(in srgb, var(--color-ink) 74%, var(--color-mute));
+  background: color-mix(in srgb, var(--color-void) 60%, transparent);
+  transition: color 0.2s ease, background 0.2s ease;
+}
+
+.modalClose:hover {
+  color: var(--color-ink);
+  background: color-mix(in srgb, var(--color-cyan) 12%, transparent);
+}
+
+@keyframes staffCardIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.98); filter: blur(3px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+
+@keyframes staffSheen {
+  from { transform: translateX(-120%); }
+  to { transform: translateX(120%); }
+}
+
+@keyframes pageLift {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes auraDrift {
+  0%, 100% { opacity: 0.42; transform: translate3d(0, 0, 0) scale(1); }
+  50% { opacity: 0.68; transform: translate3d(14px, -12px, 0) scale(1.08); }
+}
+
+@keyframes coverIn {
+  from { opacity: 0; transform: translateY(16px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes badgePop {
+  from { opacity: 0; transform: scale(0.7); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes chipIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes softPulse {
+  0%, 100% { opacity: 0.8; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.22); }
+}
+
+@keyframes titleSheen {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modalIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero,
+  .heroAura,
+  .cover,
+  .coverImage,
+  .scoreBadge,
+  .statusPill,
+  .statusDot,
+  .heroTitle,
+  .metaRow > :is(span, a),
+  .genreRow,
+  .genreChip,
+  .dubRow,
+  .dubNotifySlot > button,
+  .primaryCta,
+  .ghostCta,
+  .followSlot > :is(a, button),
+  .shareSlot button,
+  .heroNextDock,
+  .alertSlot > button,
+  .synopsisPanel,
+  .synopsisTag,
+  .communityBlock,
+  .editorialCard,
+  .sidebarAd,
+  .sidebarCard,
+  .internalLinkCard,
+  .reelsSection,
+  .reelCard,
+  .staffSection,
+  .staffCard,
+  .staffCard::after,
+  .staffToggle,
+  .staffToggleArrow,
+  .staffAvatar img,
+  .staffArrow,
+  .castSection,
+  .castCard,
+  .castCard::after,
+  .castAvatar img,
+  .castVa,
+  .modalBackdrop,
+  .modalPanel {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .cover:hover .coverImage,
+  .primaryCta:hover,
+  .ghostCta:hover,
+  .followSlot > :is(a, button):hover,
+  .shareSlot button:hover,
+  .sidebarCard:hover,
+  .internalLinkCard:hover,
+  .reelCard:hover,
+  .staffCard:hover,
+  .staffCard:hover .staffAvatar img,
+  .staffToggle:hover,
+  .castCard:hover,
+  .castCard:hover .castAvatar img,
+  .synopsisTag:hover {
+    transform: none !important;
+  }
+}

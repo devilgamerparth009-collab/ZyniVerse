@@ -18,6 +18,7 @@ import { PageTransition } from "@/components/PageTransition";
 import MangaCard from "@/components/MangaCard";
 import MangaSearch from "@/components/MangaSearch";
 import AffiliateLink from "@/components/AffiliateLink";
+import PlayAsiaPill from "@/components/PlayAsiaPill";
 import AdBanner from "@/components/AdBanner";
 import {
   STATUS_LABELS,
@@ -96,9 +97,9 @@ const LIST_STATUS_ACCENT: Record<string, string> = {
 };
 
 const GRID_CLASS =
-  "grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6";
+  "mtk-grid grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6";
 const RAIL_CLASS =
-  "board-scroll flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory";
+  "mtk-rail board-scroll flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory";
 
 const PER_PAGE = 24;
 const MAX_EXPORT_PAGES = 40;
@@ -116,11 +117,12 @@ function Aurora() {
   return (
     <div
       aria-hidden
-      className="pointer-events-none absolute inset-0 overflow-hidden"
+      className="mtk-aurora pointer-events-none absolute inset-0 overflow-hidden"
     >
-      <div className="absolute -left-24 -top-28 h-64 w-64 rounded-full bg-[var(--color-violet)]/25 blur-3xl" />
-      <div className="absolute -right-20 -top-10 h-60 w-60 rounded-full bg-[var(--color-magenta)]/20 blur-3xl" />
-      <div className="absolute -bottom-24 left-1/3 h-56 w-56 rounded-full bg-[var(--color-cyan)]/20 blur-3xl" />
+      <div className="mtk-orb mtk-orb-a absolute -left-24 -top-28 h-64 w-64 rounded-full bg-[var(--color-violet)]/25 blur-3xl" />
+      <div className="mtk-orb mtk-orb-b absolute -right-20 -top-10 h-60 w-60 rounded-full bg-[var(--color-magenta)]/20 blur-3xl" />
+      <div className="mtk-orb mtk-orb-c absolute -bottom-24 left-1/3 h-56 w-56 rounded-full bg-[var(--color-cyan)]/20 blur-3xl" />
+      <div className="mtk-hero-scan absolute inset-0" />
     </div>
   );
 }
@@ -149,15 +151,27 @@ function LoadMore({
 }) {
   if (!hasMore) return null;
   return (
-    <div className="mt-8 flex justify-center">
+    <div className="mtk-loadmore-wrap mt-8 flex flex-col items-center">
       <button
         type="button"
         onClick={onClick}
         disabled={loading}
-        className="rounded-full border border-[var(--color-line)] bg-[var(--color-panel)] px-6 py-2.5 text-sm font-medium text-[var(--color-text)] transition-all hover:border-[var(--color-violet)] hover:text-[var(--color-violet)] disabled:opacity-50"
+        aria-busy={loading}
+        className="mtk-loadmore inline-flex items-center gap-2.5 rounded-full border border-[var(--color-line)] bg-[var(--color-panel)] px-7 py-3 text-sm font-semibold text-[var(--color-text)] transition-all hover:border-[var(--color-violet)] hover:text-[var(--color-violet)] disabled:cursor-wait disabled:opacity-70"
       >
-        {loading ? "Loading…" : "Load more"}
+        <span className="mtk-loadmore-dots" aria-hidden>
+          <i />
+          <i />
+          <i />
+        </span>
+        <span className="mtk-loadmore-label">{loading ? "Loading…" : "Load more"}</span>
+        <svg className="mtk-loadmore-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden>
+          <path d="M6 9l6 6 6-6" />
+        </svg>
       </button>
+      <span className="mtk-loadmore-hint" aria-hidden>
+        More stories are waiting
+      </span>
     </div>
   );
 }
@@ -179,7 +193,7 @@ function EmptyState({
     <motion.div
       initial={{ opacity: 0, y: 18 }}
       animate={{ opacity: 1, y: 0 }}
-      className="py-16 text-center"
+      className="mtk-empty relative py-16 text-center"
     >
       <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-[var(--color-line)] bg-[var(--color-void)] text-3xl">
         {emoji}
@@ -192,7 +206,7 @@ function EmptyState({
         {cta && (
           <Link
             href={cta.href}
-            className="rounded-full bg-[var(--color-magenta)] px-5 py-2.5 text-sm font-semibold text-black"
+            className="mtk-empty-cta rounded-full bg-[var(--color-magenta)] px-5 py-2.5 text-sm font-semibold text-black"
           >
             {cta.label}
           </Link>
@@ -201,7 +215,7 @@ function EmptyState({
           <button
             type="button"
             onClick={secondary.onClick}
-            className="rounded-full border border-[var(--color-line)] px-5 py-2.5 text-sm font-semibold text-[var(--color-text)] transition-colors hover:border-[var(--color-violet)] hover:text-[var(--color-violet)]"
+            className="mtk-empty-secondary rounded-full border border-[var(--color-line)] px-5 py-2.5 text-sm font-semibold text-[var(--color-text)] transition-colors hover:border-[var(--color-violet)] hover:text-[var(--color-violet)]"
           >
             {secondary.label}
           </button>
@@ -221,7 +235,7 @@ function Stat({
   accent: string;
 }) {
   return (
-    <div className="rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)]/60 px-4 py-2.5 backdrop-blur-sm">
+    <div className="mtk-stat rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)]/60 px-4 py-2.5 backdrop-blur-sm">
       <div className="font-mono text-lg font-bold" style={{ color: accent }}>
         <AnimatedNumber value={value} />
       </div>
@@ -242,33 +256,37 @@ function TypeChips({
   accent?: string;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      {MANGA_TYPE_OPTIONS.map((t) => {
-        const active = value === t.key;
-        return (
-          <button
-            key={t.key}
-            type="button"
-            onClick={() => onChange(t.key)}
-            aria-pressed={active}
-            style={
-              active
-                ? {
-                    background:
-                      t.key === "ALL" ? accent : getMediaTypeColor(t.key),
-                  }
-                : undefined
-            }
-            className={`rounded-full px-3 py-1 text-[11px] font-semibold transition-colors ${
-              active
-                ? "text-black"
-                : "border border-[var(--color-line)] bg-[var(--color-panel)] text-[var(--color-mute)] hover:text-[var(--color-ink)]"
-            }`}
-          >
-            {t.label}
-          </button>
-        );
-      })}
+    <div className="mtk-type-bar">
+      <span className="mtk-type-bar-label" aria-hidden>TYPE</span>
+      <div className="mtk-type-chips flex flex-wrap items-center gap-1.5">
+        {MANGA_TYPE_OPTIONS.map((t) => {
+          const active = value === t.key;
+          return (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => onChange(t.key)}
+              aria-pressed={active}
+              style={
+                active
+                  ? {
+                      background:
+                        t.key === "ALL" ? accent : getMediaTypeColor(t.key),
+                    }
+                  : undefined
+              }
+              className={`mtk-type-chip inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold transition-colors ${
+                active
+                  ? "text-black"
+                  : "border border-[var(--color-line)] bg-[var(--color-panel)] text-[var(--color-mute)] hover:text-[var(--color-ink)]"
+              }`}
+            >
+              <span className="mtk-type-dot" aria-hidden />
+              <span className="mtk-type-label">{t.label}</span>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -281,7 +299,7 @@ function SortSelect({
   onChange: (v: SortKey) => void;
 }) {
   return (
-    <label className="relative inline-flex items-center">
+    <label className="mtk-sort relative inline-flex items-center">
       <span className="sr-only">Sort your list</span>
       <svg
         width="13"
@@ -297,7 +315,7 @@ function SortSelect({
       <select
         value={value}
         onChange={(e) => onChange(e.target.value as SortKey)}
-        className="appearance-none rounded-full border border-[var(--color-line)] bg-[var(--color-panel)] py-1.5 pl-8 pr-7 text-xs text-[var(--color-text)] outline-none transition-colors focus:border-[var(--color-violet)]"
+        className="mtk-sort-select appearance-none rounded-full border border-[var(--color-line)] bg-[var(--color-panel)] py-1.5 pl-8 pr-7 text-xs text-[var(--color-text)] outline-none transition-colors focus:border-[var(--color-violet)]"
       >
         {SORT_OPTIONS.map((s) => (
           <option key={s.key} value={s.key} className="bg-[var(--color-panel)]">
@@ -330,7 +348,7 @@ function ListSearch({
   className?: string;
 }) {
   return (
-    <div className={`relative ${className}`}>
+    <div className={`mtk-list-search relative ${className}`}>
       <svg
         width="13"
         height="13"
@@ -348,7 +366,7 @@ function ListSearch({
         onChange={(e) => onChange(e.target.value)}
         placeholder="Search my list…"
         aria-label="Search your manga list"
-        className="w-full rounded-full border border-[var(--color-line)] bg-[var(--color-panel)] py-1.5 pl-8 pr-7 text-xs text-[var(--color-text)] outline-none transition-colors placeholder:text-[var(--color-mute)]/60 focus:border-[var(--color-violet)]"
+        className="mtk-list-search-input w-full rounded-full border border-[var(--color-line)] bg-[var(--color-panel)] py-1.5 pl-8 pr-7 text-xs text-[var(--color-text)] outline-none transition-colors placeholder:text-[var(--color-mute)]/60 focus:border-[var(--color-violet)]"
       />
       {value && (
         <button
@@ -424,7 +442,11 @@ function BrowseView({
         {items.map((m, i) => (
           <div
             key={m.id}
-            className={view === "carousel" ? "w-40 shrink-0 snap-start" : "h-full"}
+            className={`mtk-card-wrap ${
+              view === "carousel"
+                ? "w-40 shrink-0 snap-start"
+                : "h-full min-w-0"
+            }`}
           >
             <MangaCard manga={m} index={i} />
           </div>
@@ -486,11 +508,11 @@ function MyMangaCard({
         duration: 0.4,
         delay: reduce ? 0 : Math.min(index, 12) * 0.03,
       }}
-      className="group flex h-full flex-col overflow-hidden rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)]/60 transition-colors hover:border-[var(--color-violet)]/50"
+      className="mtk-list-card group flex h-full flex-col overflow-hidden rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)]/60 transition-colors hover:border-[var(--color-violet)]/50"
     >
       <Link
         href={`/manga/${entry.mediaId}`}
-        className="relative block aspect-[2/3] overflow-hidden"
+        className="mtk-list-media relative block aspect-[2/3] overflow-hidden"
       >
         {entry.coverImage ? (
           <Image
@@ -555,9 +577,9 @@ function MyMangaCard({
             ) : null}
           </div>
           {total ? (
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--color-line)]">
+            <div className="mtk-progress h-1.5 w-full overflow-hidden rounded-full bg-[var(--color-line)]">
               <div
-                className="h-full rounded-full transition-all"
+                className="mtk-progress-fill h-full rounded-full transition-all"
                 style={{
                   width: `${pct}%`,
                   background: complete ? "#4ade80" : "var(--color-violet)",
@@ -571,7 +593,7 @@ function MyMangaCard({
               type="button"
               onClick={() => onIncrement(entry)}
               disabled={complete}
-              className="flex-1 rounded-lg border border-[var(--color-line)] px-2 py-1 text-[11px] font-medium transition-colors hover:border-[var(--color-violet)] hover:text-[var(--color-violet)] disabled:opacity-40"
+              className="mtk-card-action flex-1 rounded-lg border border-[var(--color-line)] px-2 py-1 text-[11px] font-medium transition-colors hover:border-[var(--color-violet)] hover:text-[var(--color-violet)] disabled:opacity-40"
             >
               +1 Chapter
             </button>
@@ -579,7 +601,7 @@ function MyMangaCard({
               type="button"
               onClick={() => onRemove(entry)}
               aria-label={`Remove ${entry.title}`}
-              className="rounded-lg border border-[var(--color-line)] px-2 py-1 text-[11px] text-[var(--color-mute)] transition-colors hover:border-[var(--color-magenta)] hover:text-[var(--color-magenta)]"
+              className="mtk-remove rounded-lg border border-[var(--color-line)] px-2 py-1 text-[11px] text-[var(--color-mute)] transition-colors hover:border-[var(--color-magenta)] hover:text-[var(--color-magenta)]"
             >
               Remove
             </button>
@@ -686,7 +708,11 @@ function MyListView({
         {entries.map((entry, i) => (
           <div
             key={entry.id}
-            className={view === "carousel" ? "w-40 shrink-0 snap-start" : "h-full"}
+            className={`mtk-card-wrap ${
+              view === "carousel"
+                ? "w-40 shrink-0 snap-start"
+                : "h-full min-w-0"
+            }`}
           >
             <MyMangaCard
               entry={entry}
@@ -1137,27 +1163,34 @@ export default function MangaBrowseClient({
 
   return (
     <PageTransition>
-      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 animate-page-in">
+      <div className="mtk-shell mx-auto max-w-7xl px-4 py-10 sm:px-6 animate-page-in">
         {/* Hero */}
-        <div className="relative overflow-hidden rounded-3xl border border-[var(--color-line)] bg-[var(--color-panel)]/50 p-6 sm:p-8">
+        <div className="mtk-hero relative overflow-hidden rounded-3xl border border-[var(--color-line)] bg-[var(--color-panel)]/50 p-6 sm:p-8">
           <Aurora />
-          <div className="relative flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
-            <div className="min-w-0">
-              <p className="font-mono text-xs uppercase tracking-[0.3em] text-[var(--color-violet)]">
+          <div className="mtk-hero-inner relative flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
+            <div className="mtk-hero-copy-col min-w-0">
+              <p className="mtk-kicker font-mono text-xs uppercase tracking-[0.3em] text-[var(--color-violet)]">
                 Manga Tracker
+                <span className="mtk-kicker-line" aria-hidden />
               </p>
-              <h1 className="mt-3 font-display text-3xl font-bold sm:text-4xl">
-                <span className="neon-rgb-border inline-block rounded-xl px-4 py-1.5">
-                  Your Manga
+              <h1 className="mtk-title mt-4 font-display text-3xl font-bold sm:text-4xl">
+                <span className="mtk-title-frame neon-rgb-border relative inline-flex items-center gap-2 overflow-hidden rounded-xl px-4 py-1.5">
+                  <svg className="mtk-title-mark" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+                    <path d="M4 5.5A2.5 2.5 0 016.5 3H19v16H6.5A2.5 2.5 0 004 21.5V5.5z" />
+                    <path d="M4 18.5A2.5 2.5 0 016.5 16H19" />
+                    <path d="M9 7h6" />
+                  </svg>
+                  <span className="mtk-title-text">Your Manga</span>
+                  <span className="mtk-title-sheen" aria-hidden />
                 </span>
               </h1>
-              <p className="mt-3 max-w-md text-sm text-[var(--color-mute)]">
+              <p className="mtk-copy mt-4 max-w-md text-sm text-[var(--color-mute)]">
                 Track every series, chapter by chapter. Saved to your account
                 when you sign in.
               </p>
 
               {overallTotal > 0 ? (
-                <div className="mt-5 flex flex-wrap gap-2">
+                <div className="mtk-stats mt-5 flex flex-wrap gap-2">
                   {stats.map((s) => (
                     <Stat
                       key={s.label}
@@ -1168,31 +1201,52 @@ export default function MangaBrowseClient({
                   ))}
                 </div>
               ) : authStatus === "unauthenticated" ? (
-                <p className="mt-4 text-xs text-[var(--color-mute)]">
-                  <Link
-                    href="/login?next=%2Fmanga"
-                    className="text-[var(--color-cyan)] hover:underline"
-                  >
-                    Sign in
-                  </Link>{" "}
-                  to sync your reading list and progress.
-                </p>
+                <div className="mtk-signin mt-5">
+                  <span className="mtk-signin-icon" aria-hidden>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <rect x="4" y="10" width="16" height="11" rx="2" />
+                      <path d="M8 10V7a4 4 0 018 0v3" />
+                    </svg>
+                  </span>
+                  <span className="mtk-signin-copy text-xs text-[var(--color-mute)]">
+                    <Link
+                      href="/login?next=%2Fmanga"
+                      className="mtk-signin-link"
+                    >
+                      Sign in <span aria-hidden>→</span>
+                    </Link>{" "}
+                    to sync your reading list and progress.
+                  </span>
+                  <span className="mtk-signin-glow" aria-hidden />
+                </div>
               ) : null}
             </div>
 
-            <div className="w-full lg:max-w-md">
-              <MangaSearch
-                onAdd={() => {
-                  setMode("my");
-                  setListTab("READING");
-                  setMyPage(1);
-                  setSummaryRetry((n) => n + 1);
-                }}
-              />
-              <p className="mt-2 text-[11px] text-[var(--color-mute)]">
+            <div className="mtk-search-wrap w-full lg:max-w-md">
+              <div className="mtk-search-panel">
+                <div className="mtk-search-panel-head">
+                  <span className="mtk-search-panel-label">QUICK ADD</span>
+                  <span className="mtk-search-panel-badge">
+                    <span aria-hidden /> 1000+ titles
+                  </span>
+                </div>
+                <MangaSearch
+                  onAdd={() => {
+                    setMode("my");
+                    setListTab("READING");
+                    setMyPage(1);
+                    setSummaryRetry((n) => n + 1);
+                  }}
+                />
+                <span className="mtk-search-corners" aria-hidden>
+                  <i /><i /><i /><i />
+                </span>
+              </div>
+              <p className="mtk-search-hint mt-3 text-[11px] text-[var(--color-mute)]">
+                <span className="mtk-search-hint-dot" aria-hidden />
                 Search 1000+ series and add them to{" "}
-                <span className="text-[var(--color-ink)]">Reading</span> or{" "}
-                <span className="text-[var(--color-ink)]">Plan to Read</span>.
+                <span className="mtk-hint-tag">Reading</span> or{" "}
+                <span className="mtk-hint-tag mtk-hint-tag-alt">Plan to Read</span>.
               </p>
             </div>
           </div>
@@ -1200,24 +1254,24 @@ export default function MangaBrowseClient({
 
         {/* Continue reading */}
         {continueItems.length > 0 && (
-          <div className="mt-8">
-            <div className="mb-2 flex items-center justify-between">
-              <p className="flex items-center gap-1.5 font-mono text-xs uppercase tracking-[0.25em] text-[var(--color-cyan)]">
-                <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-cyan)] shadow-[0_0_8px_var(--color-cyan)]" />
+          <div className="mtk-continue mt-8">
+            <div className="mtk-section-head mb-2 flex items-center justify-between">
+              <p className="mtk-section-label flex items-center gap-1.5 font-mono text-xs uppercase tracking-[0.25em] text-[var(--color-cyan)]">
+                <span className="mtk-section-dot h-1.5 w-1.5 rounded-full bg-[var(--color-cyan)] shadow-[0_0_8px_var(--color-cyan)]" />
                 Continue Reading
               </p>
-              <span className="text-[10px] font-mono text-[var(--color-mute)]">
+              <span className="mtk-section-count text-[10px] font-mono text-[var(--color-mute)]">
                 {continueItems.length}
               </span>
             </div>
-            <div className="relative">
+            <div className="mtk-continue-stage relative">
               <div
                 aria-hidden
-                className="pointer-events-none absolute inset-y-0 left-0 z-10 w-8 bg-gradient-to-r from-[var(--color-void)] to-transparent"
+                className="mtk-rail-fade mtk-rail-fade-left pointer-events-none absolute inset-y-0 left-0 z-10 w-8 bg-gradient-to-r from-[var(--color-void)] to-transparent"
               />
               <div
                 aria-hidden
-                className="pointer-events-none absolute inset-y-0 right-0 z-10 w-8 bg-gradient-to-l from-[var(--color-void)] to-transparent"
+                className="mtk-rail-fade mtk-rail-fade-right pointer-events-none absolute inset-y-0 right-0 z-10 w-8 bg-gradient-to-l from-[var(--color-void)] to-transparent"
               />
               <div className={RAIL_CLASS}>
                 {continueItems.map((h) => {
@@ -1232,7 +1286,7 @@ export default function MangaBrowseClient({
                     <Link
                       key={e.mediaId}
                       href={`/manga/${e.mediaId}`}
-                      className="group relative w-32 shrink-0 snap-start overflow-hidden rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] transition-all hover:border-[var(--color-violet)]/60"
+                      className="mtk-continue-card group relative w-32 shrink-0 snap-start overflow-hidden rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] transition-all hover:border-[var(--color-violet)]/60"
                     >
                       <div className="relative aspect-[2/3] w-full">
                         {e.coverImage ? (
@@ -1256,9 +1310,9 @@ export default function MangaBrowseClient({
                         </div>
                       </div>
                       {total > 0 && (
-                        <div className="h-1 w-full bg-[var(--color-line)]">
+                        <div className="mtk-mini-progress h-1 w-full bg-[var(--color-line)]">
                           <div
-                            className="h-full rounded-r-full bg-[var(--color-cyan)]"
+                            className="mtk-mini-progress-fill h-full rounded-r-full bg-[var(--color-cyan)]"
                             style={{ width: `${pct}%` }}
                           />
                         </div>
@@ -1268,7 +1322,7 @@ export default function MangaBrowseClient({
                           Ch. {read}
                           {total ? `/${total}` : ""}
                         </span>
-                        <span className="inline-flex items-center gap-0.5 text-[var(--color-cyan)] transition-transform group-hover:translate-x-0.5">
+                        <span className="mtk-resume inline-flex items-center gap-0.5 text-[var(--color-cyan)] transition-transform group-hover:translate-x-0.5">
                           Resume →
                         </span>
                       </div>
@@ -1283,9 +1337,9 @@ export default function MangaBrowseClient({
         {/* Mode toggle + view toggle */}
         <div
           ref={toolbarRef}
-          className="mt-8 flex flex-wrap items-center gap-2 border-b border-[var(--color-line)] pb-3"
+          className="mtk-toolbar mtk-toolbar-panel mt-8 flex flex-wrap items-center gap-2 rounded-xl border border-[var(--color-line)] p-2.5"
         >
-          <div className="flex items-center">
+          <div className="mtk-mode-toggle flex items-center">
             {(["browse", "my"] as const).map((m) => {
               const active = mode === m;
               return (
@@ -1294,7 +1348,7 @@ export default function MangaBrowseClient({
                   type="button"
                   onClick={() => setMode(m)}
                   aria-pressed={active}
-                  className="relative rounded-lg px-4 py-2 text-sm font-semibold transition-colors"
+                  className="mtk-mode-btn relative inline-flex items-center rounded-lg px-4 py-2 text-sm font-semibold transition-colors"
                 >
                   {active && (
                     <motion.span
@@ -1304,15 +1358,27 @@ export default function MangaBrowseClient({
                     />
                   )}
                   <span
-                    className={`relative z-10 ${
+                    className={`mtk-mode-inner relative z-10 inline-flex items-center gap-1.5 ${
                       active
                         ? "text-[var(--color-magenta)]"
                         : "text-[var(--color-mute)] hover:text-[var(--color-ink)]"
                     }`}
                   >
-                    {m === "browse" ? "Browse" : "My List"}
+                    <span className="mtk-mode-icon" aria-hidden>
+                      {m === "browse" ? (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <circle cx="12" cy="12" r="9" />
+                          <path d="M15.5 8.5l-2 5-5 2 2-5 5-2z" />
+                        </svg>
+                      ) : (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M6 4h12v16l-6-4-6 4V4z" />
+                        </svg>
+                      )}
+                    </span>
+                    <span>{m === "browse" ? "Browse" : "My List"}</span>
                     {m === "my" && overallTotal > 0 && (
-                      <span className="ml-1 font-mono text-xs opacity-70">
+                      <span className="mtk-mode-count font-mono text-xs">
                         {overallTotal}
                       </span>
                     )}
@@ -1322,14 +1388,14 @@ export default function MangaBrowseClient({
             })}
           </div>
 
-          <div className="ml-auto flex items-center gap-3">
-            <div className="flex gap-0.5 rounded-lg border border-[var(--color-line)] p-0.5">
+          <div className="mtk-toolbar-actions ml-auto flex items-center gap-3">
+            <div className="mtk-view-toggle flex gap-0.5 rounded-lg border border-[var(--color-line)] p-0.5">
               <button
                 type="button"
                 onClick={() => chooseView("grid")}
                 aria-label="Grid view"
                 aria-pressed={view === "grid"}
-                className={`flex h-7 w-7 items-center justify-center rounded-md transition-all ${
+                className={`mtk-view-btn flex h-7 w-7 items-center justify-center rounded-md transition-all ${
                   view === "grid"
                     ? "bg-[var(--color-magenta)] text-black"
                     : "text-[var(--color-mute)] hover:text-[var(--color-ink)]"
@@ -1347,7 +1413,7 @@ export default function MangaBrowseClient({
                 onClick={() => chooseView("carousel")}
                 aria-label="Carousel view"
                 aria-pressed={view === "carousel"}
-                className={`flex h-7 w-7 items-center justify-center rounded-md transition-all ${
+                className={`mtk-view-btn flex h-7 w-7 items-center justify-center rounded-md transition-all ${
                   view === "carousel"
                     ? "bg-[var(--color-magenta)] text-black"
                     : "text-[var(--color-mute)] hover:text-[var(--color-ink)]"
@@ -1361,9 +1427,14 @@ export default function MangaBrowseClient({
             </div>
             <Link
               href="/search?type=MANGA"
-              className="text-xs text-[var(--color-cyan)] hover:underline"
+              className="mtk-advanced inline-flex items-center gap-1.5 text-xs text-[var(--color-cyan)]"
             >
-              Advanced Search →
+              <svg className="mtk-advanced-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden>
+                <circle cx="11" cy="11" r="7" />
+                <path d="M20 20l-3.6-3.6" />
+              </svg>
+              <span>Advanced Search</span>
+              <span className="mtk-advanced-arrow" aria-hidden>→</span>
             </Link>
           </div>
         </div>
@@ -1371,7 +1442,7 @@ export default function MangaBrowseClient({
         {/* Browse controls */}
         {mode === "browse" && (
           <>
-            <div className="mt-4 flex flex-wrap items-center gap-2">
+            <div className="mtk-browse-bar mt-4 flex flex-wrap items-center gap-2">
               {BROWSE_TABS.map((t) => {
                 const active = tab === t.key;
                 return (
@@ -1380,7 +1451,7 @@ export default function MangaBrowseClient({
                     type="button"
                     onClick={() => changeTab(t.key)}
                     aria-pressed={active}
-                    className="relative rounded-lg px-5 py-2.5 text-sm font-semibold transition-colors"
+                    className="mtk-browse-tab relative rounded-lg px-5 py-2.5 text-sm font-semibold transition-colors"
                   >
                     {active && (
                       <motion.span
@@ -1390,12 +1461,13 @@ export default function MangaBrowseClient({
                       />
                     )}
                     <span
-                      className={`relative z-10 ${
+                      className={`mtk-browse-tab-inner relative z-10 inline-flex items-center gap-1.5 ${
                         active
                           ? "text-[var(--color-violet)]"
                           : "text-[var(--color-mute)] hover:text-[var(--color-ink)]"
                       }`}
                     >
+                      <span className="mtk-browse-tab-dot" aria-hidden />
                       {t.label}
                     </span>
                   </button>
@@ -1404,9 +1476,11 @@ export default function MangaBrowseClient({
               <button
                 type="button"
                 onClick={luckyPick}
-                className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-[var(--color-line)] bg-[var(--color-panel)] px-4 py-2 text-xs font-semibold text-[var(--color-mute)] transition-colors hover:border-[var(--color-magenta)] hover:text-[var(--color-magenta)]"
+                className="mtk-lucky ml-auto inline-flex items-center gap-2 rounded-full border border-[var(--color-line)] bg-[var(--color-panel)] px-4 py-2 text-xs font-semibold text-[var(--color-mute)] transition-colors hover:border-[var(--color-magenta)] hover:text-[var(--color-magenta)]"
               >
-                🎲 Surprise me
+                <span className="mtk-lucky-icon" aria-hidden>🎲</span>
+                <span className="mtk-lucky-label">Surprise me</span>
+                <span className="mtk-lucky-spark" aria-hidden>✦</span>
               </button>
             </div>
 
@@ -1415,16 +1489,20 @@ export default function MangaBrowseClient({
             </div>
 
             {genres.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {genres.slice(0, 15).map((g) => (
-                  <Link
-                    key={g}
-                    href={`/search?genre=${g}&type=MANGA`}
-                    className="rounded-full border border-transparent px-2.5 py-0.5 text-[10px] text-[var(--color-mute)] transition-colors hover:border-[var(--color-violet)] hover:text-[var(--color-violet)]"
-                  >
-                    {g}
-                  </Link>
-                ))}
+              <div className="mtk-genre-shell mt-3">
+                <span className="mtk-genre-kicker" aria-hidden>GENRES</span>
+                <div className="mtk-genres flex flex-wrap gap-1.5">
+                  {genres.slice(0, 15).map((g) => (
+                    <Link
+                      key={g}
+                      href={`/search?genre=${g}&type=MANGA`}
+                      className="mtk-genre inline-flex items-center gap-1 rounded-full border border-transparent px-2.5 py-0.5 text-[10px] text-[var(--color-mute)] transition-colors"
+                    >
+                      <span className="mtk-genre-hash" aria-hidden>#</span>
+                      <span className="mtk-genre-name">{g}</span>
+                    </Link>
+                  ))}
+                </div>
               </div>
             )}
           </>
@@ -1433,7 +1511,7 @@ export default function MangaBrowseClient({
         {/* My List controls */}
         {mode === "my" && authStatus === "authenticated" && (
           <>
-            <div className="mt-4 flex flex-wrap items-center gap-2">
+            <div className="mtk-list-bar mt-4 flex flex-wrap items-center gap-2">
               {activeStatuses.map((t) => (
                 <button
                   key={t}
@@ -1444,7 +1522,7 @@ export default function MangaBrowseClient({
                       ? { background: LIST_STATUS_ACCENT[t] || "var(--color-violet)" }
                       : undefined
                   }
-                  className={`rounded-full px-4 py-1.5 text-xs font-semibold transition-colors ${
+                  className={`mtk-status-chip rounded-full px-4 py-1.5 text-xs font-semibold transition-colors ${
                     listTab === t
                       ? "text-black"
                       : "border border-[var(--color-line)] bg-[var(--color-panel)] text-[var(--color-mute)] hover:text-[var(--color-ink)]"
@@ -1464,7 +1542,7 @@ export default function MangaBrowseClient({
               />
             </div>
 
-            <div className="mt-3 flex flex-wrap items-center gap-3">
+            <div className="mtk-list-tools mt-3 flex flex-wrap items-center gap-3">
               <TypeChips
                 value={listType}
                 onChange={changeListType}
@@ -1472,12 +1550,12 @@ export default function MangaBrowseClient({
               />
               <div className="ml-auto flex items-center gap-2">
                 <SortSelect value={listSort} onChange={changeListSort} />
-                <div className="flex items-center gap-0.5 rounded-full border border-[var(--color-line)] p-0.5">
+                <div className="mtk-export-group flex items-center gap-0.5 rounded-full border border-[var(--color-line)] p-0.5">
                   <button
                     type="button"
                     onClick={() => exportList("csv")}
                     disabled={exporting}
-                    className="rounded-full px-2.5 py-1 text-[11px] font-semibold text-[var(--color-mute)] transition-colors hover:text-[var(--color-ink)] disabled:opacity-40"
+                    className="mtk-export-btn rounded-full px-2.5 py-1 text-[11px] font-semibold text-[var(--color-mute)] transition-colors hover:text-[var(--color-ink)] disabled:opacity-40"
                   >
                     CSV
                   </button>
@@ -1485,7 +1563,7 @@ export default function MangaBrowseClient({
                     type="button"
                     onClick={() => exportList("json")}
                     disabled={exporting}
-                    className="rounded-full px-2.5 py-1 text-[11px] font-semibold text-[var(--color-mute)] transition-colors hover:text-[var(--color-ink)] disabled:opacity-40"
+                    className="mtk-export-btn rounded-full px-2.5 py-1 text-[11px] font-semibold text-[var(--color-mute)] transition-colors hover:text-[var(--color-ink)] disabled:opacity-40"
                   >
                     JSON
                   </button>
@@ -1498,30 +1576,52 @@ export default function MangaBrowseClient({
         {/* Affiliates + ad (browse only) */}
         {mode === "browse" && (
           <>
-            <div className="mt-6 flex flex-wrap gap-3">
-              <AffiliateLink
-                partner="bookwalker"
-                path="https://global.bookwalker.jp"
-                className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[var(--color-violet)] to-[var(--color-magenta)] px-5 py-2.5 text-sm font-bold text-black transition-opacity hover:opacity-90"
-              >
-                📖 Buy Manga on BookWalker
-              </AffiliateLink>
-              <AffiliateLink
-                partner="amazon"
-                path="https://www.amazon.in/s?k=manga"
-                className="inline-flex items-center gap-2 rounded-full neon-rgb-border px-5 py-2.5 text-sm font-semibold text-[var(--color-mute)] transition-all hover:text-[var(--color-cyan)]"
-              >
-                📦 Buy Manga on Amazon
-              </AffiliateLink>
+            <div className="mtk-affiliates mtk-buy-panel mt-6">
+              <div className="mtk-buy-head">
+                <span className="mtk-buy-icon" aria-hidden>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                    <path d="M3 9l1.5-5h15L21 9" />
+                    <path d="M4 9h16v11H4z" />
+                    <path d="M9 20v-6h6v6" />
+                  </svg>
+                </span>
+                <div className="mtk-buy-head-copy">
+                  <p className="mtk-affiliate-label">Where to buy</p>
+                  <p className="mtk-buy-sub">Official stores · sponsored links</p>
+                </div>
+                <span className="mtk-buy-line" aria-hidden />
+              </div>
+              <div className="mtk-affiliate-row mt-3 flex flex-wrap gap-3">
+                <AffiliateLink
+                  partner="bookwalker"
+                  path="https://global.bookwalker.jp"
+                  className="mtk-affiliate inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[var(--color-violet)] to-[var(--color-magenta)] px-5 py-2.5 text-sm font-bold text-black transition-opacity hover:opacity-90"
+                >
+                  📖 Buy Manga on BookWalker
+                </AffiliateLink>
+                <AffiliateLink
+                  partner="amazon"
+                  path="https://www.amazon.in/s?k=manga"
+                  className="mtk-affiliate inline-flex items-center gap-2 rounded-full neon-rgb-border px-5 py-2.5 text-sm font-semibold text-[var(--color-mute)] transition-all hover:text-[var(--color-cyan)]"
+                >
+                  📦 Buy Manga on Amazon
+                </AffiliateLink>
+                <PlayAsiaPill
+                  query="manga merch"
+                  label="Play-Asia merch"
+                  className="mtk-affiliate"
+                />
+              </div>
             </div>
-            <div className="mx-auto mt-6 max-w-[728px]">
+            <div className="mtk-ad mx-auto mt-6 max-w-[728px]">
+              <span className="mtk-ad-frame" aria-hidden><i /><i /><i /><i /></span>
               <AdBanner placement="manga" type="sidebar" />
             </div>
           </>
         )}
 
         {/* Content */}
-        <div className="mt-8">
+        <div className="mtk-content mt-8">
           {mode === "browse" ? (
             <BrowseView
               items={browse}
@@ -1582,10 +1682,10 @@ export default function MangaBrowseClient({
               exit={{ y: -60, opacity: 0 }}
               transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
               style={{ top: headerH }}
-              className="fixed inset-x-0 z-30 border-b border-[var(--color-line)] bg-[var(--color-void)]/90 backdrop-blur-md"
+              className="mtk-sticky fixed inset-x-0 z-30 border-b border-[var(--color-line)] bg-[var(--color-void)]/90 backdrop-blur-md"
             >
-              <div className="mx-auto flex max-w-7xl items-center gap-2 px-4 py-2 sm:px-6">
-                <div className="flex gap-0.5 rounded-lg border border-[var(--color-line)] p-0.5">
+              <div className="mtk-sticky-inner mx-auto flex max-w-7xl items-center gap-2 px-4 py-2 sm:px-6">
+                <div className="mtk-sticky-mode flex gap-0.5 rounded-lg border border-[var(--color-line)] p-0.5">
                   {(["browse", "my"] as const).map((m) => (
                     <button
                       key={m}
@@ -1612,19 +1712,20 @@ export default function MangaBrowseClient({
                   <button
                     type="button"
                     onClick={luckyPick}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-[var(--color-line)] bg-[var(--color-panel)] px-3 py-1.5 text-xs font-semibold text-[var(--color-mute)] transition-colors hover:border-[var(--color-magenta)] hover:text-[var(--color-magenta)]"
+                    className="mtk-lucky mtk-sticky-lucky inline-flex items-center gap-1.5 rounded-full border border-[var(--color-line)] bg-[var(--color-panel)] px-3 py-1.5 text-xs font-semibold text-[var(--color-mute)] transition-colors hover:border-[var(--color-magenta)] hover:text-[var(--color-magenta)]"
                   >
-                    🎲 Surprise me
+                    <span className="mtk-lucky-icon" aria-hidden>🎲</span>
+                    <span className="mtk-lucky-label">Surprise me</span>
                   </button>
                 )}
 
-                <div className="ml-auto flex gap-0.5 rounded-lg border border-[var(--color-line)] p-0.5">
+                <div className="mtk-view-toggle ml-auto flex gap-0.5 rounded-lg border border-[var(--color-line)] p-0.5">
                   <button
                     type="button"
                     onClick={() => chooseView("grid")}
                     aria-label="Grid view"
                     aria-pressed={view === "grid"}
-                    className={`flex h-7 w-7 items-center justify-center rounded-md transition-all ${
+                    className={`mtk-view-btn flex h-7 w-7 items-center justify-center rounded-md transition-all ${
                       view === "grid"
                         ? "bg-[var(--color-magenta)] text-black"
                         : "text-[var(--color-mute)] hover:text-[var(--color-ink)]"
@@ -1642,7 +1743,7 @@ export default function MangaBrowseClient({
                     onClick={() => chooseView("carousel")}
                     aria-label="Carousel view"
                     aria-pressed={view === "carousel"}
-                    className={`flex h-7 w-7 items-center justify-center rounded-md transition-all ${
+                    className={`mtk-view-btn flex h-7 w-7 items-center justify-center rounded-md transition-all ${
                       view === "carousel"
                         ? "bg-[var(--color-magenta)] text-black"
                         : "text-[var(--color-mute)] hover:text-[var(--color-ink)]"
@@ -1667,9 +1768,9 @@ export default function MangaBrowseClient({
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 16 }}
-            className="pointer-events-none fixed inset-x-0 bottom-20 z-50 flex justify-center md:bottom-8"
+            className="mtk-toast-wrap pointer-events-none fixed inset-x-0 bottom-20 z-50 flex justify-center md:bottom-8"
           >
-            <div className="rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] px-4 py-2 text-sm shadow-2xl backdrop-blur">
+            <div className="mtk-toast rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] px-4 py-2 text-sm shadow-2xl backdrop-blur">
               {toast}
             </div>
           </motion.div>

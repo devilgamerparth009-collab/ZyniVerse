@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import OSTList from "@/components/OSTList";
 import AffiliateLink from "@/components/AffiliateLink";
+import PlayAsiaPill from "@/components/PlayAsiaPill";
 import NativeBannerAd from "@/components/NativeBannerAd";
 
 export const metadata: Metadata = {
@@ -54,6 +55,7 @@ export default function OSTPage() {
             <AffiliateLink partner="amazon" path="https://www.amazon.in/s?k=anime+soundtrack"
               className="inline-flex items-center gap-2 rounded-full neon-rgb-border bg-[var(--color-panel)]/50 backdrop-blur-sm px-5 py-2.5 text-sm font-semibold text-[var(--color-mute)] hover:border-[var(--color-cyan)] hover:text-[var(--color-cyan)] transition-all"
             > Buy Soundtracks on Amazon</AffiliateLink>
+            <PlayAsiaPill query="anime soundtrack cd" label="OST CDs on Play-Asia" />
           </div>
         </div>
       </div>

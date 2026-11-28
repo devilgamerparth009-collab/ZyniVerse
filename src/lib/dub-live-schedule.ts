@@ -13,6 +13,8 @@
 import * as cheerio from "cheerio";
 import type { AnyNode } from "domhandler";
 import { getDubSchedule, type DubScheduleDTO } from "@/lib/dub-import/queries";
+import { withFreshDubCovers } from "@/lib/dub-posters";
+import { nextDubScheduleAt } from "@/lib/dub-schedule-time";
 
 export interface LiveDubAiring {
   id: string;
@@ -46,10 +48,6 @@ const SCHEDULE_URL = `${SOURCE_BASE}/schedule.php`;
 // mirrors the live page instead of showing an error. Set to "none" to disable.
 const PROXY_BASE = (process.env.DUB_SCHEDULE_PROXY || "https://r.jina.ai").replace(/\/$/, "");
 const CACHE_TTL_MS = 5 * 60 * 1000;
-const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
-const WEEKDAYS: Record<string, number> = {
-  sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6,
-};
 
 const HEADERS: Record<string, string> = {
   "User-Agent":
@@ -229,35 +227,6 @@ async function fetchFreshSchedule(): Promise<LiveDubSchedule | null> {
   return null;
 }
 
-/** Fallback countdown from the weekly slot when the stored timestamp has gone stale. */
-function nextIstRelease(row: DubScheduleDTO): string | null {
-  const existing = row.releaseAt ? new Date(row.releaseAt) : null;
-  if (existing && !Number.isNaN(existing.getTime()) && existing.getTime() > Date.now()) {
-    return existing.toISOString();
-  }
-  const time = row.timeLabel?.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
-  if (!time || !row.dayLabel) return existing?.toISOString() || null;
-
-  const dayText = row.dayLabel.trim().toLowerCase();
-  const weekday = dayText === "daily" ? null : WEEKDAYS[dayText.slice(0, 3)];
-  if (dayText !== "daily" && weekday === undefined) return existing?.toISOString() || null;
-
-  let hours = Number(time[1]) % 12;
-  if ((time[3] || "").toUpperCase() === "PM") hours += 12;
-  const minutes = Number(time[2]);
-  const nowIst = new Date(Date.now() + IST_OFFSET_MS);
-  const dayDelta = weekday === null ? 0 : (weekday - nowIst.getUTCDay() + 7) % 7;
-  let candidate = Date.UTC(
-    nowIst.getUTCFullYear(),
-    nowIst.getUTCMonth(),
-    nowIst.getUTCDate() + dayDelta,
-    hours - 5,
-    minutes - 30
-  );
-  if (candidate <= Date.now()) candidate += (weekday === null ? 1 : 7) * 86_400_000;
-  return new Date(candidate).toISOString();
-}
-
 function isOngoingRow(row: DubScheduleDTO): boolean {
   const episode = row.episodeInfo || "";
   if (/coming soon|tba/i.test(episode)) return false;
@@ -270,19 +239,22 @@ async function fromDatabase(): Promise<LiveDubSchedule | null> {
     const rows = await getDubSchedule({ limit: 200 });
     if (!rows.length) return null;
 
-    const toAiring = (row: DubScheduleDTO): LiveDubAiring => ({
-      id: `${isOngoingRow(row) ? "ongoing" : "upcoming"}-${slug(row.title)}-${slug(row.season || "s1")}`,
-      title: row.title,
-      posterUrl: row.posterUrl,
-      season: row.season,
-      episodeInfo: row.episodeInfo,
-      languages: row.languages,
-      dayLabel: row.dayLabel,
-      timeLabel: row.timeLabel,
-      dateLabel: null,
-      releaseAt: nextIstRelease(row),
-      sourceUrl: `${SOURCE_BASE}/?s=${encodeURIComponent(row.title)}`,
-    });
+    const toAiring = (row: DubScheduleDTO): LiveDubAiring => {
+      const nextAt = nextDubScheduleAt(row);
+      return {
+        id: `${isOngoingRow(row) ? "ongoing" : "upcoming"}-${slug(row.title)}-${slug(row.season || "s1")}`,
+        title: row.title,
+        posterUrl: row.posterUrl,
+        season: row.season,
+        episodeInfo: row.episodeInfo,
+        languages: row.languages,
+        dayLabel: row.dayLabel,
+        timeLabel: row.timeLabel,
+        dateLabel: null,
+        releaseAt: nextAt === null ? null : new Date(nextAt).toISOString(),
+        sourceUrl: `${SOURCE_BASE}/?s=${encodeURIComponent(row.title)}`,
+      };
+    };
 
     const ongoing = rows.filter(isOngoingRow).map(toAiring);
     const upcoming = rows.filter((row) => !isOngoingRow(row)).map(toAiring);
@@ -308,8 +280,13 @@ async function fromDatabase(): Promise<LiveDubSchedule | null> {
 export async function getLiveDubSchedule(): Promise<LiveDubSchedule | null> {
   if (cached && Date.now() - cached.at < CACHE_TTL_MS) return cached.data;
 
-  const fresh = await fetchFreshSchedule();
-  if (fresh) {
+  const scraped = await fetchFreshSchedule();
+  if (scraped) {
+    const fresh: LiveDubSchedule = {
+      ...scraped,
+      ongoing: await withFreshDubCovers(scraped.ongoing),
+      upcoming: await withFreshDubCovers(scraped.upcoming),
+    };
     cached = { at: Date.now(), data: fresh };
     return fresh;
   }

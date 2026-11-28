@@ -2,8 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
-import { motion } from "framer-motion";
-import { TV_CHANNELS } from "@/lib/tv-channels";
+import { TV_CHANNELS, formatIstTime, getDayName, getIstMinutes } from "@/lib/tv-channels";
 import { computeNowNext, timeToMinutes } from "@/lib/tv-now-next";
 
 interface RailSlot {
@@ -48,6 +47,12 @@ function formatTime(t: string): string {
   return `${hour12}:${m.toString().padStart(2, "0")} ${period}`;
 }
 
+function scrollBehavior(): ScrollBehavior {
+  return typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ? "auto"
+    : "smooth";
+}
+
 function ChannelLogo({ channelId, size = 36 }: { channelId: string; size?: number }) {
   const [imgError, setImgError] = useState(false);
   const ch = TV_CHANNELS[channelId];
@@ -56,7 +61,7 @@ function ChannelLogo({ channelId, size = 36 }: { channelId: string; size?: numbe
   if (!logoSrc || imgError) {
     return (
       <span
-        className="flex shrink-0 items-center justify-center rounded-lg font-bold text-white"
+        className="tvsch-rail-logo flex shrink-0 items-center justify-center rounded-lg font-bold text-white"
         style={{
           width: size,
           height: size,
@@ -74,14 +79,24 @@ function ChannelLogo({ channelId, size = 36 }: { channelId: string; size?: numbe
       alt={ch.name}
       width={size}
       height={size}
-      className="shrink-0 rounded-lg"
+      className="tvsch-rail-logo shrink-0 rounded-lg"
       style={{ objectFit: "contain", width: size, height: size, background: ch.logoPlate === "dark" ? "#0d0d16" : "#f6f7fb", border: `1px solid ${ch.color}44`, padding: 2 }}
       onError={() => setImgError(true)}
     />
   );
 }
 
-function RailRow({ channel, today, nowMinutes }: { channel: RailChannel; today: string; nowMinutes: number }) {
+function RailRow({
+  channel,
+  today,
+  nowMinutes,
+  index,
+}: {
+  channel: RailChannel;
+  today: string;
+  nowMinutes: number;
+  index: number;
+}) {
   // `days` — the real array ref or undefined — is the memo dependency, never a
   // fresh fallback: `days || []` inside the memo keeps the dep stable when the
   // schedule has no entry for today (react-hooks/exhaustive-deps).
@@ -108,75 +123,73 @@ function RailRow({ channel, today, nowMinutes }: { channel: RailChannel; today: 
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
+    <button
+      type="button"
       onClick={() => {
         const el = document.getElementById(`channel-${channel.channelId}`);
-        el?.scrollIntoView({ behavior: "smooth", block: "start" });
+        el?.scrollIntoView({ behavior: scrollBehavior(), block: "start" });
       }}
-      className="group cursor-pointer rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)]/60 p-3 transition-colors hover:border-[var(--color-cyan)]/40 hover:bg-[var(--color-panel)]"
+      className="tvsch-rail-card"
+      style={
+        {
+          "--tvsch-accent": channel.channelColor,
+          "--tvsch-i": Math.min(index, 11),
+        } as React.CSSProperties
+      }
     >
-      <div className="flex items-center gap-3">
+      <div className="tvsch-rail-card-head">
         <ChannelLogo channelId={channel.channelId} />
         <div className="min-w-0">
-          <p className="truncate text-xs font-bold" style={{ color: channel.channelColor }}>
-            {channel.channelName}
-          </p>
-          <p className="font-mono text-[9px] uppercase tracking-wider text-[var(--color-mute)]">
+          <p className="tvsch-rail-channel">{channel.channelName}</p>
+          <p className="tvsch-rail-kind">
             {channel.channelType === "tv" ? "TV" : "Streaming"}
           </p>
         </div>
         {now && (
-          <span className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-[var(--color-cyan)]/40 bg-[var(--color-cyan)]/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[var(--color-cyan)]">
-            <span className="relative flex h-1.5 w-1.5">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--color-cyan)] opacity-75" />
-              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[var(--color-cyan)]" />
-            </span>
+          <span className="tvsch-rail-live">
+            <span className="tvsch-live-dot" aria-hidden="true" />
             Live
           </span>
         )}
       </div>
 
-      <div className="mt-2.5 space-y-1.5">
-        {/* Now */}
-        <div className="flex items-center gap-2 rounded-xl border border-[var(--color-line)] bg-[var(--color-void)]/40 px-3 py-2">
-          <span className="font-mono text-[9px] font-bold uppercase tracking-widest text-[var(--color-cyan)]">Now</span>
+      <div className="tvsch-rail-lines">
+        <div className="tvsch-rail-line tvsch-rail-line--now">
+          <span className="tvsch-rail-tag tvsch-rail-tag--now">Now</span>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-bold text-[var(--color-ink)]">
-              {now ? now.show : "—"}
-            </p>
+            <p className="tvsch-rail-show">{now ? now.show : "—"}</p>
             {now && !isAlways && (
-              <div className="mt-1 h-1 overflow-hidden rounded-full bg-white/5">
-                <motion.div
-                  className="h-full rounded-full"
-                  style={{ background: channel.channelColor, boxShadow: `0 0 8px ${channel.channelColor}66` }}
-                  animate={{ width: `${elapsedPct}%` }}
-                  transition={{ duration: 0.6 }}
+              <div className="tvsch-rail-progress">
+                <div
+                  style={{
+                    width: `${elapsedPct}%`,
+                    background: channel.channelColor,
+                    boxShadow: `0 0 8px ${channel.channelColor}55`,
+                  }}
                 />
               </div>
             )}
           </div>
           {now && !isAlways && (
-            <span className="shrink-0 font-mono text-[10px] text-[var(--color-mute)]">
+            <span className="tvsch-rail-time">
               {now.start}–{now.end}
               {result.nowEndsInMinutes != null && (
-                <span className="ml-1 text-[var(--color-cyan)]/70">· {formatCountdown(result.nowEndsInMinutes)} left</span>
+                <span className="ml-1 text-[var(--color-cyan)]/70">
+                  · {formatCountdown(result.nowEndsInMinutes)} left
+                </span>
               )}
             </span>
           )}
-          {isAlways && <span className="shrink-0 font-mono text-[9px] font-bold text-emerald-400">24/7</span>}
+          {isAlways && <span className="tvsch-rail-247">24/7</span>}
         </div>
 
-        {/* Next */}
-        <div className="flex items-center gap-2 rounded-xl border border-dashed border-[var(--color-line)] px-3 py-2">
-          <span className="font-mono text-[9px] font-bold uppercase tracking-widest text-[var(--color-mute)]">Next</span>
-          <p className="min-w-0 flex-1 truncate text-sm font-semibold text-[var(--color-ink)]/85">
+        <div className="tvsch-rail-line tvsch-rail-line--next">
+          <span className="tvsch-rail-tag">Next</span>
+          <p className="tvsch-rail-next-show">
             {next ? next.show : "No more shows today"}
           </p>
           {next && (
-            <span className="shrink-0 font-mono text-[10px]">
+            <span className="tvsch-rail-next-time">
               <span className="text-[var(--color-magenta)]">
                 {result.nextInMinutes != null && result.nextInMinutes < 360 ? `in ${formatCountdown(result.nextInMinutes)}` : "kal"}
               </span>
@@ -185,7 +198,7 @@ function RailRow({ channel, today, nowMinutes }: { channel: RailChannel; today: 
           )}
         </div>
       </div>
-    </motion.div>
+    </button>
   );
 }
 
@@ -197,8 +210,8 @@ export default function NowNextRail({ data }: { data: RailData | null }) {
     return () => clearInterval(interval);
   }, []);
 
-  const nowMinutes = now.getHours() * 60 + now.getMinutes();
-  const today = data?.today || ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][now.getDay()];
+  const nowMinutes = getIstMinutes(now);
+  const today = data?.today || getDayName(now);
 
   const rows = useMemo(() => {
     if (!data) return [];
@@ -213,60 +226,60 @@ export default function NowNextRail({ data }: { data: RailData | null }) {
       });
   }, [data, today, nowMinutes]);
 
+  const railState = rows.reduce(
+    (acc, ch) => {
+      const result = computeNowNext(ch.days?.[today] || [], nowMinutes);
+      if (result.now) acc.live += 1;
+      if (result.next) acc.next += 1;
+      return acc;
+    },
+    { live: 0, next: 0 }
+  );
+
   if (!data || rows.length === 0) {
     return (
-      <div className="glass-panel rounded-2xl p-4 text-center font-mono text-xs text-[var(--color-mute)]">
+      <div className="tvsch-rail-loading">
         Loading the live guide — now and next will appear shortly…
       </div>
     );
   }
 
-  const timeStr = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
+  const timeStr = formatIstTime(now);
 
   return (
-    <motion.section
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-      className="neon-premium relative mb-8 rounded-[24px]"
-    >
-      <div className="neon-premium-track" />
-      <div className="neon-premium-overlay" />
-      <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-[var(--color-cyan)] to-transparent" />
+    <section className="tvsch-rail relative mb-8">
+      <span className="tvsch-rail-scan" aria-hidden="true" />
 
       <div className="relative p-4 sm:p-5">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="tvsch-rail-head">
           <div className="flex items-center gap-3">
-            <div className="relative">
-              <span className="absolute inset-0 animate-ping rounded-full bg-[var(--color-cyan)] opacity-30" />
-              <span className="relative flex h-2.5 w-2.5">
-                <span className="h-2.5 w-2.5 rounded-full bg-[var(--color-cyan)] shadow-[0_0_12px_rgba(0,255,224,0.8)]" />
-              </span>
-            </div>
+            <span className="tvsch-rail-head-dot" aria-hidden="true" />
             <div>
-              <h2 className="font-display text-sm font-bold uppercase tracking-widest text-[var(--color-cyan)]">
-                Now Playing · Up Next
-              </h2>
-              <p className="font-mono text-[9px] uppercase tracking-wider text-[var(--color-mute)]">
+              <h2 className="tvsch-rail-title">Now playing · Up next</h2>
+              <p className="tvsch-rail-subtitle">
                 India TV + streaming · countdown har 30s refresh
               </p>
             </div>
           </div>
-          <span className="rounded-full border border-[var(--color-cyan)]/30 bg-[var(--color-cyan)]/5 px-3 py-1 font-mono text-[10px] font-bold text-[var(--color-cyan)]">
-            🕐 {timeStr}
-          </span>
+          <div className="tvsch-rail-head-meta">
+            <span className="tvsch-rail-counter tvsch-rail-counter--live">
+              {railState.live} Live
+            </span>
+            <span className="tvsch-rail-counter">{railState.next} Next</span>
+            <span className="tvsch-rail-clock">🕐 {timeStr} IST</span>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
-          {rows.map((ch) => (
-            <RailRow key={ch.channelId} channel={ch} today={today} nowMinutes={nowMinutes} />
+        <div className="tvsch-rail-grid">
+          {rows.map((ch, i) => (
+            <RailRow key={ch.channelId} channel={ch} today={today} nowMinutes={nowMinutes} index={i} />
           ))}
         </div>
 
-        <p className="mt-3 font-mono text-[9px] uppercase tracking-wider text-[var(--color-mute)]/70">
-          Select a row to open the channel&apos;s full schedule · updated {new Date(data.updatedAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
+        <p className="tvsch-rail-foot">
+          Select a row to open the channel&apos;s full schedule · updated {formatIstTime(data.updatedAt)} IST
         </p>
       </div>
-    </motion.section>
+    </section>
   );
 }

@@ -28,6 +28,27 @@ export class ApiError extends Error {
   }
 }
 
+/** Shared with HumanVerificationGate so localStorage matches the httpOnly cookie. */
+export const HUMAN_VERIFICATION_KEY = "zyni_human_ok";
+export const HUMAN_VERIFICATION_EVENT = "zyni:human-verification-required";
+
+function isHumanVerificationRequired(body: unknown, status: number): boolean {
+  if (status !== 403) return false;
+  if (!body || typeof body !== "object" || !("error" in body)) return false;
+  const detail = (body as { error: unknown }).error;
+  return typeof detail === "string" && detail.includes("Human verification required");
+}
+
+function markHumanVerificationRequired(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(HUMAN_VERIFICATION_KEY);
+  } catch {
+    // Storage can be disabled; the event still lets the gate re-open.
+  }
+  window.dispatchEvent(new Event(HUMAN_VERIFICATION_EVENT));
+}
+
 /** Keys used by the paginated AniList-backed endpoints. */
 const LIST_KEYS = ["media", "results", "characters", "data", "items"] as const;
 
@@ -55,7 +76,13 @@ export async function fetchJson<T = unknown>(url: string, init?: RequestInit): P
     // Non-JSON body (HTML error page, empty response). Leave body as null.
   }
 
-  if (!res.ok) throw new ApiError(errorMessageFrom(body, res.status), res.status);
+  if (!res.ok) {
+    // The gate's localStorage flag can outlive the signed httpOnly cookie (or
+    // be set by a different server instance). Drop the stale flag and let the
+    // gate re-open instead of leaving every widget in a silent error state.
+    if (isHumanVerificationRequired(body, res.status)) markHumanVerificationRequired();
+    throw new ApiError(errorMessageFrom(body, res.status), res.status);
+  }
 
   return body as T;
 }

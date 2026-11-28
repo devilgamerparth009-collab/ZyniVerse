@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { bestTitle } from "@/lib/anilist";
 import type { AiringScheduleEntry } from "@/lib/anilist";
+import styles from "./OnAirTicker.module.css";
 
 function TickerItem({
   item,
@@ -19,16 +20,12 @@ function TickerItem({
       key={`${item.id}-${idx}`}
       aria-hidden={hidden || undefined}
       tabIndex={hidden ? -1 : undefined}
-      className="group mx-5 inline-flex items-center gap-2 text-sm"
+      className={styles.item}
     >
-      <span className="on-air-dot h-1.5 w-1.5 rounded-full bg-[var(--color-magenta)] pulse-dot shrink-0" />
-      <span className="neon-tick-title font-display font-semibold text-[var(--color-ink)]">
-        {bestTitle(item.media.title)}
-      </span>
-      <span className="neon-tick-ep font-mono text-xs tracking-wider text-[var(--color-cyan)]">
-        EP {item.episode}
-      </span>
-      <span className="text-[var(--color-line)] transition-colors duration-300 group-hover:text-[var(--color-cyan)]">
+      <span className={styles.dot} aria-hidden />
+      <span className={styles.title}>{bestTitle(item.media.title)}</span>
+      <span className={styles.episode}>EP {item.episode}</span>
+      <span className={styles.separator} aria-hidden>
         /
       </span>
     </Link>
@@ -39,14 +36,18 @@ export default function OnAirTicker({ items }: { items: AiringScheduleEntry[] })
   if (!items || items.length === 0) return null;
 
   return (
-    <section className="on-air-ticker relative" aria-label="Currently airing episodes">
-      <div className="relative flex items-stretch bg-[var(--color-panel)]/80">
-        <div className="on-air-badge hidden select-none items-center gap-2 sm:flex">
-          <span className="h-2 w-2 rounded-full bg-[var(--color-magenta)] pulse-dot shrink-0" />
+    <section className={styles.section} aria-label="Currently airing episodes">
+      <div className="relative flex items-stretch">
+        <div className={styles.badge}>
+          <span className={styles.equalizer} aria-hidden>
+            <span />
+            <span />
+            <span />
+          </span>
           <span>ON AIR</span>
         </div>
-        <div className="ticker-window relative flex-1 overflow-hidden py-2.5">
-          <div className="ticker-track flex w-max whitespace-nowrap">
+        <div className={styles.window}>
+          <div className={styles.track}>
             {items.map((item, idx) => (
               <TickerItem item={item} idx={idx} key={`a-${item.id}-${idx}`} />
             ))}

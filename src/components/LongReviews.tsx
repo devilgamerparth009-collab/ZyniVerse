@@ -4,8 +4,9 @@ import { useEffect, useState, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { applyUserVotes, fetchViewerState } from "@/lib/client/viewer-state";
+import styles from "./reviews.module.css";
 
 interface ReviewUser {
   id: string;
@@ -57,18 +58,19 @@ function formatDate(dateStr: string) {
 
 function renderMarkdown(text: string) {
   return text.split("\n").map((line, i) => {
-    if (line.startsWith("### ")) return <h3 key={i} className="text-base font-bold mt-4 mb-2">{line.slice(4)}</h3>;
-    if (line.startsWith("## ")) return <h2 key={i} className="text-lg font-bold mt-5 mb-2">{line.slice(3)}</h2>;
-    if (line.startsWith("# ")) return <h1 key={i} className="text-xl font-bold mt-6 mb-3">{line.slice(2)}</h1>;
-    if (line.startsWith("- ")) return <li key={i} className="text-sm text-[var(--color-mute)] ml-4 list-disc">{line.slice(2)}</li>;
-    if (line.startsWith("> ")) return <blockquote key={i} className="border-l-2 border-[var(--color-cyan)] pl-4 text-sm text-[var(--color-mute)] italic my-2">{line.slice(2)}</blockquote>;
-    if (line.trim() === "") return <div key={i} className="h-2" />;
-    return <p key={i} className="text-sm text-[var(--color-mute)] leading-relaxed">{line}</p>;
+    if (line.startsWith("### ")) return <h3 key={i} className={styles.longBodyHeading}>{line.slice(4)}</h3>;
+    if (line.startsWith("## ")) return <h2 key={i} className={styles.longBodyHeading}>{line.slice(3)}</h2>;
+    if (line.startsWith("# ")) return <h1 key={i} className={styles.longBodyHeading}>{line.slice(2)}</h1>;
+    if (line.startsWith("- ")) return <li key={i} className={styles.longListItem}>{line.slice(2)}</li>;
+    if (line.startsWith("> ")) return <blockquote key={i} className={styles.longBodyQuote}>{line.slice(2)}</blockquote>;
+    if (line.trim() === "") return <div key={i} className={styles.longBodySpacer} />;
+    return <p key={i} className={styles.longBodyParagraph}>{line}</p>;
   });
 }
 
 export default function LongReviews({ mediaId, mediaTitle, mediaImage }: Props) {
   const { data: session, status } = useSession();
+  const reduce = useReducedMotion();
   const [reviews, setReviews] = useState<LongReviewData[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -191,23 +193,18 @@ export default function LongReviews({ mediaId, mediaTitle, mediaImage }: Props) 
   }
 
   return (
-    <section className="mt-8">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="font-display text-xl font-bold flex items-center gap-2">
-          <span className="h-4 w-1 rounded-full bg-[var(--color-magenta)]" />
+    <section className={`${styles.reviewSection} ${styles.longSection}`}>
+      <div className={styles.sectionHead}>
+        <h2 className={styles.sectionTitle}>
           Long Reviews ({reviews.length})
         </h2>
-        <div className="flex items-center gap-2">
-          <div className="flex rounded-lg border border-[var(--color-line)] overflow-hidden">
+        <div className={styles.sectionTools}>
+          <div className={styles.sortTabs}>
             {(["top", "recent"] as const).map((s) => (
               <button
                 key={s}
                 onClick={() => setSort(s)}
-                className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-colors ${
-                  sort === s
-                    ? "bg-[var(--color-magenta)] text-black"
-                    : "text-[var(--color-mute)] hover:text-white"
-                }`}
+                className={`${styles.sortTab} ${sort === s ? styles.sortTabActive : ""}`}
               >
                 {s === "top" ? "Top" : "Recent"}
               </button>
@@ -216,7 +213,7 @@ export default function LongReviews({ mediaId, mediaTitle, mediaImage }: Props) 
           {session?.user?.id && (
             <button
               onClick={() => setShowForm(!showForm)}
-              className="rounded-lg bg-[var(--color-magenta)] px-4 py-1.5 text-[10px] font-bold text-black hover:opacity-90 transition-opacity"
+              className={styles.writeButton}
             >
               Write Review
             </button>
@@ -225,19 +222,19 @@ export default function LongReviews({ mediaId, mediaTitle, mediaImage }: Props) 
       </div>
 
       {!session?.user?.id && (
-        <p className="mb-4 text-sm text-[var(--color-mute)]">
-          <a href="/login" className="text-[var(--color-magenta)] underline">Sign in</a> to write a long review.
+        <p className={styles.signinHint}>
+          <a href="/login" className={styles.signinLink}>Sign in</a> to write a long review.
         </p>
       )}
 
       <AnimatePresence>
         {showForm && (
           <motion.form
-            initial={{ opacity: 0, height: 0 }}
+            initial={reduce ? false : { opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
             onSubmit={handleSubmit}
-            className="mb-6 rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] p-4 space-y-3 overflow-hidden"
+            className={styles.longForm}
           >
             <input
               type="text"
@@ -247,7 +244,7 @@ export default function LongReviews({ mediaId, mediaTitle, mediaImage }: Props) 
               required
               minLength={3}
               maxLength={200}
-              className="w-full rounded-lg border border-[var(--color-line)] bg-[var(--color-void)] px-3 py-2 text-sm focus:outline-none focus:border-[var(--color-magenta)] transition-colors"
+              className={styles.input}
             />
             <textarea
               value={formContent}
@@ -257,42 +254,38 @@ export default function LongReviews({ mediaId, mediaTitle, mediaImage }: Props) 
               minLength={10}
               maxLength={5000}
               rows={8}
-              className="w-full rounded-lg border border-[var(--color-line)] bg-[var(--color-void)] px-3 py-2 text-sm resize-y focus:outline-none focus:border-[var(--color-magenta)] transition-colors font-mono"
+              className={`${styles.textarea} ${styles.longTextarea}`}
             />
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs text-[var(--color-mute)]">Rating:</span>
+            <div className={styles.formRow}>
+              <span className={styles.formLabel}>Rating:</span>
               {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
                 <button
                   key={n}
                   type="button"
                   onClick={() => setFormRating(formRating === n ? null : n)}
-                  className={`h-7 w-7 rounded text-[10px] font-bold font-mono transition-all ${
-                    formRating === n
-                      ? "text-black shadow scale-110"
-                      : "border border-[var(--color-line)] text-[var(--color-mute)] hover:border-[var(--color-magenta)] hover:text-[var(--color-magenta)]"
-                  }`}
+                  className={`${styles.scoreButton} ${formRating === n ? styles.scoreButtonActive : ""}`}
                   style={formRating === n ? { backgroundColor: SCORE_COLORS[n] || "var(--color-magenta)" } : undefined}
                 >
                   {n}
                 </button>
               ))}
               {formRating && (
-                <span className="text-[10px] font-mono text-[var(--color-mute)]">/10</span>
+                <span className={styles.scoreSuffix}>/10</span>
               )}
             </div>
-            {error && <p className="text-xs text-[var(--color-magenta)]">{error}</p>}
-            <div className="flex items-center gap-2">
+            {error && <p className={styles.formError}>{error}</p>}
+            <div className={styles.formActions}>
               <button
                 type="submit"
                 disabled={submitting}
-                className="rounded-full bg-[var(--color-magenta)] px-5 py-2.5 text-xs font-bold text-black disabled:opacity-50 transition-opacity"
+                className={styles.submitButton}
               >
                 {submitting ? "Publishing..." : "Publish Review"}
               </button>
               <button
                 type="button"
                 onClick={() => setShowForm(false)}
-                className="text-xs text-[var(--color-mute)] hover:text-white transition-colors"
+                className={styles.cancelButton}
               >
                 Cancel
               </button>
@@ -302,59 +295,59 @@ export default function LongReviews({ mediaId, mediaTitle, mediaImage }: Props) 
       </AnimatePresence>
 
       {fetchError && (
-        <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+        <div className={styles.fetchError}>
           {fetchError}
         </div>
       )}
 
       {loading ? (
-        <div className="space-y-3">
+        <div className={styles.skeletonList}>
           {[1, 2, 3].map((i) => (
-            <div key={i} className="rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] p-4 animate-pulse">
-              <div className="h-4 w-1/3 rounded bg-[var(--color-void)]" />
-              <div className="h-3 w-full rounded bg-[var(--color-void)] mt-3" />
-              <div className="h-3 w-2/3 rounded bg-[var(--color-void)] mt-2" />
+            <div key={i} className={styles.skeletonCard}>
+              <div className={`${styles.skeletonLine} ${styles.skeletonTitle}`} />
+              <div className={`${styles.skeletonLine} ${styles.skeletonText}`} />
+              <div className={`${styles.skeletonLine} ${styles.skeletonShort}`} />
             </div>
           ))}
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className={styles.reviewList}>
           {reviews.map((review) => (
             <motion.div
               key={review.id}
-              initial={{ opacity: 0, y: 8 }}
+              initial={reduce ? false : { opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              className="rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] p-4"
+              className={styles.longCard}
             >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
+              <div className={styles.longHead}>
+                <div className={styles.longHeadMain}>
                   <Link
                     href={`/reviews/${review.id}`}
-                    className="font-display text-sm font-bold hover:text-[var(--color-cyan)] transition-colors no-underline"
+                    className={styles.longTitle}
                   >
                     {review.title}
                   </Link>
-                  <div className="flex items-center gap-2 mt-1">
+                  <div className={styles.longMeta}>
                     <Link
                       href={`/profile/${review.user.id}`}
-                      className="flex items-center gap-1.5 hover:text-[var(--color-cyan)] transition-colors no-underline"
+                      className={styles.profileLink}
                     >
                       {review.user.avatar ? (
-                        <div className="relative h-4 w-4 overflow-hidden rounded-full">
-                          <Image src={review.user.avatar} alt="" fill sizes="16px" className="object-cover" />
-                        </div>
+                        <span className={styles.avatar}>
+                          <Image src={review.user.avatar} alt="" fill sizes="16px" className={styles.avatarImage} />
+                        </span>
                       ) : (
-                        <div className="h-4 w-4 rounded-full bg-gradient-to-br from-[var(--color-cyan)] to-[var(--color-violet)]" />
+                        <span className={styles.avatarFallback} />
                       )}
-                      <span className="text-[10px] font-medium text-[var(--color-mute)]">{review.user.username}</span>
+                      <span className={styles.metaText}>{review.user.username}</span>
                     </Link>
-                    <span className="text-[10px] text-[var(--color-mute)]">·</span>
-                    <span className="text-[10px] text-[var(--color-mute)]">{formatDate(review.createdAt)}</span>
+                    <span className={styles.metaText}>·</span>
+                    <span className={styles.metaText}>{formatDate(review.createdAt)}</span>
                   </div>
                 </div>
                 {review.rating != null && (
                   <div
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-mono text-xs font-bold text-black"
+                    className={styles.scoreBadge}
                     style={{ backgroundColor: SCORE_COLORS[review.rating] || "var(--color-magenta)" }}
                   >
                     {review.rating}
@@ -362,36 +355,28 @@ export default function LongReviews({ mediaId, mediaTitle, mediaImage }: Props) 
                 )}
               </div>
 
-              <div className="mt-3 overflow-hidden line-clamp-3 text-sm text-[var(--color-mute)] leading-relaxed">
+              <div className={styles.longBody}>
                 {renderMarkdown(review.content)}
               </div>
 
-              <div className="mt-3 flex items-center gap-3">
-                <div className="flex items-center gap-1">
+              <div className={styles.voteRow}>
+                <div className={styles.voteGroup}>
                   <button
                     onClick={() => handleVote(review.id, 1)}
                     disabled={!session?.user?.id}
-                    className={`rounded p-1 transition-colors ${
-                      review.userVote === 1
-                        ? "text-[var(--color-cyan)]"
-                        : "text-[var(--color-mute)] hover:text-[var(--color-cyan)]"
-                    } disabled:opacity-30`}
+                    className={`${styles.voteButton} ${review.userVote === 1 ? styles.voteButtonUp : ""}`}
                   >
                     <svg className="w-4 h-4" fill={review.userVote === 1 ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
                     </svg>
                   </button>
-                  <span className="font-mono text-xs font-bold text-[var(--color-mute)] min-w-[1.5rem] text-center">
+                  <span className={styles.voteCount}>
                     {review.upvotes}
                   </span>
                   <button
                     onClick={() => handleVote(review.id, -1)}
                     disabled={!session?.user?.id}
-                    className={`rounded p-1 transition-colors ${
-                      review.userVote === -1
-                        ? "text-[var(--color-magenta)]"
-                        : "text-[var(--color-mute)] hover:text-[var(--color-magenta)]"
-                    } disabled:opacity-30`}
+                    className={`${styles.voteButton} ${review.userVote === -1 ? styles.voteButtonDown : ""}`}
                   >
                     <svg className="w-4 h-4" fill={review.userVote === -1 ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
@@ -400,7 +385,7 @@ export default function LongReviews({ mediaId, mediaTitle, mediaImage }: Props) 
                 </div>
                 <Link
                   href={`/reviews/${review.id}`}
-                  className="text-[10px] font-mono text-[var(--color-mute)] hover:text-[var(--color-cyan)] transition-colors no-underline"
+                  className={styles.fullReviewLink}
                 >
                   Read full review →
                 </Link>
@@ -409,15 +394,18 @@ export default function LongReviews({ mediaId, mediaTitle, mediaImage }: Props) 
           ))}
 
           {reviews.length === 0 && (
-            <p className="text-sm text-[var(--color-mute)] text-center py-8">No long reviews yet. Be the first to write one!</p>
+            <div className={styles.emptyState}>
+              <span className={styles.emptyGlyph} aria-hidden="true" />
+              <p className={styles.emptyText}>No long reviews yet. Be the first to write one!</p>
+            </div>
           )}
 
           {hasMore && (
-            <div className="text-center pt-2">
+            <div className={styles.loadMoreWrap}>
               <button
                 onClick={() => setPage((p) => p + 1)}
                 disabled={loadingMore}
-                className="rounded-lg neon-rgb-border px-6 py-2 text-xs font-bold text-[var(--color-cyan)] hover:bg-white/5 transition-all disabled:opacity-50"
+                className={styles.loadMoreButton}
               >
                 {loadingMore ? "Loading..." : "Load More"}
               </button>

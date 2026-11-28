@@ -11,6 +11,7 @@ const AVATAR_PROXY_HOSTS = [
   "myanimelist.net",
   "wikimedia.org",
   "wikipedia.org",
+  "animationxpress.com",
   "placewaifu.com",
 ];
 

@@ -57,7 +57,7 @@ describe("mangadex-api", () => {
       title: "Test Doujinshi",
       description: "A test entry.",
       artist: "Test Author",
-      image: "https://uploads.mangadex.org/covers/abc-123/cover.png.256.jpg",
+      image: "https://apsiknb-image.hf.space/covers/abc-123/cover.png.256.jpg",
       externalUrl: "https://mangadex.org/title/abc-123",
       language: "ja",
       isTranslated: true,

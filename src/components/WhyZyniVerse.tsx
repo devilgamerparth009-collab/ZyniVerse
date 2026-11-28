@@ -1,4 +1,6 @@
 import Link from "next/link";
+import type { CSSProperties } from "react";
+import styles from "./WhyZyniVerse.module.css";
 
 const features = [
   {
@@ -54,56 +56,36 @@ const features = [
 
 export default function WhyZyniVerse() {
   return (
-    <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
+    <section className={styles.section}>
       {/* Header */}
-      <div className="mb-8 text-center">
-        <p className="font-mono text-xs uppercase tracking-[0.25em] text-[var(--color-cyan)]">
-          ⚡ Why ZyniVerse?
-        </p>
-        <h2 className="font-display text-2xl font-bold sm:text-3xl mt-1">
-          Not just another anime list.
-        </h2>
+      <div className={styles.head}>
+        <p className={styles.eyebrow}>⚡ Why ZyniVerse?</p>
+        <h2 className={styles.title}>Not just another anime list.</h2>
+        <span className={styles.titleUnderline} aria-hidden />
       </div>
 
       {/* Cards Grid */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {features.map((f) => {
-          const gradient = `conic-gradient(from var(--border-angle), ${f.color}, #ff2d78, #8b5cf6, #29f2e0, ${f.color})`;
-          return (
-            <Link key={f.link} href={f.link} className="neon-feature-card group">
-              {/* Animated RGB border */}
-              <div
-                className="neon-border rounded-2xl"
-                style={{ background: gradient }}
-              />
-              {/* Glow on hover */}
-              <div
-                className="neon-glow rounded-2xl"
-                style={{ background: gradient }}
-              />
-              {/* Inner card */}
-              <div className="neon-inner rounded-2xl">
-                <span className="text-3xl block mb-3">{f.icon}</span>
-                <p
-                  className="font-display text-lg font-bold"
-                  style={{ color: f.color }}
-                >
-                  {f.title}
-                </p>
-                <p className="text-sm text-[var(--color-mute)] mt-1.5">
-                  {f.desc}
-                </p>
-                {/* Arrow */}
-                <span
-                  className="neon-arrow absolute top-6 right-6 text-lg opacity-0 transition-all duration-300"
-                  style={{ color: f.color }}
-                >
-                  →
-                </span>
-              </div>
-            </Link>
-          );
-        })}
+      <div className={styles.grid}>
+        {features.map((f, index) => (
+          <Link
+            key={f.link}
+            href={f.link}
+            className={styles.feature}
+            style={
+              {
+                "--accent": f.color,
+                "--tile-index": index,
+              } as CSSProperties
+            }
+          >
+            <div className={styles.tileTop}>
+              <span className={styles.icon} aria-hidden>{f.icon}</span>
+              <span className={styles.arrow} aria-hidden>→</span>
+            </div>
+            <p className={styles.featureTitle}>{f.title}</p>
+            <p className={styles.featureDesc}>{f.desc}</p>
+          </Link>
+        ))}
       </div>
     </section>
   );

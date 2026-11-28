@@ -153,7 +153,9 @@ export const apiLimiter = createRateLimiter("api", {
 });
 
 export const authLimiter = createRateLimiter("auth", {
-  maxRequests: 10,
+  // Login, signup, verification and password-reset endpoints share this bucket.
+  // 10/min blocked real users who retried OAuth or resent a verification email.
+  maxRequests: 30,
   windowMs: 60 * 1000,
 });
 

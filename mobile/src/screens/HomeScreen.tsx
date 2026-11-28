@@ -15,6 +15,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, themed, spacing, fontSize, borderRadius } from '../theme';
 import { api, getCurrentUser } from '../services/api';
 import { checkForUpdate, getReadyUpdate, type UpdateRelease } from '../services/updater';
+import bundledFeed from '../content/mobile-feed.json';
 import { Anime, AnimeOfTheDay, User, WatchlistItem } from '../types';
 import { animePoster, animeTitle, LIST_STATUS_LABEL } from '../utils/helpers';
 import ShowcaseRail from '../components/ShowcaseRail';
@@ -22,6 +23,7 @@ import ErrorView from '../components/ErrorView';
 import FadeInView from '../components/FadeInView';
 import PressableScale from '../components/PressableScale';
 import AdBanner from '../components/AdBanner';
+import SafeImage from '../components/SafeImage';
 import Snowfall from '../components/Snowfall';
 import ChristmasBanner from '../components/ChristmasBanner';
 import LaunchGlow from '../components/LaunchGlow';
@@ -39,6 +41,12 @@ const EXPLORE_ITEMS: {
   params?: Record<string, string>;
 }[] = [
   { icon: '🎙️', title: 'Dub Hub', sub: 'Series, movies & schedule', route: 'HindiDub', params: { tab: 'all' }, tint: '#f59e0b' },
+  { icon: '📰', title: 'Feed', sub: 'Drop a hot take', route: 'Feed', tint: '#c084fc' },
+  { icon: '📺', title: 'Tracker', sub: 'Your watchlist', route: 'Tracker', tint: '#22d3ee' },
+  { icon: '🔥', title: 'Vibe', sub: 'Community pulse', route: 'Vibe', tint: '#f472b6' },
+  { icon: '🏛️', title: 'Communities', sub: 'Fandom clubs', route: 'CommunityHub', tint: '#f59e0b' },
+  { icon: '💬', title: 'Chat', sub: 'Local DMs & groups', route: 'LocalChats', tint: '#34d399' },
+  { icon: '⏭️', title: 'Filler', sub: 'Every guide', route: 'FillerLibrary', tint: '#a78bfa' },
   { icon: '🧰', title: 'All Features', sub: 'Everything in one place', route: 'AllFeatures', tint: '#a78bfa' },
   { icon: '🎮', title: 'Fun Zone', sub: 'Games, quizzes & polls', route: 'FunZone', tint: '#22d3ee' },
   { icon: '🗓️', title: 'Schedule', sub: 'Never miss a release', route: 'Schedule', tint: '#fb7185' },
@@ -97,14 +105,13 @@ export default function HomeScreen() {
       setError(null);
       if (!isRefresh) setLoading(true);
 
-      const [trendingRes, popularRes, seasonalRes, topRes, upcomingRes, aotdRes, feedRes] = await Promise.all([
+      const [trendingRes, popularRes, seasonalRes, topRes, upcomingRes, aotdRes] = await Promise.all([
         api.trending.get(12).catch(() => [] as Anime[]),
         api.popular.get(12).catch(() => [] as Anime[]),
         api.seasonal.get(12).catch(() => [] as Anime[]),
         api.topRated.get(12).catch(() => [] as Anime[]),
         api.upcoming.get(1, 12).then((p) => p.media).catch(() => [] as Anime[]),
         api.fun.animeOfTheDay().catch(() => null),
-        api.get<MobileFeed>('/mobile/feed').catch(() => null),
       ]);
       setTrending(trendingRes);
       setPopular(popularRes);
@@ -112,7 +119,7 @@ export default function HomeScreen() {
       setTopRated(topRes);
       setUpcoming(upcomingRes);
       setAotd(aotdRes);
-      setFeed(feedRes);
+      setFeed(bundledFeed as MobileFeed);
 
       const current = await getCurrentUser();
       setUser(current);
@@ -460,8 +467,8 @@ export default function HomeScreen() {
           </ScrollView>
         </View>
 
-        {/* Server-driven announcement. Edited in src/content/mobile-feed.json,
-            so it appears in every installed app without an APK update. */}
+        {/* Bundled announcement. No network call: it works offline and needs
+            no website. Edit src/content/mobile-feed.json with the next APK. */}
         {feed?.announcement?.active && feed.announcement.id !== dismissedFeedId && (
           <FadeInView delay={20}>
             <View
@@ -648,7 +655,7 @@ export default function HomeScreen() {
                 }
               >
                 <View style={[styles.aotdCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                  <Image source={{ uri: aotd.anime.image }} style={styles.aotdImage} resizeMode="cover" />
+                  <SafeImage uri={aotd.anime.image} style={styles.aotdImage} fallbackLabel={aotd.anime.title} />
                   <View style={styles.aotdBody}>
                     <Text style={styles.aotdTitle} numberOfLines={2}>
                       {aotd.anime.title}

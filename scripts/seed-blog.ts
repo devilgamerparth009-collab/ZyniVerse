@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+﻿import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -36,7 +36,7 @@ The dark fantasy epic that took the world by storm. All 4 seasons are available 
 
 ### 2. Death Note
 
-The psychological thriller where Light Yagami finds a supernatural notebook. The Hindi dub of Death Note is one of the most popular among Indian fans, and for good reason — the voice acting is top-notch.
+The psychological thriller where Light Yagami finds a supernatural notebook. The Hindi dub of Death Note is one of the most popular among Indian fans, and for good reason â€” the voice acting is top-notch.
 
 **Episodes:** 37 | **Genre:** Psychological Thriller
 
@@ -92,10 +92,10 @@ The wholesome family comedy about a spy, an assassin, and a telepathic child pre
 
 ## Where to Watch Hindi Dubbed Anime
 
-- **YouTube** — Many official channels upload Hindi dubbed episodes for free
-- **Animax India** — Available on cable TV and JioTV
-- **Crunchyroll** — Select titles available with Hindi audio
-- **ZyniVerse** — Track your Hindi dubbed anime watchlist and get Indian TV schedule alerts
+- **YouTube** â€” Many official channels upload Hindi dubbed episodes for free
+- **Animax India** â€” Available on cable TV and JioTV
+- **Crunchyroll** â€” Select titles available with Hindi audio
+- **ZyniVerse** â€” Track your Hindi dubbed anime watchlist and get Indian TV schedule alerts
 
 ---
 
@@ -123,7 +123,7 @@ Happy watching!`,
     tags: "naruto filler list, naruto skip episodes, naruto shippuden filler, anime filler guide",
     content: `## What is Filler in Naruto?
 
-Naruto has over 700 episodes, but a significant portion is filler — episodes not based on the manga by Masashi Kishimoto. Filler was created to give the manga time to get ahead, but not all of it is bad.
+Naruto has over 700 episodes, but a significant portion is filler â€” episodes not based on the manga by Masashi Kishimoto. Filler was created to give the manga time to get ahead, but not all of it is bad.
 
 This guide tells you exactly which episodes to skip and which are worth your time.
 
@@ -137,17 +137,17 @@ The original Naruto has **220 episodes**, of which **89 are filler** (40%). That
 
 These episodes have zero impact on the main story:
 
-- **Episodes 26** — Recap episode
-- **Episodes 101–106** — Land of Tea arc (filler)
-- **Episodes 136–220** — Massive filler block before Shippuden
+- **Episodes 26** â€” Recap episode
+- **Episodes 101â€“106** â€” Land of Tea arc (filler)
+- **Episodes 136â€“220** â€” Massive filler block before Shippuden
 
 ### Filler Arcs Worth Watching
 
 Not all filler is bad. These arcs are actually entertaining:
 
-- **Episodes 101–106** — Land of Tea arc is a fun adventure
-- **Episodes 170–171** — Tsunade's Search arc has some good moments
-- **Episodes 216–220** — The ending filler has emotional weight
+- **Episodes 101â€“106** â€” Land of Tea arc is a fun adventure
+- **Episodes 170â€“171** â€” Tsunade's Search arc has some good moments
+- **Episodes 216â€“220** â€” The ending filler has emotional weight
 
 ### Recommended Skip List
 
@@ -155,12 +155,12 @@ For a clean Naruto experience, watch these episode ranges:
 
 | Episodes | Type | Verdict |
 |----------|------|---------|
-| 1–25 | Canon | Watch |
+| 1â€“25 | Canon | Watch |
 | 26 | Recap | Skip |
-| 27–100 | Canon | Watch |
-| 101–106 | Filler | Optional |
-| 107–135 | Canon | Watch |
-| 136–220 | Filler | Skip (or watch 216-220) |
+| 27â€“100 | Canon | Watch |
+| 101â€“106 | Filler | Optional |
+| 107â€“135 | Canon | Watch |
+| 136â€“220 | Filler | Skip (or watch 216-220) |
 
 ---
 
@@ -170,36 +170,36 @@ Shippuden has **500 episodes**, with **211 being filler** (42%). The filler is m
 
 ### Major Filler Arcs to Skip
 
-- **Episodes 57–71** — Twelve Guardian Ninja arc
-- **Episodes 91–112** — Past arc (Kakashi's ANBU days — actually good, watch this one)
-- **Episodes 144–151** — Three-Tails arc
-- **Episodes 170–171** — Fillers between Pain arc
-- **Episodes 223–242** — Adventures at Sea arc
-- **Episodes 257–260** — Post-war fillers
-- **Episodes 279–281** — Konoha Hiden arc (fun but skippable)
-- **Episodes 290–310** — Fourth Shinobi World War fillers
-- **Episodes 347–361** — Itachi Shinden arc (actually great, watch this)
-- **Episodes 376–377** — Fillers during the war
-- **Episodes 388–413** — Post-war fillers
-- **Episodes 416–417** — Fillers before the final battle
-- **Episodes 422–423** — Fillers
-- **Episodes 426–427** — Fillers
-- **Episodes 429** — Filler
-- **Episodes 431** — Fillers
-- **Episodes 442–462** — Post-war fillers
-- **Episodes 464–468** — Fillers before finale
-- **Episodes 472–473** — Fillers
+- **Episodes 57â€“71** â€” Twelve Guardian Ninja arc
+- **Episodes 91â€“112** â€” Past arc (Kakashi's ANBU days â€” actually good, watch this one)
+- **Episodes 144â€“151** â€” Three-Tails arc
+- **Episodes 170â€“171** â€” Fillers between Pain arc
+- **Episodes 223â€“242** â€” Adventures at Sea arc
+- **Episodes 257â€“260** â€” Post-war fillers
+- **Episodes 279â€“281** â€” Konoha Hiden arc (fun but skippable)
+- **Episodes 290â€“310** â€” Fourth Shinobi World War fillers
+- **Episodes 347â€“361** â€” Itachi Shinden arc (actually great, watch this)
+- **Episodes 376â€“377** â€” Fillers during the war
+- **Episodes 388â€“413** â€” Post-war fillers
+- **Episodes 416â€“417** â€” Fillers before the final battle
+- **Episodes 422â€“423** â€” Fillers
+- **Episodes 426â€“427** â€” Fillers
+- **Episodes 429** â€” Filler
+- **Episodes 431** â€” Fillers
+- **Episodes 442â€“462** â€” Post-war fillers
+- **Episodes 464â€“468** â€” Fillers before finale
+- **Episodes 472â€“473** â€” Fillers
 
 ### Filler Arcs Actually Worth Watching
 
 These filler arcs are genuinely good:
 
-- **Episodes 57–71** — Twelve Guardian Ninja introduces Asuma's past
-- **Episodes 91–112** — Kakashi ANBU arc is excellent
-- **Episodes 347–361** — Itachi Shinden arc adapts novels and is canon-adjacent
-- **Episodes 484–488** — Kakashi Hiden arc
-- **Episodes 489–493** — Shikamaru Hiden arc
-- **Episodes 494–500** — Ending arc
+- **Episodes 57â€“71** â€” Twelve Guardian Ninja introduces Asuma's past
+- **Episodes 91â€“112** â€” Kakashi ANBU arc is excellent
+- **Episodes 347â€“361** â€” Itachi Shinden arc adapts novels and is canon-adjacent
+- **Episodes 484â€“488** â€” Kakashi Hiden arc
+- **Episodes 489â€“493** â€” Shikamaru Hiden arc
+- **Episodes 494â€“500** â€” Ending arc
 
 ---
 
@@ -207,22 +207,22 @@ These filler arcs are genuinely good:
 
 If you want the fastest path through Naruto:
 
-1. Watch episodes 1–100 (original Naruto)
-2. Skip to Shippuden episodes 1–56
-3. Skip to episodes 72–90
-4. Skip to episodes 113–143
-5. Skip to episodes 152–169
-6. Skip to episodes 172–222
-7. Skip to episodes 243–256
-8. Skip to episodes 261–278
-9. Skip to episodes 282–289
-10. Skip to episodes 311–346
-11. Skip to episodes 362–375
-12. Skip to episodes 378–387
-13. Skip to episodes 414–421
-14. Skip to episodes 424–425
-15. Skip to episodes 428, 430, 432–441
-16. Skip to episodes 463, 469–471, 474–483
+1. Watch episodes 1â€“100 (original Naruto)
+2. Skip to Shippuden episodes 1â€“56
+3. Skip to episodes 72â€“90
+4. Skip to episodes 113â€“143
+5. Skip to episodes 152â€“169
+6. Skip to episodes 172â€“222
+7. Skip to episodes 243â€“256
+8. Skip to episodes 261â€“278
+9. Skip to episodes 282â€“289
+10. Skip to episodes 311â€“346
+11. Skip to episodes 362â€“375
+12. Skip to episodes 378â€“387
+13. Skip to episodes 414â€“421
+14. Skip to episodes 424â€“425
+15. Skip to episodes 428, 430, 432â€“441
+16. Skip to episodes 463, 469â€“471, 474â€“483
 
 ---
 
@@ -234,7 +234,7 @@ Use ZyniVerse to track your Naruto watch progress. Mark episodes as watched, get
 
 ## Final Verdict
 
-The Naruto franchise has incredible canon content buried under mountains of filler. Use this guide to skip the boring stuff and focus on what matters. The Itachi Shinden arc (episodes 347–361) is the one filler arc you absolutely should not skip.`,
+The Naruto franchise has incredible canon content buried under mountains of filler. Use this guide to skip the boring stuff and focus on what matters. The Itachi Shinden arc (episodes 347â€“361) is the one filler arc you absolutely should not skip.`,
   },
   {
     title: "Anime Conventions in India 2026: Complete Schedule & Guide",
@@ -257,7 +257,7 @@ Here's every anime convention happening in India in 2026, plus tips for first-ti
 - **Location:** Pragati Maidan, New Delhi
 - **Expected Attendance:** 50,000+
 - **Highlights:** Largest pop culture convention in India, dedicated anime section, cosplay championships
-- **Tickets:** ₹500–₹2,500
+- **Tickets:** â‚¹500â€“â‚¹2,500
 
 Delhi Comic Con is the granddaddy of Indian conventions. The anime section has grown every year, with dedicated booths for Indian anime content creators, merchandise vendors, and voice actor panels.
 
@@ -267,7 +267,7 @@ Delhi Comic Con is the granddaddy of Indian conventions. The anime section has g
 - **Location:** Jio World Convention Centre, Mumbai
 - **Expected Attendance:** 40,000+
 - **Highlights:** Anime cosplay competition, Indian manga creators, dubbing workshops
-- **Tickets:** ₹600–₹3,000
+- **Tickets:** â‚¹600â€“â‚¹3,000
 
 Mumbai Comic Con has the strongest anime presence of any Indian convention. Look out for the dedicated anime stage with panels, AMV contests, and meet-and-greets.
 
@@ -277,7 +277,7 @@ Mumbai Comic Con has the strongest anime presence of any Indian convention. Look
 - **Location:** Bangalore International Exhibition Centre
 - **Expected Attendance:** 20,000+
 - **Highlights:** India's largest dedicated anime event, voice actor guests, doujinshi market
-- **Tickets:** ₹400–₹2,000
+- **Tickets:** â‚¹400â€“â‚¹2,000
 
 Unlike Comic Con which covers all pop culture, Bangalore Anime Festival is 100% anime. If you want pure otaku energy, this is the convention for you.
 
@@ -287,7 +287,7 @@ Unlike Comic Con which covers all pop culture, Bangalore Anime Festival is 100% 
 - **Location:** Chennai Trade Centre
 - **Expected Attendance:** 15,000+
 - **Highlights:** Tamil anime community, regional cosplay, manga art workshops
-- **Tickets:** ₹350–₹1,500
+- **Tickets:** â‚¹350â€“â‚¹1,500
 
 Chennai has a thriving anime scene, and this convention showcases the best of South Indian otaku culture. Great for fans who want a more intimate convention experience.
 
@@ -297,7 +297,7 @@ Chennai has a thriving anime scene, and this convention showcases the best of So
 - **Location:** Eco Park, Kolkata
 - **Expected Attendance:** 20,000+
 - **Highlights:** Eastern India's biggest anime event, cosplay parade, anime music performances
-- **Tickets:** ₹300–₹1,200
+- **Tickets:** â‚¹300â€“â‚¹1,200
 
 Kolkata Comic Con brings anime culture to eastern India. The cosplay scene here is particularly strong, with fans going all-out on costumes.
 
@@ -307,7 +307,7 @@ Kolkata Comic Con brings anime culture to eastern India. The cosplay scene here 
 - **Location:** Hitex Exhibition Centre, Hyderabad
 - **Expected Attendance:** 25,000+
 - **Highlights:** Telugu anime community, voice actor panels, anime gaming zone
-- **Tickets:** ₹400–₹1,800
+- **Tickets:** â‚¹400â€“â‚¹1,800
 
 Hyderabad's convention has grown rapidly, with a strong focus on the Telugu-speaking anime community. Great for fans from Telangana and Andhra Pradesh.
 
@@ -317,7 +317,7 @@ Hyderabad's convention has grown rapidly, with a strong focus on the Telugu-spea
 
 ### Cosplay
 
-Indian cosplayers are incredibly talented. You'll see everything from basic Naruto headbands to full EVA foam mecha suits. If you're cosplaying, bring water and wear comfortable shoes — Indian convention halls are large and warm.
+Indian cosplayers are incredibly talented. You'll see everything from basic Naruto headbands to full EVA foam mecha suits. If you're cosplaying, bring water and wear comfortable shoes â€” Indian convention halls are large and warm.
 
 ### Merchandise
 
@@ -339,18 +339,18 @@ Indian cosplayers are incredibly talented. You'll see everything from basic Naru
 Indian conventions have evolved beyond basic food courts. Expect:
 - Japanese food stalls (ramen, takoyaki, onigiri)
 - Indian street food
-- Themed cafés
+- Themed cafÃ©s
 
 ---
 
 ## Tips for First-Time Convention Goers
 
-1. **Book tickets early** — Popular days sell out
-2. **Wear comfortable shoes** — You'll walk 10,000+ steps
-3. **Bring cash** — Many vendors don't accept cards
-4. **Carry a bag** — You'll accumulate merchandise quickly
-5. **Charge your phone** — For photos and the convention app
-6. **Join the ZyniVerse meetup** — Connect with other Indian anime fans at the convention
+1. **Book tickets early** â€” Popular days sell out
+2. **Wear comfortable shoes** â€” You'll walk 10,000+ steps
+3. **Bring cash** â€” Many vendors don't accept cards
+4. **Carry a bag** â€” You'll accumulate merchandise quickly
+5. **Charge your phone** â€” For photos and the convention app
+6. **Join the ZyniVerse meetup** â€” Connect with other Indian anime fans at the convention
 
 ---
 
@@ -383,9 +383,9 @@ Here's the definitive Bleach watch order for 2026.
 
 ## Bleach Chronological Watch Order
 
-### Part 1: Original Bleach (2004–2012)
+### Part 1: Original Bleach (2004â€“2012)
 
-**Episodes 1–366**
+**Episodes 1â€“366**
 
 The original Bleach anime covers the manga from the Soul Society arc through the Fake Karakura Town arc. However, it has significant filler that should be skipped.
 
@@ -393,34 +393,34 @@ The original Bleach anime covers the manga from the Soul Society arc through the
 
 | Arc | Episodes | Notes |
 |-----|----------|-------|
-| Agent of the Shinigami | 1–20 | Introduction arc |
-| Soul Society | 21–41 | The best arc in early Bleach |
-| Arrancar: Invasion | 42–54 | Hueco Mundo begins |
-| Arrancar: Escape | 55–96 | Rescue arc |
-| Arrancar: Reformation | 97–109 | Fake Karakura Town setup |
-| Arrancar vs. Visored | 110–120 | Fullbring setup |
-| Hueco Mundo | 121–151 | Final battle in HM |
-| Fake Karakura Town | 152–167 | Aizen showdown |
-| Zanpakuto Rebellion | 168–173 | Filler (skip) |
-| Gotei 13 Invading Army | 191–205 | Filler (skip) |
-| Hueco Mundo (cont.) | 206–212 | Back to canon |
-| Gotei 13 vs. Fullbring | 213–214 | Setup |
-| Substitute Shinigami | 215–216 | Transition |
-| Fullbring Arc | 217–266 | Fullbring arc |
-| Thousand Year Blood War Prologue | 266–366 | Final arc setup |
+| Agent of the Shinigami | 1â€“20 | Introduction arc |
+| Soul Society | 21â€“41 | The best arc in early Bleach |
+| Arrancar: Invasion | 42â€“54 | Hueco Mundo begins |
+| Arrancar: Escape | 55â€“96 | Rescue arc |
+| Arrancar: Reformation | 97â€“109 | Fake Karakura Town setup |
+| Arrancar vs. Visored | 110â€“120 | Fullbring setup |
+| Hueco Mundo | 121â€“151 | Final battle in HM |
+| Fake Karakura Town | 152â€“167 | Aizen showdown |
+| Zanpakuto Rebellion | 168â€“173 | Filler (skip) |
+| Gotei 13 Invading Army | 191â€“205 | Filler (skip) |
+| Hueco Mundo (cont.) | 206â€“212 | Back to canon |
+| Gotei 13 vs. Fullbring | 213â€“214 | Setup |
+| Substitute Shinigami | 215â€“216 | Transition |
+| Fullbring Arc | 217â€“266 | Fullbring arc |
+| Thousand Year Blood War Prologue | 266â€“366 | Final arc setup |
 
 #### Filler Arcs (Safe to Skip)
 
-- **Episodes 64–109** — Bount arc (26 episodes of filler)
-- **Episodes 168–173** — Zanpakuto Rebellion
-- **Episodes 187–205** — Gotei 13 Invading Army
-- **Episodes 227–266** — Various fillers (some are good)
+- **Episodes 64â€“109** â€” Bount arc (26 episodes of filler)
+- **Episodes 168â€“173** â€” Zanpakuto Rebellion
+- **Episodes 187â€“205** â€” Gotei 13 Invading Army
+- **Episodes 227â€“266** â€” Various fillers (some are good)
 
 #### Filler Worth Watching
 
-- **Episodes 168–173** — Zanpakuto Rebellion is entertaining
-- **Episodes 227–230** — Hell Verse movie tie-in episodes
-- **Episodes 287–297** — Gotei 13 vs. Bount (condensed)
+- **Episodes 168â€“173** â€” Zanpakuto Rebellion is entertaining
+- **Episodes 227â€“230** â€” Hell Verse movie tie-in episodes
+- **Episodes 287â€“297** â€” Gotei 13 vs. Bount (condensed)
 
 ---
 
@@ -428,37 +428,37 @@ The original Bleach anime covers the manga from the Soul Society arc through the
 
 These movies are standalone but best enjoyed after the original series:
 
-1. **Memories of Nobody** (2006) — After Soul Society arc
-2. **Fade to Black** (2008) — After Fake Karakura Town
-3. **Hell Verse** (2010) — After Fullbring arc
-4. **DiamondDust Rebellion** (2007) — After Soul Society arc
+1. **Memories of Nobody** (2006) â€” After Soul Society arc
+2. **Fade to Black** (2008) â€” After Fake Karakura Town
+3. **Hell Verse** (2010) â€” After Fullbring arc
+4. **DiamondDust Rebellion** (2007) â€” After Soul Society arc
 
 **Note:** None of the movies are canon to TYBW, but they're fun watches.
 
 ---
 
-### Part 3: Bleach: Thousand Year Blood War (2022–Present)
+### Part 3: Bleach: Thousand Year Blood War (2022â€“Present)
 
 This is the adaptation of the final arc from the manga. It's split into multiple cours:
 
 #### Cour 1: The Blood War (2022)
 
-- **Episodes 1–13** — The Quincy invasion begins
+- **Episodes 1â€“13** â€” The Quincy invasion begins
 - **Key moments:** Yhwach's invasion, Yamamoto's Bankai, Ichigo's return
 
 #### Cour 2: The Separation (2023)
 
-- **Episodes 14–26** — The war intensifies
+- **Episodes 14â€“26** â€” The war intensifies
 - **Key moments:** Squad Zero enters, Ichibei vs. Yhwach, Aizen's role
 
 #### Cour 3: The Conflict (2024)
 
-- **Episodes 27–40** — The final battles
+- **Episodes 27â€“40** â€” The final battles
 - **Key moments:** Royal Palace invasion, Schatten Bereich, final showdown
 
-#### Cour 4: The Final (2025–2026)
+#### Cour 4: The Final (2025â€“2026)
 
-- **Episodes 41+** — The conclusion
+- **Episodes 41+** â€” The conclusion
 - **Key moments:** Final battle, ending
 
 ---
@@ -467,12 +467,12 @@ This is the adaptation of the final arc from the manga. It's split into multiple
 
 For the best experience, follow this order:
 
-1. **Bleach Episodes 1–63** (Agent of Shinigami + Soul Society)
-2. **Skip Episodes 64–109** (Bount arc)
-3. **Bleach Episodes 110–167** (Arrancar through Fake Karakura)
-4. **Skip Episodes 168–205** (Filler)
-5. **Bleach Episodes 206–266** (Final arcs of original)
-6. **Bleach TYBW Cour 1–4** (Episodes 1–40+)
+1. **Bleach Episodes 1â€“63** (Agent of Shinigami + Soul Society)
+2. **Skip Episodes 64â€“109** (Bount arc)
+3. **Bleach Episodes 110â€“167** (Arrancar through Fake Karakura)
+4. **Skip Episodes 168â€“205** (Filler)
+5. **Bleach Episodes 206â€“266** (Final arcs of original)
+6. **Bleach TYBW Cour 1â€“4** (Episodes 1â€“40+)
 
 ---
 
@@ -502,9 +502,9 @@ Bleach TYBW is one of the best anime arcs ever animated. The animation quality i
     tags: "anime for beginners, best anime to start, first anime, indian anime fans",
     content: `## Starting Your Anime Journey
 
-So you've decided to start watching anime. Maybe a friend recommended it, maybe you saw a clip on Instagram, or maybe you're just curious. Whatever brought you here, welcome — you're about to discover some of the best storytelling in any medium.
+So you've decided to start watching anime. Maybe a friend recommended it, maybe you saw a clip on Instagram, or maybe you're just curious. Whatever brought you here, welcome â€” you're about to discover some of the best storytelling in any medium.
 
-The problem? There are thousands of anime out there, and knowing where to start can be overwhelming. This list picks the 10 best anime for beginners — shows that are accessible, well-dubbed, and genuinely great.
+The problem? There are thousands of anime out there, and knowing where to start can be overwhelming. This list picks the 10 best anime for beginners â€” shows that are accessible, well-dubbed, and genuinely great.
 
 ---
 
@@ -544,7 +544,7 @@ Attack on Titan is a masterclass in storytelling. The world-building is incredib
 
 **Episodes:** 55+ | **Genre:** Action, Supernatural | **Where to Watch:** Crunchyroll, Netflix
 
-Demon Slayer has some of the best animation in anime history. The story is straightforward — a boy trains to save his demon sister — but the execution is beautiful.
+Demon Slayer has some of the best animation in anime history. The story is straightforward â€” a boy trains to save his demon sister â€” but the execution is beautiful.
 
 **Why it's great for beginners:**
 - Simple, emotional story
@@ -631,7 +631,7 @@ FMAB is consistently ranked as one of the best anime ever made. Two brothers use
 Naruto is the anime that introduced most Indian fans to the medium. It's long, but the journey of Naruto Uzumaki from outcast to Hokage is unforgettable.
 
 **Why it's great for beginners:**
-- Cultural phenomenon — everyone knows about it
+- Cultural phenomenon â€” everyone knows about it
 - Hindi dub available
 - Massive community for discussion
 - Skip the filler with our filler guide
@@ -644,7 +644,7 @@ Naruto is the anime that introduced most Indian fans to the medium. It's long, b
 
 **Episodes:** 291 | **Genre:** Action, Martial Arts | **Where to Watch:** Crunchyroll, YouTube
 
-Dragon Ball Z is the granddaddy of shonen anime. The power scaling, the transformations, the epic battles — it defined what anime action looks like.
+Dragon Ball Z is the granddaddy of shonen anime. The power scaling, the transformations, the epic battles â€” it defined what anime action looks like.
 
 **Why it's great for beginners:**
 - Nostalgic for many Indian fans
@@ -656,20 +656,20 @@ Dragon Ball Z is the granddaddy of shonen anime. The power scaling, the transfor
 
 ## Where to Watch These Anime in India
 
-- **Crunchyroll** — Largest anime library, some Hindi dub titles
-- **Netflix** — Growing anime selection
-- **YouTube** — Free Hindi dubbed episodes on official channels
-- **ZyniVerse** — Track your watchlist and get Indian TV schedule alerts
+- **Crunchyroll** â€” Largest anime library, some Hindi dub titles
+- **Netflix** â€” Growing anime selection
+- **YouTube** â€” Free Hindi dubbed episodes on official channels
+- **ZyniVerse** â€” Track your watchlist and get Indian TV schedule alerts
 
 ---
 
 ## Tips for New Anime Fans
 
-1. **Start with subtitles** — You'll get used to it quickly
-2. **Don't force yourself** — If you don't like an anime after 3 episodes, drop it
-3. **Join the community** — Reddit, Discord, and ZyniVerse are great places to discuss
-4. **Watch the dub if you prefer** — There's no shame in watching Hindi or English dub
-5. **Don't binge too hard** — Take breaks to avoid burnout
+1. **Start with subtitles** â€” You'll get used to it quickly
+2. **Don't force yourself** â€” If you don't like an anime after 3 episodes, drop it
+3. **Join the community** â€” Reddit, Discord, and ZyniVerse are great places to discuss
+4. **Watch the dub if you prefer** â€” There's no shame in watching Hindi or English dub
+5. **Don't binge too hard** â€” Take breaks to avoid burnout
 
 ---
 
@@ -694,131 +694,131 @@ This guide breaks down every One Piece arc in order, tells you what's canon, and
 
 ## One Piece Arcs in Order
 
-### East Blue Saga (Episodes 1–61)
+### East Blue Saga (Episodes 1â€“61)
 
 | Arc | Episodes | Canon? | Notes |
 |-----|----------|--------|-------|
-| Romance Dawn | 1–3 | Yes | Introduction to Luffy |
-| Orange Town | 4–8 | Yes | First real adventure |
-| Syrup Village | 9–18 | Yes | Usopp joins |
-| Baratie | 19–30 | Yes | Sanji joins |
-| Arlong Park | 31–44 | Yes | Nami's backstory — INCREDIBLE |
-| Loguetown | 45–47 | Yes | Gold Roger's final island |
-| Buggy's Circus | 48–53 | No | Filler (skip) |
-| Warship Island | 54–61 | No | Filler (skip) |
+| Romance Dawn | 1â€“3 | Yes | Introduction to Luffy |
+| Orange Town | 4â€“8 | Yes | First real adventure |
+| Syrup Village | 9â€“18 | Yes | Usopp joins |
+| Baratie | 19â€“30 | Yes | Sanji joins |
+| Arlong Park | 31â€“44 | Yes | Nami's backstory â€” INCREDIBLE |
+| Loguetown | 45â€“47 | Yes | Gold Roger's final island |
+| Buggy's Circus | 48â€“53 | No | Filler (skip) |
+| Warship Island | 54â€“61 | No | Filler (skip) |
 
-**Verdict:** Watch episodes 1–47, skip 48–61.
+**Verdict:** Watch episodes 1â€“47, skip 48â€“61.
 
 ---
 
-### Alabasta Saga (Episodes 62–135)
+### Alabasta Saga (Episodes 62â€“135)
 
 | Arc | Episodes | Canon? | Notes |
 |-----|----------|--------|-------|
-| Reverse Mountain | 62–63 | Yes | Entering Grand Line |
-| Whisky Peak | 64–67 | Yes | Baroque Works introduced |
-| Koby & Helmeppo | 68–69 | Yes | Side story |
-| Drum Island | 78–91 | Yes | Chopper joins |
-| Little Garden | 81–89 | Yes | Giants! |
-| Alabasta | 92–130 | Yes | One of the best sagas |
-| Post-Alabasta | 131–135 | No | Filler (skip) |
+| Reverse Mountain | 62â€“63 | Yes | Entering Grand Line |
+| Whisky Peak | 64â€“67 | Yes | Baroque Works introduced |
+| Koby & Helmeppo | 68â€“69 | Yes | Side story |
+| Drum Island | 78â€“91 | Yes | Chopper joins |
+| Little Garden | 81â€“89 | Yes | Giants! |
+| Alabasta | 92â€“130 | Yes | One of the best sagas |
+| Post-Alabasta | 131â€“135 | No | Filler (skip) |
 
-**Verdict:** Watch everything, skip 131–135.
+**Verdict:** Watch everything, skip 131â€“135.
 
 ---
 
-### Sky Island Saga (Episodes 136–206)
+### Sky Island Saga (Episodes 136â€“206)
 
 | Arc | Episodes | Canon? | Notes |
 |-----|----------|--------|-------|
-| Jaya | 136–138 | Yes | Skypiea setup |
-| Skypiea | 139–195 | Yes | Sky island adventure |
-| G-8 | 196–206 | No | Filler (actually good, watch this) |
+| Jaya | 136â€“138 | Yes | Skypiea setup |
+| Skypiea | 139â€“195 | Yes | Sky island adventure |
+| G-8 | 196â€“206 | No | Filler (actually good, watch this) |
 
 **Verdict:** Watch canon, G-8 is optional but fun.
 
 ---
 
-### Water 7 Saga (Episodes 207–325)
+### Water 7 Saga (Episodes 207â€“325)
 
 | Arc | Episodes | Canon? | Notes |
 |-----|----------|--------|-------|
-| Long Ring Long Land | 207–219 | Yes | Davy Back Fight |
-| Foxy's Return | 220–223 | No | Filler (skip) |
-| Water 7 | 224–263 | Yes | One of the best arcs |
-| Enies Lobby | 264–312 | Yes | Peak One Piece |
-| Post-Enies Lobby | 313–325 | Yes | Crew reactions |
+| Long Ring Long Land | 207â€“219 | Yes | Davy Back Fight |
+| Foxy's Return | 220â€“223 | No | Filler (skip) |
+| Water 7 | 224â€“263 | Yes | One of the best arcs |
+| Enies Lobby | 264â€“312 | Yes | Peak One Piece |
+| Post-Enies Lobby | 313â€“325 | Yes | Crew reactions |
 
-**Verdict:** Watch everything except 220–223.
+**Verdict:** Watch everything except 220â€“223.
 
 ---
 
-### Thriller Bark Saga (Episodes 325–385)
+### Thriller Bark Saga (Episodes 325â€“385)
 
 | Arc | Episodes | Canon? | Notes |
 |-----|----------|--------|-------|
-| Thriller Bark | 325–385 | Yes | Brook joins |
+| Thriller Bark | 325â€“385 | Yes | Brook joins |
 
 **Verdict:** Watch everything.
 
 ---
 
-### Summit War Saga (Episodes 385–516)
+### Summit War Saga (Episodes 385â€“516)
 
 | Arc | Episodes | Canon? | Notes |
 |-----|----------|--------|-------|
-| Sabaody Archipelago | 385–405 | Yes | Crew separates |
-| Amazon Lily | 408–417 | Yes | Luffy on women island |
-| Impel Down | 422–456 | Yes | Prison arc — INCREDIBLE |
-| Marineford | 457–489 | Yes | The war — PEAK ONE PIECE |
-| Post-War | 490–516 | Yes | Aftermath |
+| Sabaody Archipelago | 385â€“405 | Yes | Crew separates |
+| Amazon Lily | 408â€“417 | Yes | Luffy on women island |
+| Impel Down | 422â€“456 | Yes | Prison arc â€” INCREDIBLE |
+| Marineford | 457â€“489 | Yes | The war â€” PEAK ONE PIECE |
+| Post-War | 490â€“516 | Yes | Aftermath |
 
 **Verdict:** Watch everything. This is the best saga in One Piece.
 
 ---
 
-### Fish-Man Island Saga (Episodes 517–574)
+### Fish-Man Island Saga (Episodes 517â€“574)
 
 | Arc | Episodes | Canon? | Notes |
 |-----|----------|--------|-------|
-| Return to Sabaody | 517–522 | Yes | Crew reunites |
-| Fish-Man Island | 523–574 | Yes | Underwater kingdom |
+| Return to Sabaody | 517â€“522 | Yes | Crew reunites |
+| Fish-Man Island | 523â€“574 | Yes | Underwater kingdom |
 
 **Verdict:** Watch everything.
 
 ---
 
-### Dressrosa Saga (Episodes 575–746)
+### Dressrosa Saga (Episodes 575â€“746)
 
 | Arc | Episodes | Canon? | Notes |
 |-----|----------|--------|-------|
-| Punk Hazard | 575–597 | Yes | Caesar Clown |
-| Dressrosa | 597–746 | Yes | Doflamingo — LONG but good |
+| Punk Hazard | 575â€“597 | Yes | Caesar Clown |
+| Dressrosa | 597â€“746 | Yes | Doflamingo â€” LONG but good |
 
 **Note:** Dressrosa is 150 episodes. Some feel it drags, but the payoff is worth it.
 
 ---
 
-### Whole Cake Island Saga (Episodes 746–890)
+### Whole Cake Island Saga (Episodes 746â€“890)
 
 | Arc | Episodes | Canon? | Notes |
 |-----|----------|--------|-------|
-| Zou | 746–751 | Yes | Zebra island |
-| Whole Cake Island | 751–877 | Yes | Sanji's backstory — EMOTIONAL |
-| Reverie | 878–889 | Yes | World politics |
+| Zou | 746â€“751 | Yes | Zebra island |
+| Whole Cake Island | 751â€“877 | Yes | Sanji's backstory â€” EMOTIONAL |
+| Reverie | 878â€“889 | Yes | World politics |
 | Conomi Islands | 890 | Yes | Transition |
 
 **Verdict:** Watch everything.
 
 ---
 
-### Wano Country Saga (Episodes 890–1085)
+### Wano Country Saga (Episodes 890â€“1085)
 
 | Arc | Episodes | Canon? | Notes |
 |-----|----------|--------|-------|
-| Wano Part 1 | 890–975 | Yes | Samurais and kaido |
-| Wano Part 2 | 976–1025 | Yes | Raid on Onigashima |
-| Wano Part 3 | 1026–1085 | Yes | Final battles |
+| Wano Part 1 | 890â€“975 | Yes | Samurais and kaido |
+| Wano Part 2 | 976â€“1025 | Yes | Raid on Onigashima |
+| Wano Part 3 | 1026â€“1085 | Yes | Final battles |
 
 **Verdict:** Watch everything. Wano has the best animation in One Piece history.
 
@@ -836,22 +836,22 @@ Total filler in One Piece: ~100 episodes out of 1,100+ (only 9%)
 
 ### Safe to Skip:
 
-- **Episodes 54–61** — Warship Island
-- **Episodes 131–135** — Post-Alabasta
-- **Episodes 220–223** — Foxy's Return
-- **Episodes 291–292** — Spa Island
-- **Episodes 382–384** — GT episodes
-- **Episodes 406–407** — Boss Luffy specials
-- **Episodes 426–429** — Ice Hunter
-- **Episodes 457–458** — Chopper Man
-- **Episodes 492** — Special episode
-- **Episodes 575–578** — Post-timeskip specials
+- **Episodes 54â€“61** â€” Warship Island
+- **Episodes 131â€“135** â€” Post-Alabasta
+- **Episodes 220â€“223** â€” Foxy's Return
+- **Episodes 291â€“292** â€” Spa Island
+- **Episodes 382â€“384** â€” GT episodes
+- **Episodes 406â€“407** â€” Boss Luffy specials
+- **Episodes 426â€“429** â€” Ice Hunter
+- **Episodes 457â€“458** â€” Chopper Man
+- **Episodes 492** â€” Special episode
+- **Episodes 575â€“578** â€” Post-timeskip specials
 
 ### Filler Worth Watching:
 
-- **Episodes 196–206** — G-8 arc (actually funny)
-- **Episodes 317–320** — Ocean's Dream
-- **Episodes 326** — Dream 9 special
+- **Episodes 196â€“206** â€” G-8 arc (actually funny)
+- **Episodes 317â€“320** â€” Ocean's Dream
+- **Episodes 326** â€” Dream 9 special
 
 ---
 
@@ -859,16 +859,16 @@ Total filler in One Piece: ~100 episodes out of 1,100+ (only 9%)
 
 For the fastest One Piece experience:
 
-1. East Blue (1–47)
-2. Alabasta (62–130)
-3. Skypiea (136–195)
-4. Water 7/Enies Lobby (224–325)
-5. Thriller Bark (325–385)
-6. Summit War (385–516)
-7. Fish-Man Island (517–574)
-8. Dressrosa (575–746)
-9. Whole Cake Island (746–890)
-10. Wano (890–1085)
+1. East Blue (1â€“47)
+2. Alabasta (62â€“130)
+3. Skypiea (136â€“195)
+4. Water 7/Enies Lobby (224â€“325)
+5. Thriller Bark (325â€“385)
+6. Summit War (385â€“516)
+7. Fish-Man Island (517â€“574)
+8. Dressrosa (575â€“746)
+9. Whole Cake Island (746â€“890)
+10. Wano (890â€“1085)
 11. Egghead (1086+)
 
 ---
@@ -885,7 +885,7 @@ One Piece is a marathon, not a sprint. ZyniVerse lets you:
 
 ## Final Thoughts
 
-One Piece is one of the greatest stories ever told. Yes, it's long. Yes, it takes commitment. But the emotional payoffs are unlike anything else in anime. Skip the minimal filler, enjoy the ride, and remember — the One Piece is real.`,
+One Piece is one of the greatest stories ever told. Yes, it's long. Yes, it takes commitment. But the emotional payoffs are unlike anything else in anime. Skip the minimal filler, enjoy the ride, and remember â€” the One Piece is real.`,
   },
   {
     title: "Best Anime Streaming Apps for Indian Users in 2026",
@@ -900,15 +900,15 @@ Finding the right anime streaming app in India can be confusing. Each platform h
 
 ## 1. Crunchyroll
 
-**Price:** Free (with ads) / ₹79/month (Fan) / ₹149/month (Mega Fan)
+**Price:** Free (with ads) / â‚¹79/month (Fan) / â‚¹149/month (Mega Fan)
 
 Crunchyroll is the world's largest anime streaming platform, and it's fully available in India.
 
 **Pros:**
 - Largest anime library (1,000+ titles)
-- Simulcast — new episodes within hours of Japan airing
+- Simulcast â€” new episodes within hours of Japan airing
 - Available in Hindi, Tamil, and Telugu for select titles
-- SimulDub — dubbed episodes shortly after sub
+- SimulDub â€” dubbed episodes shortly after sub
 - Offline downloads on premium
 
 **Cons:**
@@ -922,7 +922,7 @@ Crunchyroll is the world's largest anime streaming platform, and it's fully avai
 
 ## 2. Netflix
 
-**Price:** ₹149/month (Mobile) / ₹199/month (Basic) / ₹499/month (Standard)
+**Price:** â‚¹149/month (Mobile) / â‚¹199/month (Basic) / â‚¹499/month (Standard)
 
 Netflix has been aggressively expanding its anime library and has some exclusive titles.
 
@@ -986,7 +986,7 @@ Another YouTube channel that streams anime legally.
 
 ## 5. JioCinema
 
-**Price:** Free (with Jio subscription) / ₹99/month premium
+**Price:** Free (with Jio subscription) / â‚¹99/month premium
 
 JioCinema has been expanding into anime with Hindi dubbed content.
 
@@ -1007,7 +1007,7 @@ JioCinema has been expanding into anime with Hindi dubbed content.
 
 ## 6. SonyLIV
 
-**Price:** ₹299/month
+**Price:** â‚¹299/month
 
 SonyLIV has some anime content through its partnership with Animax.
 
@@ -1033,7 +1033,7 @@ ZyniVerse isn't a streaming platform, but it's an essential companion app for an
 
 **Pros:**
 - Track your watchlist across all platforms
-- Indian TV schedule — know when anime airs on TV
+- Indian TV schedule â€” know when anime airs on TV
 - Filler guides for long-running anime
 - Watch parties with Indian fans
 - Cosplay gallery
@@ -1051,21 +1051,21 @@ ZyniVerse isn't a streaming platform, but it's an essential companion app for an
 
 | Platform | Price | Hindi Dub | Library Size | Simulcast | Free Tier |
 |----------|-------|-----------|--------------|-----------|-----------|
-| Crunchyroll | ₹79/mo | Limited | 1,000+ | Yes | Yes (limited) |
-| Netflix | ₹149/mo | Some | 300+ | Few | No |
+| Crunchyroll | â‚¹79/mo | Limited | 1,000+ | Yes | Yes (limited) |
+| Netflix | â‚¹149/mo | Some | 300+ | Few | No |
 | Muse Asia | Free | No | 200+ | No | Yes |
 | Ani-One | Free | No | 150+ | No | Yes |
-| JioCinema | Free/₹99 | Some | 50+ | No | Partial |
-| SonyLIV | ₹299/mo | Some | 100+ | No | No |
+| JioCinema | Free/â‚¹99 | Some | 50+ | No | Partial |
+| SonyLIV | â‚¹299/mo | Some | 100+ | No | No |
 | ZyniVerse | Free | N/A | N/A | N/A | Yes |
 
 ---
 
 ## Our Recommendation
 
-**For Hardcore Fans:** Crunchyroll (₹79/month) + ZyniVerse (free) for tracking
+**For Hardcore Fans:** Crunchyroll (â‚¹79/month) + ZyniVerse (free) for tracking
 
-**For Casual Fans:** Netflix (₹149/month) for the mix of anime and other content
+**For Casual Fans:** Netflix (â‚¹149/month) for the mix of anime and other content
 
 **For Budget Fans:** Muse Asia (free) + ZyniVerse for tracking
 
@@ -1075,10 +1075,10 @@ ZyniVerse isn't a streaming platform, but it's an essential companion app for an
 
 ## How to Get the Most Out of Your Subscription
 
-1. **Use ZyniVerse to track everything** — Don't lose track of which anime is on which platform
-2. **Set up notifications** — Know when new episodes drop
-3. **Use the Indian TV schedule** — Free anime on TV is still a thing
-4. **Join watch parties** — Watch with friends even if they're on different platforms
+1. **Use ZyniVerse to track everything** â€” Don't lose track of which anime is on which platform
+2. **Set up notifications** â€” Know when new episodes drop
+3. **Use the Indian TV schedule** â€” Free anime on TV is still a thing
+4. **Join watch parties** â€” Watch with friends even if they're on different platforms
 
 ---
 
@@ -1107,19 +1107,19 @@ Demon Slayer: Kimetsu no Yaiba has a straightforward anime timeline, but the mov
 
 ### Season 1: Tanjiro Kamado's Journey (2019)
 
-**Episodes 1–26**
+**Episodes 1â€“26**
 
 | Arc | Episodes | Notes |
 |-----|----------|-------|
-| Final Selection | 1–3 | Tanjiro's test |
-| Kidnapper's Bog | 4–5 | First mission |
-| Asakusa | 6–7 | Muzan appears! |
-| Tsugumi | 8–9 | Training begins |
-| Mount Natagumo | 10–21 | Spider demon arc — INCREDIBLE |
-| Recovery | 22–23 | Breathing training |
-| Hashira Meeting | 24–26 | Hashira introduced |
+| Final Selection | 1â€“3 | Tanjiro's test |
+| Kidnapper's Bog | 4â€“5 | First mission |
+| Asakusa | 6â€“7 | Muzan appears! |
+| Tsugumi | 8â€“9 | Training begins |
+| Mount Natagumo | 10â€“21 | Spider demon arc â€” INCREDIBLE |
+| Recovery | 22â€“23 | Breathing training |
+| Hashira Meeting | 24â€“26 | Hashira introduced |
 
-**Verdict:** Watch all 26 episodes. The Mount Natagumo arc (episodes 10–21) is one of the best arcs in modern anime.
+**Verdict:** Watch all 26 episodes. The Mount Natagumo arc (episodes 10â€“21) is one of the best arcs in modern anime.
 
 ---
 
@@ -1131,20 +1131,20 @@ The Mugen Train movie continues directly from Season 1. It introduces Kyojuro Re
 
 **Watch order:** After Season 1, before Season 2.
 
-**Note:** The TV version (7 episodes) is a retelling of the movie with some added content. Watch either version — the movie is better visually, the TV version has more character development.
+**Note:** The TV version (7 episodes) is a retelling of the movie with some added content. Watch either version â€” the movie is better visually, the TV version has more character development.
 
 ---
 
-### Season 2: Mugen Train Arc + Entertainment District (2021–2022)
+### Season 2: Mugen Train Arc + Entertainment District (2021â€“2022)
 
-**Episodes 1–23**
+**Episodes 1â€“23**
 
 | Arc | Episodes | Notes |
 |-----|----------|-------|
-| Mugen Train (TV) | 1–7 | Retelling of the movie |
-| Entertainment District | 8–23 | Tengen Uzui arc — INSANE animation |
+| Mugen Train (TV) | 1â€“7 | Retelling of the movie |
+| Entertainment District | 8â€“23 | Tengen Uzui arc â€” INSANE animation |
 
-**Verdict:** If you watched the movie, skip episodes 1–7. Go straight to Entertainment District (episode 8+). The Entertainment District arc has some of the best animation in anime history.
+**Verdict:** If you watched the movie, skip episodes 1â€“7. Go straight to Entertainment District (episode 8+). The Entertainment District arc has some of the best animation in anime history.
 
 ---
 
@@ -1152,7 +1152,7 @@ The Mugen Train movie continues directly from Season 1. It introduces Kyojuro Re
 
 **Runtime:** 110 minutes
 
-This movie covers the transition between the Entertainment District arc and the Hashira Training arc. It includes the Hashira Training arc episodes 1–7.
+This movie covers the transition between the Entertainment District arc and the Hashira Training arc. It includes the Hashira Training arc episodes 1â€“7.
 
 **Watch order:** After Season 2, before Season 3.
 
@@ -1162,7 +1162,7 @@ This movie covers the transition between the Entertainment District arc and the 
 
 ### Season 3: Hashira Training Arc (2024)
 
-**Episodes 1–8**
+**Episodes 1â€“8**
 
 The Hashira Training arc shows Tanjiro and the other Demon Slayers training with the Hashira to prepare for the final battle against Muzan.
 
@@ -1172,16 +1172,16 @@ The Hashira Training arc shows Tanjiro and the other Demon Slayers training with
 
 ### Season 4: Hashira Training Arc (Full)
 
-**Episodes 1–8** (same as above, just the full season)
+**Episodes 1â€“8** (same as above, just the full season)
 
 ---
 
 ## Quick Reference: Watch Order
 
-1. **Demon Slayer Season 1** (Episodes 1–26)
-2. **Mugen Train Movie** OR **Mugen Train TV** (Episodes 1–7 of Season 2)
-3. **Entertainment District** (Episodes 8–23 of Season 2)
-4. **Hashira Training Arc** (Episodes 1–8 of Season 3)
+1. **Demon Slayer Season 1** (Episodes 1â€“26)
+2. **Mugen Train Movie** OR **Mugen Train TV** (Episodes 1â€“7 of Season 2)
+3. **Entertainment District** (Episodes 8â€“23 of Season 2)
+4. **Hashira Training Arc** (Episodes 1â€“8 of Season 3)
 
 **Total:** 26 + 7 + 16 + 8 = **57 episodes + 1 movie**
 
@@ -1189,7 +1189,7 @@ The Hashira Training arc shows Tanjiro and the other Demon Slayers training with
 
 ## What's Coming Next?
 
-The Infinity Castle arc is the final arc of Demon Slayer. It's expected to be released as a movie trilogy starting in 2025–2026. This will adapt the final battle against Muzan Kibutsuji.
+The Infinity Castle arc is the final arc of Demon Slayer. It's expected to be released as a movie trilogy starting in 2025â€“2026. This will adapt the final battle against Muzan Kibutsuji.
 
 ---
 
@@ -1238,21 +1238,21 @@ Jujutsu Kaisen has a slightly confusing watch order due to movies that fall betw
 
 ## Complete Jujutsu Kaisen Watch Order
 
-### Season 1 (2020–2021)
+### Season 1 (2020â€“2021)
 
-**Episodes 1–24**
+**Episodes 1â€“24**
 
 The first season introduces Yuji Itadori, Megumi Fushiguro, Nobara Kugisaki, and Satoru Gojo. It covers the Fearsome Womb arc, the Kyoto Goodwill Event, and the beginning of the Shibuya arc.
 
 | Arc | Episodes | Notes |
 |-----|----------|-------|
-| Ryomen Sukuna | 1–2 | Introduction |
-| Fearsome Womb | 3–7 | First mission |
-| Path of Punishment | 8–9 | Training |
-| Kyoto Goodwill Event | 10–13 | Tournament arc |
-| Star Plasma Vessel | 14–16 | Toji Fushiguro |
-| Fearsome Womb (cont.) | 17–21 | Disaster curses |
-| Shimetsu Kaiyuu | 22–24 | Shibuya setup |
+| Ryomen Sukuna | 1â€“2 | Introduction |
+| Fearsome Womb | 3â€“7 | First mission |
+| Path of Punishment | 8â€“9 | Training |
+| Kyoto Goodwill Event | 10â€“13 | Tournament arc |
+| Star Plasma Vessel | 14â€“16 | Toji Fushiguro |
+| Fearsome Womb (cont.) | 17â€“21 | Disaster curses |
+| Shimetsu Kaiyuu | 22â€“24 | Shibuya setup |
 
 **Verdict:** Watch all 24 episodes.
 
@@ -1272,21 +1272,21 @@ This is a prequel movie set one year before Season 1. It follows Yuta Okkotsu an
 
 ### Season 2 (2023)
 
-**Episodes 1–23**
+**Episodes 1â€“23**
 
 Season 2 is split into two parts:
 
 | Arc | Episodes | Notes |
 |-----|----------|-------|
-| Hidden Inventory | 1–5 | Gojo and Geto's past — INCREDIBLE |
-| Premature Death | 6–7 | Toji Fushiguro's story |
-| Shibuya Incident | 8–23 | The best arc in JJK — INSANE |
+| Hidden Inventory | 1â€“5 | Gojo and Geto's past â€” INCREDIBLE |
+| Premature Death | 6â€“7 | Toji Fushiguro's story |
+| Shibuya Incident | 8â€“23 | The best arc in JJK â€” INSANE |
 
-**Verdict:** Watch all 23 episodes. The Shibuya Incident arc (episodes 8–23) is peak anime.
+**Verdict:** Watch all 23 episodes. The Shibuya Incident arc (episodes 8â€“23) is peak anime.
 
 ---
 
-### Jujutsu Kaisen: Hidden Inventory – Premature Death (OVA)
+### Jujutsu Kaisen: Hidden Inventory â€“ Premature Death (OVA)
 
 These are recap episodes that condense the Hidden Inventory arc. If you've already watched Season 2, you can skip these.
 
@@ -1304,7 +1304,7 @@ This movie adapts part of the Culling Game arc, which takes place after the Shib
 
 ### Season 3 (2025)
 
-**Episodes 1–TBA**
+**Episodes 1â€“TBA**
 
 Season 3 covers the Culling Game arc and the Shinjuku Showdown arc. The manga has concluded, so this season adapts the final arc.
 
@@ -1314,11 +1314,11 @@ Season 3 covers the Culling Game arc and the Shinjuku Showdown arc. The manga ha
 
 ## Quick Reference: Watch Order
 
-1. **Jujutsu Kaisen Season 1** (Episodes 1–24)
+1. **Jujutsu Kaisen Season 1** (Episodes 1â€“24)
 2. **Jujutsu Kaisen 0 Movie** (105 minutes)
-3. **Jujutsu Kaisen Season 2** (Episodes 1–23)
+3. **Jujutsu Kaisen Season 2** (Episodes 1â€“23)
 4. **Culling Game Movie** (120 minutes)
-5. **Jujutsu Kaisen Season 3** (Episodes 1–TBA)
+5. **Jujutsu Kaisen Season 3** (Episodes 1â€“TBA)
 
 ---
 
@@ -1338,12 +1338,12 @@ The Jujutsu Kaisen manga concluded in 2024. The anime is the primary way to expe
 
 ## Key Characters to Know
 
-- **Yuji Itadori** — The main protagonist who swallowed Sukuna's finger
-- **Satoru Gojo** — The strongest jujutsu sorcerer
-- **Megumi Fushiguro** — Yuji's best friend and Ten Shadows user
-- **Nobara Kugisaki** — The third member of the first-year trio
-- **Ryomen Sukuna** — The King of Curses
-- **Suguru Geto** — The main antagonist (or is he?)
+- **Yuji Itadori** â€” The main protagonist who swallowed Sukuna's finger
+- **Satoru Gojo** â€” The strongest jujutsu sorcerer
+- **Megumi Fushiguro** â€” Yuji's best friend and Ten Shadows user
+- **Nobara Kugisaki** â€” The third member of the first-year trio
+- **Ryomen Sukuna** â€” The King of Curses
+- **Suguru Geto** â€” The main antagonist (or is he?)
 
 ---
 
@@ -1370,7 +1370,7 @@ And remember: throughout heaven and earth, I alone am the honored one.`,
     tags: "how to watch anime, anime for indian beginners, start watching anime, anime culture india",
     content: `## Welcome to the World of Anime
 
-Anime isn't just cartoons — it's a storytelling medium that covers every genre imaginable. From psychological thrillers to romance to sports to horror, there's anime for everyone.
+Anime isn't just cartoons â€” it's a storytelling medium that covers every genre imaginable. From psychological thrillers to romance to sports to horror, there's anime for everyone.
 
 If you're an Indian fan who's curious about anime, this guide covers everything you need to get started.
 
@@ -1410,7 +1410,7 @@ Why: Genuinely scary stories that'll give you nightmares.
 
 ---
 
-## Step 2: Sub vs. Dub — What's the Difference?
+## Step 2: Sub vs. Dub â€” What's the Difference?
 
 ### Subtitled (Sub)
 
@@ -1450,16 +1450,16 @@ Anime translated and re-voiced in another language.
 
 | Platform | Price | Hindi Dub | Best For |
 |----------|-------|-----------|----------|
-| Crunchyroll | ₹79/month | Limited | Latest episodes |
-| Netflix | ₹149/month | Some | Casual watching |
+| Crunchyroll | â‚¹79/month | Limited | Latest episodes |
+| Netflix | â‚¹149/month | Some | Casual watching |
 | YouTube (Muse Asia) | Free | No | Budget fans |
-| JioCinema | Free/₹99 | Some | Hindi dub fans |
+| JioCinema | Free/â‚¹99 | Some | Hindi dub fans |
 
 ### Free Options
 
-- **YouTube** — Many official channels upload episodes for free
-- **Muse Asia** — Free legal streaming on YouTube
-- **Crunchyroll Free Tier** — Limited but free
+- **YouTube** â€” Many official channels upload episodes for free
+- **Muse Asia** â€” Free legal streaming on YouTube
+- **Crunchyroll Free Tier** â€” Limited but free
 
 ---
 
@@ -1469,24 +1469,24 @@ Anime has its own culture and terminology. Here are the basics:
 
 ### Common Terms
 
-- **Shonen** — Anime aimed at young boys (Action, Adventure). Examples: Naruto, One Piece, Dragon Ball Z
-- **Shojo** — Anime aimed at young girls (Romance, Fantasy). Examples: Sailor Moon, Fruits Basket
-- **Seinen** — Anime aimed at adult men (Mature themes). Examples: Berserk, Monster, Vinland Saga
-- **Josei** — Anime aimed at adult women (Realistic romance). Examples: Honey and Clover, Nana
-- **Isekai** — Anime where the protagonist is transported to another world. Examples: Re:Zero, Sword Art Online
-- **Mecha** — Anime featuring giant robots. Examples: Neon Genesis Evangelion, Gundam
-- **Manga** — Japanese comics (the source material for most anime)
-- **Light Novel** — Japanese young adult novels (also adapted into anime)
-- **OVAs** — Original Video Animation (extra episodes not on TV)
-- **Simulcast** — Episodes released shortly after Japan airing
-- **Filler** — Episodes not based on the manga, created to fill time
+- **Shonen** â€” Anime aimed at young boys (Action, Adventure). Examples: Naruto, One Piece, Dragon Ball Z
+- **Shojo** â€” Anime aimed at young girls (Romance, Fantasy). Examples: Sailor Moon, Fruits Basket
+- **Seinen** â€” Anime aimed at adult men (Mature themes). Examples: Berserk, Monster, Vinland Saga
+- **Josei** â€” Anime aimed at adult women (Realistic romance). Examples: Honey and Clover, Nana
+- **Isekai** â€” Anime where the protagonist is transported to another world. Examples: Re:Zero, Sword Art Online
+- **Mecha** â€” Anime featuring giant robots. Examples: Neon Genesis Evangelion, Gundam
+- **Manga** â€” Japanese comics (the source material for most anime)
+- **Light Novel** â€” Japanese young adult novels (also adapted into anime)
+- **OVAs** â€” Original Video Animation (extra episodes not on TV)
+- **Simulcast** â€” Episodes released shortly after Japan airing
+- **Filler** â€” Episodes not based on the manga, created to fill time
 
 ### Anime Etiquette
 
-- **Don't judge anime by its art style** — Some of the best anime look "cartoony" but have deep stories
-- **Give it 3 episodes** — If you don't like an anime after 3 episodes, it's okay to drop it
-- **Don't be embarrassed** — Anime is mainstream now. Millions of Indian fans watch it
-- **Join the community** — Reddit, Discord, and ZyniVerse are great places to connect with other fans
+- **Don't judge anime by its art style** â€” Some of the best anime look "cartoony" but have deep stories
+- **Give it 3 episodes** â€” If you don't like an anime after 3 episodes, it's okay to drop it
+- **Don't be embarrassed** â€” Anime is mainstream now. Millions of Indian fans watch it
+- **Join the community** â€” Reddit, Discord, and ZyniVerse are great places to connect with other fans
 
 ---
 
@@ -1501,12 +1501,12 @@ As you watch more anime, you'll want to track:
 ### How ZyniVerse Helps
 
 ZyniVerse is built for Indian anime fans:
-- **Watchlist** — Track every anime you're watching
-- **Indian TV Schedule** — Know when anime airs on Indian TV
-- **Filler Guides** — Skip the boring episodes
-- **Watch Parties** — Watch with friends remotely
-- **Cosplay Gallery** — Show off your costumes
-- **Convention Calendar** — Never miss an Indian anime event
+- **Watchlist** â€” Track every anime you're watching
+- **Indian TV Schedule** â€” Know when anime airs on Indian TV
+- **Filler Guides** â€” Skip the boring episodes
+- **Watch Parties** â€” Watch with friends remotely
+- **Cosplay Gallery** â€” Show off your costumes
+- **Convention Calendar** â€” Never miss an Indian anime event
 
 ---
 
@@ -1516,29 +1516,29 @@ India has one of the fastest-growing anime communities in the world. Here's how 
 
 ### Online Communities
 
-- **Reddit** — r/IndianAnimeHub, r/anime
-- **Discord** — Many anime servers with Indian members
-- **Twitter/X** — Follow Indian anime accounts
-- **Instagram** — Indian anime meme pages
-- **ZyniVerse** — Built for Indian anime fans
+- **Reddit** â€” r/IndianAnimeHub, r/anime
+- **Discord** â€” Many anime servers with Indian members
+- **Twitter/X** â€” Follow Indian anime accounts
+- **Instagram** â€” Indian anime meme pages
+- **ZyniVerse** â€” Built for Indian anime fans
 
 ### Offline Communities
 
-- **Anime conventions** — Delhi Comic Con, Mumbai Comic Con, etc.
-- **Local meetups** — Many cities have anime fan groups
-- **College clubs** — Most engineering and arts colleges have anime clubs
+- **Anime conventions** â€” Delhi Comic Con, Mumbai Comic Con, etc.
+- **Local meetups** â€” Many cities have anime fan groups
+- **College clubs** â€” Most engineering and arts colleges have anime clubs
 
 ---
 
 ## Step 7: Explore Beyond Anime
 
 Once you've watched a few anime, explore:
-- **Manga** — The source material for most anime
-- **Light novels** — Deeper stories with more detail
-- **Anime movies** — Standalone stories with movie-quality animation
-- **Anime music** — J-pop, J-rock, and anime openings/endings
-- **Cosplay** — Dressing up as your favourite characters
-- **Fan art** — Creating and sharing anime art
+- **Manga** â€” The source material for most anime
+- **Light novels** â€” Deeper stories with more detail
+- **Anime movies** â€” Standalone stories with movie-quality animation
+- **Anime music** â€” J-pop, J-rock, and anime openings/endings
+- **Cosplay** â€” Dressing up as your favourite characters
+- **Fan art** â€” Creating and sharing anime art
 
 ---
 
@@ -1631,3 +1631,4 @@ main()
     await prisma.$disconnect();
     process.exit(1);
   });
+

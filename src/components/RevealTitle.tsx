@@ -1,6 +1,6 @@
 "use client";
 
-import { createElement } from "react";
+import { createElement, useSyncExternalStore } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 
 type RevealTitleProps = {
@@ -16,6 +16,10 @@ type RevealTitleProps = {
 };
 
 const EASE = [0.22, 1, 0.36, 1] as const;
+
+const subscribe = () => () => {};
+const getClientSnapshot = () => true;
+const getServerSnapshot = () => false;
 
 /**
  * Scroll-triggered section title reveal.
@@ -33,9 +37,12 @@ export default function RevealTitle({
   once = true,
 }: RevealTitleProps) {
   const reduce = useReducedMotion();
+  const mounted = useSyncExternalStore(subscribe, getClientSnapshot, getServerSnapshot);
   const Tag = as;
 
-  if (reduce) {
+  // Keep the first client render identical to the server render, then let
+  // reduced-motion users switch to plain markup after hydration.
+  if (mounted && reduce) {
     return createElement(Tag, { className, style }, text ?? children);
   }
 
@@ -61,7 +68,7 @@ export default function RevealTitle({
               hidden: { y: "115%", opacity: 0.01 },
               visible: { y: 0, opacity: 1 },
             }}
-            transition={{ duration: 0.55, ease: EASE, delay: delay + i * 0.05 }}
+            transition={{ duration: reduce ? 0 : 0.55, ease: EASE, delay: delay + i * 0.05 }}
           >
             {w}
             {i < words.length - 1 ? "\u00A0" : ""}
@@ -79,7 +86,7 @@ export default function RevealTitle({
       initial={{ opacity: 0, y: 12 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once, margin: "-40px" }}
-      transition={{ duration: 0.5, ease: EASE, delay }}
+      transition={{ duration: reduce ? 0 : 0.5, ease: EASE, delay }}
     >
       {children}
     </motion.span>,

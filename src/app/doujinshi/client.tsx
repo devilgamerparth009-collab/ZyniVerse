@@ -335,81 +335,129 @@ export default function DoujinshiBrowseClient() {
     <div className="min-h-screen animate-page-in">
       <ScrollProgress />
       {/* ═══════════════ HERO ═══════════════ */}
-      <div className="relative overflow-hidden border-b border-[var(--color-line)]">
-        <div className="absolute inset-0 bg-[var(--color-void)]" />
-        <div className="absolute top-0 left-0 w-full h-full">
-          <div className="absolute top-10 left-20 w-72 h-72 bg-[#ff00ff]/15 rounded-full blur-[120px] animate-pulse" />
-          <div className="absolute bottom-10 right-20 w-96 h-96 bg-[#8a2be2]/20 rounded-full blur-[150px] animate-pulse" style={{ animationDelay: "1s" }} />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-[#00ffff]/10 rounded-full blur-[100px] animate-pulse" style={{ animationDelay: "0.5s" }} />
-        </div>
-        <div className="absolute inset-0 opacity-10" style={{
-          backgroundImage: "linear-gradient(rgba(255,0,255,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(138,43,226,0.3) 1px, transparent 1px)",
-          backgroundSize: "50px 50px"
-        }} />
+      <div className="djb-hero">
+        <span className="djb-hero-orb djb-hero-orb-a" aria-hidden="true" />
+        <span className="djb-hero-orb djb-hero-orb-b" aria-hidden="true" />
+        <span className="djb-hero-orb djb-hero-orb-c" aria-hidden="true" />
+        <span className="djb-hero-grid" aria-hidden="true" />
+        <span className="djb-hero-scan" aria-hidden="true" />
 
-        <div className="relative mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-20">
-          <div className="flex flex-col items-center text-center">
-            <div className="neon-rgb-border rounded-xl h-12 w-12 mb-4 flex items-center justify-center bg-[var(--color-panel)]/60 backdrop-blur-sm">
-              <span className="text-xl">📚</span>
+        <div className="djb-hero-inner">
+          <div className="djb-hero-main">
+            <div className="djb-hero-badge">
+              <span className="djb-hero-icon" aria-hidden="true">📚</span>
+              <span>Doujinshi</span>
+              <span className="djb-hero-badge-line" aria-hidden="true" />
             </div>
 
-            <span className="font-mono text-xs uppercase tracking-[0.2em] text-[#ff00ff] mb-3" style={{ textShadow: "0 0 10px rgba(255,0,255,0.5)" }}>Doujinshi</span>
-
-            <div className="neon-rgb-border rounded-xl px-4 py-2">
+            <div className="djb-title-frame">
               <RevealTitle
                 as="h1"
                 delay={0.15}
-                className="font-display text-4xl sm:text-5xl font-bold text-[var(--color-ink)]"
-                style={{ textShadow: "0 0 30px rgba(255,0,255,0.3), 0 0 60px rgba(138,43,226,0.2)" }}
+                className="djb-title"
               >
-                Fan Works & <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#ff00ff] via-[#8a2be2] to-[#00ffff]">Creations</span>
+                Fan Works & <span className="djb-title-accent">Creations</span>
               </RevealTitle>
             </div>
-            <p className="mt-3 text-base text-[var(--color-mute)] max-w-lg">
+
+            <p className="djb-hero-copy">
               Discover, track, and explore doujinshi from MangaDex. Fan-made masterpieces from your favorite series.
             </p>
 
-            {/* Quick Stats */}
-            <div className="flex gap-6 mt-6 items-center">
-              <div className="text-center">
-                <div className="text-lg font-bold font-mono text-[#ff00ff]"><CountUp value={libraryTotal} /></div>
-                <div className="text-[9px] text-[var(--color-mute)] uppercase tracking-widest">In Library</div>
+            <div className="djb-hero-rule" aria-hidden="true" />
+          </div>
+
+          <div className="djb-stats-card">
+            <span className="djb-stats-glow" aria-hidden="true" />
+            <div className="djb-stats-head">
+              <span className="djb-stats-head-left">
+                <span className="djb-stats-pulse" aria-hidden="true" />
+                <span>Catalogue snapshot</span>
+              </span>
+              <span className="djb-stats-live" aria-hidden="true">
+                <i /><i /><i />
+              </span>
+            </div>
+
+            <div className="djb-stat-grid">
+              <div className="djb-stat djb-stat-magenta">
+                <div className="djb-stat-top">
+                  <span className="djb-stat-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M5 4.5h6v15H5z" />
+                      <path d="M13 7.5h6v12h-6z" />
+                      <path d="M3.5 19.5h17" />
+                    </svg>
+                  </span>
+                  <span className="djb-stat-spark" aria-hidden="true" />
+                </div>
+                <CountUp value={libraryTotal} className="djb-stat-value" />
+                <span className="djb-stat-label">In Library</span>
+                <span className="djb-stat-track" aria-hidden="true" />
               </div>
-              <div className="text-center">
-                <div className="text-lg font-bold font-mono text-[#00ffff]"><CountUp value={session ? trackedCount : DOUJINSHI_GENRE_TAGS.length} /></div>
-                <div className="text-[9px] text-[var(--color-mute)] uppercase tracking-widest">{session ? "Tracked" : "Genres"}</div>
+              <div className="djb-stat djb-stat-cyan">
+                <div className="djb-stat-top">
+                  <span className="djb-stat-icon" aria-hidden="true">
+                    {session ? (
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M6 3.5h12v17l-6-4-6 4z" />
+                      </svg>
+                    ) : (
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12.5 3H20v7.5L11.5 19a2 2 0 0 1-2.8 0L4 14.3a2 2 0 0 1 0-2.8L12.5 3z" />
+                        <circle cx="16.5" cy="7.5" r="1.2" />
+                      </svg>
+                    )}
+                  </span>
+                  <span className="djb-stat-spark" aria-hidden="true" />
+                </div>
+                <CountUp value={session ? trackedCount : DOUJINSHI_GENRE_TAGS.length} className="djb-stat-value" />
+                <span className="djb-stat-label">{session ? "Tracked" : "Genres"}</span>
+                <span className="djb-stat-track" aria-hidden="true" />
               </div>
-              {session ? (
-                <Link href="/doujinshi/my" className="rounded-full neon-rgb-border px-3 py-1.5 text-xs font-semibold hover:border-[var(--color-cyan)]/40 transition-colors">
-                  My Doujinshi →
-                </Link>
-              ) : (
-                <Link href="/login?next=%2Fdoujinshi" className="rounded-full neon-rgb-border px-3 py-1.5 text-xs font-semibold text-[var(--color-cyan)] hover:border-[var(--color-cyan)]/40 transition-colors">
-                  Sign in to track →
-                </Link>
-              )}
+            </div>
+
+            {session ? (
+              <Link href="/doujinshi/my" className="djb-hero-cta djb-hero-cta-primary">
+                <span className="djb-cta-shine" aria-hidden="true" />
+                <span>My Doujinshi →</span>
+              </Link>
+            ) : (
+              <Link href="/login?next=%2Fdoujinshi" className="djb-hero-cta">
+                <span className="djb-cta-shine" aria-hidden="true" />
+                <span>Sign in to track →</span>
+              </Link>
+            )}
+
+            <div className="djb-stats-foot" aria-hidden="true">
+              <span />
+              <span />
+              <span />
             </div>
           </div>
         </div>
-        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#ff00ff] to-transparent shadow-[0_0_10px_rgba(255,0,255,0.5)]" />
+
+        <div className="djb-hero-line" aria-hidden="true" />
       </div>
 
       {/* ═══════════════ TAG TICKER ═══════════════ */}
       {marqueeTags.length > 0 && (
-        <div className="ticker-window relative overflow-hidden border-b border-[var(--color-line)] bg-[var(--color-void)]/70">
-          <div className="ticker-track flex w-max will-change-transform">
+        <div className="djb-ticker ticker-window relative overflow-hidden border-b border-[var(--color-line)] bg-[var(--color-void)]/70">
+          <span className="djb-ticker-aura" aria-hidden="true" />
+          <div className="ticker-track djb-ticker-track flex w-max will-change-transform">
             {[0, 1].map((copy) => (
-              <div key={copy} className="flex shrink-0" aria-hidden={copy === 1}>
+              <div key={copy} className="djb-ticker-group flex shrink-0" aria-hidden={copy === 1}>
                 {[...marqueeTags, ...marqueeTags, ...marqueeTags].map((tag, i) => (
                   <button
                     key={`${tag}-${i}`}
                     type="button"
+                    tabIndex={copy === 1 ? -1 : undefined}
                     onClick={() => { setSelectedTag(tag); setShowBrowse(true); }}
-                    className="flex items-center gap-2 whitespace-nowrap px-4 py-2 font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--color-mute)] transition-colors hover:text-[var(--color-cyan)]"
+                    className="djb-tag-chip"
                   >
-                    <span className="text-[var(--color-cyan)]">#</span>
-                    {tag}
-                    <span className="text-[var(--color-magenta)]/50">◆</span>
+                    <span className="djb-tag-hash">#</span>
+                    <span className="djb-tag-name">{tag}</span>
+                    <span className="djb-tag-diamond">◆</span>
                   </button>
                 ))}
               </div>
@@ -432,15 +480,15 @@ export default function DoujinshiBrowseClient() {
         <>
         {/* ═══════════════ TRENDING ═══════════════ */}
         {trending.length > 0 && !showBrowse && (
-          <motion.div {...FADE_UP}>
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="text-2xl">🔥</div>
-                <div>
-                  <RevealTitle text="Trending Now" as="h2" className="font-display text-xl font-bold text-[#ff00ff]" />
-                  <p className="text-xs text-[var(--color-mute)]">Latest uploads from MangaDex</p>
-                </div>
+          <motion.div {...FADE_UP} className="djb-trend-section">
+            <div className="djb-trend-head">
+              <span className="djb-trend-mark" aria-hidden="true">🔥</span>
+              <div className="djb-trend-copy">
+                <RevealTitle text="Trending Now" as="h2" delay={0.05} className="djb-trend-title" />
+                <p className="djb-trend-sub">Latest uploads from MangaDex</p>
               </div>
+              <span className="djb-trend-wave" aria-hidden="true" />
+              <span className="djb-trend-under" aria-hidden="true" />
             </div>
             <DoujinshiFlexCard items={trending.slice(0, 8)} />
           </motion.div>
@@ -449,14 +497,19 @@ export default function DoujinshiBrowseClient() {
         {/* ═══════════════ POPULAR ═══════════════ */}
         {popular.length > 0 && !showBrowse && (
           <motion.div {...FADE_UP}>
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="text-2xl">⭐</div>
-                <div>
-                  <RevealTitle text="Most Popular" as="h2" delay={0.05} className="font-display text-xl font-bold text-[#ffd700]" />
-                  <p className="text-xs text-[var(--color-mute)]">Highest followed doujinshi</p>
-                </div>
+            <div className="djb-pop-head">
+              <span className="djb-pop-mark" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 7.5l4.2 3.4L12 5l4.8 5.9L21 7.5l-1.6 10.2H4.6L3 7.5z" />
+                  <path d="M4.8 20.2h14.4" />
+                </svg>
+              </span>
+              <div className="djb-pop-copy">
+                <RevealTitle text="Most Popular" as="h2" delay={0.05} className="djb-pop-title" />
+                <p className="djb-pop-sub">Highest followed doujinshi</p>
               </div>
+              <span className="djb-pop-spark" aria-hidden="true" />
+              <span className="djb-pop-under" aria-hidden="true" />
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
               {popular.slice(0, 5).map((entry, i) => (
@@ -468,35 +521,36 @@ export default function DoujinshiBrowseClient() {
 
         {/* ═══════════════ BROWSE TOGGLE ═══════════════ */}
         {!showBrowse && (
-          <motion.div {...FADE_UP} className="text-center">
+          <motion.div {...FADE_UP} className="djb-all-cta-wrap">
+            <span className="djb-all-cta-glow" aria-hidden="true" />
             <button
               onClick={startBrowse}
-              className="neon-rgb-border rounded-xl px-8 py-3 text-sm font-bold transition-all hover:scale-[1.02]"
-              style={{ color: "#ff00ff" }}
+              className="djb-all-cta"
             >
-              Browse All Doujinshi →
+              <span className="djb-all-cta-shine" aria-hidden="true" />
+              <span className="djb-all-cta-label">Browse All Doujinshi →</span>
             </button>
           </motion.div>
         )}
 
         {/* ═══════════════ BROWSE SECTION ═══════════════ */}
         {showBrowse && (
-          <motion.div {...FADE_UP} className="space-y-6">
+          <motion.div {...FADE_UP} className="djb-browse-wrap space-y-6">
             {/* Back + Search + Sort */}
-            <div className="space-y-3">
+            <div className="djb-browse-panel">
+              <span className="djb-browse-aura" aria-hidden="true" />
+
               <button
                 onClick={() => setShowBrowse(false)}
-                className="text-xs text-[var(--color-mute)] hover:text-[var(--color-cyan)] transition-colors flex items-center gap-1"
+                className="djb-browse-back"
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
-                Back to Overview
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="djb-back-arrow"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
+                <span>Back to Overview</span>
               </button>
 
-              <div className="flex flex-col sm:flex-row gap-3">
-                <div className="relative flex-1">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-                    className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-mute)] pointer-events-none"
-                  >
+              <div className="djb-browse-controls">
+                <div className="djb-browse-search-wrap">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="djb-search-icon">
                     <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
                   </svg>
                   <input
@@ -504,25 +558,21 @@ export default function DoujinshiBrowseClient() {
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder="Search doujinshi by title..."
                     aria-label="Search doujinshi by title"
-                    className="w-full rounded-xl neon-rgb-border bg-[var(--color-void)]/90 backdrop-blur-sm py-3.5 pl-12 pr-10 text-sm text-[var(--color-ink)] placeholder-[var(--color-mute)]/50 outline-none transition-all duration-300 focus:border-[var(--color-magenta)]"
+                    className="djb-browse-search"
                   />
                   {search && (
-                    <button onClick={() => setSearch("")} aria-label="Clear search" className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-mute)] hover:text-[var(--color-ink)]">
+                    <button onClick={() => setSearch("")} aria-label="Clear search" className="djb-browse-clear">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
                     </button>
                   )}
                 </div>
-                <div className="flex flex-wrap gap-2" role="group" aria-label="Sort results">
+                <div className="djb-browse-sorts" role="group" aria-label="Sort results">
                   {SORTS.map((s) => (
                     <button
                       key={s.value}
                       onClick={() => setSort(s.value)}
                       aria-pressed={sort === s.value}
-                      className="neon-rgb-border rounded-xl px-4 py-2.5 text-xs font-bold transition-all"
-                      style={{
-                        color: sort === s.value ? "#ff00ff" : "var(--color-mute)",
-                        background: sort === s.value ? "rgba(255,0,255,0.08)" : undefined,
-                      }}
+                      className="djb-sort-btn"
                     >
                       {s.label}
                     </button>
@@ -530,53 +580,48 @@ export default function DoujinshiBrowseClient() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                <label htmlFor="doujinshi-lang" className="font-mono text-[10px] uppercase tracking-widest text-[var(--color-mute)]">
-                  Language
-                </label>
-                <select
-                  id="doujinshi-lang"
-                  value={language}
-                  onChange={(e) => setLanguage(e.target.value)}
-                  className="neon-rgb-border rounded-xl bg-[var(--color-void)]/90 px-3 py-2 text-xs font-bold text-[var(--color-ink)] outline-none transition-colors focus:border-[var(--color-magenta)]"
-                >
-                  {LANGUAGES.map((l) => (
-                    <option key={l.value} value={l.value} className="bg-[var(--color-void)] text-[var(--color-ink)]">
-                      {l.label}
-                    </option>
-                  ))}
-                </select>
+              <div className="djb-browse-lang">
+                <label htmlFor="doujinshi-lang" className="djb-browse-label">Language</label>
+                <div className="djb-select-wrap">
+                  <select
+                    id="doujinshi-lang"
+                    value={language}
+                    onChange={(e) => setLanguage(e.target.value)}
+                    className="djb-browse-select"
+                  >
+                    {LANGUAGES.map((l) => (
+                      <option key={l.value} value={l.value} className="bg-[var(--color-void)] text-[var(--color-ink)]">
+                        {l.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
-            </div>
 
-            {/* Tag Filters */}
-            <div className="flex flex-wrap gap-2" role="group" aria-label="Filter by genre">
-              {GENRE_TAGS.map((tag) => {
-                const isActive = selectedTag === tag.value;
-                return (
+              <div className="djb-browse-divider" aria-hidden="true" />
+
+              {/* Tag Filters */}
+              <div className="djb-browse-tags" role="group" aria-label="Filter by genre">
+                {GENRE_TAGS.map((tag) => (
                   <button
                     key={tag.value}
                     onClick={() => setSelectedTag(tag.value)}
-                    aria-pressed={isActive}
-                    className="neon-rgb-border rounded-xl px-3 py-1.5 text-[10px] font-bold transition-all"
-                    style={{
-                      color: isActive ? "#ff00ff" : "var(--color-mute)",
-                      background: isActive ? "rgba(255,0,255,0.08)" : undefined,
-                    }}
+                    aria-pressed={selectedTag === tag.value}
+                    className="djb-genre-chip"
                   >
                     {tag.label}
                   </button>
-                );
-              })}
-            </div>
+                ))}
+              </div>
 
-            {/* Results count */}
-            {total > 0 && (
-              <p className="text-xs text-[var(--color-mute)]">
-                Showing <span className="text-[var(--color-cyan)] font-mono">{entries.length}</span> of <span className="text-[var(--color-cyan)] font-mono">{total}</span> results
-                {debouncedSearch && <> for &quot;<span className="text-[var(--color-magenta)]">{debouncedSearch}</span>&quot;</>}
-              </p>
-            )}
+              {/* Results count */}
+              {total > 0 && (
+                <p className="djb-browse-count">
+                  Showing <span className="djb-count-num">{entries.length}</span> of <span className="djb-count-num">{total}</span> results
+                  {debouncedSearch && <> for &quot;<span className="djb-count-term">{debouncedSearch}</span>&quot;</>}
+                </p>
+              )}
+            </div>
 
             {/* Results */}
             {browseLoading ? (
@@ -619,21 +664,21 @@ export default function DoujinshiBrowseClient() {
 
                 {/* Pagination */}
                 {(hasMore || page > 1) && (
-                  <div className="flex justify-center gap-3 pt-4">
+                  <div className="djb-page-bar">
+                    <span className="djb-page-rail" aria-hidden="true" />
                     {page > 1 && (
                       <button
                         onClick={() => setPage((p) => p - 1)}
-                        className="neon-rgb-border rounded-xl px-6 py-2.5 text-xs font-bold"
-                        style={{ color: "var(--color-mute)" }}
-                      >← Previous</button>
+                        className="djb-page-btn djb-page-prev"
+                      ><span>← Previous</span></button>
                     )}
                     {hasMore && (
                       <button
                         onClick={() => setPage((p) => p + 1)}
-                        className="neon-rgb-border rounded-xl px-6 py-2.5 text-xs font-bold"
-                        style={{ color: "#ff00ff" }}
-                      >Next →</button>
+                        className="djb-page-btn djb-page-next"
+                      ><span>Next →</span></button>
                     )}
+                    <span className="djb-page-rail" aria-hidden="true" />
                   </div>
                 )}
               </>

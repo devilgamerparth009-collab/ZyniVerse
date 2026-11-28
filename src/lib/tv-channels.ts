@@ -448,6 +448,22 @@ export function getDayName(date?: Date): string {
   return DAY_NAMES[istDate(date).getUTCDay()];
 }
 
+/** Current clock time in IST minutes, since every published slot is IST. */
+export function getIstMinutes(date?: Date): number {
+  const ist = istDate(date);
+  return ist.getUTCHours() * 60 + ist.getUTCMinutes();
+}
+
+/** Display timestamps in IST so the UI never drifts with the viewer's timezone. */
+export function formatIstTime(value: Date | string | number): string {
+  return new Intl.DateTimeFormat("en-IN", {
+    timeZone: "Asia/Kolkata",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  }).format(new Date(value));
+}
+
 export function getNext7Days(): string[] {
   const today = istDate().getUTCDay();
   // Today + the next six days. This used to walk backwards, so the schedule

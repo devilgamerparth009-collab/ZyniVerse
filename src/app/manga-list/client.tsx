@@ -106,11 +106,11 @@ function Aurora() {
   return (
     <div
       aria-hidden
-      className="pointer-events-none absolute inset-0 overflow-hidden"
+      className="mls-aurora pointer-events-none absolute inset-0 overflow-hidden"
     >
-      <div className="absolute -left-24 -top-28 h-64 w-64 rounded-full bg-[var(--color-cyan)]/25 blur-3xl" />
-      <div className="absolute -right-20 -top-10 h-60 w-60 rounded-full bg-[var(--color-violet)]/20 blur-3xl" />
-      <div className="absolute -bottom-24 left-1/3 h-56 w-56 rounded-full bg-[var(--color-magenta)]/20 blur-3xl" />
+      <div className="mls-aurora-a absolute -left-24 -top-28 h-64 w-64 rounded-full bg-[var(--color-cyan)]/25 blur-3xl" />
+      <div className="mls-aurora-b absolute -right-20 -top-10 h-60 w-60 rounded-full bg-[var(--color-violet)]/20 blur-3xl" />
+      <div className="mls-aurora-c absolute -bottom-24 left-1/3 h-56 w-56 rounded-full bg-[var(--color-magenta)]/20 blur-3xl" />
     </div>
   );
 }
@@ -138,8 +138,8 @@ function Stat({
   accent: string;
 }) {
   return (
-    <div className="rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)]/60 px-4 py-2.5 backdrop-blur-sm">
-      <div className="font-mono text-lg font-bold" style={{ color: accent }}>
+    <div className="mls-stat relative overflow-hidden rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)]/60 px-4 py-2.5 backdrop-blur-sm">
+      <div className="mls-stat-value font-mono text-lg font-bold" style={{ color: accent }}>
         <AnimatedNumber value={value} />
       </div>
       <p className="text-[10px] uppercase tracking-wider text-[var(--color-mute)]">
@@ -157,35 +157,39 @@ function TypeChips({
   onChange: (v: MangaTypeKey) => void;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      {MANGA_TYPE_OPTIONS.map((t) => {
-        const active = value === t.key;
-        return (
-          <button
-            key={t.key}
-            type="button"
-            onClick={() => onChange(t.key)}
-            aria-pressed={active}
-            style={
-              active
-                ? {
-                    background:
-                      t.key === "ALL"
-                        ? "var(--color-violet)"
-                        : getMediaTypeColor(t.key),
-                  }
-                : undefined
-            }
-            className={`rounded-full px-3 py-1 text-[11px] font-semibold transition-colors ${
-              active
-                ? "text-black"
-                : "border border-[var(--color-line)] bg-[var(--color-panel)] text-[var(--color-mute)] hover:text-[var(--color-ink)]"
-            }`}
-          >
-            {t.label}
-          </button>
-        );
-      })}
+    <div className="mls-type-bar">
+      <span className="mls-type-label" aria-hidden>TYPE</span>
+      <div className="flex flex-wrap items-center gap-1.5">
+        {MANGA_TYPE_OPTIONS.map((t) => {
+          const active = value === t.key;
+          return (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => onChange(t.key)}
+              aria-pressed={active}
+              style={
+                active
+                  ? {
+                      background:
+                        t.key === "ALL"
+                          ? "var(--color-violet)"
+                          : getMediaTypeColor(t.key),
+                    }
+                  : undefined
+              }
+              className={`mls-type-chip inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold transition-colors ${
+                active
+                  ? "text-black"
+                  : "border border-[var(--color-line)] bg-[var(--color-panel)] text-[var(--color-mute)] hover:text-[var(--color-ink)]"
+              }`}
+            >
+              <span className="mls-type-dot" aria-hidden />
+              <span className="mls-type-chip-label">{t.label}</span>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -198,7 +202,7 @@ function SortSelect({
   onChange: (v: SortKey) => void;
 }) {
   return (
-    <label className="relative inline-flex items-center">
+    <label className="mls-sort relative inline-flex items-center">
       <span className="sr-only">Sort your list</span>
       <svg
         width="13"
@@ -214,7 +218,7 @@ function SortSelect({
       <select
         value={value}
         onChange={(e) => onChange(e.target.value as SortKey)}
-        className="appearance-none rounded-full border border-[var(--color-line)] bg-[var(--color-panel)] py-1.5 pl-8 pr-7 text-xs text-[var(--color-text)] outline-none transition-colors focus:border-[var(--color-violet)]"
+        className="mls-sort-select appearance-none rounded-full border border-[var(--color-line)] bg-[var(--color-panel)] py-1.5 pl-8 pr-7 text-xs text-[var(--color-text)] outline-none transition-colors focus:border-[var(--color-violet)]"
       >
         {SORT_OPTIONS.map((s) => (
           <option key={s.key} value={s.key} className="bg-[var(--color-panel)]">
@@ -247,7 +251,7 @@ function ListSearch({
   className?: string;
 }) {
   return (
-    <div className={`relative ${className}`}>
+    <div className={`mls-search relative ${className}`}>
       <svg
         width="13"
         height="13"
@@ -265,7 +269,7 @@ function ListSearch({
         onChange={(e) => onChange(e.target.value)}
         placeholder="Search my list…"
         aria-label="Search your manga list"
-        className="w-full rounded-full border border-[var(--color-line)] bg-[var(--color-panel)] py-1.5 pl-8 pr-7 text-xs text-[var(--color-text)] outline-none transition-colors placeholder:text-[var(--color-mute)]/60 focus:border-[var(--color-violet)]"
+        className="mls-search-input w-full rounded-full border border-[var(--color-line)] bg-[var(--color-panel)] py-1.5 pl-8 pr-7 text-xs text-[var(--color-text)] outline-none transition-colors placeholder:text-[var(--color-mute)]/60 focus:border-[var(--color-violet)]"
       />
       {value && (
         <button
@@ -300,13 +304,13 @@ function ViewToggle({
   const base =
     "flex h-7 w-7 items-center justify-center rounded-md transition-all";
   return (
-    <div className="flex gap-0.5 rounded-lg border border-[var(--color-line)] p-0.5">
+    <div className="mls-view-toggle flex gap-0.5 rounded-lg border border-[var(--color-line)] p-0.5">
       <button
         type="button"
         onClick={() => onChange("grid")}
         aria-label="Grid view"
         aria-pressed={view === "grid"}
-        className={`${base} ${
+        className={`${base} mls-view-btn ${
           view === "grid"
             ? "bg-[var(--color-violet)] text-black"
             : "text-[var(--color-mute)] hover:text-[var(--color-ink)]"
@@ -324,7 +328,7 @@ function ViewToggle({
         onClick={() => onChange("carousel")}
         aria-label="Carousel view"
         aria-pressed={view === "carousel"}
-        className={`${base} ${
+        className={`${base} mls-view-btn ${
           view === "carousel"
             ? "bg-[var(--color-violet)] text-black"
             : "text-[var(--color-mute)] hover:text-[var(--color-ink)]"
@@ -350,14 +354,20 @@ function LoadMore({
 }) {
   if (!hasMore) return null;
   return (
-    <div className="mt-8 flex justify-center">
+    <div className="mls-loadmore-wrap mt-8 flex justify-center">
       <button
         type="button"
         onClick={onClick}
         disabled={loading}
-        className="rounded-full border border-[var(--color-line)] bg-[var(--color-panel)] px-6 py-2.5 text-sm font-medium text-[var(--color-text)] transition-all hover:border-[var(--color-violet)] hover:text-[var(--color-violet)] disabled:opacity-50"
+        className="mls-loadmore relative inline-flex items-center gap-2 overflow-hidden rounded-full border border-[var(--color-violet)]/40 bg-gradient-to-r from-[var(--color-violet)]/15 to-[var(--color-magenta)]/15 px-6 py-2.5 text-sm font-semibold text-[var(--color-text)] transition-all hover:border-[var(--color-magenta)]/60 disabled:opacity-60"
       >
-        {loading ? "Loading…" : "Load more"}
+        <span className="mls-loadmore-glow" aria-hidden />
+        <span className="relative z-10">{loading ? "Loading" : "Load more"}</span>
+        {loading ? (
+          <span className="mls-loadmore-dots relative z-10" aria-hidden><i /><i /><i /></span>
+        ) : (
+          <span className="mls-loadmore-arrow relative z-10" aria-hidden>›</span>
+        )}
       </button>
     </div>
   );
@@ -369,31 +379,35 @@ function EmptyState({
   body,
   cta,
   secondary,
+  reduce = false,
 }: {
   emoji: string;
   title: string;
   body: string;
   cta?: { href: string; label: string };
   secondary?: { label: string; onClick: () => void };
+  reduce?: boolean;
 }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 18 }}
+      initial={reduce ? false : { opacity: 0, y: 18 }}
       animate={{ opacity: 1, y: 0 }}
-      className="py-16 text-center"
+      transition={{ duration: reduce ? 0 : 0.45 }}
+      className="mls-empty relative py-16 text-center"
     >
-      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-[var(--color-line)] bg-[var(--color-void)] text-3xl">
-        {emoji}
+      <div className="mls-empty-icon mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-[var(--color-line)] bg-[var(--color-void)] text-3xl">
+        <span className="mls-empty-orbit" aria-hidden />
+        <span className="mls-empty-glyph">{emoji}</span>
       </div>
-      <h2 className="mt-5 font-display text-xl font-bold">{title}</h2>
-      <p className="mx-auto mt-2 max-w-sm text-sm text-[var(--color-mute)]">
+      <h2 className="mls-empty-title mt-5 font-display text-xl font-bold">{title}</h2>
+      <p className="mls-empty-body mx-auto mt-2 max-w-sm text-sm text-[var(--color-mute)]">
         {body}
       </p>
       <div className="mt-5 flex flex-wrap justify-center gap-3">
         {cta && (
           <Link
             href={cta.href}
-            className="rounded-full bg-[var(--color-magenta)] px-5 py-2.5 text-sm font-semibold text-black"
+            className="mls-empty-cta relative overflow-hidden rounded-full bg-[var(--color-magenta)] px-5 py-2.5 text-sm font-semibold text-black"
           >
             {cta.label}
           </Link>
@@ -402,7 +416,7 @@ function EmptyState({
           <button
             type="button"
             onClick={secondary.onClick}
-            className="rounded-full border border-[var(--color-line)] px-5 py-2.5 text-sm font-semibold text-[var(--color-text)] transition-colors hover:border-[var(--color-violet)] hover:text-[var(--color-violet)]"
+            className="mls-empty-secondary rounded-full border border-[var(--color-line)] px-5 py-2.5 text-sm font-semibold text-[var(--color-text)] transition-colors hover:border-[var(--color-violet)] hover:text-[var(--color-violet)]"
           >
             {secondary.label}
           </button>
@@ -443,18 +457,18 @@ function ShelfCard({
         duration: 0.4,
         delay: reduce ? 0 : Math.min(index, 12) * 0.03,
       }}
-      className="group flex h-full flex-col overflow-hidden rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)]/60 transition-colors hover:border-[var(--color-violet)]/50"
+      className="mls-card group flex h-full flex-col overflow-hidden rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)]/60 transition-colors hover:border-[var(--color-violet)]/50"
     >
       <Link
         href={`/manga/${entry.mediaId}`}
-        className="relative block aspect-[2/3] overflow-hidden"
+        className="mls-card-cover relative block aspect-[2/3] overflow-hidden"
       >
         {entry.coverImage ? (
           <Image
             src={entry.coverImage}
             alt={entry.title}
             fill
-            className="object-cover transition-transform duration-500 group-hover:scale-105"
+            className="mls-card-img object-cover transition-transform duration-500 group-hover:scale-105"
             sizes="(max-width: 768px) 50vw, 25vw"
           />
         ) : (
@@ -464,11 +478,11 @@ function ShelfCard({
         )}
         <span
           aria-hidden
-          className="pointer-events-none absolute inset-0 z-10 -translate-x-full bg-gradient-to-r from-transparent via-white/15 to-transparent transition-transform duration-700 ease-out group-hover:translate-x-full"
+          className="mls-card-shine pointer-events-none absolute inset-0 z-10 -translate-x-full bg-gradient-to-r from-transparent via-white/15 to-transparent transition-transform duration-700 ease-out group-hover:translate-x-full"
         />
         <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/70 to-transparent" />
         <span
-          className="absolute left-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-semibold text-black"
+          className="mls-card-badge absolute left-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-semibold text-black"
           style={{
             backgroundColor: STATUS_COLORS[entry.status] || "var(--color-mute)",
           }}
@@ -476,13 +490,13 @@ function ShelfCard({
           {STATUS_LABELS[entry.status] || entry.status}
         </span>
         {entry.score ? (
-          <span className="absolute right-2 top-2 rounded-full bg-black/70 px-2 py-0.5 font-mono text-[10px] font-bold text-[var(--color-violet)]">
+          <span className="mls-card-score absolute right-2 top-2 rounded-full bg-black/70 px-2 py-0.5 font-mono text-[10px] font-bold text-[var(--color-violet)]">
             ★ {entry.score}/10
           </span>
         ) : null}
         {subType !== "manga" && (
           <span
-            className="absolute bottom-2 left-2 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase text-black"
+            className="mls-card-type absolute bottom-2 left-2 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase text-black"
             style={{ backgroundColor: getMediaTypeColor(subType) }}
           >
             {getMediaTypeLabel(subType)}
@@ -493,7 +507,7 @@ function ShelfCard({
       <div className="flex min-w-0 flex-1 flex-col p-3">
         <Link
           href={`/manga/${entry.mediaId}`}
-          className="line-clamp-2 text-sm font-semibold text-white transition-colors hover:text-[var(--color-violet)]"
+          className="mls-card-title line-clamp-2 text-sm font-semibold text-white transition-colors hover:text-[var(--color-violet)]"
         >
           {entry.title}
         </Link>
@@ -512,9 +526,9 @@ function ShelfCard({
               <span>not counted</span>
             )}
           </div>
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--color-line)]">
+          <div className="mls-progress h-1.5 w-full overflow-hidden rounded-full bg-[var(--color-line)]">
             <div
-              className="h-full rounded-full transition-all duration-300"
+              className="mls-progress-fill h-full rounded-full transition-all duration-300"
               style={{
                 width: `${pct}%`,
                 background: complete ? "#4ade80" : "var(--color-violet)",
@@ -527,7 +541,7 @@ function ShelfCard({
               type="button"
               onClick={() => onIncrement(entry)}
               disabled={complete}
-              className="flex-1 rounded-lg border border-[var(--color-line)] px-2 py-1 text-[11px] font-medium transition-colors hover:border-[var(--color-violet)] hover:text-[var(--color-violet)] disabled:opacity-40"
+              className="mls-card-btn flex-1 rounded-lg border border-[var(--color-line)] px-2 py-1 text-[11px] font-medium transition-colors hover:border-[var(--color-violet)] hover:text-[var(--color-violet)] disabled:opacity-40"
             >
               +1 Chapter
             </button>
@@ -535,7 +549,7 @@ function ShelfCard({
               type="button"
               onClick={() => onRemove(entry)}
               aria-label={`Remove ${entry.title}`}
-              className="rounded-lg border border-[var(--color-line)] px-2 py-1 text-[11px] text-[var(--color-mute)] transition-colors hover:border-[var(--color-magenta)] hover:text-[var(--color-magenta)]"
+              className="mls-card-remove rounded-lg border border-[var(--color-line)] px-2 py-1 text-[11px] text-[var(--color-mute)] transition-colors hover:border-[var(--color-magenta)] hover:text-[var(--color-magenta)]"
             >
               Remove
             </button>
@@ -546,7 +560,7 @@ function ShelfCard({
             <select
               value={entry.status}
               onChange={(e) => onStatus(entry, e.target.value)}
-              className="w-full appearance-none rounded-lg border border-[var(--color-line)] bg-[var(--color-void)] px-2 py-1.5 text-[11px] font-semibold text-[var(--color-text)] outline-none transition-colors focus:border-[var(--color-violet)]"
+              className="mls-card-select w-full appearance-none rounded-lg border border-[var(--color-line)] bg-[var(--color-void)] px-2 py-1.5 text-[11px] font-semibold text-[var(--color-text)] outline-none transition-colors focus:border-[var(--color-violet)]"
             >
               {LIST_TABS.filter((s) => s !== "ALL").map((s) => (
                 <option key={s} value={s}>
@@ -603,6 +617,7 @@ function ShelfView({
         title="Couldn't load your list"
         body={error}
         secondary={{ label: "Try again", onClick: onRetry }}
+        reduce={reduce}
       />
     );
   }
@@ -626,6 +641,7 @@ function ShelfView({
           title={`No matches for “${query.trim()}”`}
           body="Nothing in your list matches that search."
           secondary={{ label: "Clear search", onClick: onClearQuery }}
+          reduce={reduce}
         />
       );
     }
@@ -636,6 +652,7 @@ function ShelfView({
           title="Your manga shelf is empty"
           body="Search above and add a title to Reading or Plan to Read to start tracking chapters, volumes and scores."
           cta={{ href: "/manga", label: "Discover manga" }}
+          reduce={reduce}
         />
       );
     }
@@ -645,6 +662,7 @@ function ShelfView({
         title="Nothing in this view"
         body="No titles match the current status or type filters."
         secondary={{ label: "Show all", onClick: onShowAll }}
+        reduce={reduce}
       />
     );
   }
@@ -841,8 +859,21 @@ export default function MyMangaListClient() {
   const incrementChapter = async (entry: MangaListEntry) => {
     const next = entry.chapters + 1;
     if (entry.totalChapters && next > entry.totalChapters) return;
+    const snapshotHistory = history;
     setEntries((prev) =>
       prev.map((e) => (e.id === entry.id ? { ...e, chapters: next } : e)),
+    );
+    // Keep the Continue Reading rail in step with the optimistic update.
+    setHistory((prev) =>
+      prev.map((h) =>
+        h.entry?.mediaId === entry.mediaId
+          ? {
+              ...h,
+              chapter: next,
+              entry: h.entry ? { ...h.entry, chapters: next } : null,
+            }
+          : h,
+      ),
     );
     try {
       const res = await fetch(`/api/manga/list/${entry.mediaId}`, {
@@ -858,6 +889,7 @@ export default function MyMangaListClient() {
           e.id === entry.id ? { ...e, chapters: entry.chapters } : e,
         ),
       );
+      setHistory(snapshotHistory);
       setToast("Couldn't save progress — try again.");
       setTimeout(() => setToast(""), 2600);
     }
@@ -867,7 +899,11 @@ export default function MyMangaListClient() {
     const snapshot = entries;
     const snapshotCounts = counts;
     const snapshotTotal = overallTotal;
+    const snapshotHistory = history;
     setEntries((prev) => prev.filter((e) => e.id !== entry.id));
+    setHistory((prev) =>
+      prev.filter((h) => h.entry?.mediaId !== entry.mediaId),
+    );
     setCounts((prev) => ({
       ...prev,
       [entry.status]: Math.max(0, (prev[entry.status] || 0) - 1),
@@ -888,6 +924,7 @@ export default function MyMangaListClient() {
       setEntries(snapshot);
       setCounts(snapshotCounts);
       setOverallTotal(snapshotTotal);
+      setHistory(snapshotHistory);
       setTotal((t) => t + 1);
       setToast("Couldn't remove — try again.");
       setTimeout(() => setToast(""), 2600);
@@ -1038,25 +1075,35 @@ export default function MyMangaListClient() {
 
   return (
     <PageTransition>
-      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
+      <div className="mls-shell mx-auto max-w-7xl px-4 py-10 sm:px-6">
         {/* Hero */}
-        <div className="relative overflow-hidden rounded-3xl border border-[var(--color-line)] bg-[var(--color-panel)]/50 p-6 sm:p-8">
+        <div className="mls-hero relative overflow-hidden rounded-3xl border border-[var(--color-line)] bg-[var(--color-panel)]/50 p-6 sm:p-8">
           <Aurora />
-          <div className="relative grid gap-6 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
-            <div>
-              <p className="flex items-center gap-1.5 font-mono text-xs uppercase tracking-[0.3em] text-[var(--color-cyan)]">
-                <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-cyan)] shadow-[0_0_8px_var(--color-cyan)]" />
+          <span className="mls-hero-scan" aria-hidden />
+          <div className="mls-hero-inner relative grid gap-6 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
+            <div className="mls-hero-copy min-w-0">
+              <p className="mls-kicker flex items-center gap-1.5 font-mono text-xs uppercase tracking-[0.3em] text-[var(--color-cyan)]">
+                <span className="mls-kicker-dot h-1.5 w-1.5 rounded-full bg-[var(--color-cyan)]" />
                 My Library
+                <span className="mls-kicker-line" aria-hidden />
               </p>
-              <h1 className="mt-3 font-display text-3xl font-bold tracking-tight sm:text-4xl">
-                My Manga List
+              <h1 className="mls-title mt-3 font-display text-3xl font-bold tracking-tight sm:text-4xl">
+                <span className="mls-title-frame relative inline-flex items-center gap-2">
+                  <svg className="mls-title-mark" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+                    <path d="M4 5.5A2.5 2.5 0 016.5 3H19v16H6.5A2.5 2.5 0 004 21.5V5.5z" />
+                    <path d="M4 18.5A2.5 2.5 0 016.5 16H19" />
+                    <path d="M9 7h6" />
+                  </svg>
+                  <span className="mls-title-text">My Manga List</span>
+                  <span className="mls-title-sheen" aria-hidden />
+                </span>
               </h1>
-              <p className="mt-3 max-w-xl text-sm text-[var(--color-mute)]">
+              <p className="mls-copy mt-3 max-w-xl text-sm text-[var(--color-mute)]">
                 Every manga, light novel, manhwa and manhua you follow — in one
                 synced shelf. Track chapters read, volumes, status and your
                 personal score without ever losing your place.
               </p>
-              <div className="mt-4 flex flex-wrap gap-2 text-[11px] text-[var(--color-mute)]">
+              <div className="mls-features mt-4 flex flex-wrap gap-2 text-[11px] text-[var(--color-mute)]">
                 {[
                   "📖 Chapter progress",
                   "⭐ Personal scores",
@@ -1064,14 +1111,14 @@ export default function MyMangaListClient() {
                 ].map((f) => (
                   <span
                     key={f}
-                    className="rounded-full border border-[var(--color-line)] bg-[var(--color-void)]/40 px-3 py-1"
+                    className="mls-feature-tag rounded-full border border-[var(--color-line)] bg-[var(--color-void)]/40 px-3 py-1"
                   >
                     {f}
                   </span>
                 ))}
               </div>
               {overallTotal > 0 && (
-                <div className="mt-5 flex flex-wrap gap-2">
+                <div className="mls-stats mt-5 flex flex-wrap gap-2">
                   {stats.map((s) => (
                     <Stat
                       key={s.label}
@@ -1084,42 +1131,68 @@ export default function MyMangaListClient() {
               )}
             </div>
 
-            <div className="w-full">
+            <div className="mls-hero-side w-full">
               {authenticated ? (
-                <>
+                <div className="mls-search-panel">
+                  <div className="mls-search-panel-head">
+                    <span className="mls-search-panel-label">QUICK ADD</span>
+                    <span className="mls-quick-add-badge">
+                      <span aria-hidden /> 1000+ titles
+                    </span>
+                  </div>
                   <MangaSearch
-                    onAdd={() => {
-                      setTab("READING");
+                    onAdd={(_manga, status) => {
+                      const planning = status === "PLANNING";
+                      setTab(planning ? "PLANNING" : "READING");
+                      setToast(
+                        `Added to ${planning ? "Plan to Read" : "Reading"}.`,
+                      );
+                      setTimeout(() => setToast(""), 2600);
                       reload();
                     }}
                   />
-                  <p className="mt-2 text-[11px] text-[var(--color-mute)]">
+                  <span className="mls-search-corners" aria-hidden>
+                    <i /><i /><i /><i />
+                  </span>
+                  <p className="mls-search-hint mt-3 text-[11px] text-[var(--color-mute)]">
+                    <span className="mls-search-hint-dot" aria-hidden />
                     Search 1000+ series and add them to{" "}
-                    <span className="text-[var(--color-ink)]">Reading</span> or{" "}
-                    <span className="text-[var(--color-ink)]">
+                    <span className="mls-hint-tag">Reading</span> or{" "}
+                    <span className="mls-hint-tag mls-hint-tag-alt">
                       Plan to Read
                     </span>
                     .
                   </p>
-                </>
+                </div>
               ) : (
-                <div className="rounded-2xl border border-[var(--color-line)] bg-[var(--color-void)]/40 p-5 backdrop-blur-sm">
-                  <p className="text-sm font-semibold text-[var(--color-ink)]">
-                    Sign in to build your library
-                  </p>
-                  <p className="mt-1 text-xs text-[var(--color-mute)]">
-                    Progress, scores and shelves stay in sync on every device.
-                  </p>
+                <div className="mls-signin-card">
+                  <span className="mls-signin-glow" aria-hidden />
+                  <div className="mls-signin-head">
+                    <span className="mls-signin-icon" aria-hidden>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <rect x="4" y="10" width="16" height="11" rx="2" />
+                        <path d="M8 10V7a4 4 0 018 0v3" />
+                      </svg>
+                    </span>
+                    <div>
+                      <p className="text-sm font-semibold text-[var(--color-ink)]">
+                        Sign in to build your library
+                      </p>
+                      <p className="mt-1 text-xs text-[var(--color-mute)]">
+                        Progress, scores and shelves stay in sync on every device.
+                      </p>
+                    </div>
+                  </div>
                   <div className="mt-4 flex flex-wrap gap-2">
                     <Link
                       href="/login?next=%2Fmanga-list"
-                      className="rounded-full bg-[var(--color-magenta)] px-4 py-2 text-xs font-semibold text-black transition-opacity hover:opacity-90"
+                      className="mls-signin-primary relative overflow-hidden rounded-full bg-[var(--color-magenta)] px-4 py-2 text-xs font-semibold text-black"
                     >
-                      Sign in
+                      Sign in <span className="mls-signin-arrow" aria-hidden>→</span>
                     </Link>
                     <Link
                       href="/manga"
-                      className="rounded-full border border-[var(--color-line)] px-4 py-2 text-xs font-semibold text-[var(--color-mute)] transition-colors hover:border-[var(--color-violet)] hover:text-[var(--color-violet)]"
+                      className="mls-signin-secondary rounded-full border border-[var(--color-line)] px-4 py-2 text-xs font-semibold text-[var(--color-mute)]"
                     >
                       Browse manga
                     </Link>
@@ -1132,24 +1205,25 @@ export default function MyMangaListClient() {
 
         {/* Continue reading */}
         {authenticated && continueItems.length > 0 && (
-          <div className="mt-8">
-            <div className="mb-2 flex items-center justify-between">
-              <p className="flex items-center gap-1.5 font-mono text-xs uppercase tracking-[0.25em] text-[var(--color-cyan)]">
-                <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-cyan)] shadow-[0_0_8px_var(--color-cyan)]" />
+          <div className="mls-continue mt-8">
+            <div className="mls-continue-head mb-2 flex items-center justify-between">
+              <p className="mls-section-kicker flex items-center gap-1.5 font-mono text-xs uppercase tracking-[0.25em] text-[var(--color-cyan)]">
+                <span className="mls-section-dot h-1.5 w-1.5 rounded-full bg-[var(--color-cyan)]" />
                 Continue Reading
+                <span className="mls-section-line" aria-hidden />
               </p>
-              <span className="text-[10px] font-mono text-[var(--color-mute)]">
+              <span className="mls-continue-count text-[10px] font-mono text-[var(--color-mute)]">
                 {continueItems.length}
               </span>
             </div>
-            <div className="relative">
+            <div className="mls-rail-stage relative">
               <div
                 aria-hidden
-                className="pointer-events-none absolute inset-y-0 left-0 z-10 w-8 bg-gradient-to-r from-[var(--color-void)] to-transparent"
+                className="mls-rail-fade mls-rail-fade-l pointer-events-none absolute inset-y-0 left-0 z-10 w-8 bg-gradient-to-r from-[var(--color-void)] to-transparent"
               />
               <div
                 aria-hidden
-                className="pointer-events-none absolute inset-y-0 right-0 z-10 w-8 bg-gradient-to-l from-[var(--color-void)] to-transparent"
+                className="mls-rail-fade mls-rail-fade-r pointer-events-none absolute inset-y-0 right-0 z-10 w-8 bg-gradient-to-l from-[var(--color-void)] to-transparent"
               />
               <div className={RAIL_CLASS}>
                 {continueItems.map((h) => {
@@ -1162,7 +1236,7 @@ export default function MyMangaListClient() {
                     <Link
                       key={e.mediaId}
                       href={`/manga/${e.mediaId}`}
-                      className="group relative w-32 shrink-0 snap-start overflow-hidden rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] transition-all hover:border-[var(--color-violet)]/60"
+                      className="mls-continue-card group relative w-32 shrink-0 snap-start overflow-hidden rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] transition-all hover:border-[var(--color-violet)]/60"
                     >
                       <div className="relative aspect-[2/3] w-full">
                         {e.coverImage ? (
@@ -1186,9 +1260,9 @@ export default function MyMangaListClient() {
                         </div>
                       </div>
                       {t > 0 && (
-                        <div className="h-1 w-full bg-[var(--color-line)]">
+                        <div className="mls-progress h-1 w-full bg-[var(--color-line)]">
                           <div
-                            className="h-full rounded-r-full bg-[var(--color-cyan)]"
+                            className="mls-continue-fill h-full rounded-r-full bg-[var(--color-cyan)]"
                             style={{ width: `${pct}%` }}
                           />
                         </div>
@@ -1198,7 +1272,7 @@ export default function MyMangaListClient() {
                           Ch. {read}
                           {t ? `/${t}` : ""}
                         </span>
-                        <span className="inline-flex items-center gap-0.5 text-[var(--color-cyan)] transition-transform group-hover:translate-x-0.5">
+                        <span className="mls-continue-resume inline-flex items-center gap-0.5 text-[var(--color-cyan)] transition-transform group-hover:translate-x-0.5">
                           Resume →
                         </span>
                       </div>
@@ -1214,9 +1288,9 @@ export default function MyMangaListClient() {
         {authenticated && (
           <div
             ref={toolbarRef}
-            className="mt-8 space-y-3 border-b border-[var(--color-line)] pb-3"
+            className="mls-toolbar mt-8 space-y-3 rounded-xl border border-[var(--color-line)] p-2.5"
           >
-            <div className="flex flex-wrap items-center gap-1.5">
+            <div className="mls-status-bar flex flex-wrap items-center gap-1.5">
               {LIST_TABS.map((s) => {
                 const active = tab === s;
                 const n = s === "ALL" ? overallTotal : counts[s] || 0;
@@ -1239,20 +1313,21 @@ export default function MyMangaListClient() {
                           }
                         : undefined
                     }
-                    className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    className={`mls-status-chip inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
                       active
                         ? "text-black"
                         : "border border-[var(--color-line)] text-[var(--color-mute)] hover:border-[var(--color-violet)] hover:text-[var(--color-violet)]"
                     }`}
                   >
-                    {s === "ALL" ? "All" : STATUS_LABELS[s] || s}
-                    <span className="ml-1.5 font-mono text-[10px] opacity-70">
+                    <span className="mls-status-dot" aria-hidden />
+                    <span>{s === "ALL" ? "All" : STATUS_LABELS[s] || s}</span>
+                    <span className="mls-status-count font-mono text-[10px] opacity-70">
                       {n}
                     </span>
                   </button>
                 );
               })}
-              <div className="ml-auto flex items-center gap-2">
+              <div className="mls-toolbar-actions ml-auto flex items-center gap-2">
                 <ListSearch
                   value={query}
                   onChange={setQuery}
@@ -1262,7 +1337,7 @@ export default function MyMangaListClient() {
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="mls-filter-row flex flex-wrap items-center gap-2">
               <TypeChips
                 value={type}
                 onChange={(t) => {
@@ -1270,7 +1345,7 @@ export default function MyMangaListClient() {
                   setPage(1);
                 }}
               />
-              <div className="ml-auto flex items-center gap-2">
+              <div className="mls-filter-actions ml-auto flex items-center gap-2">
                 <SortSelect
                   value={sort}
                   onChange={(s) => {
@@ -1278,22 +1353,22 @@ export default function MyMangaListClient() {
                     setPage(1);
                   }}
                 />
-                <div className="flex items-center gap-0.5 rounded-full border border-[var(--color-line)] p-0.5">
+                <div className="mls-export rounded-full border border-[var(--color-line)] p-0.5">
                   <button
                     type="button"
                     onClick={() => exportList("csv")}
                     disabled={exporting}
-                    className="rounded-full px-2.5 py-1 text-[11px] font-semibold text-[var(--color-mute)] transition-colors hover:text-[var(--color-ink)] disabled:opacity-40"
+                    className="mls-export-btn inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold text-[var(--color-mute)] transition-colors hover:text-[var(--color-ink)] disabled:opacity-40"
                   >
-                    CSV
+                    <span aria-hidden>⇩</span> CSV
                   </button>
                   <button
                     type="button"
                     onClick={() => exportList("json")}
                     disabled={exporting}
-                    className="rounded-full px-2.5 py-1 text-[11px] font-semibold text-[var(--color-mute)] transition-colors hover:text-[var(--color-ink)] disabled:opacity-40"
+                    className="mls-export-btn inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold text-[var(--color-mute)] transition-colors hover:text-[var(--color-ink)] disabled:opacity-40"
                   >
-                    JSON
+                    <span aria-hidden>⇩</span> JSON
                   </button>
                 </div>
               </div>
@@ -1315,6 +1390,7 @@ export default function MyMangaListClient() {
               title="Sign in to track manga"
               body="Your reading list and progress are saved to your account and synced across every device."
               cta={{ href: "/login?next=%2Fmanga-list", label: "Sign in" }}
+              reduce={reduce}
             />
           ) : (
             <ShelfView
@@ -1348,13 +1424,17 @@ export default function MyMangaListClient() {
               initial={{ y: -60, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: -60, opacity: 0 }}
-              transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+              transition={
+                reduce
+                  ? { duration: 0 }
+                  : { duration: 0.2, ease: [0.22, 1, 0.36, 1] }
+              }
               style={{ top: headerH }}
-              className="fixed inset-x-0 z-30 border-b border-[var(--color-line)] bg-[var(--color-void)]/90 backdrop-blur-md"
+              className="mls-sticky fixed inset-x-0 z-30 border-b border-[var(--color-line)] bg-[var(--color-void)]/90 backdrop-blur-md"
             >
               <div className="mx-auto flex max-w-7xl items-center gap-2 px-4 py-2 sm:px-6">
-                <span className="flex items-center gap-1.5 text-xs font-semibold text-[var(--color-ink)]">
-                  <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-cyan)]" />
+                <span className="mls-sticky-label flex items-center gap-1.5 text-xs font-semibold text-[var(--color-ink)]">
+                  <span className="mls-sticky-dot h-1.5 w-1.5 rounded-full bg-[var(--color-cyan)]" />
                   My Manga List
                 </span>
                 <ListSearch
@@ -1373,12 +1453,14 @@ export default function MyMangaListClient() {
       <AnimatePresence>
         {toast && (
           <motion.div
-            initial={{ opacity: 0, y: 16 }}
+            initial={reduce ? false : { opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 16 }}
-            className="pointer-events-none fixed inset-x-0 bottom-20 z-50 flex justify-center md:bottom-8"
+            exit={reduce ? { opacity: 0 } : { opacity: 0, y: 16 }}
+            transition={{ duration: reduce ? 0 : 0.25 }}
+            aria-live="polite"
+            className="mls-toast-stage pointer-events-none fixed inset-x-0 bottom-20 z-50 flex justify-center md:bottom-8"
           >
-            <div className="rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] px-4 py-2 text-sm shadow-2xl backdrop-blur">
+            <div className="mls-toast relative overflow-hidden rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] px-4 py-2 text-sm shadow-2xl backdrop-blur">
               {toast}
             </div>
           </motion.div>

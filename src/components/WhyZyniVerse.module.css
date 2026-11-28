@@ -1,0 +1,298 @@
+/* "Why ZyniVerse?" feature grid. Accent-driven tiles with CSS-only motion
+   and reduced-motion fallbacks. No numbered cards. */
+
+.section {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  max-width: 80rem;
+  margin: 0 auto;
+  padding: 3rem 1rem;
+}
+
+@media (min-width: 640px) {
+  .section {
+    padding-inline: 1.5rem;
+  }
+}
+
+.section::before {
+  content: "";
+  position: absolute;
+  top: -12rem;
+  left: 50%;
+  z-index: -1;
+  width: 34rem;
+  height: 34rem;
+  transform: translateX(-50%);
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(255, 45, 120, 0.16), transparent 68%);
+  filter: blur(70px);
+  pointer-events: none;
+}
+
+.head {
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in srgb, #ff9933 40%, transparent);
+  background: color-mix(in srgb, #ff9933 10%, transparent);
+  padding: 0.3rem 0.85rem;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #ffc27a;
+  animation: headIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.eyebrow::before {
+  content: "";
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 9999px;
+  background: #ff9933;
+  box-shadow: 0 0 10px #ff9933;
+  animation: boltPulse 2.2s ease-in-out infinite;
+}
+
+.title {
+  margin-top: 0.7rem;
+  font-family: var(--font-display, inherit);
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  font-weight: 900;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  background: linear-gradient(100deg, var(--color-ink), #ffd7a8 45%, #a8e9ff 80%, var(--color-ink));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: headIn 0.65s cubic-bezier(0.16, 1, 0.3, 1) 70ms both;
+}
+
+.titleUnderline {
+  width: 4rem;
+  height: 3px;
+  margin: 0.9rem auto 0;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, #ff9933, var(--color-magenta), var(--color-cyan));
+  box-shadow: 0 0 16px -2px rgba(255, 153, 51, 0.7);
+  animation: lineGrow 0.7s cubic-bezier(0.16, 1, 0.3, 1) 140ms both;
+}
+
+.grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
+}
+
+.feature {
+  --accent: var(--color-cyan);
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  min-height: 11.5rem;
+  overflow: hidden;
+  border-radius: 1.25rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 26%, transparent);
+  background:
+    radial-gradient(280px 150px at 8% -12%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 70%),
+    var(--color-panel);
+  box-shadow:
+    0 20px 50px -36px color-mix(in srgb, var(--accent) 85%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  padding: 1.15rem;
+  animation: tileIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: calc(var(--tile-index, 0) * 55ms);
+  transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.feature::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: -2rem;
+  right: -2rem;
+  width: 8rem;
+  height: 8rem;
+  border-radius: 9999px;
+  background: var(--accent);
+  filter: blur(46px);
+  opacity: 0.12;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.feature::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: -1;
+  width: 3px;
+  border-radius: 9999px;
+  background: linear-gradient(to bottom, var(--accent), transparent);
+  opacity: 0.85;
+}
+
+.feature:hover {
+  transform: translateY(-6px);
+  border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+  box-shadow:
+    0 28px 60px -30px var(--accent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.09);
+}
+
+.feature:hover::before {
+  opacity: 0.26;
+}
+
+.tileTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.icon {
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  flex-shrink: 0;
+  border-radius: 0.9rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 42%, transparent);
+  background: color-mix(in srgb, var(--accent) 13%, rgba(10, 10, 15, 0.6));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 10px 24px -14px var(--accent);
+  font-size: 1.55rem;
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.feature:hover .icon {
+  transform: translateY(-4px) rotate(-7deg) scale(1.06);
+}
+
+.arrow {
+  display: grid;
+  place-items: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--accent);
+  font-size: 0.85rem;
+  font-weight: 800;
+  opacity: 0.6;
+  transition: opacity 0.25s ease, transform 0.3s ease, background 0.3s ease;
+}
+
+.feature:hover .arrow {
+  opacity: 1;
+  transform: translateX(3px);
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+.featureTitle {
+  font-family: var(--font-display, inherit);
+  font-size: 1.1rem;
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--accent);
+}
+
+.featureDesc {
+  margin-top: 0.4rem;
+  font-size: 0.78rem;
+  line-height: 1.55;
+  color: var(--color-mute);
+}
+
+@keyframes headIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+
+@keyframes lineGrow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes tileIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.97);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+
+@keyframes boltPulse {
+  0%,
+  100% {
+    opacity: 0.6;
+    box-shadow: 0 0 6px #ff9933;
+  }
+  50% {
+    opacity: 1;
+    box-shadow: 0 0 14px #ff9933;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .eyebrow,
+  .title,
+  .titleUnderline,
+  .feature {
+    animation: none !important;
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+
+  .eyebrow::before {
+    animation: none !important;
+  }
+
+  .feature,
+  .feature::before,
+  .icon,
+  .arrow {
+    transition: none !important;
+  }
+
+  .feature:hover,
+  .feature:hover .icon,
+  .feature:hover .arrow {
+    transform: none;
+  }
+}

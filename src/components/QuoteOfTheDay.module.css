@@ -1,0 +1,436 @@
+/* Quote of the Day: cinematic quote panel. One existing API call; every
+   animation below is CSS-only and disabled under reduced motion. */
+
+.section {
+  max-width: 80rem;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+@media (min-width: 640px) {
+  .section {
+    padding-inline: 1.5rem;
+  }
+}
+
+.card {
+  display: block;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: 1.5rem;
+  border: 1px solid color-mix(in srgb, var(--color-magenta) 26%, transparent);
+  background:
+    radial-gradient(620px 260px at 6% -22%, rgba(255, 45, 120, 0.2), transparent 68%),
+    radial-gradient(520px 240px at 100% 118%, rgba(41, 242, 224, 0.14), transparent 68%),
+    linear-gradient(135deg, #171226, var(--color-panel) 48%, #101827);
+  box-shadow:
+    0 32px 80px -54px rgba(255, 45, 120, 0.85),
+    0 0 60px -46px rgba(41, 242, 224, 0.7);
+  padding: 1.75rem;
+  animation: cardIn 0.65s cubic-bezier(0.16, 1, 0.3, 1) both;
+  transition: transform 0.35s ease, border-color 0.35s ease, box-shadow 0.35s ease;
+}
+
+@media (min-width: 640px) {
+  .card {
+    padding: 2.25rem;
+  }
+}
+
+.card::before {
+  content: "";
+  position: absolute;
+  top: -7rem;
+  right: -5rem;
+  z-index: -1;
+  width: 22rem;
+  height: 22rem;
+  border-radius: 9999px;
+  background: radial-gradient(
+    circle,
+    rgba(255, 45, 120, 0.32),
+    rgba(138, 92, 255, 0.18) 45%,
+    transparent 72%
+  );
+  pointer-events: none;
+  animation: orbDrift 12s ease-in-out infinite;
+}
+
+.card::after {
+  content: "“";
+  position: absolute;
+  top: -2.4rem;
+  right: 1.35rem;
+  z-index: -1;
+  font-family: Georgia, serif;
+  font-size: 10rem;
+  line-height: 1;
+  color: color-mix(in srgb, var(--color-magenta) 16%, transparent);
+  pointer-events: none;
+  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.card:hover,
+.card:focus-within {
+  transform: translateY(-5px);
+  border-color: color-mix(in srgb, var(--color-magenta) 58%, transparent);
+  box-shadow:
+    0 42px 90px -50px rgba(255, 45, 120, 0.95),
+    0 0 70px -42px rgba(41, 242, 224, 0.85);
+}
+
+.card:hover::after,
+.card:focus-within::after {
+  transform: translateY(-10px) rotate(-8deg);
+}
+
+.topLine {
+  position: absolute;
+  top: 0;
+  left: 1.5rem;
+  right: 1.5rem;
+  z-index: 2;
+  height: 2px;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, transparent, var(--color-magenta), var(--color-cyan), transparent);
+  background-size: 200% 100%;
+  pointer-events: none;
+  animation: shimmer 6s linear infinite;
+}
+
+.spark {
+  position: absolute;
+  z-index: 2;
+  width: 0.35rem;
+  height: 0.35rem;
+  border-radius: 9999px;
+  background: var(--color-cyan);
+  box-shadow: 0 0 12px var(--color-cyan);
+  pointer-events: none;
+  animation: twinkle 3.4s ease-in-out infinite;
+}
+
+.sparkA {
+  top: 1.2rem;
+  right: 2.3rem;
+}
+
+.sparkB {
+  bottom: 2.8rem;
+  right: 1.2rem;
+  width: 0.25rem;
+  height: 0.25rem;
+  background: var(--color-magenta);
+  box-shadow: 0 0 10px var(--color-magenta);
+  animation-delay: -1.4s;
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in srgb, var(--color-magenta) 40%, transparent);
+  background: color-mix(in srgb, var(--color-magenta) 12%, transparent);
+  box-shadow: 0 0 24px -12px var(--color-magenta);
+  padding: 0.32rem 0.85rem;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #ff8fc0;
+  animation: reveal 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.eyebrow::before {
+  content: "✦";
+  font-size: 0.7rem;
+  color: var(--color-magenta);
+}
+
+.quoteLink {
+  display: block;
+  position: relative;
+  margin-top: 1.1rem;
+  padding-left: 1rem;
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.quoteLink::before {
+  content: "";
+  position: absolute;
+  top: 0.15rem;
+  bottom: 0.15rem;
+  left: 0;
+  width: 3px;
+  border-radius: 9999px;
+  background: linear-gradient(to bottom, var(--color-magenta), var(--color-cyan));
+  box-shadow: 0 0 14px -2px var(--color-magenta);
+}
+
+.quoteLink:focus-visible,
+.linkPill:focus-visible {
+  outline: 2px solid var(--color-cyan);
+  outline-offset: 3px;
+}
+
+.quote {
+  max-width: 52rem;
+  font-family: var(--font-display, inherit);
+  font-size: clamp(1.45rem, 3.4vw, 2.2rem);
+  font-weight: 800;
+  line-height: 1.32;
+  letter-spacing: -0.015em;
+  color: var(--color-ink);
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.45);
+  text-wrap: balance;
+  animation: reveal 0.65s cubic-bezier(0.16, 1, 0.3, 1) 70ms both;
+}
+
+.quote::before,
+.quote::after {
+  color: var(--color-magenta);
+  opacity: 0.85;
+}
+
+.quote::before {
+  content: "“";
+  margin-right: 0.2rem;
+}
+
+.quote::after {
+  content: "”";
+  margin-left: 0.2rem;
+}
+
+.attribution {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.7rem;
+  margin-top: 1.35rem;
+  animation: reveal 0.65s cubic-bezier(0.16, 1, 0.3, 1) 130ms both;
+}
+
+.character {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 42%, transparent);
+  background: color-mix(in srgb, var(--color-cyan) 13%, transparent);
+  box-shadow: 0 0 22px -12px var(--color-cyan);
+  padding: 0.25rem 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--color-cyan);
+}
+
+.dot {
+  width: 0.35rem;
+  height: 0.35rem;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--color-magenta) 75%, var(--color-cyan));
+  box-shadow: 0 0 10px -2px var(--color-magenta);
+}
+
+.anime {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-mute);
+}
+
+.linkRow {
+  display: flex;
+  margin-top: 1.25rem;
+}
+
+.linkPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in srgb, var(--color-magenta) 30%, transparent);
+  background: linear-gradient(90deg, rgba(255, 45, 120, 0.12), rgba(41, 242, 224, 0.08));
+  box-shadow: 0 12px 30px -22px var(--color-magenta);
+  padding: 0.45rem 0.5rem 0.45rem 1rem;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: #ffd6e7;
+  text-decoration: none;
+  cursor: pointer;
+  animation: reveal 0.65s cubic-bezier(0.16, 1, 0.3, 1) 190ms both;
+  transition: transform 0.25s ease, border-color 0.25s ease, color 0.25s ease, background 0.25s ease, box-shadow 0.25s ease;
+}
+
+.card:hover .linkPill,
+.card:focus-within .linkPill,
+.linkPill:hover,
+.linkPill:focus-visible {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--color-cyan) 60%, transparent);
+  background: linear-gradient(90deg, rgba(41, 242, 224, 0.14), rgba(255, 45, 120, 0.1));
+  box-shadow: 0 14px 34px -18px var(--color-cyan);
+  color: var(--color-cyan);
+}
+
+.arrow {
+  display: grid;
+  place-items: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in srgb, var(--color-magenta) 45%, transparent);
+  background: color-mix(in srgb, var(--color-magenta) 16%, transparent);
+  color: var(--color-magenta);
+  font-size: 0.8rem;
+  transition: transform 0.25s ease, border-color 0.25s ease, background 0.25s ease, color 0.25s ease;
+}
+
+.card:hover .arrow,
+.card:focus-within .arrow,
+.linkPill:hover .arrow,
+.linkPill:focus-visible .arrow {
+  transform: translateX(4px) rotate(-8deg) scale(1.06);
+  border-color: color-mix(in srgb, var(--color-cyan) 55%, transparent);
+  background: color-mix(in srgb, var(--color-cyan) 12%, transparent);
+  color: var(--color-cyan);
+}
+
+.skeleton {
+  border-radius: 1.5rem;
+  border: 1px solid color-mix(in srgb, var(--color-magenta) 20%, transparent);
+  background:
+    radial-gradient(500px 220px at 8% -18%, rgba(255, 45, 120, 0.14), transparent 68%),
+    color-mix(in srgb, var(--color-panel) 60%, transparent);
+  padding: 1.75rem;
+  animation: pulse 1.6s ease-in-out infinite;
+}
+
+@media (min-width: 640px) {
+  .skeleton {
+    padding: 2.25rem;
+  }
+}
+
+.skeletonBar {
+  border-radius: 9999px;
+  background: linear-gradient(90deg, rgba(255, 45, 120, 0.12), rgba(41, 242, 224, 0.1));
+}
+
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+
+@keyframes cardIn {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+    filter: blur(5px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+
+@keyframes orbDrift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(-18px, 12px, 0) scale(1.12);
+  }
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes twinkle {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.15);
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .eyebrow,
+  .quote,
+  .attribution,
+  .linkPill,
+  .skeleton {
+    animation: none !important;
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+
+  .card::before,
+  .topLine,
+  .spark {
+    animation: none !important;
+  }
+
+  .card,
+  .card::after,
+  .linkPill,
+  .arrow {
+    transition: none !important;
+  }
+
+  .card:hover,
+  .card:focus-within,
+  .card:hover::after,
+  .card:focus-within::after,
+  .card:hover .linkPill,
+  .card:focus-within .linkPill,
+  .linkPill:hover,
+  .linkPill:focus-visible,
+  .card:hover .arrow,
+  .card:focus-within .arrow,
+  .linkPill:hover .arrow,
+  .linkPill:focus-visible .arrow {
+    transform: none;
+  }
+}

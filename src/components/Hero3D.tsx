@@ -212,7 +212,7 @@ export default function Hero3D({ items, stats }: { items: Media[]; stats?: HeroS
               onClick={() => goTo((active - 1 + total) % total)}
             >
               <div className="relative h-72 w-48 overflow-hidden rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] shadow-xl">
-                <Image src={prev.coverImage?.large || prev.coverImage?.extraLarge || ""} alt="" fill className="object-cover" sizes="(max-width: 768px) 50vw, 25vw" />
+                <Image src={prev.coverImage?.extraLarge || prev.coverImage?.large || prev.coverImage?.medium || ""} alt="" fill className="object-cover" sizes="(max-width: 768px) 50vw, 25vw" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 to-transparent p-4 flex items-end">
                   <p className="text-sm font-bold truncate">{bestTitle(prev.title)}</p>
                 </div>
@@ -233,7 +233,7 @@ export default function Hero3D({ items, stats }: { items: Media[]; stats?: HeroS
               onClick={() => goTo(active)}
             >
               <div className="relative h-80 w-52 overflow-hidden rounded-2xl border-2 border-[var(--color-magenta)]/50 bg-[var(--color-panel)] shadow-2xl shadow-[var(--color-magenta)]/20">
-                <Image src={hero.coverImage?.large || hero.coverImage?.extraLarge || ""} alt="" fill loading="eager" fetchPriority="high" className="object-cover" sizes="(max-width: 768px) 50vw, 25vw" />
+                <Image src={hero.coverImage?.extraLarge || hero.coverImage?.large || hero.coverImage?.medium || ""} alt="" fill loading="eager" fetchPriority="high" className="object-cover" sizes="(max-width: 768px) 50vw, 25vw" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
                 <div className="absolute inset-x-0 bottom-0 p-4">
                   <p className="font-display text-lg font-bold leading-tight">{bestTitle(hero.title)}</p>
@@ -258,7 +258,7 @@ export default function Hero3D({ items, stats }: { items: Media[]; stats?: HeroS
               onClick={() => goTo((active + 1) % total)}
             >
               <div className="relative h-72 w-48 overflow-hidden rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] shadow-xl">
-                <Image src={next.coverImage?.large || next.coverImage?.extraLarge || ""} alt="" fill className="object-cover" sizes="(max-width: 768px) 50vw, 25vw" />
+                <Image src={next.coverImage?.extraLarge || next.coverImage?.large || next.coverImage?.medium || ""} alt="" fill className="object-cover" sizes="(max-width: 768px) 50vw, 25vw" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 to-transparent p-4 flex items-end">
                   <p className="text-sm font-bold truncate">{bestTitle(next.title)}</p>
                 </div>

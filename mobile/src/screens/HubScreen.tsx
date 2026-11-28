@@ -112,8 +112,8 @@ function toCard(kind: string, raw: any): CardModel {
         ...base(raw?.name, `${raw?.memberCount || 0} members · ${raw?.category || 'Club'}`, raw?.coverImage || raw?.icon),
         body: cleanText(raw?.description),
         badge: raw?.isPrivate ? 'PRIVATE' : 'OPEN',
-        meta: name,
-        href: raw?.slug ? `https://zyverse.in/clubs/${raw.slug}` : undefined,
+        meta: 'Open native communities',
+        screen: 'CommunityHub',
       };
     case 'moments':
       return {

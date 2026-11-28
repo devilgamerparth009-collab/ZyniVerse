@@ -1,0 +1,760 @@
+/* Shared polish for anime-detail sidebar widgets.
+   Colored, low-contrast surfaces only — no white/black divider lines. */
+
+.box.box,
+.boxFlush.boxFlush {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 14%, var(--color-line));
+  border-radius: 1rem;
+  background:
+    radial-gradient(260px 140px at 100% 0%, color-mix(in srgb, var(--color-cyan) 10%, transparent), transparent 72%),
+    radial-gradient(240px 130px at 0% 100%, color-mix(in srgb, var(--color-magenta) 9%, transparent), transparent 74%),
+    linear-gradient(150deg, color-mix(in srgb, var(--color-panel) 96%, var(--color-void)), color-mix(in srgb, var(--color-void) 64%, var(--color-panel)));
+  box-shadow: 0 22px 52px -44px color-mix(in srgb, var(--color-cyan) 72%, transparent);
+}
+
+.box.box {
+  padding: 1.05rem;
+}
+
+.boxFlush.boxFlush {
+  padding: 0;
+}
+
+.box::before,
+.boxFlush::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 14%;
+  width: 38%;
+  height: 2px;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, transparent, var(--color-cyan), var(--color-magenta), transparent);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.boxTitle {
+  letter-spacing: -0.01em;
+}
+
+.headingMark {
+  display: inline-block;
+  width: 0.22rem;
+  height: 0.85rem;
+  border-radius: 9999px;
+  background: linear-gradient(180deg, var(--color-magenta), var(--color-cyan));
+  box-shadow: 0 0 12px -4px var(--color-magenta);
+}
+
+.sectionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+
+.eyebrow {
+  color: var(--color-mute);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.sideHeading {
+  color: var(--color-mute);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.mutedText {
+  color: var(--color-mute);
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+
+.tinyMuted {
+  color: var(--color-mute);
+  font-size: 0.64rem;
+}
+
+.monoText {
+  font-family: var(--font-mono, monospace);
+  color: var(--color-ink);
+}
+
+.textLink {
+  color: var(--color-cyan);
+  font-weight: 700;
+  transition: color 0.2s ease, opacity 0.2s ease;
+}
+
+.textLink:hover {
+  color: var(--color-magenta);
+}
+
+.emptyState {
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 18%, var(--color-line));
+  border-radius: 0.85rem;
+  background: color-mix(in srgb, var(--color-void) 52%, transparent);
+  padding: 0.9rem;
+  color: color-mix(in srgb, var(--color-mute) 88%, var(--color-ink));
+  font-size: 0.76rem;
+  line-height: 1.55;
+}
+
+.noteCard {
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 20%, transparent);
+  border-radius: 0.8rem;
+  background: color-mix(in srgb, var(--color-cyan) 7%, transparent);
+  padding: 0.6rem 0.85rem;
+}
+
+.errorText {
+  color: color-mix(in srgb, #f87171 86%, var(--color-ink));
+  font-size: 0.7rem;
+}
+
+.rowDivider {
+  border-top: 1px solid color-mix(in srgb, var(--color-cyan) 12%, var(--color-line));
+}
+
+.pillRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.pill.pill,
+.tab.tab,
+.voteButton.voteButton,
+.iconButton.iconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid color-mix(in srgb, var(--color-line) 88%, transparent);
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--color-void) 48%, transparent);
+  padding: 0.34rem 0.7rem;
+  color: var(--color-mute);
+  font-size: 0.66rem;
+  font-weight: 800;
+  line-height: 1;
+  transition: border-color 0.22s ease, background 0.22s ease, color 0.22s ease, transform 0.22s ease, box-shadow 0.22s ease;
+}
+
+.pill.pill:hover,
+.tab.tab:hover,
+.voteButton.voteButton:hover,
+.iconButton.iconButton:hover {
+  border-color: color-mix(in srgb, var(--color-cyan) 46%, transparent);
+  color: var(--color-cyan);
+}
+
+.tab.tab.tabActive,
+.pill.pill.pillActive,
+.voteButton.voteButton.voteButtonActive {
+  border-color: color-mix(in srgb, var(--color-magenta) 58%, transparent);
+  background: linear-gradient(120deg, var(--color-magenta), var(--color-cyan));
+  color: var(--color-void);
+  box-shadow: 0 10px 22px -18px var(--color-magenta);
+}
+
+.tab.tab.tabActive:hover,
+.pill.pill.pillActive:hover,
+.voteButton.voteButton.voteButtonActive:hover {
+  color: var(--color-void);
+}
+
+.fillerVote.fillerVote {
+  width: 1.35rem;
+  height: 1.35rem;
+  padding: 0;
+  border-radius: 0.4rem;
+  font-size: 0.54rem;
+}
+
+.iconButton.iconButton {
+  width: 1.85rem;
+  height: 1.85rem;
+  padding: 0;
+  border-radius: 0.6rem;
+}
+
+.iconButton.iconButton:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.statRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+  color: var(--color-mute);
+  font-size: 0.68rem;
+}
+
+.statDot {
+  width: 0.3rem;
+  height: 0.3rem;
+  border-radius: 9999px;
+  background: var(--color-magenta);
+}
+
+.scoreOrb.scoreOrb {
+  display: grid;
+  place-items: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  border: 1px solid color-mix(in srgb, var(--color-void) 26%, transparent);
+  border-radius: 9999px;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.82rem;
+  font-weight: 900;
+  color: var(--color-void);
+  box-shadow: 0 10px 24px -16px var(--color-magenta);
+}
+
+.ratingRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.scoreButton.scoreButton {
+  display: grid;
+  place-items: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  border: 1px solid color-mix(in srgb, var(--color-line) 88%, transparent);
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--color-void) 48%, transparent);
+  color: var(--color-mute);
+  font-size: 0.66rem;
+  font-weight: 800;
+  transition: transform 0.2s ease, border-color 0.2s ease, color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.scoreButton.scoreButton:hover {
+  border-color: color-mix(in srgb, var(--color-magenta) 52%, transparent);
+  color: var(--color-magenta);
+}
+
+.scoreButton.scoreButton.scoreButtonActive {
+  border-color: color-mix(in srgb, var(--color-cyan) 52%, transparent);
+  box-shadow: 0 8px 18px -12px var(--color-cyan);
+}
+
+.clearButton {
+  color: var(--color-mute);
+  font-size: 0.64rem;
+  transition: color 0.2s ease;
+}
+
+.clearButton:hover {
+  color: var(--color-magenta);
+}
+
+.track.track,
+.scoreTrack.scoreTrack {
+  overflow: hidden;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--color-void) 72%, var(--color-line));
+}
+
+.scoreFill {
+  height: 100%;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, var(--color-magenta), var(--color-cyan));
+  transition: width 0.45s ease;
+}
+
+.scoreTooltip {
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--color-void) 78%, transparent);
+  padding: 0.1rem 0.4rem;
+  font-size: 0.6rem;
+  font-weight: 800;
+  color: var(--color-ink);
+}
+
+.subCard.subCard {
+  border: 1px solid color-mix(in srgb, var(--color-line) 82%, transparent);
+  border-radius: 0.85rem;
+  background: color-mix(in srgb, var(--color-void) 46%, transparent);
+  padding: 0.75rem;
+  transition: border-color 0.22s ease, background 0.22s ease, transform 0.22s ease;
+}
+
+.subCard.subCard:hover {
+  border-color: color-mix(in srgb, var(--color-cyan) 32%, transparent);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.75rem;
+  color: var(--color-mute);
+  font-size: 0.6rem;
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.legendDot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 9999px;
+}
+
+.sourceNote {
+  color: var(--color-mute);
+  font-size: 0.62rem;
+  text-align: center;
+}
+
+.miniLink.miniLink,
+.primaryButton.primaryButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 18%, var(--color-line));
+  border-radius: 0.7rem;
+  background: color-mix(in srgb, var(--color-void) 48%, transparent);
+  padding: 0.55rem 0.8rem;
+  color: var(--color-mute);
+  font-size: 0.72rem;
+  font-weight: 700;
+  transition: border-color 0.22s ease, background 0.22s ease, color 0.22s ease, transform 0.22s ease;
+}
+
+.miniLink.miniLink:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--color-cyan) 44%, transparent);
+  background: color-mix(in srgb, var(--color-cyan) 8%, transparent);
+  color: var(--color-cyan);
+}
+
+.miniLink.miniLink.miniLinkPrimary,
+.primaryButton.primaryButton {
+  border-color: color-mix(in srgb, var(--color-cyan) 44%, transparent);
+  background: linear-gradient(120deg, color-mix(in srgb, var(--color-magenta) 88%, var(--color-cyan)), var(--color-cyan));
+  color: var(--color-void);
+}
+
+.primaryButton.primaryButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px -18px var(--color-cyan);
+}
+
+.primaryButton.primaryButton:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.rankChip.rankChip {
+  display: inline-grid;
+  place-items: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  border: 1px solid color-mix(in srgb, var(--color-magenta) 28%, transparent);
+  border-radius: 0.6rem;
+  background: color-mix(in srgb, var(--color-magenta) 10%, transparent);
+  color: var(--color-magenta);
+  font-family: var(--font-mono, monospace);
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.rankRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.35rem 0;
+}
+
+.rankContext {
+  color: var(--color-mute);
+  font-size: 0.7rem;
+}
+
+.favoriteStat {
+  display: grid;
+  place-items: center;
+  gap: 0.15rem;
+  padding: 0.4rem 0;
+}
+
+.favoriteNumber {
+  font-family: var(--font-mono, monospace);
+  font-size: 1.35rem;
+  font-weight: 900;
+  color: var(--color-magenta);
+}
+
+.idNote {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.sponsorPill.sponsorPill {
+  border-color: color-mix(in srgb, var(--color-magenta) 38%, transparent);
+  background: color-mix(in srgb, var(--color-magenta) 8%, var(--color-void));
+}
+
+.field.field,
+.epInput.epInput {
+  width: 100%;
+  border: 1px solid color-mix(in srgb, var(--color-line) 88%, transparent);
+  border-radius: 0.7rem;
+  background: color-mix(in srgb, var(--color-void) 58%, transparent);
+  padding: 0.6rem 0.75rem;
+  color: var(--color-ink);
+  font-size: 0.76rem;
+  outline: none;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.field.field::placeholder {
+  color: var(--color-mute);
+}
+
+.field.field:focus,
+.epInput.epInput:focus {
+  border-color: color-mix(in srgb, var(--color-cyan) 58%, transparent);
+  background: color-mix(in srgb, var(--color-void) 70%, transparent);
+}
+
+.epInput.epInput {
+  width: 3rem;
+  border-radius: 0.5rem;
+  padding: 0.2rem 0.3rem;
+  text-align: center;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.epNav {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 16%, var(--color-line));
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--color-void) 42%, transparent);
+  padding: 0.2rem;
+}
+
+.commentCard {
+  border: 1px solid color-mix(in srgb, var(--color-line) 78%, transparent);
+  border-radius: 0.8rem;
+  background: color-mix(in srgb, var(--color-void) 52%, transparent);
+  padding: 0.7rem;
+}
+
+.commentAvatar {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 9999px;
+  object-fit: cover;
+}
+
+.commentFallback {
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 9999px;
+  background: linear-gradient(120deg, var(--color-magenta), var(--color-cyan));
+  color: var(--color-void);
+  font-size: 0.62rem;
+  font-weight: 900;
+}
+
+.threadLink {
+  display: block;
+  border: 1px solid transparent;
+  border-radius: 0.65rem;
+  padding: 0.45rem 0.6rem;
+  color: var(--color-mute);
+  font-size: 0.72rem;
+  transition: border-color 0.22s ease, background 0.22s ease, color 0.22s ease;
+}
+
+.threadLink:hover {
+  border-color: color-mix(in srgb, var(--color-cyan) 28%, transparent);
+  background: color-mix(in srgb, var(--color-cyan) 7%, transparent);
+  color: var(--color-cyan);
+}
+
+.platformChip.platformChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid color-mix(in srgb, var(--color-line) 86%, transparent);
+  border-radius: 0.7rem;
+  background: color-mix(in srgb, var(--color-void) 46%, transparent);
+  padding: 0.45rem 0.6rem;
+  color: var(--color-ink);
+  font-size: 0.74rem;
+  transition: border-color 0.22s ease, color 0.22s ease;
+}
+
+.platformChip.platformChip:hover {
+  border-color: color-mix(in srgb, var(--color-cyan) 42%, transparent);
+  color: var(--color-cyan);
+}
+
+.platformBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.45rem;
+  padding: 0.1rem 0.4rem;
+  color: var(--color-ink);
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+}
+
+.langChip {
+  border-radius: 0.35rem;
+  padding: 0.1rem 0.35rem;
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.fillerHeader {
+  padding: 1.05rem 1.05rem 0.7rem;
+}
+
+.sourceChip {
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 18%, transparent);
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--color-cyan) 8%, transparent);
+  padding: 0.15rem 0.5rem;
+  color: var(--color-mute);
+  font-size: 0.6rem;
+  font-weight: 500;
+}
+
+.voteMeta {
+  color: var(--color-mute);
+  font-family: var(--font-mono, monospace);
+  font-size: 0.62rem;
+}
+
+.fillerPad {
+  padding-left: 1.05rem;
+  padding-right: 1.05rem;
+}
+
+.statCard.statCard {
+  border: 1px solid color-mix(in srgb, var(--color-line) 82%, transparent);
+  border-radius: 0.7rem;
+  background: color-mix(in srgb, var(--color-void) 42%, transparent);
+  padding: 0.5rem 0.35rem;
+  text-align: center;
+  transition: border-color 0.22s ease, background 0.22s ease, transform 0.22s ease;
+}
+
+.statCard.statCard:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--color-cyan) 32%, transparent);
+}
+
+.statCard.statCard.statCardActive {
+  color: var(--color-void);
+  border-color: transparent;
+}
+
+.statValue {
+  font-family: var(--font-mono, monospace);
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.statLabel {
+  color: var(--color-mute);
+  font-size: 0.56rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.statCardActive .statLabel {
+  color: color-mix(in srgb, var(--color-void) 78%, transparent);
+}
+
+.fillerProgress.fillerProgress {
+  display: flex;
+  height: 0.5rem;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--color-void) 72%, var(--color-line));
+}
+
+.quickRange {
+  color: var(--color-cyan);
+  font-size: 0.68rem;
+  transition: color 0.2s ease;
+}
+
+.quickRange:hover {
+  color: var(--color-magenta);
+  text-decoration: underline;
+}
+
+.summaryRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  color: var(--color-mute);
+  font-size: 0.7rem;
+}
+
+.jumpChip.jumpChip {
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 0.45rem;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.62rem;
+  font-weight: 700;
+}
+
+.fillerTable {
+  overflow-x: auto;
+  border-top: 1px solid color-mix(in srgb, var(--color-cyan) 12%, var(--color-line));
+}
+
+.fillerHead {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.45rem 1.05rem;
+  background: color-mix(in srgb, var(--color-void) 38%, transparent);
+  color: var(--color-mute);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.fillerRow.fillerRow {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-line) 72%, transparent);
+  padding: 0.45rem 1.05rem;
+  font-size: 0.78rem;
+  transition: background 0.2s ease;
+}
+
+.fillerRow.fillerRow:hover {
+  background: color-mix(in srgb, var(--color-cyan) 5%, transparent);
+}
+
+.fillerRow.fillerRow.fillerOverridden {
+  background: color-mix(in srgb, var(--color-cyan) 4%, transparent);
+}
+
+.tinyLink {
+  color: var(--color-cyan);
+  font-size: 0.62rem;
+  transition: color 0.2s ease;
+}
+
+.tinyLink:hover {
+  color: var(--color-magenta);
+  text-decoration: underline;
+}
+
+.voteDot {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 9999px;
+}
+
+.communityChip {
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 22%, transparent);
+  border-radius: 0.35rem;
+  background: color-mix(in srgb, var(--color-cyan) 12%, transparent);
+  padding: 0.05rem 0.3rem;
+  color: var(--color-cyan);
+  font-family: var(--font-mono, monospace);
+  font-size: 0.56rem;
+}
+
+.fanBox.fanBox h2 {
+  font-size: 1rem;
+}
+
+.fanBox.fanBox h2 + p {
+  margin-top: 0.25rem;
+}
+
+.recCard {
+  border: 1px solid color-mix(in srgb, var(--color-line) 82%, transparent);
+  border-radius: 0.85rem;
+  background: color-mix(in srgb, var(--color-void) 46%, transparent);
+  padding: 0.8rem;
+  transition: border-color 0.22s ease, transform 0.22s ease;
+}
+
+.recCard:hover {
+  border-color: color-mix(in srgb, var(--color-cyan) 32%, transparent);
+  transform: translateY(-2px);
+}
+
+.typeChip {
+  border: 1px solid color-mix(in srgb, var(--color-line) 80%, transparent);
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--color-void) 46%, transparent);
+  padding: 0.1rem 0.45rem;
+  color: var(--color-mute);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.quoteText {
+  color: color-mix(in srgb, var(--color-mute) 86%, var(--color-ink));
+  font-size: 0.76rem;
+  line-height: 1.55;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pill.pill,
+  .tab.tab,
+  .scoreButton.scoreButton,
+  .miniLink.miniLink,
+  .primaryButton.primaryButton,
+  .voteButton.voteButton,
+  .iconButton.iconButton,
+  .statCard.statCard,
+  .recCard,
+  .subCard.subCard,
+  .scoreFill {
+    transition: none !important;
+    transform: none !important;
+  }
+}

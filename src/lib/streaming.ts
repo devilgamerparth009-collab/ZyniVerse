@@ -9,6 +9,15 @@ export interface StreamingSource {
 
 type AnimeEntry = string | string[];
 
+function normalizeTitle(title: string): string {
+  return title
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
 const curatedMap: Record<string, StreamingSource[]> = {};
 
 function add(title: AnimeEntry, sources: StreamingSource[]): void {
@@ -506,27 +515,14 @@ add(["Your Name", "Kimi no Na wa"], [
 export function getStreamingSources(title: string): StreamingSource[] {
   if (!title) return [];
 
-  const normalized = title.toLowerCase().trim();
+  const normalized = normalizeTitle(title);
 
-  const entries = Object.entries(curatedMap);
-
-  for (const [key, sources] of entries) {
-    if (normalized === key || normalized.startsWith(key) || key.startsWith(normalized)) {
-      return dedupePlatforms(sources);
-    }
-  }
-
-  for (const [key, sources] of entries) {
-    if (normalized.includes(key) || key.includes(normalized)) {
-      return dedupePlatforms(sources);
-    }
-  }
-
-  for (const [key, sources] of entries) {
-    const keyWords = key.split(/\s+/);
-    const titleWords = normalized.split(/\s+/);
-    const matchCount = keyWords.filter((kw) => titleWords.includes(kw)).length;
-    if (matchCount >= 2 && matchCount / keyWords.length >= 0.5) {
+  // Exact title/alias match only. Fuzzy matching was showing platforms for
+  // similar-but-different titles (sequels, spin-offs, repos), which is worse
+  // than showing nothing. AniList's own streaming links are checked first by
+  // the UI, so this list is only a curated India fallback.
+  for (const [key, sources] of Object.entries(curatedMap)) {
+    if (normalized === normalizeTitle(key)) {
       return dedupePlatforms(sources);
     }
   }

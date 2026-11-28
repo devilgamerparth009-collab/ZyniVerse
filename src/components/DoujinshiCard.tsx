@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useRef, useCallback } from "react";
-import { motion } from "framer-motion";
+import { useRef, useCallback, useState } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 import { useSession } from "next-auth/react";
 import type { DoujinshiEntry } from "@/lib/mangadex-api";
 
@@ -51,8 +51,10 @@ function CoverPlaceholder({ entry }: { entry: DoujinshiEntry }) {
 
 export default function DoujinshiCard({ entry, onTrack, trackedStatus, index = 0 }: Props) {
   const { data: session } = useSession();
+  const reduce = useReducedMotion();
   const ref = useRef<HTMLDivElement>(null);
   const spotRef = useRef<HTMLDivElement>(null);
+  const [imageFailed, setImageFailed] = useState(false);
 
   const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     const el = ref.current;
@@ -78,92 +80,96 @@ export default function DoujinshiCard({ entry, onTrack, trackedStatus, index = 0
   return (
     <motion.div
       ref={ref}
-      initial={{ opacity: 0, y: 24 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.45, delay: index * 0.06, ease: [0.22, 1, 0.36, 1] }}
-      onPointerMove={handlePointerMove}
-      onPointerLeave={handlePointerLeave}
-      className="group h-full"
+      initial={reduce ? false : { opacity: 0, y: 24 }}
+      animate={reduce ? undefined : { opacity: 1, y: 0 }}
+      transition={reduce ? undefined : { duration: 0.45, delay: index * 0.06, ease: [0.22, 1, 0.36, 1] }}
+      onPointerMove={reduce ? undefined : handlePointerMove}
+      onPointerLeave={reduce ? undefined : handlePointerLeave}
+      className="djcard-wrap group h-full"
       style={{ transition: "transform 0.2s ease-out" }}
     >
-      <div className="relative flex h-full flex-col rounded-xl neon-rgb-border bg-[var(--color-panel)]/60 backdrop-blur-sm overflow-hidden transition-all duration-300">
-        {/* Cursor spotlight */}
-        <div
-          ref={spotRef}
-          aria-hidden
-          className="pointer-events-none absolute inset-0 z-[5] opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-        />
+      <div className="djcard-shell">
+        <span className="djcard-aura" aria-hidden="true" />
+        <div ref={spotRef} className="djcard-spot" aria-hidden="true" />
+
         {/* Cover */}
-        <div className="relative aspect-[3/4] w-full overflow-hidden">
-          {entry.image ? (
-            <Image src={entry.image} alt={entry.title} fill className="object-cover" sizes="(max-width: 768px) 50vw, 20vw" loading="lazy" />
+        <div className="djcard-cover">
+          {entry.image && !imageFailed ? (
+            <Image
+              src={entry.image}
+              alt={entry.title}
+              fill
+              className="object-cover"
+              sizes="(max-width: 768px) 50vw, 20vw"
+              loading="lazy"
+              onError={() => setImageFailed(true)}
+            />
           ) : (
             <CoverPlaceholder entry={entry} />
           )}
+          <span className="djcard-cover-shade" aria-hidden="true" />
+          <span className="djcard-cover-line" aria-hidden="true" />
         </div>
 
-        <div className="relative z-10 flex flex-1 flex-col gap-2 p-3">
+        <div className="djcard-body">
           {/* Title */}
-          <Link href={`/doujinshi/${entry.id}`} className="group/title">
-            <h3 className="text-sm font-bold leading-tight line-clamp-2 group-hover/title:text-[var(--color-magenta)] transition-colors">
-              {entry.title}
-            </h3>
+          <Link href={`/doujinshi/${entry.id}`} className="djcard-title-link">
+            <h3 className="djcard-title">{entry.title}</h3>
+            <span className="djcard-title-rule" aria-hidden="true" />
           </Link>
 
           {/* Circle & Artist */}
-          <div className="flex flex-wrap gap-1 text-[10px] text-[var(--color-mute)]">
+          <div className="djcard-meta">
             {entry.circle && (
-              <span className="rounded-full border border-[var(--color-line)] px-2 py-0.5">{entry.circle}</span>
+              <span className="djcard-meta-pill">
+                <span className="djcard-meta-dot" aria-hidden="true" />
+                {entry.circle}
+              </span>
             )}
             {entry.artist && (
-              <span className="rounded-full border border-[var(--color-line)] px-2 py-0.5">{entry.artist}</span>
+              <span className="djcard-meta-pill">
+                <span className="djcard-meta-dot" aria-hidden="true" />
+                {entry.artist}
+              </span>
             )}
           </div>
 
           {/* Parody & Language badges */}
-          <div className="flex flex-wrap gap-1">
+          <div className="djcard-badges">
             {entry.parody && entry.parody !== "Original" && (
-              <span className="rounded-full bg-[var(--color-magenta)]/10 px-2 py-0.5 text-[9px] font-mono text-[var(--color-magenta)]">
-                {entry.parody}
-              </span>
+              <span className="djcard-badge djcard-badge-parody">{entry.parody}</span>
             )}
-            <span className="rounded-full bg-[var(--color-cyan)]/10 px-2 py-0.5 text-[9px] font-mono text-[var(--color-cyan)] uppercase">
-              {entry.language}
-            </span>
+            <span className="djcard-badge djcard-badge-lang">{entry.language}</span>
             {entry.isTranslated && (
-              <span className="rounded-full bg-green-500/10 px-2 py-0.5 text-[9px] font-mono text-green-400">
-                Translated
-              </span>
+              <span className="djcard-badge djcard-badge-translated">Translated</span>
             )}
           </div>
 
           {/* Tags */}
-          <div className="flex flex-wrap gap-1">
+          <div className="djcard-tags">
             {entry.tags.slice(0, 3).map((tag) => (
-              <span key={tag} className="text-[9px] text-[var(--color-mute)] opacity-60">
-                #{tag}
-              </span>
+              <span key={tag} className="djcard-tag">#{tag}</span>
             ))}
           </div>
 
           {/* Pages & External link */}
-          <div className="mt-auto flex items-center justify-between pt-2 border-t border-[var(--color-line)]/50">
+          <div className="djcard-foot">
             {entry.pages ? (
-              <span className="text-[10px] font-mono text-[var(--color-mute)]">{entry.pages} pages</span>
+              <span className="djcard-pages">{entry.pages} pages</span>
             ) : (
               <span />
             )}
 
-            <div className="flex items-center gap-1">
+            <div className="djcard-actions">
               {/* Read Online button */}
               {entry.externalUrl && (
                 <a
                   href={entry.externalUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="rounded-md bg-[var(--color-cyan)]/10 px-4 py-2 text-xs font-semibold text-[var(--color-cyan)] hover:bg-[var(--color-cyan)]/20 transition-colors"
+                  className="djcard-read"
                 >
-                  Read ↗
+                  <span>Read ↗</span>
                 </a>
               )}
 
@@ -173,18 +179,14 @@ export default function DoujinshiCard({ entry, onTrack, trackedStatus, index = 0
                   <button
                     onClick={() => onTrack(entry.id, trackedStatus ? "" : "favorite")}
                     aria-pressed={Boolean(trackedStatus)}
-                    className={`rounded-md px-4 py-2 text-xs font-semibold transition-colors ${
-                      trackedStatus
-                        ? "bg-[var(--color-magenta)]/20 text-[var(--color-magenta)]"
-                        : "bg-[var(--color-panel)] border border-[var(--color-line)] text-[var(--color-mute)] hover:border-[var(--color-magenta)]"
-                    }`}
+                    className="djcard-track"
                   >
                     {trackedStatus ? "Tracked" : "Track"}
                   </button>
                 ) : (
                   <Link
                     href={`/login?next=${encodeURIComponent(`/doujinshi/${entry.id}`)}`}
-                    className="rounded-md border border-[var(--color-line)] px-3 py-2 text-xs font-semibold text-[var(--color-cyan)] transition-colors hover:border-[var(--color-cyan)]"
+                    className="djcard-signin"
                   >
                     Sign in
                   </Link>

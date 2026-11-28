@@ -3,13 +3,57 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
-import { searchMedia, bestTitle, type Media } from "@/lib/anilist";
+import { bestTitle, type Media } from "@/lib/anilist";
+import type {
+  WatchOrderCatalog,
+  WatchOrderCatalogItem,
+} from "@/lib/watch-order-catalog";
 import TiltCard from "@/components/TiltCard";
+
+const PAGE_SIZE = 36;
+const FORMATS = ["ALL", "TV", "MOVIE", "OVA", "ONA", "SPECIAL"] as const;
+type FormatFilter = (typeof FORMATS)[number];
+
+type AnimeCardItem = {
+  id: number;
+  title: string;
+  cover?: string;
+  format?: string;
+  episodes?: number;
+  score?: number;
+  badge?: string;
+  subtitle?: string;
+};
+
+function formatLabel(format?: string): string {
+  if (!format) return "";
+  if (format === "TV" || format === "OVA" || format === "ONA") return format;
+  if (format === "TV_SHORT") return "Short";
+  return format.charAt(0) + format.slice(1).toLowerCase();
+}
+
+function matchesCatalogItem(item: WatchOrderCatalogItem, query: string): boolean {
+  const values = [
+    item.title,
+    item.romaji,
+    item.native,
+    item.franchise,
+    item.stepTitle,
+    item.orderName,
+    ...item.genres,
+  ];
+  return values.some((value) => value?.toLowerCase().includes(query));
+}
 
 export default function WatchOrderPage() {
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [format, setFormat] = useState<FormatFilter>("ALL");
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [catalog, setCatalog] = useState<WatchOrderCatalog | null>(null);
+  const [catalogLoading, setCatalogLoading] = useState(true);
+  const [catalogError, setCatalogError] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [anilistResults, setAnilistResults] = useState<Media[]>([]);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
@@ -18,85 +62,35 @@ export default function WatchOrderPage() {
   const ref = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
+  // Load the verified 1,000+ anime catalog once from our cached internal API.
+  useEffect(() => {
+    const controller = new AbortController();
+    (async () => {
+      try {
+        const response = await fetch("/api/watch-order/catalog", {
+          signal: controller.signal,
+        });
+        if (!response.ok) throw new Error(`Catalog request failed: ${response.status}`);
+        const data = (await response.json()) as WatchOrderCatalog;
+        if (!controller.signal.aborted) setCatalog(data);
+      } catch {
+        if (!controller.signal.aborted) setCatalogError(true);
+      } finally {
+        if (!controller.signal.aborted) setCatalogLoading(false);
+      }
+    })();
+    return () => controller.abort();
+  }, []);
+
   // Debounce search query
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedQuery(query);
+      setVisibleCount(PAGE_SIZE);
       setPage(1);
     }, 300);
     return () => clearTimeout(timer);
   }, [query]);
-
-  // Fetch from AniList when debounced query changes
-  const fetchAniList = useCallback(async (searchQuery: string, pageNum: number, append: boolean) => {
-    if (!searchQuery.trim()) {
-      setAnilistResults([]);
-      setHasNextPage(false);
-      return;
-    }
-
-    // Cancel previous request
-    if (abortRef.current) abortRef.current.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    setLoading(true);
-    try {
-      const result = await searchMedia({
-        search: searchQuery,
-        type: "ANIME",
-        page: pageNum,
-        perPage: 50,
-        sort: "SEARCH_MATCH",
-      });
-      if (!controller.signal.aborted) {
-        if (append) {
-          setAnilistResults((prev) => [...prev, ...result.media]);
-        } else {
-          setAnilistResults(result.media);
-        }
-        setHasNextPage(result.pageInfo.hasNextPage);
-      }
-    } catch {
-      // Rate limited or error — silently fail
-    } finally {
-      if (!controller.signal.aborted) setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetchAniList(debouncedQuery, 1, false);
-  }, [debouncedQuery, fetchAniList]);
-
-  const loadMore = useCallback(() => {
-    if (!loading && hasNextPage) {
-      const nextPage = page + 1;
-      setPage(nextPage);
-      fetchAniList(debouncedQuery, nextPage, true);
-    }
-  }, [loading, hasNextPage, page, debouncedQuery, fetchAniList]);
-
-  // Filter watch-order guides
-  const filteredGuides = useMemo(() => {
-    if (!query.trim()) return WATCH_ORDERS;
-    const q = query.toLowerCase();
-    return WATCH_ORDERS.filter(
-      (o) =>
-        o.title.toLowerCase().includes(q) ||
-        o.description.toLowerCase().includes(q) ||
-        o.methods.some((m) => m.toLowerCase().includes(q)),
-    );
-  }, [query]);
-
-  // Merge: guides first, then AniList results (skip duplicates)
-  const allResults = useMemo(() => {
-    const guideIds = new Set(filteredGuides.map((g) => g.anilistId));
-    const uniqueAnilist = anilistResults.filter((m) => !guideIds.has(m.id));
-    return { guides: filteredGuides, anilist: uniqueAnilist };
-  }, [filteredGuides, anilistResults]);
-
-  const totalCount = allResults.guides.length + allResults.anilist.length;
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -107,6 +101,155 @@ export default function WatchOrderPage() {
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
+
+  const catalogItems = useMemo(() => catalog?.items ?? [], [catalog]);
+
+  const queryCatalogMatches = useMemo(() => {
+    if (!debouncedQuery.trim()) return catalogItems;
+    const q = debouncedQuery.trim().toLowerCase();
+    return catalogItems.filter((item) => matchesCatalogItem(item, q));
+  }, [catalogItems, debouncedQuery]);
+
+  const filteredCatalog = useMemo(() => {
+    if (format === "ALL") return queryCatalogMatches;
+    return queryCatalogMatches.filter((item) => item.format === format);
+  }, [queryCatalogMatches, format]);
+
+  // Filter the featured guides with the same debounced query.
+  const filteredGuides = useMemo(() => {
+    if (!debouncedQuery.trim()) return WATCH_ORDERS;
+    const q = debouncedQuery.trim().toLowerCase();
+    return WATCH_ORDERS.filter(
+      (o) =>
+        o.title.toLowerCase().includes(q) ||
+        o.description.toLowerCase().includes(q) ||
+        o.methods.some((m) => m.toLowerCase().includes(q)),
+    );
+  }, [debouncedQuery]);
+
+  const guideIds = useMemo(
+    () => new Set(filteredGuides.map((g) => g.anilistId)),
+    [filteredGuides],
+  );
+  const catalogMatchIds = useMemo(
+    () => new Set(queryCatalogMatches.map((item) => item.id)),
+    [queryCatalogMatches],
+  );
+  const uniqueCatalogMatches = useMemo(
+    () => filteredCatalog.filter((item) => !guideIds.has(item.id)),
+    [filteredCatalog, guideIds],
+  );
+  const uniqueAnilist = useMemo(
+    () =>
+      anilistResults.filter(
+        (m) => !guideIds.has(m.id) && !catalogMatchIds.has(m.id),
+      ),
+    [anilistResults, guideIds, catalogMatchIds],
+  );
+
+  const totalCount = filteredGuides.length + uniqueCatalogMatches.length + uniqueAnilist.length;
+
+  // AniList is only a fallback for anime the watch-order dataset doesn't know.
+  // It goes through our own rate-limited proxy instead of the browser calling
+  // the GraphQL endpoint directly.
+  const fetchAniList = useCallback(
+    async (searchQuery: string, pageNum: number, append: boolean) => {
+      if (abortRef.current) abortRef.current.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+
+      setLoading(true);
+      try {
+        const params = new URLSearchParams({
+          search: searchQuery,
+          type: "ANIME",
+          page: String(pageNum),
+          perPage: "30",
+          sort: "SEARCH_MATCH",
+        });
+        const response = await fetch(`/api/anilist/search-media?${params.toString()}`, {
+          signal: controller.signal,
+        });
+        if (!response.ok) throw new Error(`AniList search failed: ${response.status}`);
+        const result = (await response.json()) as {
+          media: Media[];
+          pageInfo?: { hasNextPage?: boolean };
+        };
+        if (!controller.signal.aborted) {
+          setAnilistResults((prev) => (append ? [...prev, ...result.media] : result.media));
+          setHasNextPage(Boolean(result.pageInfo?.hasNextPage));
+        }
+      } catch {
+        // Rate limited or offline — the catalog results stay usable.
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    },
+    [],
+  );
+
+  useEffect(() => {
+    const q = debouncedQuery.trim();
+    if (!q || (catalog && queryCatalogMatches.length >= 6)) {
+      if (abortRef.current) abortRef.current.abort();
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setAnilistResults([]);
+      setHasNextPage(false);
+      return;
+    }
+
+    fetchAniList(q, 1, false);
+    return () => {
+      if (abortRef.current) abortRef.current.abort();
+    };
+  }, [debouncedQuery, catalog, queryCatalogMatches.length, fetchAniList]);
+
+  const loadMoreAniList = useCallback(() => {
+    if (!loading && hasNextPage) {
+      const nextPage = page + 1;
+      setPage(nextPage);
+      fetchAniList(debouncedQuery.trim(), nextPage, true);
+    }
+  }, [loading, hasNextPage, page, debouncedQuery, fetchAniList]);
+
+  const selectFormat = (next: FormatFilter) => {
+    setFormat(next);
+    setVisibleCount(PAGE_SIZE);
+  };
+
+  const cardItems = useMemo<AnimeCardItem[]>(() => {
+    const fromCatalog = uniqueCatalogMatches.slice(0, visibleCount).map((item) => ({
+      id: item.id,
+      title: item.title,
+      cover: item.cover,
+      format: item.format,
+      episodes: item.episodes,
+      score: item.score,
+      badge:
+        item.sourceType === "auto"
+          ? "Auto-generated · AniList relations"
+          : item.franchise,
+      subtitle:
+        item.stepTitle && item.stepTitle !== item.title
+          ? item.stepTitle
+          : item.genres.slice(0, 3).join(" · ") || item.orderName,
+    }));
+    const fromAniList = uniqueAnilist.map((media) => ({
+      id: media.id,
+      title: bestTitle(media.title),
+      cover: media.coverImage?.large || media.coverImage?.medium,
+      format: media.format,
+      episodes: media.episodes,
+      score: media.averageScore,
+      badge: "Auto-generated · AniList search",
+      subtitle: media.genres?.slice(0, 3).join(" · ") || media.status || "",
+    }));
+    return [...fromCatalog, ...fromAniList];
+  }, [uniqueCatalogMatches, visibleCount, uniqueAnilist]);
+
+  const sourceUpdated = catalog?.source.lastUpdated
+    ? new Date(catalog.source.lastUpdated).toLocaleDateString()
+    : null;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 animate-page-in">
@@ -128,15 +271,15 @@ export default function WatchOrderPage() {
           </h1>
         </div>
         <p className="mt-2 text-[var(--color-mute)] max-w-2xl">
-          Search any anime — find watch order guides or explore the full catalog. Hundreds of anime at your fingertips.
+          Search {catalog?.counts.uniqueAnime.toLocaleString() ?? "1,000+"} anime across verified watch orders, or browse the featured franchise guides.
         </p>
       </div>
 
       {/* Search Bar */}
-      <div ref={ref} className="relative mb-8 max-w-xl">
+      <div ref={ref} className="relative mb-4 max-w-xl">
         <div className="neon-rgb-border relative flex items-center rounded-full bg-[var(--color-panel)]">
           <div className="pl-5 pr-1 flex items-center">
-            {loading ? (
+            {loading || (catalogLoading && !catalog) ? (
               <svg className="w-4 h-4 text-[var(--color-cyan)] animate-spin" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
@@ -154,7 +297,7 @@ export default function WatchOrderPage() {
             onKeyDown={(e) => {
               if (e.key === "Escape") inputRef.current?.blur();
             }}
-            placeholder="Search 200+ anime — try 'naruto', 'fate', 'evangelion'..."
+            placeholder={`Search ${catalog?.counts.uniqueAnime.toLocaleString() ?? "1,000+"} anime — try 'naruto', 'fate', 'evangelion'...`}
             className="flex-1 bg-transparent py-3.5 px-2 text-sm outline-none focus:outline-none focus-visible:outline-none placeholder-[var(--color-mute)]/60 text-[var(--color-ink)]"
           />
           {query && (
@@ -170,28 +313,79 @@ export default function WatchOrderPage() {
         </div>
       </div>
 
-      {/* Results count */}
-      <p className="mb-5 font-mono text-[11px] text-[var(--color-mute)] tracking-wider uppercase">
-        {query.trim()
-          ? `${totalCount} ${totalCount === 1 ? "result" : "results"} found`
-          : `${allResults.guides.length} watch order guides`}
+      {/* Format filters */}
+      <div className="mb-8 flex flex-wrap gap-2">
+        {FORMATS.map((option) => {
+          const active = format === option;
+          return (
+            <button
+              key={option}
+              onClick={() => selectFormat(option)}
+              className={`rounded-full border px-3 py-1.5 text-[10px] font-mono font-semibold transition-colors ${
+                active
+                  ? "border-[var(--color-cyan)]/40 bg-[var(--color-cyan)]/15 text-[var(--color-cyan)]"
+                  : "border-[var(--glass-border)] bg-[var(--glass-bg)] text-[var(--color-mute)] hover:border-[var(--color-cyan)]/30 hover:text-[var(--color-cyan)]"
+              }`}
+            >
+              {option === "ALL" ? "All formats" : formatLabel(option)}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Results count + source attribution */}
+      <p className="mb-2 font-mono text-[11px] text-[var(--color-mute)] tracking-wider uppercase">
+        {debouncedQuery.trim()
+          ? `${totalCount.toLocaleString()} ${totalCount === 1 ? "result" : "results"} found`
+          : `${filteredGuides.length} featured guides · ${catalog?.counts.uniqueAnime.toLocaleString() ?? "1,000+"} anime catalog`}
       </p>
+      {catalog && (
+        <p className="mb-5 text-[11px] text-[var(--color-mute)]/80">
+          {catalog.counts.curatedAnime.toLocaleString()} verified entries from{" "}
+          {catalog.source.wikiUrl ? (
+            <a href={catalog.source.wikiUrl} target="_blank" rel="noopener noreferrer" className="text-[var(--color-cyan)] hover:underline">
+              r/anime wiki
+            </a>
+          ) : (
+            "the r/anime wiki"
+          )}{" "}
+          via{" "}
+          <a href={catalog.source.repoUrl} target="_blank" rel="noopener noreferrer" className="text-[var(--color-cyan)] hover:underline">
+            Anime Watch Order API
+          </a>
+          {catalog.counts.autoGenerated > 0 && (
+            <>
+              {" · "}
+              {catalog.counts.autoGenerated.toLocaleString()} more via{" "}
+              <a href={catalog.source.anilistUrl} target="_blank" rel="noopener noreferrer" className="text-[var(--color-cyan)] hover:underline">
+                AniList relations
+              </a>{" "}
+              (auto-generated)
+            </>
+          )}
+          {sourceUpdated ? ` · updated ${sourceUpdated}` : ""}
+          {catalog.source.stale ? " (cached copy)" : ""}
+        </p>
+      )}
+      {catalogError && (
+        <p className="mb-5 text-[11px] text-[var(--color-amber)]">
+          Full catalog is temporarily unavailable — featured guides still work.
+        </p>
+      )}
 
       {/* Watch Order Guides Section */}
-      {allResults.guides.length > 0 && (
+      {filteredGuides.length > 0 && (
         <>
-          {query.trim() && (
-            <div className="mb-4 flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-magenta)]/10 px-3 py-1 text-[10px] font-semibold text-[var(--color-magenta)] border border-[var(--color-magenta)]/20">
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" />
-                </svg>
-                Watch Order Guides
-              </span>
-            </div>
-          )}
+          <div className="mb-4 flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-magenta)]/10 px-3 py-1 text-[10px] font-semibold text-[var(--color-magenta)] border border-[var(--color-magenta)]/20">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" />
+              </svg>
+              Featured Watch Order Guides
+            </span>
+          </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mb-8">
-            {allResults.guides.map((order, idx) => {
+            {filteredGuides.map((order, idx) => {
               const isHovered = hoveredId === order.id;
               return (
                 <TiltCard key={order.id} index={idx} className="h-full">
@@ -261,76 +455,96 @@ export default function WatchOrderPage() {
         </>
       )}
 
-      {/* AniList Search Results */}
-      {allResults.anilist.length > 0 && (
+      {/* Full catalog + AniList fallback */}
+      {cardItems.length > 0 && (
         <>
-          <div className="mb-4 flex items-center gap-2">
+          <div className="mb-4 flex flex-wrap items-center gap-2">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-cyan)]/10 px-3 py-1 text-[10px] font-semibold text-[var(--color-cyan)] border border-[var(--color-cyan)]/20">
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
               </svg>
-              All Anime
+              Full Anime Catalog
             </span>
+            {format !== "ALL" && (
+              <span className="rounded-full border border-[var(--color-magenta)]/20 bg-[var(--color-magenta)]/10 px-2.5 py-1 text-[10px] font-mono text-[var(--color-magenta)]">
+                {formatLabel(format)}
+              </span>
+            )}
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {allResults.anilist.map((media, idx) => (
-              <TiltCard key={media.id} index={idx} className="h-full">
-              <Link
-                href={`/watch-order/anime/${media.id}`}
-                className="group block h-full rounded-2xl border border-[var(--glass-border)] bg-[var(--glass-bg)] backdrop-blur-md overflow-hidden transition-all duration-300 hover:border-[var(--color-cyan)]/30 hover:shadow-[0_8px_40px_-12px_rgba(0,229,255,0.15)]"
-              >
-                <div className="relative h-40 sm:h-44 overflow-hidden">
-                  <Image
-                    src={media.coverImage?.large || media.coverImage?.medium || ""}
-                    alt={bestTitle(media.title)}
-                    fill
-                    sizes="(max-width: 768px) 100vw, 33vw"
-                    className="object-cover transition-transform duration-700 group-hover:scale-110"
-                    loading="lazy"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[var(--color-panel)] via-[var(--color-panel)]/30 to-transparent" />
-                  <div className="absolute top-3 left-3">
-                    <span className="inline-flex items-center gap-1 rounded-full bg-black/60 backdrop-blur-sm px-2.5 py-1 text-[10px] font-mono font-bold text-white/80 border border-white/10">
-                      {media.format && <span className="text-[var(--color-magenta)]">{media.format}</span>}
-                      {media.episodes && <span className="text-[var(--color-mute)]">{media.episodes} ep</span>}
-                    </span>
-                  </div>
-                  {media.averageScore && (
-                    <div className="absolute top-3 right-3">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-black/60 backdrop-blur-sm px-2 py-1 text-[10px] font-mono font-bold text-[var(--color-cyan)] border border-white/10">
-                        {media.averageScore}%
+            {cardItems.map((item, idx) => (
+              <TiltCard key={item.id} index={idx} className="h-full">
+                <Link
+                  href={`/watch-order/anime/${item.id}`}
+                  className="group block h-full rounded-2xl border border-[var(--glass-border)] bg-[var(--glass-bg)] backdrop-blur-md overflow-hidden transition-all duration-300 hover:border-[var(--color-cyan)]/30 hover:shadow-[0_8px_40px_-12px_rgba(0,229,255,0.15)]"
+                >
+                  <div className="relative h-40 sm:h-44 overflow-hidden bg-[var(--color-void)]">
+                    <Image
+                      src={item.cover || `https://img.anili.st/media/${item.id}`}
+                      alt={item.title}
+                      fill
+                      sizes="(max-width: 768px) 100vw, 33vw"
+                      className="object-cover transition-transform duration-700 group-hover:scale-110"
+                      loading="lazy"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[var(--color-panel)] via-[var(--color-panel)]/30 to-transparent" />
+                    <div className="absolute top-3 left-3">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-black/60 backdrop-blur-sm px-2.5 py-1 text-[10px] font-mono font-bold text-white/80 border border-white/10">
+                        {item.format && <span className="text-[var(--color-magenta)]">{formatLabel(item.format)}</span>}
+                        {item.episodes && <span className="text-[var(--color-mute)]">{item.episodes} ep</span>}
                       </span>
                     </div>
-                  )}
-                </div>
-                <div className="relative p-4 pt-3">
-                  <h3 className="font-display font-bold text-base truncate text-[var(--color-ink)] group-hover:text-[var(--color-cyan)] transition-colors duration-200">
-                    {bestTitle(media.title)}
-                  </h3>
-                  <p className="mt-1.5 text-xs text-[var(--color-mute)] leading-relaxed line-clamp-2">
-                    {media.genres?.slice(0, 3).join(" · ") || media.status || ""}
-                  </p>
-                  <div className="mt-3 flex items-center gap-1.5 text-[10px] font-semibold opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 text-[var(--color-cyan)]">
-                    View Watch Order
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                      <path d="M5 12h14" /><path d="m12 5 7 7-7 7" />
-                    </svg>
+                    {item.score ? (
+                      <div className="absolute top-3 right-3">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-black/60 backdrop-blur-sm px-2 py-1 text-[10px] font-mono font-bold text-[var(--color-cyan)] border border-white/10">
+                          {item.score}%
+                        </span>
+                      </div>
+                    ) : null}
                   </div>
+                  <div className="relative p-4 pt-3">
+                    <h3 className="font-display font-bold text-base truncate text-[var(--color-ink)] group-hover:text-[var(--color-cyan)] transition-colors duration-200">
+                      {item.title}
+                    </h3>
+                    <p className="mt-1.5 text-xs text-[var(--color-mute)] leading-relaxed line-clamp-2">
+                      {item.subtitle}
+                    </p>
+                    {item.badge && (
+                      <p className="mt-2 truncate font-mono text-[10px] text-[var(--color-cyan)]/70">
+                        {item.badge}
+                      </p>
+                    )}
+                    <div className="mt-3 flex items-center gap-1.5 text-[10px] font-semibold opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 text-[var(--color-cyan)]">
+                      View Watch Order
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <path d="M5 12h14" /><path d="m12 5 7 7-7 7" />
+                      </svg>
+                    </div>
                   </div>
                 </Link>
               </TiltCard>
             ))}
           </div>
 
-          {/* Load More */}
-          {hasNextPage && (
+          {visibleCount < uniqueCatalogMatches.length && (
             <div className="mt-8 text-center">
               <button
-                onClick={loadMore}
-                disabled={loading}
-                className="rounded-full border border-[var(--color-cyan)]/30 bg-[var(--color-cyan)]/10 px-6 py-2.5 text-xs font-semibold text-[var(--color-cyan)] hover:bg-[var(--color-cyan)]/20 transition-all disabled:opacity-50"
+                onClick={() => setVisibleCount((count) => count + PAGE_SIZE)}
+                className="rounded-full border border-[var(--color-cyan)]/30 bg-[var(--color-cyan)]/10 px-6 py-2.5 text-xs font-semibold text-[var(--color-cyan)] hover:bg-[var(--color-cyan)]/20 transition-all"
               >
-                {loading ? "Loading..." : "Load More Anime"}
+                Load more anime ({(uniqueCatalogMatches.length - visibleCount).toLocaleString()} left)
+              </button>
+            </div>
+          )}
+
+          {hasNextPage && (
+            <div className="mt-4 text-center">
+              <button
+                onClick={loadMoreAniList}
+                disabled={loading}
+                className="rounded-full border border-[var(--glass-border)] bg-[var(--glass-bg)] px-5 py-2 text-xs font-semibold text-[var(--color-mute)] hover:text-[var(--color-cyan)] transition-all disabled:opacity-50"
+              >
+                {loading ? "Loading..." : "More AniList results"}
               </button>
             </div>
           )}
@@ -338,7 +552,7 @@ export default function WatchOrderPage() {
       )}
 
       {/* Empty State */}
-      {query.trim() && !loading && allResults.guides.length === 0 && allResults.anilist.length === 0 && (
+      {!catalogLoading && debouncedQuery.trim() && !loading && totalCount === 0 && (
         <div className="col-span-full flex flex-col items-center justify-center py-20 text-center">
           <div className="mb-4 h-16 w-16 rounded-full bg-[var(--color-panel)] neon-rgb-border flex items-center justify-center">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-[var(--color-mute)]">

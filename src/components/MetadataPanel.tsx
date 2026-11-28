@@ -16,7 +16,14 @@ interface AnimeMetadata {
   endings: string[];
 }
 
-export default function MetadataPanel({ mediaId }: { mediaId: number }) {
+export default function MetadataPanel({
+  mediaId,
+  internalOnly = false,
+}: {
+  mediaId: number;
+  /** Anime detail pages stay on-site; external source links are omitted. */
+  internalOnly?: boolean;
+}) {
   const [meta, setMeta] = useState<AnimeMetadata | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -80,7 +87,7 @@ export default function MetadataPanel({ mediaId }: { mediaId: number }) {
           {meta.endings.map((ed, i) => <div key={i} className="text-xs text-white/70">ED{i + 1}: {ed}</div>)}
         </div>
       )}
-      {meta.external.length > 0 && (
+      {!internalOnly && meta.external.length > 0 && (
         <div>
           <span className="text-white/50 block mb-1">External Links</span>
           {meta.external.slice(0, 5).map((e, i) => (

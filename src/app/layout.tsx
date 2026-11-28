@@ -17,6 +17,7 @@ import HumanVerificationGate from "@/components/HumanVerificationGate";
 import MobileNav from "@/components/MobileNav";
 import AdBanner from "@/components/AdBanner";
 import DeferredWidgets from "@/components/DeferredWidgets";
+import SplashScreen from "@/components/SplashScreen";
 import NativeBannerAd from "@/components/NativeBannerAd";
 import OnboardingGate from "@/components/OnboardingGate";
 import ChristmasSnow from "@/components/ChristmasSnow";
@@ -131,8 +132,16 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Browser extensions (e.g. Liner) inject data-* attributes into <html>/<body>
+  // before React hydrates. suppressHydrationWarning is intentionally shallow:
+  // it hides only those attribute diffs, never a mismatched child tree.
   return (
-    <html lang="en" className={`h-full antialiased ${rajdhani.variable} ${inter.variable} ${jetbrainsMono.variable}`} data-scroll-behavior="smooth">
+    <html
+      lang="en"
+      className={`h-full antialiased ${rajdhani.variable} ${inter.variable} ${jetbrainsMono.variable}`}
+      data-scroll-behavior="smooth"
+      suppressHydrationWarning
+    >
       <head>
         <link rel="preconnect" href="https://img.anili.st" />
         <link rel="preconnect" href="https://s4.anilist.co" />
@@ -277,7 +286,11 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="min-h-full flex flex-col pb-[calc(4.25rem+env(safe-area-inset-bottom))] md:pb-0">
+      <body
+        className="min-h-full flex flex-col pb-[calc(4.25rem+env(safe-area-inset-bottom))] md:pb-0"
+        suppressHydrationWarning
+      >
+        <SplashScreen />
         <HumanVerificationGate />
         <Script
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5241033119281791"

@@ -98,16 +98,21 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: "Anime not found" }, { status: 404 });
   }
 
+  const refresh = req.nextUrl.searchParams.get("refresh") === "1";
   const session = await auth();
   const userKey = card === "taste" ? `${session?.user?.id ?? "anon"}:${animeId}` : String(animeId);
   const cacheKey = aiCacheKey(card, userKey);
 
   // Public cards (theory/fancast/s2predict/dreamteam) are servable from cache
   // without login - keeps the viral content free. Only GENERATION needs auth.
-  const cached = await prisma.aiCache.findUnique({ where: { key: cacheKey } }).catch(() => null);
+  // `refresh=1` deliberately skips the cache so "New card" actually generates
+  // a fresh response; it still goes through auth + quota below.
+  const cached = refresh
+    ? null
+    : await prisma.aiCache.findUnique({ where: { key: cacheKey } }).catch(() => null);
   if (cached) {
     const parsed = parseGeminiJson<unknown>(cached.response);
-    if (parsed) return NextResponse.json({ fromCache: true, card: parsed });
+    if (parsed) return NextResponse.json({ fromCache: true, fresh: false, card: parsed });
     await prisma.aiCache.delete({ where: { key: cacheKey } }).catch(() => {});
   }
 
@@ -163,9 +168,15 @@ Rules:
     prompt = buildMediaContext(anime);
   }
 
+  // A fresh generation must not hit the existing cache, so it writes to a
+  // one-off key first and only replaces the canonical public cache on success.
+  const generationKey = refresh
+    ? aiCacheKey(`${card}:fresh`, `${userKey}:${session.user.id}:${Date.now()}`)
+    : cacheKey;
+
   let raw: string;
   try {
-    raw = await geminiGenerate({ system, prompt, json: true, cacheKey });
+    raw = await geminiGenerate({ system, prompt, json: true, cacheKey: generationKey });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "";
     if (msg.includes("429") || msg.includes("Gemini 5")) {
@@ -176,9 +187,20 @@ Rules:
 
   const parsed = parseGeminiJson<unknown>(raw);
   if (!parsed) {
-    await prisma.aiCache.delete({ where: { key: cacheKey } }).catch(() => {});
+    await prisma.aiCache.delete({ where: { key: generationKey } }).catch(() => {});
     return NextResponse.json({ error: "Zyni AI returned a bad response — try again." }, { status: 502 });
   }
 
-  return NextResponse.json({ fromCache: false, card: parsed });
+  if (refresh) {
+    await prisma.aiCache
+      .upsert({
+        where: { key: cacheKey },
+        update: { response: raw, kind: card },
+        create: { key: cacheKey, kind: card, response: raw },
+      })
+      .catch(() => {});
+    await prisma.aiCache.delete({ where: { key: generationKey } }).catch(() => {});
+  }
+
+  return NextResponse.json({ fromCache: false, fresh: refresh, card: parsed });
 }

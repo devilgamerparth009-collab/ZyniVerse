@@ -91,10 +91,12 @@ export function canonicalLocation(pageType: string): string {
     "manga-detail-inline", "character-inline", "alternatives-inline", "forum-anime-inline",
     "staff-inline", "anime-detail-inline", "watch-inline", "manga-read-inline",
     "character-sidebar", "staff-sidebar",
+    "light-novel-detail", "light-novel-detail-inline",
   ];
   const bannerPages  = [
     "homepage", "filler", "global-footer", "forum", "recommendations", "banner",
     "character-bottom", "staff-bottom", "anime-bottom", "manga-bottom", "watch-bottom", "manga-read-bottom",
+    "light-novel-bottom",
   ];
   if (sidebarPages.includes(pageType)) return "sidebar";
   if (bannerPages.includes(pageType))  return "banner";
@@ -115,6 +117,8 @@ export function canonicalLocation(pageType: string): string {
  *   "manga"           → sidebar (300×250)
  *   "manga-detail"    → sidebar (300×250)
  *   "anime-detail"    → sidebar (300×250)
+ *   "light-novel-detail" → sidebar (300×250)
+ *   "light-novel-bottom" → banner (728×90)
  *   "in-content"      → native banner
  *   "global"          → social bar
  *

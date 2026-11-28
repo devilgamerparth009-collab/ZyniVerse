@@ -8,7 +8,7 @@ const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "https://zyverse.in";
 export const metadata: Metadata = {
   title: "Hindi Dubbed Anime Series — Full Catalogue (2026)",
   description:
-    "Browse every Hindi, Tamil, Telugu, Bengali, Malayalam and Kannada dubbed anime series with posters, genres and language tags. Filter by language, genre or rating and jump to the source episode list.",
+    "Browse Hindi, Tamil, Telugu, Bengali, Malayalam and Kannada dubbed anime series with posters, genres and language tags. Filter by language, genre or rating and open any title for details.",
   keywords: [
     "hindi dubbed anime series", "hindi dub anime list", "anime series in hindi",
     "tamil dubbed anime series", "telugu dubbed anime series", "hindi dub catalogue",

@@ -1,0 +1,264 @@
+/* On-air episode ticker. Seamless CSS marquee with hover/focus pause,
+   designed chips and reduced-motion fallbacks. No API calls added. */
+
+.section {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-top: 1px solid color-mix(in srgb, var(--color-magenta) 26%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-cyan) 22%, transparent);
+  background:
+    radial-gradient(620px 100% at 0% 0%, rgba(255, 45, 120, 0.12), transparent 62%),
+    linear-gradient(90deg, rgba(18, 17, 30, 0.96), rgba(10, 10, 15, 0.88));
+  box-shadow: 0 18px 45px -38px var(--color-magenta);
+}
+
+.section::before,
+.section::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 3;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--color-magenta), var(--color-cyan), transparent);
+  background-size: 200% 100%;
+  opacity: 0.85;
+  pointer-events: none;
+  animation: flow 6s linear infinite;
+}
+
+.section::before {
+  top: 0;
+}
+
+.section::after {
+  bottom: 0;
+  animation-direction: reverse;
+}
+
+.badge {
+  position: relative;
+  z-index: 2;
+  display: none;
+  align-items: center;
+  gap: 0.55rem;
+  flex-shrink: 0;
+  border-right: 1px solid color-mix(in srgb, var(--color-magenta) 38%, transparent);
+  background: linear-gradient(90deg, rgba(255, 45, 120, 0.18), rgba(41, 242, 224, 0.06));
+  padding: 0.55rem 1rem;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  color: #ff9df0;
+  text-shadow: 0 0 12px rgba(255, 45, 120, 0.7);
+  white-space: nowrap;
+}
+
+@media (min-width: 640px) {
+  .badge {
+    display: flex;
+  }
+}
+
+.equalizer {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 0.8rem;
+}
+
+.equalizer span {
+  width: 2px;
+  height: 100%;
+  border-radius: 9999px;
+  background: var(--color-magenta);
+  box-shadow: 0 0 8px var(--color-magenta);
+  transform-origin: bottom;
+  animation: equalize 1.1s ease-in-out infinite;
+}
+
+.equalizer span:nth-child(1) {
+  height: 45%;
+  animation-delay: -0.2s;
+}
+
+.equalizer span:nth-child(2) {
+  height: 85%;
+  animation-delay: -0.55s;
+}
+
+.equalizer span:nth-child(3) {
+  height: 60%;
+}
+
+.window {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  overflow: hidden;
+  padding: 0.55rem 0;
+  mask-image: linear-gradient(90deg, transparent, #000 3.5rem, #000 calc(100% - 3.5rem), transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 3.5rem, #000 calc(100% - 3.5rem), transparent);
+}
+
+.track {
+  display: flex;
+  width: max-content;
+  white-space: nowrap;
+  will-change: transform;
+  animation: marquee 60s linear infinite;
+}
+
+.window:hover .track,
+.window:focus-within .track {
+  animation-play-state: paused;
+}
+
+@media (hover: none) {
+  .track {
+    animation-duration: 90s;
+  }
+}
+
+.item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-shrink: 0;
+  margin-right: 0.35rem;
+  border: 1px solid transparent;
+  border-radius: 9999px;
+  padding: 0.35rem 0.65rem;
+  color: #f0eef8;
+  text-decoration: none;
+  transition: transform 0.25s ease, border-color 0.25s ease, background 0.25s ease;
+}
+
+.item:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--color-magenta) 38%, transparent);
+  background: linear-gradient(90deg, rgba(255, 45, 120, 0.14), rgba(41, 242, 224, 0.08));
+}
+
+.dot {
+  width: 0.4rem;
+  height: 0.4rem;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  background: var(--color-magenta);
+  box-shadow: 0 0 9px 2px var(--color-magenta);
+  animation: pulseDot 1.6s ease-in-out infinite;
+}
+
+.title {
+  font-family: var(--font-display, inherit);
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #f0eef8;
+  transition: color 0.25s ease, text-shadow 0.25s ease;
+}
+
+.item:hover .title {
+  color: #baffff;
+  text-shadow: 0 0 8px rgba(0, 255, 240, 0.75);
+}
+
+.episode {
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 38%, transparent);
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--color-cyan) 11%, transparent);
+  padding: 0.12rem 0.4rem;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--color-cyan);
+  text-shadow: 0 0 8px rgba(0, 229, 255, 0.45);
+  transition: box-shadow 0.25s ease;
+}
+
+.item:hover .episode {
+  box-shadow: 0 0 16px -4px var(--color-cyan);
+}
+
+.separator {
+  display: inline-block;
+  margin-left: 0.2rem;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.75rem;
+  color: color-mix(in srgb, var(--color-magenta) 62%, transparent);
+  opacity: 0.75;
+  transition: color 0.25s ease, opacity 0.25s ease, transform 0.25s ease;
+}
+
+.item:hover .separator {
+  color: var(--color-cyan);
+  opacity: 1;
+  transform: translateX(2px);
+}
+
+@keyframes marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes flow {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes pulseDot {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(0.75);
+  }
+}
+
+@keyframes equalize {
+  0%,
+  100% {
+    transform: scaleY(0.45);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .track,
+  .dot,
+  .equalizer span,
+  .section::before,
+  .section::after {
+    animation: none !important;
+  }
+
+  .track {
+    will-change: auto;
+  }
+
+  .item,
+  .title,
+  .episode,
+  .separator,
+  .equalizer span {
+    transition: none !important;
+  }
+
+  .item:hover,
+  .item:hover .separator {
+    transform: none;
+  }
+}

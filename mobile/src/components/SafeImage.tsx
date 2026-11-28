@@ -1,22 +1,13 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Animated,
-  Easing,
-  Image,
-  StyleSheet,
-  Text,
-  View,
-  type ImageStyle,
-  type StyleProp,
-  type ViewStyle,
-} from 'react-native';
-import { mediaImageUrl } from '../services/api';
+import React, { useMemo, useState } from 'react';
+import { StyleSheet, Text, View, type ImageStyle, type StyleProp, type ViewStyle } from 'react-native';
+import { imageCandidates } from '../lib/avatar-src';
 import { useTheme } from '../hooks/useTheme';
+import ImageWithFallback from './ImageWithFallback';
 
 type ResizeMode = 'cover' | 'contain' | 'stretch' | 'repeat' | 'center';
 
 interface Props {
-  /** Raw artwork URL. Proxied/normalised internally; may be null or malformed. */
+  /** Raw artwork URL. Direct URL is tried first, cached proxy second. */
   uri?: string | null;
   /** Applies to the outer box (width, height, radius, borders, absolute fill). */
   style?: StyleProp<ViewStyle>;
@@ -29,13 +20,7 @@ interface Props {
   accessibilityLabel?: string;
 }
 
-/**
- * Artwork wrapper that can never leave a blank hole in the UI.
- *
- * A branded placeholder is always painted first. The image fades in only after
- * a successful load; a failed or missing URL simply leaves the placeholder in
- * place instead of hiding an image at opacity 0 forever.
- */
+/** Artwork wrapper that can never leave a blank hole in the UI. */
 export default function SafeImage({
   uri,
   style,
@@ -46,28 +31,12 @@ export default function SafeImage({
   accessibilityLabel,
 }: Props) {
   const { colors } = useTheme();
-  const resolved = useMemo(() => mediaImageUrl(uri), [uri]);
+  const sources = useMemo(() => imageCandidates(uri), [uri]);
   const [failed, setFailed] = useState(false);
-  const opacity = useRef(new Animated.Value(0)).current;
 
-  useEffect(() => {
+  React.useEffect(() => {
     setFailed(false);
-    opacity.setValue(0);
-  }, [resolved, opacity]);
-
-  const onLoad = () => {
-    Animated.timing(opacity, {
-      toValue: 1,
-      duration: 260,
-      easing: Easing.out(Easing.quad),
-      useNativeDriver: true,
-    }).start();
-  };
-
-  const onError = () => {
-    opacity.setValue(0);
-    setFailed(true);
-  };
+  }, [uri]);
 
   const label = fallbackLabel?.trim() || 'ZyniVerse';
 
@@ -82,14 +51,13 @@ export default function SafeImage({
         </Text>
       </View>
 
-      {resolved && !failed ? (
-        <Animated.Image
-          source={{ uri: resolved }}
-          style={[StyleSheet.absoluteFillObject, imageStyle, { opacity }]}
+      {!failed && sources.length > 0 ? (
+        <ImageWithFallback
+          sources={sources}
+          style={[StyleSheet.absoluteFillObject, imageStyle]}
           resizeMode={resizeMode}
           blurRadius={blurRadius}
-          onLoad={onLoad}
-          onError={onError}
+          onGiveUp={() => setFailed(true)}
         />
       ) : null}
     </View>

@@ -1,7 +1,7 @@
 /**
  * Community cold-start seed.
  *
- * Seeds first-party (clearly attributed to the ZyniBot system account) forum
+ * Seeds first-party (clearly attributed to the ZyniVerse system account) forum
  * threads, polls, clubs, club posts, challenges and quote moments so that the
  * community surfaces don't render empty on a brand-new database.
  *
@@ -245,7 +245,7 @@ async function main() {
     create: {
       id: SYSTEM_USER_ID,
       email: "system@zyverse.in",
-      username: "ZyniBot",
+      username: "ZyniVerse",
       bio: "Official ZyniVerse account — wiki, community and challenge curators.",
       provider: "credentials",
     },

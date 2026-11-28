@@ -100,44 +100,65 @@ export default function AgeGate({
 
   if (state === "checking") {
     return (
-      <div className="mx-auto max-w-2xl px-4 py-24" aria-busy="true">
-        <div className="h-40 animate-pulse rounded-3xl border border-white/10 bg-[var(--color-panel)]/40" />
+      <div className="agv-checking" aria-busy="true">
+        <div className="agv-skeleton">
+          <span className="agv-skeleton-chip" />
+          <span className="agv-skeleton-line agv-skeleton-line-lg" />
+          <span className="agv-skeleton-line" />
+          <span className="agv-skeleton-line agv-skeleton-line-sm" />
+        </div>
       </div>
     );
   }
 
   if (state === "locked") {
     return (
-      <main className="mx-auto flex min-h-[70vh] max-w-2xl flex-col justify-center px-4 py-16">
+      <main className="agv-page">
+        <span className="agv-orb agv-orb-left" aria-hidden="true" />
+        <span className="agv-orb agv-orb-right" aria-hidden="true" />
+        <span className="agv-grid" aria-hidden="true" />
+
         <section
           role="dialog"
           aria-modal="true"
           aria-labelledby="age-gate-title"
-          className="rounded-3xl border border-[var(--color-magenta)]/40 bg-gradient-to-br from-[#1a0b14] via-[#12080f] to-[#0a0a0f] p-6 shadow-[0_0_40px_-12px_var(--color-magenta)] sm:p-8"
+          aria-describedby="age-gate-copy"
+          className="agv-card"
         >
-          <div className="mb-5 flex items-center gap-3">
-            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[var(--color-magenta)] to-[var(--color-violet)] text-lg font-black text-black">
-              18+
+          <span className="agv-scan" aria-hidden="true" />
+
+          <div className="agv-topline">
+            <span className="agv-kicker">
+              <span className="agv-kicker-dot" aria-hidden="true" />
+              Age check required
             </span>
-            <div>
-              <h1 id="age-gate-title" className="font-display text-2xl font-bold text-[var(--color-ink)]">
+            <span className="agv-code" aria-hidden="true">
+              ZV · 18+
+            </span>
+          </div>
+
+          <div className="agv-head">
+            <div className="agv-seal" aria-hidden="true">
+              <span className="agv-seal-ring" />
+              <span className="agv-seal-core">18+</span>
+            </div>
+            <div className="agv-head-copy">
+              <h1 id="age-gate-title" className="agv-title">
                 Adults only
               </h1>
-              <p className="text-xs font-mono uppercase tracking-widest text-[var(--color-mute)]">
-                Age-restricted metadata
-              </p>
+              <p className="agv-subtitle">Age-restricted metadata</p>
             </div>
           </div>
 
-          <div className="space-y-3 text-sm leading-relaxed text-[var(--color-mute)]">
+          <div id="age-gate-copy" className="agv-copy">
             <p>
               You are about to open {subject}, which may include mature themes,
               adult language and sexual content references. It is intended for
-              people aged <strong className="text-[var(--color-ink)]">18 or older</strong>.
+              people aged <strong>18 or older</strong>.
             </p>
             <p>
-              ZyniVerse hosts <strong className="text-[var(--color-ink)]">no explicit images or video</strong>.
-              This section shows catalogue metadata only and links out to lawful,
+              ZyniVerse hosts <strong>no explicit images or video</strong>. This
+              section shows catalogue metadata only and links out to lawful,
               external sources that are responsible for their own content.
             </p>
             <p>
@@ -146,26 +167,19 @@ export default function AgeGate({
             </p>
           </div>
 
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-            <button
-              type="button"
-              onClick={accept}
-              className="flex-1 rounded-xl bg-gradient-to-r from-[var(--color-magenta)] to-[var(--color-violet)] px-5 py-3 text-sm font-bold text-black transition-opacity hover:opacity-90"
-            >
-              I am 18 or older — Enter
+          <div className="agv-actions">
+            <button type="button" onClick={accept} className="agv-btn agv-btn-primary">
+              <span>I am 18 or older — Enter</span>
             </button>
-            <Link
-              href="/"
-              className="flex-1 rounded-xl border border-white/15 px-5 py-3 text-center text-sm font-semibold text-[var(--color-ink)] transition-colors hover:border-white/30"
-            >
-              Take me back
+            <Link href="/" className="agv-btn agv-btn-secondary">
+              <span>Take me back</span>
             </Link>
           </div>
 
-          <p className="mt-4 text-[11px] leading-relaxed text-[var(--color-mute)]/80">
-            Your choice is stored only in this browser. Clearing site data resets it.
-            Read our{" "}
-            <Link href="/privacy" className="underline hover:text-[var(--color-cyan)]">
+          <p className="agv-privacy">
+            Your choice is stored only in this browser. Clearing site data resets
+            it. Read our{" "}
+            <Link href="/privacy" className="agv-privacy-link">
               privacy policy
             </Link>
             .
@@ -177,20 +191,21 @@ export default function AgeGate({
 
   return (
     <>
-      <div className="border-b border-[var(--color-magenta)]/25 bg-[var(--color-magenta)]/5">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2 px-4 py-2 sm:px-6">
-          <p className="text-xs font-medium text-[var(--color-mute)]">
-            <span className="mr-2 rounded bg-[var(--color-magenta)]/20 px-1.5 py-0.5 font-mono text-[10px] font-bold text-[var(--color-magenta)]">
-              18+
+      <div className="agv-banner">
+        <span className="agv-banner-glow" aria-hidden="true" />
+        <div className="agv-banner-inner">
+          <p className="agv-banner-copy">
+            <span className="agv-badge">18+</span>
+            <span className="agv-banner-shield" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+                <path d="M12 3l7 3v5.5c0 4.6-3 8.2-7 9.5-4-1.3-7-4.9-7-9.5V6l7-3z" />
+                <path d="M9.5 12.2l1.7 1.7 3.4-3.6" />
+              </svg>
             </span>
-            Mature metadata only — no explicit media is hosted here.
+            <span className="agv-banner-text">Mature metadata only — no explicit media is hosted here.</span>
           </p>
-          <button
-            type="button"
-            onClick={exit}
-            className="text-xs font-semibold text-[var(--color-mute)] underline decoration-dotted hover:text-[var(--color-ink)]"
-          >
-            Exit 18+ section
+          <button type="button" onClick={exit} className="agv-exit">
+            <span>Exit 18+ section</span>
           </button>
         </div>
       </div>

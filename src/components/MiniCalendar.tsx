@@ -24,12 +24,14 @@ export default function MiniCalendar({
   endDate,
   name,
   buttonClassName,
+  panelClassName,
   label = "Calendar",
 }: {
   startDate: string;
   endDate: string;
   name: string;
   buttonClassName?: string;
+  panelClassName?: string;
   label?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -127,7 +129,7 @@ export default function MiniCalendar({
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 8, scale: 0.96 }}
               transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-              className="fixed z-[100] w-[284px] rounded-2xl border border-[var(--color-line)] bg-[rgba(13,13,22,0.98)] shadow-2xl shadow-black/60 backdrop-blur-xl p-4"
+              className={`fixed z-[100] w-[284px] rounded-2xl border border-[var(--color-line)] bg-[rgba(13,13,22,0.98)] shadow-2xl shadow-black/60 backdrop-blur-xl p-4 ${panelClassName || ""}`}
               style={{ top: pos.top, left: pos.left }}
             >
               {/* Header: month nav + range */}

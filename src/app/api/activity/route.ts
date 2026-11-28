@@ -17,6 +17,9 @@ export async function GET(req: NextRequest) {
     const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 50);
     const offset = parseInt(searchParams.get("offset") || "0");
     const targetUserId = searchParams.get("userId");
+    const feedType = searchParams.get("type");
+    const requestFollowing = feedType === "following";
+    const requestGlobal = feedType === "global";
 
     if (targetUserId) {
       const [rawActivities, total] = await Promise.all([
@@ -47,14 +50,33 @@ export async function GET(req: NextRequest) {
 
     const session = await auth();
     if (!session?.user?.id) {
+      // A following feed was explicitly requested: an empty result here is
+      // meaningful, not a reason to show strangers under "Friend Activity".
+      if (requestFollowing) {
+        return NextResponse.json({
+          activities: [], total: 0, fallback: false,
+          scope: "following", reason: "not_signed_in",
+        });
+      }
       const { activities, total } = await fetchGlobal();
-      return NextResponse.json({ activities, total, fallback: true });
+      return NextResponse.json({ activities, total, fallback: true, scope: "global" });
+    }
+
+    if (requestGlobal) {
+      const { activities, total } = await fetchGlobal();
+      return NextResponse.json({ activities, total, fallback: true, scope: "global" });
     }
 
     const followCount = await prisma.follow.count({ where: { followerId: session.user.id } });
     if (followCount === 0) {
+      if (requestFollowing) {
+        return NextResponse.json({
+          activities: [], total: 0, fallback: false,
+          scope: "following", reason: "no_follows",
+        });
+      }
       const { activities, total } = await fetchGlobal();
-      return NextResponse.json({ activities, total, fallback: true });
+      return NextResponse.json({ activities, total, fallback: true, scope: "global" });
     }
 
     const following = await prisma.follow.findMany({
@@ -70,7 +92,7 @@ export async function GET(req: NextRequest) {
     ]);
     const activities = await enrichActivities(rawActivities);
 
-    return NextResponse.json({ activities, total, fallback: false });
+    return NextResponse.json({ activities, total, fallback: false, scope: "following" });
   } catch (error) {
     console.error("Activity feed error:", error);
     return NextResponse.json({ activities: [], total: 0, fallback: true }, { status: 500 });

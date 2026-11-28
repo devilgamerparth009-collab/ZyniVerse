@@ -72,15 +72,62 @@ describe("proxy - /forum/create", () => {
 
 describe("proxy - crawler reporting", () => {
   it("reports a crawler hit on a content page", async () => {
-    const { event, waitUntil } = makeEvent();
-    await proxy(makeRequest("https://zyverse.in/anime/1", GOOGLEBOT), event);
-    expect(waitUntil).toHaveBeenCalledTimes(1);
+    // Reporting is sampled (10% by default); pin it so this test is not flaky.
+    const previous = process.env.BOT_HIT_REPORT_SAMPLE_RATE;
+    process.env.BOT_HIT_REPORT_SAMPLE_RATE = "1";
+    try {
+      const { event, waitUntil } = makeEvent();
+      await proxy(makeRequest("https://zyverse.in/anime/1", GOOGLEBOT), event);
+      expect(waitUntil).toHaveBeenCalledTimes(1);
+    } finally {
+      if (previous === undefined) delete process.env.BOT_HIT_REPORT_SAMPLE_RATE;
+      else process.env.BOT_HIT_REPORT_SAMPLE_RATE = previous;
+    }
   });
 
   it("does not report human traffic", async () => {
     const { event, waitUntil } = makeEvent();
     await proxy(await verifiedHumanRequest("https://zyverse.in/anime/1"), event);
     expect(waitUntil).not.toHaveBeenCalled();
+  });
+});
+
+describe("proxy - noindex mirror protection", () => {
+  const TRAINING_BOT = "Mozilla/5.0 (compatible; GPTBot/1.0; +https://openai.com/gptbot)";
+  const SEO_BOT = "Mozilla/5.0 (compatible; AhrefsBot/7.0; +http://ahrefs.com/robot/)";
+
+  it("hard-404s training/SEO crawlers before a mirror page is rendered", async () => {
+    const { event, waitUntil } = makeEvent();
+    for (const url of ["/character/123", "/staff/42", "/manga/9", "/manga/9/chapters"]) {
+      for (const ua of [TRAINING_BOT, SEO_BOT, undefined]) {
+        const res = await proxy(makeRequest(`https://zyverse.in${url}`, ua), event);
+        expect(res.status).toBe(404);
+        expect(res.headers.get("x-robots-tag")).toContain("noindex");
+      }
+    }
+    expect(waitUntil).not.toHaveBeenCalled();
+  });
+
+  it("still lets discovery crawlers, social unfurlers and people through", async () => {
+    const { event } = makeEvent();
+    const twitter = "Twitterbot/1.0";
+    for (const ua of [GOOGLEBOT, twitter, HUMAN]) {
+      const res = await proxy(makeRequest("https://zyverse.in/character/123", ua), event);
+      expect(isNext(res)).toBe(true);
+    }
+    const verified = await proxy(
+      await verifiedHumanRequest("https://zyverse.in/manga/9"),
+      event,
+    );
+    expect(isNext(verified)).toBe(true);
+  });
+
+  it("leaves section roots reachable", async () => {
+    const { event } = makeEvent();
+    for (const url of ["/character", "/staff", "/manga"]) {
+      const res = await proxy(makeRequest(`https://zyverse.in${url}`, TRAINING_BOT), event);
+      expect(res.status).not.toBe(404);
+    }
   });
 });
 

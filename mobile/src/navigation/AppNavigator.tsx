@@ -4,6 +4,10 @@ import { RootStackParamList } from './types';
 import TabNavigator from './TabNavigator';
 import AnimeDetailScreen from '../screens/AnimeDetailScreen';
 import FillerGuideScreen from '../screens/FillerGuideScreen';
+import FillerLibraryScreen from '../screens/FillerLibraryScreen';
+import TrackerScreen from '../screens/TrackerScreen';
+import CommunityHubScreen from '../screens/CommunityHubScreen';
+import LocalChatsScreen from '../screens/LocalChatsScreen';
 import BrowseScreen from '../screens/BrowseScreen';
 import DubbedScreen from '../screens/DubbedScreen';
 import ThreadListScreen from '../screens/ThreadListScreen';
@@ -13,6 +17,7 @@ import EditProfileScreen from '../screens/EditProfileScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import RecommendationsScreen from '../screens/RecommendationsScreen';
 import TournamentDetailScreen from '../screens/TournamentDetailScreen';
+import TournamentCreateScreen from '../screens/TournamentCreateScreen';
 import LoginScreen from '../screens/LoginScreen';
 import FunZoneScreen from '../screens/FunZoneScreen';
 import QuizScreen from '../screens/QuizScreen';
@@ -40,6 +45,7 @@ import FriendsScreen from '../screens/FriendsScreen';
 import UserProfileScreen from '../screens/UserProfileScreen';
 import FeedScreen from '../screens/FeedScreen';
 import HubScreen from '../screens/HubScreen';
+import DiscoverScreen from '../screens/DiscoverScreen';
 import AllFeaturesScreen from '../screens/AllFeaturesScreen';
 import EpisodePulseScreen from '../screens/EpisodePulseScreen';
 import DiscoverPeopleScreen from '../screens/DiscoverPeopleScreen';
@@ -86,6 +92,10 @@ export default function AppNavigator() {
         component={FillerGuideScreen}
         options={({ route }) => ({ title: route.params.title })}
       />
+      <Stack.Screen name="FillerLibrary" component={FillerLibraryScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Tracker" component={TrackerScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="CommunityHub" component={CommunityHubScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="LocalChats" component={LocalChatsScreen} options={{ headerShown: false }} />
       <Stack.Screen
         name="Browse"
         component={BrowseScreen}
@@ -139,6 +149,11 @@ export default function AppNavigator() {
         options={({ route }) => ({ title: route.params.title })}
       />
       <Stack.Screen
+        name="TournamentCreate"
+        component={TournamentCreateScreen}
+        options={{ title: 'Create Tournament' }}
+      />
+      <Stack.Screen
         name="Login"
         component={LoginScreen}
         options={{ title: 'Sign In', presentation: 'modal' }}
@@ -181,6 +196,11 @@ export default function AppNavigator() {
       <Stack.Screen name="UserProfile" component={UserProfileScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Feed" component={FeedScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Hub" component={HubScreen} options={{ headerShown: false }} />
+      <Stack.Screen
+        name="Discover"
+        component={DiscoverScreen}
+        options={{ headerShown: false, animation: 'slide_from_right' }}
+      />
       <Stack.Screen name="AllFeatures" component={AllFeaturesScreen} options={{ headerShown: false }} />
       <Stack.Screen name="EpisodePulse" component={EpisodePulseScreen} options={{ headerShown: false }} />
       <Stack.Screen name="DiscoverPeople" component={DiscoverPeopleScreen} options={{ headerShown: false }} />

@@ -1,0 +1,288 @@
+/* Community tag chips and add/vote controls. Motion is reduced-motion safe. */
+
+.panel {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.signinBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 20%, var(--color-line));
+  border-radius: 0.85rem;
+  background: linear-gradient(120deg, color-mix(in srgb, var(--color-cyan) 7%, var(--color-panel)), color-mix(in srgb, var(--color-magenta) 5%, var(--color-panel)));
+  padding: 0.6rem 0.75rem;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--color-mute);
+}
+
+.signinIcon {
+  color: var(--color-magenta);
+}
+
+.authLinkCyan,
+.authLinkMagenta {
+  font-weight: 800;
+  text-decoration: none;
+  transition: color 0.22s ease, text-shadow 0.22s ease;
+}
+
+.authLinkCyan {
+  color: var(--color-cyan);
+}
+
+.authLinkMagenta {
+  color: var(--color-magenta);
+}
+
+.authLinkCyan:hover,
+.authLinkMagenta:hover {
+  text-shadow: 0 0 12px currentColor;
+}
+
+.authSlash {
+  opacity: 0.6;
+}
+
+.errorBox {
+  margin: 0;
+  border: 1px solid color-mix(in srgb, var(--color-magenta) 38%, transparent);
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--color-magenta) 10%, transparent);
+  padding: 0.6rem 0.75rem;
+  font-size: 0.72rem;
+  color: var(--color-magenta);
+}
+
+.emptyState {
+  margin: 0;
+  border: 1px dashed color-mix(in srgb, var(--color-cyan) 22%, var(--color-line));
+  border-radius: 0.85rem;
+  background: color-mix(in srgb, var(--color-panel) 88%, var(--color-void));
+  padding: 0.8rem;
+  font-size: 0.72rem;
+  line-height: 1.6;
+  color: var(--color-mute);
+}
+
+.tagList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.tagPill {
+  --tag-accent: var(--color-cyan);
+  display: inline-flex;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--color-line) 88%, transparent);
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--color-panel) 88%, var(--color-void));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--tag-accent) 10%, transparent);
+  animation: tagIn 0.42s cubic-bezier(0.16, 1, 0.3, 1) both;
+  transition: transform 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease, background 0.22s ease;
+}
+
+.tagPill:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--color-cyan) 46%, transparent);
+  box-shadow: 0 12px 26px -20px var(--color-cyan);
+}
+
+.pillUp {
+  --tag-accent: var(--color-cyan);
+  border-color: color-mix(in srgb, var(--color-cyan) 58%, transparent);
+  background: color-mix(in srgb, var(--color-cyan) 11%, var(--color-panel));
+  box-shadow: 0 0 18px -8px var(--color-cyan);
+}
+
+.pillDown {
+  --tag-accent: var(--color-magenta);
+  border-color: color-mix(in srgb, var(--color-magenta) 58%, transparent);
+  background: color-mix(in srgb, var(--color-magenta) 11%, var(--color-panel));
+  box-shadow: 0 0 18px -8px var(--color-magenta);
+}
+
+.pillDown:hover {
+  border-color: color-mix(in srgb, var(--color-magenta) 52%, transparent);
+  box-shadow: 0 12px 26px -20px var(--color-magenta);
+}
+
+.tagVote {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.4rem 0.55rem;
+  font-size: 0.66rem;
+  color: var(--color-mute);
+  cursor: pointer;
+  transition: color 0.22s ease, background 0.22s ease;
+}
+
+.tagVote:first-child {
+  padding-left: 0.7rem;
+}
+
+.tagVote:last-of-type {
+  padding-right: 0.7rem;
+}
+
+.tagVote:hover:not(:disabled) {
+  color: var(--tag-accent);
+  background: color-mix(in srgb, var(--tag-accent) 9%, transparent);
+}
+
+.tagVote:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.tagVoteUpActive {
+  color: var(--color-cyan);
+}
+
+.tagVoteDownActive {
+  color: var(--color-magenta);
+}
+
+.tagVoteCount {
+  font-family: var(--font-mono, monospace);
+}
+
+.tagName {
+  padding: 0 0.25rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--color-ink);
+}
+
+.tagScore {
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
+  border-left: 1px solid color-mix(in srgb, var(--tag-accent) 28%, transparent);
+  background: color-mix(in srgb, var(--tag-accent) 7%, transparent);
+  padding: 0 0.6rem;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+
+.createRow {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.tagInput {
+  min-width: 0;
+  flex: 1;
+  border: 1px solid color-mix(in srgb, var(--color-line) 88%, transparent);
+  border-radius: 0.85rem;
+  background: color-mix(in srgb, var(--color-void) 62%, var(--color-panel));
+  padding: 0.55rem 0.75rem;
+  font-size: 0.72rem;
+  color: var(--color-ink);
+  outline: none;
+  transition: border-color 0.22s ease, box-shadow 0.22s ease, background 0.22s ease;
+}
+
+.tagInput::placeholder {
+  color: var(--color-mute);
+}
+
+.tagInput:focus {
+  border-color: color-mix(in srgb, var(--color-cyan) 58%, transparent);
+  background: color-mix(in srgb, var(--color-cyan) 5%, var(--color-void));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-cyan) 10%, transparent);
+}
+
+.tagInput:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.addButton {
+  flex: none;
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 46%, transparent);
+  border-radius: 0.85rem;
+  background: linear-gradient(120deg, color-mix(in srgb, var(--color-cyan) 78%, var(--color-magenta)), color-mix(in srgb, var(--color-cyan) 52%, var(--color-panel)));
+  padding: 0.55rem 0.9rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--color-void);
+  cursor: pointer;
+  transition: transform 0.22s ease, box-shadow 0.22s ease, filter 0.22s ease;
+}
+
+.addButton:hover:not(:disabled) {
+  transform: translateY(-2px);
+  filter: brightness(1.08);
+  box-shadow: 0 14px 30px -20px var(--color-cyan);
+}
+
+.addButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.skeletonRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.skeletonPill {
+  width: 7rem;
+  height: 2rem;
+  border-radius: 9999px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--color-cyan) 8%, transparent) 25%,
+    color-mix(in srgb, var(--color-magenta) 11%, transparent) 50%,
+    color-mix(in srgb, var(--color-cyan) 8%, transparent) 75%
+  );
+  background-size: 220% 100%;
+  animation: tagShimmer 1.5s linear infinite;
+}
+
+.tagPill:focus-within,
+.tagVote:focus-visible,
+.tagInput:focus-visible,
+.addButton:focus-visible,
+.authLinkCyan:focus-visible,
+.authLinkMagenta:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-cyan) 76%, transparent);
+  outline-offset: 2px;
+}
+
+@keyframes tagIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.97); filter: blur(2px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+
+@keyframes tagShimmer {
+  from { background-position: 180% 0; }
+  to { background-position: -40% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tagPill,
+  .skeletonPill,
+  .tagVote,
+  .authLinkCyan,
+  .authLinkMagenta,
+  .tagInput,
+  .addButton {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .tagPill:hover,
+  .addButton:hover:not(:disabled) {
+    transform: none !important;
+  }
+}

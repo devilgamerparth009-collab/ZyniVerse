@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { resolveUserId } from "@/lib/resolve-user";
 import { apiLimiter } from "@/lib/rate-limiter";
 import { TOURNAMENT_SIZES, createTournament } from "@/lib/character-tournaments";
 import { withPrivateCache, withPublicCache } from "@/lib/api-cache";
@@ -15,11 +15,17 @@ export async function GET(req: NextRequest) {
   // read on that path.
   let where: Record<string, unknown> = {};
   if (mine) {
-    const session = await auth();
-    where = session?.user?.id ? { creatorId: session.user.id } : { id: "none" };
+    const userId = await resolveUserId();
+    where = userId ? { creatorId: userId } : { id: "none" };
   }
 
-  const statusOrder: Record<string, number> = { active: 0, upcoming: 1, completed: 2, cancelled: 3 };
+  const statusOrder: Record<string, number> = {
+    active: 0,
+    qualifying: 1,
+    upcoming: 2,
+    completed: 3,
+    cancelled: 4,
+  };
 
   const tournaments = await prisma.characterTournament.findMany({
     where,
@@ -38,17 +44,23 @@ export async function GET(req: NextRequest) {
   );
 
   const res = NextResponse.json(tournaments);
-  // The public list is identical for everyone and can be served from the CDN;
-  // `?mine=1` is the visitor's own tournaments and must stay private.
-  return mine ? withPrivateCache(res) : withPublicCache(res);
+  if (mine) return withPrivateCache(res);
+  // Explicit list views (web and APK both send `limit`) must reflect a
+  // tournament created seconds ago on either platform. Keep the anonymous
+  // default cached for crawlers, but never cache the actual app/web lists.
+  if (url.searchParams.has("limit")) {
+    res.headers.set("Cache-Control", "private, no-store, max-age=0");
+    return res;
+  }
+  return withPublicCache(res);
 }
 
 export async function POST(req: NextRequest) {
   const rateCheck = await apiLimiter.middleware(req);
   if (rateCheck) return rateCheck;
 
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const userId = await resolveUserId();
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
@@ -100,7 +112,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const tournament = await createTournament(session.user.id, {
+    const tournament = await createTournament(userId, {
       title,
       description,
       posterUrl,

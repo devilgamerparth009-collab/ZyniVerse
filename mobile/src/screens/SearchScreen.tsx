@@ -19,6 +19,7 @@ import { Anime, SearchSuggestion } from '../types';
 import AnimeCard, { GRID_CARD_WIDTH } from '../components/AnimeCard';
 import ErrorView from '../components/ErrorView';
 import AdBanner from '../components/AdBanner';
+import SafeImage from '../components/SafeImage';
 import FadeInView from '../components/FadeInView';
 import PressableScale from '../components/PressableScale';
 import { useTheme } from '../hooks/useTheme';
@@ -277,13 +278,7 @@ export default function SearchScreen() {
                 navigation.navigate('AnimeDetail', { id: s.id, title: s.title });
               }}
             >
-              {s.poster ? (
-                <Image source={{ uri: s.poster }} style={styles.suggestionImage} />
-              ) : (
-                <View style={[styles.suggestionImage, styles.suggestionPlaceholder]}>
-                  <Text style={styles.suggestionPlaceholderText}>?</Text>
-                </View>
-              )}
+              <SafeImage uri={s.poster} style={styles.suggestionImage} fallbackLabel={s.title} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.suggestionTitle} numberOfLines={1}>
                   {s.title}

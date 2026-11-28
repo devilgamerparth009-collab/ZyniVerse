@@ -18,8 +18,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { colors, themed, spacing, fontSize, borderRadius } from '../theme';
 import { useTheme } from '../hooks/useTheme';
 import { api, getCurrentUser } from '../services/api';
-import { proxyImageUrl } from '../lib/avatar-src';
-import { webAbsoluteUrl } from '../utils/helpers';
+import { directImageUrl, unproxyImageUrl } from '../lib/avatar-src';
 import { ProfileResponse } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorView from '../components/ErrorView';
@@ -61,18 +60,13 @@ const ANIME_AVATAR_PRESETS = [
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 
 /**
- * Absolute, proxied URL for an avatar/preset.
- *
- * AniList's CDN answers bursts of image requests from mobile carriers with
- * 429, so preset artwork is routed through zyverse.in's cached image proxy.
- * Already-absolute non-proxyable URLs (uploads on our own domain) pass
- * through untouched.
+ * Absolute avatar/preset URL, using the original artwork host first.
+ * Uploaded relative paths are anchored to the website origin.
  */
 function avatarImageUrl(raw: string): string {
   if (!raw) return '';
   if (/^data:|^blob:/i.test(raw)) return raw;
-  const proxied = proxyImageUrl(raw) || raw;
-  return webAbsoluteUrl(proxied);
+  return directImageUrl(unproxyImageUrl(raw)) || raw;
 }
 
 /** Deterministic initials for users who never uploaded a picture. */
@@ -100,6 +94,7 @@ export default function EditProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadingBanner, setUploadingBanner] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // A broken avatar URL must not leave an empty circle: fall back to initials.
   const [previewFailed, setPreviewFailed] = useState(false);
@@ -150,61 +145,80 @@ export default function EditProfileScreen() {
   );
 
   const pickImage = useCallback(
-    async (source: 'library' | 'camera') => {
-      if (uploading) return;
+    async (source: 'library' | 'camera', target: 'avatar' | 'banner' = 'avatar') => {
+      const busy = target === 'banner' ? uploadingBanner : uploading;
+      if (busy) return;
       try {
         if (source === 'camera') {
           const perm = await ImagePicker.requestCameraPermissionsAsync();
           if (!perm.granted) {
-            Alert.alert('Camera permission needed', 'Allow camera access to take a profile photo.');
+            Alert.alert(
+              'Camera permission needed',
+              perm.canAskAgain
+                ? 'Allow camera access to take a photo.'
+                : 'Camera permission is blocked. Enable it in Android app settings, then try again.',
+            );
             return;
           }
         } else {
           const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
           if (!perm.granted) {
-            Alert.alert('Photo permission needed', 'Allow photo access to choose a profile picture.');
+            Alert.alert(
+              'Photo permission needed',
+              perm.canAskAgain
+                ? 'Allow photo access to choose an image.'
+                : 'Photo permission is blocked. Enable it in Android app settings, then try again.',
+            );
             return;
           }
         }
 
+        const isBanner = target === 'banner';
+        const pickerOpts: ImagePicker.ImagePickerOptions = {
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: true,
+          aspect: isBanner ? [16, 9] : [1, 1],
+          quality: 0.82,
+          exif: false,
+        };
+
         const result =
           source === 'camera'
             ? await ImagePicker.launchCameraAsync({
-                mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                allowsEditing: true,
-                aspect: [1, 1],
-                quality: 0.75,
+                ...pickerOpts,
+                cameraType: isBanner ? ImagePicker.CameraType.back : ImagePicker.CameraType.front,
               })
-            : await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                allowsEditing: true,
-                aspect: [1, 1],
-                quality: 0.75,
-              });
+            : await ImagePicker.launchImageLibraryAsync(pickerOpts);
 
-        if (result.canceled || !result.assets?.length) return;
-        const asset = result.assets[0];
+        if (result.canceled) return;
+        const asset = result.assets?.[0];
+        if (!asset?.uri) {
+          Alert.alert('No image selected', 'Please try selecting the image again.');
+          return;
+        }
 
         if (asset.fileSize && asset.fileSize > MAX_UPLOAD_BYTES) {
           Alert.alert('Image too large', 'Please pick an image under 5 MB.');
           return;
         }
 
-        setUploading(true);
-        const url = await api.profile.uploadImage({
-          uri: asset.uri,
-          name: asset.fileName || `avatar-${Date.now()}.jpg`,
-          type: asset.mimeType || undefined,
-        });
-        setAvatar(url);
-        Alert.alert('Photo ready', 'Your new picture is set. Tap “Save Changes” to publish it.');
+        const name =
+          asset.fileName ||
+          `${target}-${Date.now()}.${(asset.mimeType || 'image/jpeg').split('/')[1]?.replace('jpeg', 'jpg') || 'jpg'}`;
+        const type = asset.mimeType || (name.toLowerCase().endsWith('.png') ? 'image/png' : name.toLowerCase().endsWith('.webp') ? 'image/webp' : 'image/jpeg');
+
+        if (isBanner) setUploadingBanner(true); else setUploading(true);
+        const url = await api.profile.uploadImage({ uri: asset.uri, name, type });
+        if (isBanner) setBanner(url); else setAvatar(url);
+        Alert.alert(isBanner ? 'Banner ready' : 'Photo ready', `Your new ${isBanner ? 'banner' : 'picture'} is set. Tap “Save Changes” to publish it.`);
       } catch (e: any) {
         Alert.alert('Upload failed', e?.message || 'Could not upload that image. Try another one.');
       } finally {
         setUploading(false);
+        setUploadingBanner(false);
       }
     },
-    [uploading]
+    [uploading, uploadingBanner]
   );
 
   const save = async () => {
@@ -447,12 +461,31 @@ export default function EditProfileScreen() {
         </FadeInView>
 
         <FadeInView delay={320}>
-          <Text style={[styles.label, { color: themeColors.textMuted }]}>Banner Image URL</Text>
+          <Text style={[styles.label, { color: themeColors.textMuted }]}>Banner Image</Text>
+          <View style={styles.uploadRow}>
+            <TouchableOpacity
+              style={[styles.uploadBtn, { backgroundColor: themeColors.primary }]}
+              onPress={() => pickImage('library', 'banner')}
+              disabled={uploadingBanner}
+              activeOpacity={0.85}
+            >
+              {uploadingBanner ? <ActivityIndicator color="#0a0a0f" /> : <Text style={styles.uploadBtnText}>🖼️ Gallery</Text>}
+            </TouchableOpacity>
+            {!!banner && (
+              <TouchableOpacity
+                style={[styles.uploadBtnOutline, { borderColor: themeColors.border }]}
+                onPress={() => setBanner('')}
+                activeOpacity={0.85}
+              >
+                <Text style={[styles.uploadBtnOutlineText, { color: themeColors.textMuted }]}>✕ Remove</Text>
+              </TouchableOpacity>
+            )}
+          </View>
           <TextInput
             style={[styles.input, { backgroundColor: themeColors.surface, borderColor: themeColors.border, color: themeColors.text }]}
             value={banner}
             onChangeText={setBanner}
-            placeholder="https://…"
+            placeholder="Or paste banner image URL (https://…)"
             placeholderTextColor={themeColors.textDim}
             autoCapitalize="none"
             autoCorrect={false}

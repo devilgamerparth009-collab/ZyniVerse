@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { LIST_STATUS_LABELS, type WatchlistItem } from "./WatchlistProvider";
+import styles from "./watchlist.module.css";
 
 const STATUS_ACCENT: Record<string, string> = {
   CURRENT: "var(--color-cyan)",
@@ -39,20 +40,31 @@ export default function WatchlistItemCard({
   const total = item.episodes ?? 0;
   const pct = total > 0 ? Math.min(100, Math.round((progress / total) * 100)) : 0;
   const done = total > 0 && progress >= total;
+  const reduced = useReducedMotion();
 
   return (
     <motion.div
       className="group relative"
-      initial={{ opacity: 0, y: 18 }}
+      initial={reduced ? false : { opacity: 0, y: 18 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, delay: Math.min(index * 0.04, 0.4), ease: "easeOut" }}
+      transition={
+        reduced
+          ? { duration: 0 }
+          : {
+              duration: 0.35,
+              delay: Math.min(index * 0.04, 0.4),
+              ease: "easeOut",
+            }
+      }
     >
-      <div className="glass-card">
+      <div className={`glass-card ${styles.cardLift}`}>
         {/* Status accent rail */}
         <span className="absolute inset-x-0 top-0 z-10 h-0.5" style={{ background: accent }} />
         <div className="glass-content">
           <Link href={href} className="block">
-            <div className="relative aspect-[2/3] overflow-hidden bg-[var(--color-panel)]">
+            <div
+              className={`relative aspect-[2/3] bg-[var(--color-panel)] ${styles.coverFrame}`}
+            >
               {cover ? (
                 <Image
                   src={cover}
@@ -67,6 +79,7 @@ export default function WatchlistItemCard({
                 </div>
               )}
               <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
+              <div className={styles.coverShine} aria-hidden />
 
               {label && (
                 <span className="absolute left-2 top-2 glass-badge" style={{ color: accent }}>
@@ -120,9 +133,11 @@ export default function WatchlistItemCard({
                 </button>
               </div>
             </div>
-            <div className="mt-1 h-1 overflow-hidden rounded-full bg-white/10">
+            <div
+              className={`mt-1 h-1 overflow-hidden rounded-full bg-white/10 ${styles.progressTrack}`}
+            >
               <div
-                className="h-full rounded-full transition-all"
+                className={`h-full rounded-full transition-all ${styles.progressFill}`}
                 style={{ width: `${pct}%`, background: done ? "#4ade80" : "var(--color-cyan)" }}
               />
             </div>

@@ -88,16 +88,23 @@ export async function GET(request: NextRequest) {
 
   // Fan recommendations (from feature D): /api/recommendations?fromId=&toId=
   if (!type && (url.searchParams.get("fromId") || url.searchParams.get("toId"))) {
-    const fromId = Number(url.searchParams.get("fromId"));
-    const toId = Number(url.searchParams.get("toId"));
-    const order = url.searchParams.get("order") || "top";
-    const where = fromId ? { fromMediaId: fromId } : toId ? { toMediaId: toId } : undefined;
-    const recs = await prisma.mediaRecommendation.findMany({
-      where,
-      orderBy: order === "new" ? { createdAt: "desc" } : { upvotes: "desc" },
-      take: 50,
-    });
-    return withPublicCache(NextResponse.json({ recommendations: recs }));
+    try {
+      const fromId = Number(url.searchParams.get("fromId"));
+      const toId = Number(url.searchParams.get("toId"));
+      const order = url.searchParams.get("order") || "top";
+      const where = fromId ? { fromMediaId: fromId } : toId ? { toMediaId: toId } : undefined;
+      const recs = await prisma.mediaRecommendation.findMany({
+        where,
+        orderBy: order === "new" ? { createdAt: "desc" } : { upvotes: "desc" },
+        take: 50,
+      });
+      return withPublicCache(NextResponse.json({ recommendations: recs }));
+    } catch (e) {
+      logError(e);
+      // This query used to sit outside the main try and surface as a generic
+      // client-side "Failed to fetch recommendations" on any DB hiccup.
+      return withPublicCache(NextResponse.json({ recommendations: [], fallback: true }));
+    }
   }
 
   // Discovery mode (fixes the Recommendations page)

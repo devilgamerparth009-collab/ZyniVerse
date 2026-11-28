@@ -24,6 +24,7 @@ import { stripMarkdown, timeAgo } from '../utils/helpers';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorView from '../components/ErrorView';
 import FadeInView from '../components/FadeInView';
+import { SocialAvatar, UserName } from '../components/social/SocialBits';
 
 export default function ThreadDetailScreen() {
   const route = useRoute<any>();
@@ -112,17 +113,9 @@ export default function ThreadDetailScreen() {
       duration={340}
     >
       <View style={styles.postHeader}>
-        <View style={styles.avatar}>
-          {item.user?.avatar ? (
-            <Image source={{ uri: item.user.avatar }} style={styles.avatarImage} />
-          ) : (
-            <Text style={styles.avatarText}>
-              {(item.user?.username || '?').charAt(0).toUpperCase()}
-            </Text>
-          )}
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.postAuthor}>@{item.user?.username || 'unknown'}</Text>
+        <SocialAvatar uri={item.user?.avatar} name={item.user?.username || 'unknown'} size={34} />
+        <View style={{ flex: 1, marginLeft: spacing.sm }}>
+          <UserName name={item.user?.username || 'unknown'} prefix="@" style={styles.postAuthor} />
           <Text style={styles.postTime}>
             {timeAgo(item.createdAt)} · #{index + 1}
           </Text>
@@ -159,10 +152,11 @@ export default function ThreadDetailScreen() {
             <FadeInView delay={0}>
               <Text style={styles.category}>{thread.category?.name || 'General'}</Text>
               <Text style={styles.title}>{stripMarkdown(thread.title)}</Text>
-              <Text style={styles.threadMeta}>
-                by @{thread.user?.username || 'unknown'} · {timeAgo(thread.createdAt)} ·{' '}
-                {thread._count?.posts ?? total} posts
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing.xs, flexWrap: 'wrap' }}>
+                <Text style={styles.threadMeta}>by </Text>
+                <UserName name={thread.user?.username || 'unknown'} prefix="@" style={styles.threadMeta} />
+                <Text style={styles.threadMeta}>· {timeAgo(thread.createdAt)} · {thread._count?.posts ?? total} posts</Text>
+              </View>
             </FadeInView>
             {thread.animeTitle ? (
               <FadeInView delay={60}>

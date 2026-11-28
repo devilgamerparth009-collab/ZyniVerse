@@ -305,6 +305,10 @@ const MAX_RETRIES = 2;
 const LIST_REVALIDATE = 24 * 60 * 60; // 24h
 const DETAIL_REVALIDATE = 168 * 60 * 60; // 7 days
 
+// Crawler-heavy mirror routes pass `noStore: true` to the per-id helpers below.
+// They are noindex/disallowed and are served from the CDN instead, so they must
+// not create a Next data-cache entry for every enumerated AniList id.
+
 async function fetchAniList(
   query: string,
   variables: Record<string, unknown> = {},
@@ -561,9 +565,12 @@ export async function getTrending(perPage = 18) {
   return d.Page.media as Media[];
 }
 
-export async function getPopular(perPage = 18) {
+export async function getPopular(
+  perPage = 18,
+  revalidate: number = LIST_REVALIDATE,
+) {
   const q = `query ($p: Int) { Page(page: 1, perPage: $p) { media(sort: POPULARITY_DESC, type: ANIME, isAdult: false) { ${MEDIA_FIELDS} } } }`;
-  const d = await gql(q, { p: perPage });
+  const d = await gql(q, { p: perPage }, revalidate);
   return d.Page.media as Media[];
 }
 
@@ -906,11 +913,15 @@ export async function getAnimeDetailFull(id: number | string) {
   return data.Media as MediaAnimeFull;
 }
 
-export async function getMangaDetailFull(id: number | string) {
+export async function getMangaDetailFull(
+  id: number | string,
+  opts: { noStore?: boolean } = {},
+) {
   const data = await gql(
     MANGA_DETAIL_QUERY,
     { id: Number(id) },
     DETAIL_REVALIDATE,
+    opts.noStore === true,
   );
   return data.Media as MediaMangaFull;
 }
@@ -1045,7 +1056,10 @@ export async function getAnimeGallery(perPage = 24) {
   return data.Page.media as AnimeWithCharacters[];
 }
 
-export async function getStaffBasic(id: number | string) {
+export async function getStaffBasic(
+  id: number | string,
+  opts: { noStore?: boolean } = {},
+) {
   const q = `
     query ($id: Int) {
       Staff(id: $id) {
@@ -1055,12 +1069,16 @@ export async function getStaffBasic(id: number | string) {
         dateOfBirth { year month day } age homeTown yearsActive
       }
     }`;
-  const data = await gql(q, { id: Number(id) }, DETAIL_REVALIDATE);
+  const data = await gql(q, { id: Number(id) }, DETAIL_REVALIDATE, opts.noStore === true);
   if (!data.Staff) throw new Error("Staff not found");
   return data.Staff as StaffFull;
 }
 
-export async function getStaffMedia(id: number | string, perPage = 50) {
+export async function getStaffMedia(
+  id: number | string,
+  perPage = 50,
+  opts: { noStore?: boolean } = {},
+) {
   const q = `
     query ($id: Int, $pp: Int) {
       Staff(id: $id) {
@@ -1078,7 +1096,12 @@ export async function getStaffMedia(id: number | string, perPage = 50) {
         }
       }
     }`;
-  const data = await gql(q, { id: Number(id), pp: perPage }, DETAIL_REVALIDATE);
+  const data = await gql(
+    q,
+    { id: Number(id), pp: perPage },
+    DETAIL_REVALIDATE,
+    opts.noStore === true,
+  );
   type StaffMediaEdges = NonNullable<StaffFull["staffMedia"]>["edges"];
   const staffEdges: StaffMediaEdges = (data.Staff?.staffMedia?.edges ||
     []) as StaffMediaEdges;
@@ -1152,7 +1175,10 @@ export async function getPopularStaff(perPage = 12) {
   return data.Page.staff as StaffBasic[];
 }
 
-export async function getCharacter(id: number | string) {
+export async function getCharacter(
+  id: number | string,
+  opts: { noStore?: boolean } = {},
+) {
   const q = `
     query ($id: Int) {
       Character(id: $id) {
@@ -1178,7 +1204,7 @@ export async function getCharacter(id: number | string) {
         }
       }
     }`;
-  const data = await gql(q, { id: Number(id) }, DETAIL_REVALIDATE);
+  const data = await gql(q, { id: Number(id) }, DETAIL_REVALIDATE, opts.noStore === true);
   return data.Character as CharacterFull;
 }
 
@@ -1234,14 +1260,17 @@ export async function getAiringSchedule(fromSec: number, toSec: number) {
         }
       }
     }`;
-  // Sequential pagination cost N round-trips to AniList (~0.3-0.4s each) before
-  // a single schedule page could render. Week windows almost always span 2-3
-  // pages, so fetch them together: page 1, then pages 2-3 in one round-trip,
-  // then 4-6 only if the data is still truncated. `pageInfo.total` for
-  // airingSchedules is capped/unreliable (observes 5000), so the batch
-  // boundaries are driven by `hasNextPage` instead of `total`. Pages are
-  // TIME-sorted by AniList, so concatenating in order stays sorted; the explicit
-  // sort below is just insurance and keeps callers' order guarantees exact.
+  // A month window holds far more than the old six-page (~300 row) cap: in
+  // November 2026 that stopped around the 18th and left the rest of the month
+  // blank. Follow `hasNextPage` in bounded batches instead. `pageInfo.total` for
+  // airingSchedules is capped/unreliable (observes 5000), so batches are driven
+  // by `hasNextPage`, not `total`. Fetching 5 pages per round-trip keeps a full
+  // month to a handful of AniList calls while capping runaway pagination at
+  // MAX_PAGES. Pages are TIME-sorted by AniList; the explicit sort below keeps
+  // callers' order guarantees exact even if a batch arrives out of order.
+  const MAX_PAGES = 30;
+  const PAGE_BATCH = 5;
+
   async function fetchPage(page: number) {
     const data = await gql(q, { from, to, page });
     return {
@@ -1250,20 +1279,25 @@ export async function getAiringSchedule(fromSec: number, toSec: number) {
     };
   }
 
-  const first = await fetchPage(1);
-  const all: AiringScheduleEntry[] = [...first.rows];
-  if (first.hasNext) {
-    const batchA = await Promise.all([fetchPage(2), fetchPage(3)]);
-    for (const p of batchA) all.push(...p.rows);
-    if (batchA[1].hasNext) {
-      const batchB = await Promise.all([
-        fetchPage(4),
-        fetchPage(5),
-        fetchPage(6),
-      ]);
-      for (const p of batchB) all.push(...p.rows);
+  const all: AiringScheduleEntry[] = [];
+  const seenIds = new Set<number>();
+  let hasMore = true;
+
+  for (let firstPage = 1; firstPage <= MAX_PAGES && hasMore; firstPage += PAGE_BATCH) {
+    const pageNumbers = Array.from({ length: PAGE_BATCH }, (_, i) => firstPage + i)
+      .filter((page) => page <= MAX_PAGES);
+    const batch = await Promise.all(pageNumbers.map(fetchPage));
+
+    for (const page of batch) {
+      for (const entry of page.rows) {
+        if (seenIds.has(entry.id)) continue;
+        seenIds.add(entry.id);
+        all.push(entry);
+      }
     }
+    hasMore = batch.some((page) => page.hasNext);
   }
+
   all.sort((a, b) => a.airingAt - b.airingAt);
   // Site policy matches the rest of the catalog (every media query already
   // passes `isAdult: false`): drop adult entries here, at the data layer, so
@@ -2186,13 +2220,16 @@ export async function getRecommendationsByGenres(
   return (d.Page.media as Media[]) || [];
 }
 
-export async function getMediaBatch(ids: number[]): Promise<MediaBasic[]> {
+export async function getMediaBatch(
+  ids: number[],
+  type: "ANIME" | "MANGA" = "ANIME",
+): Promise<MediaBasic[]> {
   if (ids.length === 0) return [];
   const uniqueIds = [...new Set(ids)];
-  const q = `query ($ids: [Int]) { Page(page: 1, perPage: 50) { media(id_in: $ids, type: ANIME) { ${MEDIA_BASIC_FIELDS} } } }`;
-  // The key is the whole id array, and callers pass per-user/per-list sets
-  // (backlog, compare, stats timeline, shared lists), so this is just as
+  const q = `query ($ids: [Int], $type: MediaType) { Page(page: 1, perPage: 50) { media(id_in: $ids, type: $type) { ${MEDIA_BASIC_FIELDS} } } }`;
+  // The key is the whole id array + media type, and callers pass per-user/per-list
+  // sets (backlog, compare, stats timeline, shared lists), so this is just as
   // high-cardinality as the per-id detail queries — 24h here too.
-  const d = await gql(q, { ids: uniqueIds }, DETAIL_REVALIDATE);
+  const d = await gql(q, { ids: uniqueIds, type }, DETAIL_REVALIDATE);
   return (d.Page.media as MediaBasic[]) || [];
 }

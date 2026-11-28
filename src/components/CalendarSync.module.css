@@ -1,0 +1,233 @@
+/* Calendar Sync: compact, glassy schedule card with no bright dividers. */
+
+.card {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  width: 100%;
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 18%, var(--color-line));
+  border-radius: 1rem;
+  background:
+    radial-gradient(240px 130px at 100% 0%, color-mix(in srgb, var(--color-cyan) 12%, transparent), transparent 72%),
+    radial-gradient(220px 120px at 0% 100%, color-mix(in srgb, var(--color-magenta) 10%, transparent), transparent 74%),
+    linear-gradient(150deg, color-mix(in srgb, var(--color-panel) 96%, var(--color-void)), color-mix(in srgb, var(--color-void) 66%, var(--color-panel)));
+  padding: 0.85rem;
+  box-shadow: 0 24px 54px -44px color-mix(in srgb, var(--color-cyan) 78%, transparent);
+  animation: calendarIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 12%;
+  width: 42%;
+  height: 2px;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, transparent, var(--color-cyan), var(--color-magenta), transparent);
+  opacity: 0.8;
+}
+
+.empty {
+  margin: 0;
+  color: var(--color-mute);
+  font-size: 0.82rem;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.7rem;
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
+.calendarIcon {
+  display: inline-grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 1px solid color-mix(in srgb, var(--color-magenta) 26%, var(--color-line));
+  border-radius: 0.55rem;
+  background: color-mix(in srgb, var(--color-magenta) 10%, var(--color-void));
+  font-size: 0.75rem;
+}
+
+.synced {
+  border: 1px solid color-mix(in srgb, #4ade80 34%, transparent);
+  border-radius: 9999px;
+  background: color-mix(in srgb, #4ade80 10%, transparent);
+  padding: 0.2rem 0.5rem;
+  color: #86efac;
+  font-size: 0.62rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.nextPanel {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.18rem;
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 14%, var(--color-line));
+  border-radius: 0.8rem;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--color-void) 82%, transparent), color-mix(in srgb, var(--color-cyan) 5%, var(--color-void)));
+  padding: 0.8rem 0.85rem;
+}
+
+.nextPanel::after {
+  content: "";
+  position: absolute;
+  right: -2rem;
+  bottom: -2.5rem;
+  width: 6rem;
+  height: 6rem;
+  border-radius: 9999px;
+  background: radial-gradient(circle, color-mix(in srgb, var(--color-cyan) 16%, transparent), transparent 70%);
+  pointer-events: none;
+}
+
+.eyebrow {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  color: var(--color-mute);
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.episode {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  color: var(--color-ink);
+  font-family: var(--font-display);
+  font-size: 1.08rem;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.date {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  color: color-mix(in srgb, var(--color-ink) 68%, var(--color-mute));
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+.timePill {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  margin-top: 0.3rem;
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 30%, transparent);
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--color-cyan) 10%, transparent);
+  padding: 0.22rem 0.55rem;
+  color: var(--color-cyan);
+  font-family: var(--font-mono, monospace);
+  font-size: 0.66rem;
+  font-weight: 800;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.7rem;
+}
+
+.action {
+  display: inline-flex;
+  flex: 1 1 8rem;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.35rem;
+  border: 1px solid color-mix(in srgb, var(--color-line) 90%, transparent);
+  border-radius: 0.7rem;
+  padding: 0.5rem 0.7rem;
+  font-size: 0.7rem;
+  font-weight: 800;
+  line-height: 1;
+  text-align: center;
+  transition: transform 0.22s ease, border-color 0.22s ease, background 0.22s ease, box-shadow 0.22s ease;
+}
+
+.action:hover {
+  transform: translateY(-2px);
+}
+
+.googleAction {
+  border-color: color-mix(in srgb, #60a5fa 30%, transparent);
+  background: color-mix(in srgb, #60a5fa 12%, var(--color-void));
+  color: #93c5fd;
+}
+
+.googleAction:hover {
+  border-color: color-mix(in srgb, #60a5fa 58%, transparent);
+  background: color-mix(in srgb, #60a5fa 20%, var(--color-void));
+  box-shadow: 0 12px 24px -20px #60a5fa;
+}
+
+.appleAction {
+  border-color: color-mix(in srgb, #c084fc 30%, transparent);
+  background: color-mix(in srgb, #c084fc 12%, var(--color-void));
+  color: #d8b4fe;
+}
+
+.appleAction:hover {
+  border-color: color-mix(in srgb, #c084fc 58%, transparent);
+  background: color-mix(in srgb, #c084fc 20%, var(--color-void));
+  box-shadow: 0 12px 24px -20px #c084fc;
+}
+
+.icsAction {
+  border-color: color-mix(in srgb, #4ade80 34%, transparent);
+  background: linear-gradient(120deg, color-mix(in srgb, #4ade80 16%, var(--color-void)), color-mix(in srgb, var(--color-cyan) 8%, var(--color-void)));
+  color: #86efac;
+}
+
+.icsAction:hover {
+  border-color: color-mix(in srgb, #4ade80 62%, transparent);
+  background: color-mix(in srgb, #4ade80 22%, var(--color-void));
+  box-shadow: 0 12px 24px -20px #4ade80;
+}
+
+.note {
+  margin: 0.65rem 0 0;
+  color: color-mix(in srgb, var(--color-mute) 88%, var(--color-ink));
+  font-size: 0.62rem;
+  line-height: 1.4;
+}
+
+@keyframes calendarIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .action,
+  .action:hover {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+}

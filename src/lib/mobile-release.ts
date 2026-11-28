@@ -32,13 +32,13 @@ export interface MobileRelease {
   minSupportedVersionCode: number;
 }
 
-/** Version baked into the 1.4.4 source tree. */
-const TARGET_VERSION_NAME = "1.4.4";
-const TARGET_VERSION_CODE = 144000;
+/** Version baked into the 1.6.0 source tree. */
+const TARGET_VERSION_NAME = "1.6.0";
+const TARGET_VERSION_CODE = 160000;
 
-/** Last verified, publicly downloadable release (1.4.4 APK is in `public/`). */
-const STABLE_VERSION_NAME = "1.4.4";
-const STABLE_VERSION_CODE = 144000;
+/** Last verified, publicly downloadable release. */
+const STABLE_VERSION_NAME = "1.6.0";
+const STABLE_VERSION_CODE = 160000;
 
 /**
  * Verified metadata for builds we have actually published. Keeping it keyed by
@@ -46,6 +46,22 @@ const STABLE_VERSION_CODE = 144000;
  * can never make the app check a new APK against an old hash/size.
  */
 const PUBLISHED_BUILDS: Record<string, { sha256: string; sizeBytes: number }> = {
+  "1.5.5": {
+    sha256: "9bdff38505513d8173cced22e3cc83c7bc5f32ce163aed57cf7ceb596b446026",
+    sizeBytes: 42686001,
+  },
+  "1.5.4": {
+    sha256: "6576ffe05b6bcef209bcef35e2f6a7c6c73a31cc8faccfa03646d1279c63572d",
+    sizeBytes: 42156525,
+  },
+  "1.5.3": {
+    sha256: "0bcd5c12988aee67ecccd2fb4f8771c612bc95c67ae976bcc71024ad8f39384a",
+    sizeBytes: 42152365,
+  },
+  "1.4.5": {
+    sha256: "0234459e8e8a132c13d1513b791707053de7158906ab978dd569d53e8a40aa96",
+    sizeBytes: 42150001,
+  },
   "1.4.4": {
     sha256: "f6f877354ef1a260b3cde5f180fcc4e96241d5ab5f2f6169c9b773dc2e71ad94",
     sizeBytes: 42150145,
@@ -67,8 +83,8 @@ const PUBLISHED_BUILDS: Record<string, { sha256: string; sizeBytes: number }> = 
     sizeBytes: 42093909,
   },
   "1.6.0": {
-    sha256: "8b0199df768fa396104133cd789d536ad851296ac33cd223707d4dbc03d6a498",
-    sizeBytes: 42052121,
+    sha256: "b6acc171c7dcaaad6aebb99cf95ad12f89e08669910f65353a374a1f0591dd95",
+    sizeBytes: 42702933,
   },
   "1.7.0": {
     sha256: "0346c395508130386b7eaa41e65c3e196cfc835d3642eda30b6f4c61cf592ba7",
@@ -87,21 +103,20 @@ function envNumber(value: string | undefined): number | undefined {
 }
 
 function websiteAsset(versionName: string): string {
-  return `https://zyverse.in/ZyniVerse-${versionName}.apk`;
+  return `https://github.com/devilgamerparth009-collab/ZyniVerse/releases/download/v${versionName}/ZyniVerse-${versionName}.apk`;
 }
 
 /**
- * The signed 1.4.4 APK is published in `public/`, so it is the verified default
- * release. Env vars can still override it for the next rollout. A future source
- * version bump alone must never hand out a URL that 404s: the default stays on
- * this verified build until MOBILE_APK_URL + MOBILE_APK_SHA256 + MOBILE_APK_SIZE
- * are all set together for a newer APK.
+ * 1.6.0 is the verified stable build in GitHub Releases. A future source bump
+ * alone must never hand out a URL that 404s: without a matching hash/size entry
+ * the default stays here until all three env overrides are supplied together.
  */
-const targetPublished =
+const targetHasVerifiedBuild = Boolean(PUBLISHED_BUILDS[TARGET_VERSION_NAME]);
+const envTargetReady =
   Boolean(process.env.MOBILE_APK_URL) &&
   Boolean(process.env.MOBILE_APK_SHA256) &&
   Boolean(envNumber(process.env.MOBILE_APK_SIZE));
-const targetReady = targetPublished;
+const targetReady = targetHasVerifiedBuild || envTargetReady;
 
 const versionName = targetReady
   ? process.env.MOBILE_VERSION_NAME || TARGET_VERSION_NAME
@@ -112,17 +127,12 @@ const versionCode = targetReady
 const published = PUBLISHED_BUILDS[versionName];
 
 const TARGET_NOTES = [
-  "Fresh cinematic launch animation and smoother screens across the app.",
-  "Dub Hub schedule now mirrors the live site: Ongoing + Upcoming with real countdowns and auto-refresh.",
-  "TV & Streaming guide shows accurate per-channel timings with live source labels.",
-  "Anime pages now open direct platform links on the sites where the title is available.",
-  "Fixed sign-in: email/password and Google/GitHub both work in-app, with no external browser.",
-  "More ad placements with frequency caps so the app stays fast and usable.",
+  "Refreshed Dub Hub artwork and safer title matching so more anime open correctly.",
+  "Added a full filler-guide library with search and title lookup.",
+  "Added Feed, Tracker, Communities, Chat and Vibe screens for your anime life.",
+  "Hot takes, tracked titles, clubs and chats stay saved on this device and work offline.",
+  "Your existing saved data and preferences are preserved when you update.",
 ];
-
-// 1.4.4 is now the verified stable build, so its notes are the default even
-// though it also has hash/size metadata in PUBLISHED_BUILDS.
-const DEFAULT_NOTES = versionName === TARGET_VERSION_NAME ? TARGET_NOTES : published ? undefined : TARGET_NOTES;
 
 export const MOBILE_RELEASE: MobileRelease = {
   versionName,
@@ -132,17 +142,10 @@ export const MOBILE_RELEASE: MobileRelease = {
   sizeBytes: envNumber(process.env.MOBILE_APK_SIZE) || published?.sizeBytes,
   notes: (process.env.MOBILE_RELEASE_NOTES
     ? process.env.MOBILE_RELEASE_NOTES.split("|")
-    : DEFAULT_NOTES || [
-        "Removed every third-party website shortcut from the app; taps now stay on zyverse.in.",
-        "New Aurora Launch theme replaces the Diwali skin with a cool cyan/violet look.",
-        "New Episode Pulse screen: anonymous, aggregate episode reactions from the community.",
-        "Fixed the stale Install button when 1.4.1 or 1.4.2 is already installed.",
-        "APK hash, size and signer checks are unchanged: failed downloads are deleted, never installed.",
-        "Signed with the same certificate as 1.4.1 and 1.4.2, so existing installs keep their data.",
-      ]
+    : TARGET_NOTES
   ).map((line) => line.trim()).filter(Boolean),
   mandatory: process.env.MOBILE_RELEASE_MANDATORY === "true",
   rollback: process.env.MOBILE_RELEASE_ROLLBACK === "true",
-  publishedAt: process.env.MOBILE_RELEASE_PUBLISHED_AT || "2026-11-22T19:19:31.363Z",
+  publishedAt: process.env.MOBILE_RELEASE_PUBLISHED_AT || "2026-11-24T19:00:00.000Z",
   minSupportedVersionCode: envNumber(process.env.MOBILE_MIN_SUPPORTED_VERSION_CODE) || 130000,
 };

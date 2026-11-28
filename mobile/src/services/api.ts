@@ -1,8 +1,29 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { NativeModules } from 'react-native';
-import { absoluteAvatarUrl } from '../utils/helpers';
-import { isTrustedPlatformUrl } from '../utils/safeLinks';
+import { directImageUrl, unproxyImageUrl } from '../lib/avatar-src';
+import {
+  isTrustedPlatformUrl,
+  platformLabelForUrl,
+  trustedExternalUrl,
+} from '../utils/safeLinks';
+import { lookupDirectFiller } from './fillerDirect';
+import { supabaseSelect, withDirectFallback } from './supabasePublic';
+import {
+  directAiringSchedule,
+  directBatch,
+  directCharacterSearch,
+  directCharacters,
+  directCharactersByIds,
+  directGenres,
+  directListPath,
+  directMediaByTitle,
+  directMediaPage,
+  directPagedPath,
+  directSearch,
+  directStreamingData,
+  directSuggestions,
+} from './anilistDirect';
 import {
   Anime,
   CharacterEdge,
@@ -59,9 +80,12 @@ export const WEB_HOST = 'https://zyverse.in';
 const WEB_API = `${WEB_HOST}/api`;
 const ANILIST_GQL = 'https://graphql.anilist.co';
 // Sent with API requests so the server can prefer official app traffic over
-// generic scrapers. This is defense-in-depth, not a secret (APK can be inspected).
+// generic scrapers. Secret header is defense-in-depth (APK can be inspected) but
+// allows server/WAF to distinguish official app builds from simple header spoofing.
 const APP_CLIENT_HEADER = 'x-zyniverse-client';
 const APP_CLIENT_VALUE = 'zyniverse-mobile-v1';
+const APP_SECRET_HEADER = 'x-zyniverse-app-secret';
+const APP_SECRET_VALUE = '7730b4e789b9bc920463bb47fe99cba6de35403c7b8305f5679718aa98ab81e5';
 
 const DEVICE_KEY = 'zt_ct_device';
 const SESSION_COOKIE_KEY = 'zt_session_cookie';
@@ -79,6 +103,10 @@ let legacySessionMigration: Promise<void> | null = null;
 // the app usable offline instead of showing a bare error screen.
 const CACHE_PREFIX = 'zt_cache_v2';
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
+// When the API is unreachable (site down, travel, weak signal), an older copy
+// is still far more useful than an empty screen. This window is only consulted
+// after a live request fails or stalls — fresh data always wins when online.
+const STALE_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 // Filler lists change as episodes air; keep that cache short so a freshly
 // published guide is not hidden behind a stale copy for hours.
 const FILLER_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
@@ -143,7 +171,7 @@ async function fetchWithCache<T>(
       });
   }
 
-  const cached = await cacheGet<T>(key, ttlMs);
+  const cached = (await cacheGet<T>(key, ttlMs)) ?? (await cacheGet<T>(key, STALE_CACHE_TTL_MS));
   if (cached === null) return network;
 
   const first = await Promise.race([
@@ -173,26 +201,75 @@ function buildUrl(path: string, params?: Record<string, string | number | undefi
 }
 
 /**
- * Absolute, carrier-friendly URL for any artwork shown in the app.
+ * Absolute URL for artwork shown in the app.
  *
- * Known artwork hosts are routed through the site's cached image proxy so
- * mobile networks do not hit upstream rate limits or hotlink blocks. Already
- * proxied paths, relative uploads, data/blob URIs and unknown hosts are kept
- * usable as-is. Returns null for empty or unusable values so callers can show
- * their branded placeholder instead of a blank image.
+ * The original host is used directly — the same URL the website renders — so
+ * images load without a website hop. Components show a branded placeholder if
+ * the upstream host fails.
  */
 export function mediaImageUrl(value?: string | null): string | null {
   if (typeof value !== 'string') return null;
-  let raw = value.trim();
-  if (!raw) return null;
-  if (raw.startsWith('//')) raw = `https:${raw}`;
-  // Tolerate CDN URLs pasted without a scheme.
-  else if (!/^[a-z][a-z\d+.-]*:/i.test(raw) && !raw.startsWith('/') && raw.includes('.')) {
-    raw = `https://${raw}`;
+  const raw = value.trim();
+  if (/^data:|^blob:/i.test(raw)) return raw;
+  return directImageUrl(unproxyImageUrl(raw));
+}
+
+/* ------------------------------------------------------------------ */
+/* Dub catalog artwork                                                 */
+/* ------------------------------------------------------------------ */
+
+const DUB_POSTER_CACHE = new Map<string, string | null>();
+
+function dubTitleKey(title?: string | null): string {
+  return (title || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\b(season|episode|ep|dub|dubbed|hindi|tamil|telugu|english)\b/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** Direct AniList cover for a scraped title; original poster is the fallback. */
+async function anilistPoster(title: string, original?: string | null): Promise<string | null> {
+  const key = dubTitleKey(title);
+  if (!key) return original || null;
+  if (DUB_POSTER_CACHE.has(key)) return DUB_POSTER_CACHE.get(key) || original || null;
+  try {
+    const media = await directMediaByTitle(title);
+    const poster =
+      media?.coverImage?.extraLarge || media?.coverImage?.large || media?.coverImage?.medium || null;
+    DUB_POSTER_CACHE.set(key, poster);
+    return poster || original || null;
+  } catch {
+    return original || null;
   }
-  // The proxy only accepts HTTPS upstreams.
-  if (/^http:\/\//i.test(raw)) raw = `https://${raw.slice('http://'.length)}`;
-  return absoluteAvatarUrl(raw) || null;
+}
+
+/** Hydrate scraped dub rows in small parallel batches without blocking the UI forever. */
+async function hydrateDubPosters<T extends { title: string; posterUrl?: string | null }>(
+  rows: T[]
+): Promise<T[]> {
+  if (!rows?.length) return rows;
+  const out = [...rows];
+  for (let i = 0; i < out.length; i += 6) {
+    const chunk = out.slice(i, i + 6);
+    const posters = await Promise.all(
+      chunk.map((row) => anilistPoster(row.title, row.posterUrl))
+    );
+    chunk.forEach((row, index) => {
+      out[i + index] = { ...row, posterUrl: posters[index] };
+    });
+  }
+  return out;
+}
+
+async function hydrateLiveDubSchedule(data: any): Promise<any> {
+  if (!data) return data;
+  const [ongoing, upcoming] = await Promise.all([
+    hydrateDubPosters((data.ongoing || []) as any[]),
+    hydrateDubPosters((data.upcoming || []) as any[]),
+  ]);
+  return { ...data, ongoing, upcoming };
 }
 
 async function fetchWithTimeout(
@@ -202,8 +279,9 @@ async function fetchWithTimeout(
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), init?.timeoutMs ?? REQUEST_TIMEOUT_MS);
   const headers = new Headers(init?.headers || undefined);
-  if (url.startsWith(WEB_API) && !headers.has(APP_CLIENT_HEADER)) {
-    headers.set(APP_CLIENT_HEADER, APP_CLIENT_VALUE);
+  if (url.startsWith(WEB_API)) {
+    if (!headers.has(APP_CLIENT_HEADER)) headers.set(APP_CLIENT_HEADER, APP_CLIENT_VALUE);
+    if (APP_SECRET_VALUE && !headers.has(APP_SECRET_HEADER)) headers.set(APP_SECRET_HEADER, APP_SECRET_VALUE);
   }
   try {
     return await fetch(url, {
@@ -488,6 +566,14 @@ async function clearCachedUser(): Promise<void> {
   }
 }
 
+/**
+ * Offline-safe identity for device-local storage. Unlike `getCurrentUser()`,
+ * this never calls the network and is only an owner hint, never a session proof.
+ */
+export async function getCachedUser(): Promise<User | null> {
+  return readCachedUser();
+}
+
 type SessionLookup =
   | { kind: 'user'; user: User }
   | { kind: 'unauthorized' }
@@ -536,13 +622,33 @@ async function fetchSessionUser(): Promise<SessionLookup> {
 }
 
 let sessionLookupInFlight: Promise<SessionLookup> | null = null;
+let transientSession: SessionLookup | null = null;
+let transientSessionUntil = 0;
 
-/** Share one `/mobile/me` check across the screens that mount together. */
+/**
+ * Share one `/mobile/me` check across the screens that mount together, and
+ * briefly reuse an offline/challenge result. Without this, navigating a few
+ * screens while the API is down fires a fresh failing request every time.
+ */
 function lookupSession(): Promise<SessionLookup> {
+  if (transientSession && Date.now() < transientSessionUntil) {
+    return Promise.resolve(transientSession);
+  }
   if (!sessionLookupInFlight) {
-    sessionLookupInFlight = fetchSessionUser().finally(() => {
-      sessionLookupInFlight = null;
-    });
+    sessionLookupInFlight = fetchSessionUser()
+      .then((result) => {
+        if (result.kind === 'transient') {
+          transientSession = result;
+          transientSessionUntil = Date.now() + 30 * 1000;
+        } else {
+          transientSession = null;
+          transientSessionUntil = 0;
+        }
+        return result;
+      })
+      .finally(() => {
+        sessionLookupInFlight = null;
+      });
   }
   return sessionLookupInFlight;
 }
@@ -794,19 +900,53 @@ export interface StreamingLink {
   kind: 'direct' | 'search';
 }
 
-/** Direct official links first, then official platform searches as a fallback. */
+/** Official platform searches, used only when AniList has no direct watch URL. */
+function curatedStreamingSearches(title?: string | null): StreamingLink[] {
+  const q = (title || '').trim().slice(0, 120);
+  if (!q) return [];
+  const encoded = encodeURIComponent(q);
+  return [
+    { platform: 'Crunchyroll', url: `https://www.crunchyroll.com/search?q=${encoded}`, kind: 'search' },
+    { platform: 'JioHotstar', url: `https://www.jiohotstar.com/search?q=${encoded}`, kind: 'search' },
+    { platform: 'SonyLIV', url: `https://www.sonyliv.com/search?q=${encoded}`, kind: 'search' },
+    { platform: 'Netflix', url: `https://www.netflix.com/search?q=${encoded}`, kind: 'search' },
+  ];
+}
+
+/**
+ * Direct official links from AniList, then official platform searches.
+ * No website hop: AniList is the source of truth and the device talks to it
+ * directly. A failed lookup degrades to curated official search links.
+ */
 async function getStreamingLinks(id: number, title?: string): Promise<StreamingLink[]> {
   try {
-    const data = await fetchWithCache(
+    return await fetchWithCache(
       `streaming_links_${id}`,
-      () =>
-        requestJson<{ success?: boolean; links?: StreamingLink[] }>(
-          buildUrl('/streaming/links', { id: String(id), title: title || '' }),
-          { timeoutMs: 10000 }
-        ),
+      async () => {
+        try {
+          const data = await directStreamingData(id);
+          const links: StreamingLink[] = [];
+          const seen = new Set<string>();
+          const add = (raw: string | null | undefined, platform?: string | null) => {
+            const url = trustedExternalUrl(raw);
+            if (!url || seen.has(url)) return;
+            seen.add(url);
+            links.push({
+              platform: (platform || '').trim() || platformLabelForUrl(url),
+              url,
+              kind: 'direct',
+            });
+          };
+          for (const episode of data.episodes) add(episode.url, episode.site || episode.title);
+          for (const link of data.links) add(link.url, link.site);
+          if (links.length > 0) return links.slice(0, 16);
+          return curatedStreamingSearches(data.title || title);
+        } catch {
+          return curatedStreamingSearches(title);
+        }
+      },
       6 * 60 * 60 * 1000
     );
-    return (data?.links || []).filter((link) => isTrustedPlatformUrl(link?.url));
   } catch {
     return [];
   }
@@ -818,9 +958,14 @@ async function listAnime(
 ): Promise<Anime[]> {
   const key = `list_${path.replace(/[^a-zA-Z0-9]/g, '_')}_${Object.values(params).join('_')}`;
   return fetchWithCache(key, async () => {
-    const data = await requestJson<any>(buildUrl(path, params));
-    const arr = Array.isArray(data) ? data : data?.media || data?.results || [];
-    return (arr as any[]).map(normalizeAnime);
+    // Public lists come straight from AniList. On failure the cached copy (up
+    // to 7 days old) is served by fetchWithCache; no website fallback is used.
+    try {
+      const arr = await directListPath(path, params);
+      return ((arr || []) as any[]).map(normalizeAnime);
+    } catch {
+      return [];
+    }
   });
 }
 
@@ -830,11 +975,15 @@ async function pagedAnime(
   cacheKey?: string
 ): Promise<MediaPage> {
   const run = async (): Promise<MediaPage> => {
-    const data = await requestJson<any>(buildUrl(path, params));
-    return {
-      pageInfo: data?.pageInfo || { hasNextPage: false, total: 0 },
-      media: ((data?.media || []) as any[]).map(normalizeAnime),
-    };
+    try {
+      const page = await directPagedPath(path, params);
+      return {
+        pageInfo: page?.pageInfo || { hasNextPage: false, total: 0 },
+        media: ((page?.media || []) as any[]).map(normalizeAnime),
+      };
+    } catch {
+      return { pageInfo: { hasNextPage: false, total: 0 }, media: [] };
+    }
   };
   if (cacheKey) return fetchWithCache(cacheKey, run);
   return run();
@@ -855,9 +1004,10 @@ async function browse(params: {
   const key = `browse_${page}_${perPage}_${params.search || ''}_${params.genre || ''}_${
     params.sort || ''
   }_${params.format || ''}_${params.status || ''}_${params.type || 'ANIME'}`;
-  return pagedAnime(
-    '/anilist/search-media',
-    {
+  const run = async (): Promise<MediaPage> => {
+    // Search must surface a real network/AniList failure instead of turning it
+    // into "No anime found". Browse uses that distinction to offer a retry.
+    const result = await directMediaPage({
       page,
       perPage,
       search: params.search,
@@ -866,62 +1016,88 @@ async function browse(params: {
       format: params.format,
       status: params.status,
       type: params.type || 'ANIME',
-    },
-    page === 1 ? key : undefined
-  );
+    });
+    return {
+      pageInfo: result?.pageInfo || { hasNextPage: false, total: 0 },
+      media: ((result?.media || []) as any[]).map(normalizeAnime),
+    };
+  };
+  return page === 1 ? fetchWithCache(key, run) : run();
 }
+
+const OFFLINE_GENRES = [
+  'Action', 'Adventure', 'Comedy', 'Drama', 'Fantasy', 'Horror', 'Mystery',
+  'Romance', 'Sci-Fi', 'Slice of Life', 'Sports', 'Supernatural', 'Thriller',
+];
 
 async function suggestions(query: string): Promise<SearchSuggestion[]> {
   if (!query.trim()) return [];
   return fetchWithCache(`suggest_${query.trim().toLowerCase()}`, async () => {
-    const data = await requestJson<any[]>(
-      buildUrl('/anilist/suggestions', { q: query.trim() })
-    );
-    return Array.isArray(data) ? data : [];
+    try {
+      const direct = await directSuggestions(query.trim());
+      return Array.isArray(direct) ? direct : [];
+    } catch {
+      return [];
+    }
   });
 }
 
 async function getGenres(): Promise<string[]> {
   return fetchWithCache('genres', async () => {
-    const data = await requestJson<string[]>(`${WEB_API}/anilist/genres`);
-    return Array.isArray(data) ? data.filter((g) => g !== 'Hentai' && g !== 'Ecchi') : [];
+    try {
+      const data = await directGenres();
+      return Array.isArray(data)
+        ? data.filter((g) => g !== 'Hentai' && g !== 'Ecchi')
+        : OFFLINE_GENRES;
+    } catch {
+      return OFFLINE_GENRES;
+    }
   });
 }
 
 async function getCharacters(mediaId: number, page = 1): Promise<CharactersResponse> {
   const key = `chars_${mediaId}_${page}`;
   return fetchWithCache(key, async () => {
-    const data = await requestJson<CharactersResponse>(
-      buildUrl(`/anilist/characters/${mediaId}`, { page, perPage: 25 })
-    );
-    return {
-      id: data?.id ?? mediaId,
-      title: data?.title,
-      coverImage: data?.coverImage,
-      pageInfo: data?.pageInfo || { hasNextPage: false, total: 0 },
-      edges: (data?.edges || []) as CharacterEdge[],
-    };
+    try {
+      const data = await directCharacters(mediaId, page);
+      return {
+        id: data?.id ?? mediaId,
+        title: data?.title,
+        coverImage: data?.coverImage,
+        pageInfo: data?.pageInfo || { hasNextPage: false, total: 0 },
+        edges: (data?.edges || []) as CharacterEdge[],
+      };
+    } catch {
+      return {
+        id: mediaId,
+        pageInfo: { hasNextPage: false, total: 0 },
+        edges: [],
+      } as CharactersResponse;
+    }
   });
 }
 
 async function recommendations(genre: string, perPage = 18): Promise<Anime[]> {
   if (!genre) return [];
   return fetchWithCache(`recs_${genre}_${perPage}`, async () => {
-    const data = await requestJson<any[]>(
-      buildUrl('/anilist/recommendations', { genre, perPage })
-    );
-    return (Array.isArray(data) ? data : []).map(normalizeAnime);
+    try {
+      const arr = (await directListPath('/anilist/recommendations', { genre, perPage })) || [];
+      return arr.map(normalizeAnime);
+    } catch {
+      return [];
+    }
   });
 }
 
 async function batchMedia(ids: number[]): Promise<Anime[]> {
   const unique = [...new Set(ids.filter((id) => Number.isFinite(id)))].slice(0, 50);
   if (unique.length === 0) return [];
-  return requestJson<{ media: Anime[] }>(`${WEB_API}/anilist/batch`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ids: unique }),
-  }).then((d) => (d?.media || []).map(normalizeAnime));
+  try {
+    const direct = await directBatch(unique);
+    return Array.isArray(direct) ? direct.map(normalizeAnime) : [];
+  } catch {
+    return [];
+  }
 }
 
 export interface FillerLookupInput {
@@ -975,12 +1151,13 @@ function parseFillerResponse(
 const fillerInFlight = new Map<string, Promise<FillerData | null>>();
 
 /**
- * Shared filler lookup. Every identifier we know is sent so the website API
- * can fall back from a strict AniList id to a MAL id and then to normalised
- * title aliases. `null` means "no guide"; a rejected promise means the request
- * itself failed (the screen shows Retry). Only real results enter the cache —
- * misses and errors are never cached, so a newly published guide is visible
- * immediately and a transient failure can be retried.
+ * Shared filler lookup. All identifiers are matched against the public
+ * AniFiller dataset directly from the phone (no zyverse.in hop), falling back
+ * from AniList id to MAL id to normalised title aliases. `null` means "no
+ * guide"; a rejected promise means the download failed (the screen shows
+ * Retry). Only real results enter the cache — misses and errors are never
+ * cached, so a newly published guide is visible immediately and a transient
+ * failure can be retried.
  */
 async function getFiller(
   input: number | FillerLookupInput,
@@ -988,8 +1165,8 @@ async function getFiller(
 ): Promise<FillerData | null> {
   const options: FillerLookupInput =
     typeof input === 'number' ? { anilistId: input, title: legacyTitle } : input || {};
-  const anilistId = Number(options.anilistId);
-  if (!Number.isFinite(anilistId) || anilistId <= 0) return null;
+  const parsedId = Number(options.anilistId);
+  const anilistId = Number.isFinite(parsedId) && parsedId > 0 ? parsedId : 0;
 
   const title = options.title?.trim() || undefined;
   const malRaw = Number(options.malId);
@@ -998,22 +1175,21 @@ async function getFiller(
     .map((a) => String(a).trim())
     .filter(Boolean)
     .slice(0, 8);
+  if (!anilistId && !malId && !title) return null;
 
   const lookupKey = `filler_${anilistId}_${malId || 0}_${[title || '', ...aliases].join('|').toLowerCase()}`;
   const cached = await cacheGet<FillerData>(lookupKey, FILLER_CACHE_TTL_MS);
 
-  let url = buildUrl(`/filler/${anilistId}`, { title, malId });
-  if (aliases.length) {
-    url += `${url.includes('?') ? '&' : '?'}${aliases
-      .map((a) => `alias=${encodeURIComponent(a)}`)
-      .join('&')}`;
-  }
-
   let network = fillerInFlight.get(lookupKey) as Promise<FillerData | null> | undefined;
   if (!network) {
     network = (async () => {
-      const data = await requestJson<FillerApiResponse>(url);
-      const parsed = parseFillerResponse(data, anilistId, title);
+      const data = await lookupDirectFiller({
+        anilistId: anilistId || undefined,
+        malId,
+        title,
+        aliases,
+      });
+      const parsed = data ? parseFillerResponse(data, anilistId, title) : null;
       if (parsed) await cacheSet(lookupKey, parsed, FILLER_CACHE_TTL_MS);
       return parsed;
     })();
@@ -1038,20 +1214,67 @@ async function getFiller(
   return first.kind === 'fresh' ? first.value : cached;
 }
 
-async function getDubStatus(malId: number): Promise<DubStatus> {
-  const data = await requestJson<any>(`${WEB_API}/anime-dub-status?malId=${malId}`);
-  const details = data?.details || {};
-  const available: string[] = (data?.available || []).map((l: string) =>
-    String(l).toLowerCase()
+const ANITALY_REGIONAL_DUBS_URL = 'https://anitally.in/api/regional-dubs';
+const MYDUBLIST_ENGLISH_URL =
+  'https://raw.githubusercontent.com/Joelis57/MyDubList/main/dubs/confidence/normal/dubbed_english.json';
+
+/** Same public datasets the website uses, queried directly from the phone. */
+async function directDubStatus(malId: number): Promise<DubStatus> {
+  const [regionalResult, englishResult] = await Promise.allSettled([
+    fetchWithTimeout(ANITALY_REGIONAL_DUBS_URL, { timeoutMs: 8000 }),
+    fetchWithTimeout(MYDUBLIST_ENGLISH_URL, { timeoutMs: 8000 }),
+  ]);
+  if (regionalResult.status === 'rejected' && englishResult.status === 'rejected') {
+    throw new Error('Dub sources unavailable');
+  }
+
+  const regionalData =
+    regionalResult.status === 'fulfilled' && regionalResult.value.ok
+      ? ((await regionalResult.value.json().catch(() => null)) as any)
+      : null;
+  const englishData =
+    englishResult.status === 'fulfilled' && englishResult.value.ok
+      ? ((await englishResult.value.json().catch(() => null)) as any)
+      : null;
+
+  const englishDubIds = new Set<number>(
+    Array.isArray(englishData?.dubbed)
+      ? englishData.dubbed.map((id: unknown) => Number(id)).filter(Number.isFinite)
+      : []
   );
+  const rows: any[] = Array.isArray(regionalData?.data) ? regionalData.data : [];
+  const match = rows.find((item) => Number(item?.mal_id) === malId);
+  const comingSoon: string[] =
+    typeof match?.coming_soon_languages === 'string'
+      ? match.coming_soon_languages
+          .split(',')
+          .map((language: string) => language.trim())
+          .filter(Boolean)
+      : [];
+
+  const hasEnglish = englishDubIds.has(malId);
+  const hasHindi = !!(match?.has_hindi || comingSoon.includes('Hindi'));
+  const hasTamil = !!(match?.has_tamil || comingSoon.includes('Tamil'));
+  const hasTelugu = !!(match?.has_telugu || comingSoon.includes('Telugu'));
+
   return {
     malId,
-    title: data?.title || '',
-    english: { available: !!details.hasEnglish || available.includes('english') },
-    hindi: { available: !!details.hasHindi || available.includes('hindi') },
-    tamil: { available: !!details.hasTamil || available.includes('tamil') },
-    telugu: { available: !!details.hasTelugu || available.includes('telugu') },
-  } as DubStatus;
+    title: typeof match?.title === 'string' ? match.title : '',
+    english: { available: hasEnglish },
+    hindi: { available: hasHindi },
+    tamil: { available: hasTamil },
+    telugu: { available: hasTelugu },
+  };
+}
+
+async function getDubStatus(malId: number): Promise<DubStatus> {
+  return fetchWithCache(
+    `dub_status_${malId}`,
+    // Public dub datasets are queried directly. No website hop: a failed lookup
+    // shows no badge (and reuses the offline cache) instead of calling zyverse.
+    () => directDubStatus(malId),
+    24 * 60 * 60 * 1000
+  );
 }
 
 async function getDubSchedule(language: DubScheduleLanguage): Promise<DubScheduleResponse> {
@@ -1110,8 +1333,8 @@ async function getDubCatalog(query: DubCatalogQuery): Promise<DubCatalogResponse
     query.page || 1,
   ].join('_');
 
-  return fetchWithCache(key, () =>
-    requestJson<DubCatalogResponse>(
+  return fetchWithCache(key, async () => {
+    const data = await requestJson<DubCatalogResponse>(
       buildUrl('/dub/catalog', {
         kind: query.kind,
         language: query.language,
@@ -1122,14 +1345,23 @@ async function getDubCatalog(query: DubCatalogQuery): Promise<DubCatalogResponse
         page: query.page ?? 1,
         limit: query.limit ?? 24,
       })
-    )
-  );
+    );
+    return { ...data, items: await hydrateDubPosters(data?.items || []) };
+  });
 }
 
 async function getDubWeeklySchedule(): Promise<DubScheduleListResponse> {
-  return fetchWithCache('dub_weekly_schedule', () =>
-    requestJson<DubScheduleListResponse>(`${WEB_API}/dub/schedule?limit=200`)
-  );
+  return fetchWithCache('dub_weekly_schedule', async () => {
+    const data = await requestJson<DubScheduleListResponse>(`${WEB_API}/dub/schedule?limit=200`);
+    const groups = await Promise.all(
+      (data?.groups || []).map(async (group) => ({
+        ...group,
+        items: await hydrateDubPosters(group?.items || []),
+      }))
+    );
+    const unscheduled = await hydrateDubPosters(data?.unscheduled || []);
+    return { ...data, groups, unscheduled };
+  });
 }
 
 /**
@@ -1141,7 +1373,9 @@ async function getDubLiveSchedule(force = false): Promise<LiveDubScheduleRespons
   const ttl = 60 * 1000;
   if (force) {
     try {
-      const live = await requestJson<LiveDubScheduleResponse>(`${WEB_API}/dub/live-schedule`);
+      const live = await hydrateLiveDubSchedule(
+        await requestJson<LiveDubScheduleResponse>(`${WEB_API}/dub/live-schedule`)
+      ) as LiveDubScheduleResponse;
       await cacheSet(key, live, ttl);
       return live;
     } catch {
@@ -1149,8 +1383,13 @@ async function getDubLiveSchedule(force = false): Promise<LiveDubScheduleRespons
     }
   }
   try {
-    return await fetchWithCache(key, () =>
-      requestJson<LiveDubScheduleResponse>(`${WEB_API}/dub/live-schedule`), ttl
+    return await fetchWithCache(
+      key,
+      async () =>
+        (await hydrateLiveDubSchedule(
+          await requestJson<LiveDubScheduleResponse>(`${WEB_API}/dub/live-schedule`)
+        )) as LiveDubScheduleResponse,
+      ttl
     );
   } catch {
     return cacheGet<LiveDubScheduleResponse>(key, 6 * 60 * 60 * 1000);
@@ -1186,21 +1425,30 @@ async function getSchedule(): Promise<ScheduleItem[]> {
   const now = Math.floor(Date.now() / 1000);
   const from = now - 6 * 3600;
   const to = now + 7 * 24 * 3600;
-  const data = await requestJson<any[]>(
-    `${WEB_API}/anilist/airing-schedule?from=${from}&to=${to}`
+
+  return fetchWithCache(
+    `schedule_${Math.floor(now / 1800)}`,
+    async () => {
+      let entries: any[] = [];
+      try {
+        entries = await directAiringSchedule(from, to);
+      } catch {
+        return [];
+      }
+      return entries.map((entry: any) => ({
+        mediaId: entry?.media?.id,
+        title:
+          entry?.media?.title?.english ||
+          entry?.media?.title?.romaji ||
+          'Unknown',
+        episode: entry?.episode,
+        airingAt: entry?.airingAt ? new Date(entry.airingAt * 1000).toISOString() : '',
+        timeUntilAiring: entry?.airingAt ? entry.airingAt - now : 0,
+        media: normalizeAnime(entry?.media),
+      })) as ScheduleItem[];
+    },
+    30 * 60 * 1000
   );
-  if (!Array.isArray(data)) return [];
-  return data.map((entry: any) => ({
-    mediaId: entry?.media?.id,
-    title:
-      entry?.media?.title?.english ||
-      entry?.media?.title?.romaji ||
-      'Unknown',
-    episode: entry?.episode,
-    airingAt: entry?.airingAt ? new Date(entry.airingAt * 1000).toISOString() : '',
-    timeUntilAiring: entry?.airingAt ? entry.airingAt - now : 0,
-    media: normalizeAnime(entry?.media),
-  })) as ScheduleItem[];
 }
 
 async function search(
@@ -1212,10 +1460,12 @@ async function search(
     const page = await browse({ search: query.trim(), type: 'MANGA', perPage: 30 });
     return page.media;
   }
-  const data = await requestJson<any>(
-    buildUrl('/anilist/search', { q: query.trim() })
-  );
-  let results: any[] = data?.results || [];
+  let results: any[] = [];
+  try {
+    results = await directSearch(query.trim());
+  } catch {
+    results = [];
+  }
   if (type === 'anime') results = results.filter((r) => r.type === 'ANIME');
   return results.map(normalizeAnime);
 }
@@ -1302,6 +1552,15 @@ async function getProfile(): Promise<ProfileResponse> {
     'profile',
     () => authedGet<ProfileResponse>('/profile'),
     5 * 60 * 1000
+  );
+}
+
+/** Fast first-paint profile: core rows only, no reviews/achievements/activity. */
+async function getProfileSummary(): Promise<ProfileResponse> {
+  return fetchWithCache<ProfileResponse>(
+    'profile_summary',
+    () => authedGet<ProfileResponse>('/mobile/profile-summary'),
+    60 * 1000
   );
 }
 
@@ -1540,15 +1799,67 @@ async function updateNotificationPrefs(
 /* OSTs and wallpapers (all backed by the public website API)           */
 /* ------------------------------------------------------------------ */
 
+function pickDayKey(date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/** Same deterministic hash as the website, so both platforms pick the same anime. */
+function pickForDay<T>(list: T[], day: string): T {
+  let hash = 0;
+  for (let i = 0; i < day.length; i++) hash = (hash * 31 + day.charCodeAt(i)) >>> 0;
+  return list[hash % list.length];
+}
+
 async function getAnimeOfTheDay(): Promise<import('../types').AnimeOfTheDay> {
-  return fetchWithCache('aotd', () =>
-    requestJson<import('../types').AnimeOfTheDay>(`${WEB_API}/anime-of-the-day`)
-  );
+  return fetchWithCache('aotd', async () => {
+    const day = pickDayKey();
+    // Deterministic pick from AniList only. If AniList is unreachable the caller
+    // uses the cached copy; no website API call is made.
+    const page = await directMediaPage({ perPage: 50, sort: 'TRENDING_DESC' });
+    const anime = page.media.length > 0 ? pickForDay(page.media, day) : null;
+    if (!anime) throw new Error('No trending anime available');
+    const title =
+      anime.title?.english || anime.title?.romaji || anime.title?.userPreferred || 'Unknown';
+    return {
+      day,
+      anime: {
+        id: anime.id,
+        title,
+        image:
+          anime.coverImage?.extraLarge || anime.coverImage?.large || anime.coverImage?.medium || '',
+        format: anime.format || '',
+        episodes: anime.episodes || 0,
+        genres: anime.genres || [],
+        score: anime.averageScore || 0,
+        popularity: anime.popularity || 0,
+        status: anime.status || '',
+        synopsis: anime.description || '',
+      },
+      why: `Today's pick is ${title}. Watch this trending anime and see if it matches your mood.`,
+    } as import('../types').AnimeOfTheDay;
+  });
 }
 
 async function getLeaderboard(limit = 50, offset = 0): Promise<import('../types').LeaderboardResponse> {
   return fetchWithCache(`leaderboard_${limit}_${offset}`, () =>
-    requestJson<import('../types').LeaderboardResponse>(buildUrl('/leaderboard', { limit, offset }))
+    withDirectFallback<import('../types').LeaderboardResponse>(
+      async () => {
+        const { rows, total } = await supabaseSelect<{
+          userId: string;
+          username: string;
+          avatar: string | null;
+          points: number;
+          level: number;
+          achievements: number;
+        }>('public_zv_leaderboard', { limit, offset }, { count: true });
+        return { entries: rows, total: total ?? rows.length };
+      },
+      () => requestJson<import('../types').LeaderboardResponse>(buildUrl('/leaderboard', { limit, offset })),
+      (value) => !!value && Array.isArray(value.entries)
+    )
   );
 }
 
@@ -2344,6 +2655,86 @@ async function getChatMessagesWithTyping(
 }
 
 /* ------------------------------------------------------------------ */
+/* Tournament helpers — public AniList reads, shared DB writes          */
+/* ------------------------------------------------------------------ */
+
+export interface TournamentCharacterResult {
+  id: number;
+  name: string;
+  nameNative?: string | null;
+  image?: string | null;
+  favourites?: number;
+}
+
+/** Character picker source. Never needs the website UI or its HTML. */
+async function searchTournamentCharacters(query: string): Promise<TournamentCharacterResult[]> {
+  const q = query.trim();
+  if (!q) return [];
+  try {
+    return await directCharacterSearch(q, 20);
+  } catch {
+    // Offline/rate-limited: the cached copy (if any) is served by the caller.
+    return [];
+  }
+}
+
+/**
+ * Tournament rows store an artwork URL captured at creation time. Refresh it
+ * from AniList on read so older/user-created events show the same character
+ * images as the website, without depending on a cached proxy.
+ */
+async function hydrateTournamentImages<T>(detail: T): Promise<T> {
+  const payload: any = detail;
+  if (!payload) return detail;
+  const ids = new Set<number>();
+  const collect = (participant: any) => {
+    const id = Number(participant?.charId);
+    if (Number.isFinite(id) && id > 0) ids.add(id);
+  };
+  (payload.tournament?.participants || []).forEach(collect);
+  const collectMatch = (match: any) => {
+    collect(match?.charA);
+    collect(match?.charB);
+    collect(match?.winner);
+  };
+  (payload.matches || []).forEach(collectMatch);
+  (payload.rounds || []).forEach((round: any) => (round?.matches || []).forEach(collectMatch));
+  if (ids.size === 0) return detail;
+
+  let refreshed: Map<number, { name?: string; image?: string | null; favourites?: number }>;
+  try {
+    refreshed = await directCharactersByIds([...ids]);
+  } catch {
+    return detail;
+  }
+  if (refreshed.size === 0) return detail;
+
+  const apply = (participant: any) => {
+    const info = refreshed.get(Number(participant?.charId));
+    if (!info) return;
+    if (info.image) {
+      participant.charImage = info.image;
+      if (!participant.franchiseCover) participant.franchiseCover = info.image;
+    }
+    if (!participant.charName && info.name) participant.charName = info.name;
+  };
+  (payload.tournament?.participants || []).forEach(apply);
+  (payload.matches || []).forEach((match: any) => {
+    apply(match?.charA);
+    apply(match?.charB);
+    apply(match?.winner);
+  });
+  (payload.rounds || []).forEach((round: any) =>
+    (round?.matches || []).forEach((match: any) => {
+      apply(match?.charA);
+      apply(match?.charB);
+      apply(match?.winner);
+    })
+  );
+  return detail;
+}
+
+/* ------------------------------------------------------------------ */
 /* Public API object                                                   */
 /* ------------------------------------------------------------------ */
 
@@ -2414,7 +2805,7 @@ export const api = {
     remove: removeFromWatchlist,
     rate: rateAnime,
   },
-  profile: { get: getProfile, update: updateProfile, uploadImage },
+  profile: { get: getProfile, summary: getProfileSummary, update: updateProfile, uploadImage },
   account: {
     customLists: getCustomLists,
     moments: getMoments,
@@ -2532,22 +2923,86 @@ export const api = {
   vibe: { get: getVibe },
   dna: { get: getAnimeDna },
 
+  searchTournamentCharacters,
+
   tournaments: {
     list: async () => {
-      const data = await requestJson<any>(`${WEB_API}/character-tournaments`);
-      return (Array.isArray(data)
-        ? data
-        : data?.tournaments || data?.data || []) as import('../types').CharacterTournament[];
+      // Real-time shared state: a timestamp + no-cache keeps tournaments made
+      // on the website visible in the app on the next visit, without waiting
+      // for the public CDN window to expire.
+      const fromWebsite = async () => {
+        const data = await requestJson<any>(
+          `${WEB_API}/character-tournaments?limit=100&t=${Date.now()}`,
+          { headers: { 'Cache-Control': 'no-cache' } }
+        );
+        const items = (Array.isArray(data)
+          ? data
+          : data?.tournaments || data?.data || []) as any[];
+        return items.map((item) => ({
+          ...item,
+          characterCount: item?._count?.participants ?? item?.characterCount ?? item?.size ?? 0,
+        })) as import('../types').CharacterTournament[];
+      };
+
+      // Public, PII-free view on the same shared database. The website keeps
+      // writing through the server routes, so sync is unchanged. Anything
+      // missing/paused falls straight back to the website API.
+      return withDirectFallback<import('../types').CharacterTournament[]>(
+        async () => {
+          const { rows } = await supabaseSelect<any>('public_zv_tournaments', { limit: 100 });
+          const items = rows.map((item: any) => ({
+            ...item,
+            characterCount: item?._count?.participants ?? item?.characterCount ?? item?.size ?? 0,
+          })) as any[];
+          // Same order as GET /api/character-tournaments.
+          items.sort(
+            (a, b) =>
+              (a.statusRank ?? 9) - (b.statusRank ?? 9) ||
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+          return items as import('../types').CharacterTournament[];
+        },
+        fromWebsite,
+        (value) => Array.isArray(value)
+      );
     },
     detail: async (id: string) => {
       // The device id makes the server include this voter's `myVotes` /
       // `myPollVote` state. Without it guests always look like they have never
       // voted, so the vote buttons can never show the correct state.
-      const data = await requestJson<any>(`${WEB_API}/character-tournaments/${id}`, {
-        headers: { 'X-Device-Id': await getDeviceId() },
+      const data = await requestJson<any>(`${WEB_API}/character-tournaments/${id}?t=${Date.now()}`, {
+        headers: {
+          'X-Device-Id': await getDeviceId(),
+          'Cache-Control': 'no-cache',
+          ...(await authHeader()),
+        },
       });
-      return (data?.data || data) as import('../types').CharacterTournamentDetail;
+      const detail = (data?.data || data) as import('../types').CharacterTournamentDetail;
+      return hydrateTournamentImages(detail);
     },
+    /** Creates in the same shared database the website uses, so both see it. */
+    create: async (input: {
+      title: string;
+      description?: string;
+      size: number;
+      mode: 'bracket' | 'qualifying';
+      bracketSize?: number;
+      posterUrl?: string;
+      participants: Array<{
+        charId: number;
+        charName: string;
+        charImage?: string | null;
+        franchiseCover?: string | null;
+      }>;
+    }) => {
+      const created = await authedPost<any>('/character-tournaments', input);
+      return (created?.data || created) as { id: string };
+    },
+    /** Creator controls; the website uses these same shared routes. */
+    start: async (id: string) => authedPost<any>(`/character-tournaments/${id}/start`, {}),
+    finalizeQualifying: async (id: string) =>
+      authedPost<any>(`/character-tournaments/${id}/finalize-qualifying`, {}),
+    finalize: async (id: string) => authedPost<any>(`/character-tournaments/${id}/finalize`, {}),
     /** Vote in a live bracket matchup. One vote per match, guests allowed. */
     matchVote: async (id: string, matchId: string, choice: 'A' | 'B') => {
       const res = await fetchWithTimeout(
@@ -2557,6 +3012,7 @@ export const api = {
           headers: {
             'Content-Type': 'application/json',
             'X-Device-Id': await getDeviceId(),
+            ...(await authHeader()),
           },
           body: JSON.stringify({ choice }),
         }
@@ -2569,7 +3025,7 @@ export const api = {
     },
     pollVoteGet: async (id: string): Promise<{ myPollVote: string | null }> => {
       const res = await fetchWithTimeout(`${WEB_API}/character-tournaments/${id}/poll-vote`, {
-        headers: { 'X-Device-Id': await getDeviceId() },
+        headers: { 'X-Device-Id': await getDeviceId(), ...(await authHeader()) },
       });
       if (!res.ok) return { myPollVote: null };
       return res.json();
@@ -2580,6 +3036,7 @@ export const api = {
         headers: {
           'Content-Type': 'application/json',
           'X-Device-Id': await getDeviceId(),
+          ...(await authHeader()),
         },
         body: JSON.stringify({ participantId }),
       });

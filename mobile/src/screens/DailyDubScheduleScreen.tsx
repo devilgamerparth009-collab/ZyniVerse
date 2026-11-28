@@ -21,6 +21,9 @@ import FadeInView from '../components/FadeInView';
 import { spacing, borderRadius } from '../theme';
 import { cleanText, timeAgo } from '../utils/helpers';
 import { openTrustedExternalUrl } from '../utils/safeLinks';
+import ImageWithFallback from '../components/ImageWithFallback';
+import { imageCandidates } from '../lib/avatar-src';
+import { localChannelLogo } from '../utils/channelLogos';
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const DAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -147,7 +150,9 @@ function ChannelBadge({ channel, size = 44 }: { channel: any; size?: number }) {
   const [failed, setFailed] = useState(false);
   const brand = channel?.color || '#3b82f6';
   const label = channel?.shortName || channel?.name || 'TV';
-  const logo = channel?.logoUrl;
+  const bundledLogo = localChannelLogo(channel?.id);
+  const logoCandidates = imageCandidates(channel?.logoUrl);
+  useEffect(() => { setFailed(false); }, [channel?.id, channel?.logoUrl]);
 
   return (
     <View
@@ -164,19 +169,18 @@ function ChannelBadge({ channel, size = 44 }: { channel: any; size?: number }) {
         padding: 4,
       }}
     >
-      {logo && !failed ? (
+      {bundledLogo ? (
         <Image
-          source={{
-            uri: logo,
-            headers: {
-              'User-Agent':
-                'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36',
-              Accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
-            },
-          }}
+          source={bundledLogo}
           style={{ width: '92%', height: '92%' }}
           resizeMode="contain"
-          onError={() => setFailed(true)}
+        />
+      ) : logoCandidates.length > 0 && !failed ? (
+        <ImageWithFallback
+          sources={logoCandidates}
+          style={{ width: '92%', height: '92%' }}
+          resizeMode="contain"
+          onGiveUp={() => setFailed(true)}
         />
       ) : (
         <Text
@@ -375,7 +379,7 @@ export default function DailyDubScheduleScreen() {
   const openEntry = async (entry: LiveDubEntry) => {
     const opened = await openTrustedExternalUrl(entry.url);
     if (opened) return;
-    Alert.alert('Watch link', 'Is episode ka direct official link abhi available nahi hai.');
+    Alert.alert('Watch link', 'An official watch link is not available for this episode yet.');
   };
 
   const onRefresh = async () => {
@@ -700,6 +704,7 @@ export default function DailyDubScheduleScreen() {
                             },
                           ]}
                         >
+                          <ChannelBadge channel={c.channel} size={26} />
                           {isLive && <View style={styles.liveDotSmall} />}
                           <Text
                             style={[styles.channelChipText, { color: active ? c.channel.color : colors.textMuted }]}

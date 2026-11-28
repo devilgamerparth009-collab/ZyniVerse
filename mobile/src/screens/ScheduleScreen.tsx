@@ -19,6 +19,8 @@ import ErrorView from '../components/ErrorView';
 import FadeInView from '../components/FadeInView';
 import PressableScale from '../components/PressableScale';
 import AdBanner from '../components/AdBanner';
+import SafeImage from '../components/SafeImage';
+import { getScreenCache, setScreenCache } from '../utils/screenCache';
 import { api } from '../services/api';
 import { ScheduleItem } from '../types';
 
@@ -73,14 +75,24 @@ export default function ScheduleScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const fetchSchedule = useCallback(async () => {
+  const fetchSchedule = useCallback(async (silent = false) => {
+    const cacheKey = 'schedule:all';
+    const cached = getScreenCache<ScheduleItem[]>(cacheKey);
+    if (cached) {
+      setSchedule(cached);
+      setLoading(false);
+    } else if (!silent) {
+      setLoading(true);
+    }
     try {
       setError(null);
       const data = await api.schedule.get();
       setSchedule(data);
+      setScreenCache(cacheKey, data);
     } catch (e: any) {
-      setError(e?.message || 'Could not load the airing schedule');
+      if (!getScreenCache<ScheduleItem[]>(cacheKey)) {
+        setError(e?.message || 'Could not load the airing schedule');
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -93,7 +105,7 @@ export default function ScheduleScreen() {
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchSchedule();
+    fetchSchedule(true);
   };
 
   const days = useMemo(() => {
@@ -325,13 +337,7 @@ export default function ScheduleScreen() {
               >
                 {/* Anime Cover */}
                 <View style={styles.posterBox}>
-                  {poster ? (
-                    <Image source={{ uri: poster }} style={styles.poster} />
-                  ) : (
-                    <View style={[styles.posterFallback, { backgroundColor: colors.background }]}>
-                      <Text style={{ fontSize: 24 }}>🎬</Text>
-                    </View>
-                  )}
+                  <SafeImage uri={poster} style={styles.poster} fallbackLabel={item.media?.title?.english || item.media?.title?.romaji || 'Anime'} />
                   {item.episode && (
                     <View style={[styles.epBadge, { backgroundColor: primaryColor }]}>
                       <Text style={styles.epBadgeText}>EP {item.episode}</Text>

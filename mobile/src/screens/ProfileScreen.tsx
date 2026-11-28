@@ -27,6 +27,7 @@ import {
   LIST_STATUS_LABEL,
   timeAgo,
 } from '../utils/helpers';
+import { getScreenCache, setScreenCache } from '../utils/screenCache';
 import { openSafeWebUrl } from '../utils/safeLinks';
 import LoadingSpinner from '../components/LoadingSpinner';
 import FadeInView from '../components/FadeInView';
@@ -66,7 +67,12 @@ const EXPLORE_ITEMS: {
 }[] = [
   { key: 'recommendations', icon: '✨', label: 'Recommendations', sub: 'Picks based on your list', tint: '#a855f7', route: 'Recommendations' },
   { key: 'taste', icon: '🧬', label: 'Taste Profile', sub: 'See what anime fits you', tint: '#22d3ee', route: 'TasteProfile' },
-  { key: 'watchlist', icon: '📌', label: 'Watchlist', sub: 'Plan what to watch next', tint: '#f43f5e', route: 'Hub', params: { kind: 'watchlist', title: 'Watchlist' } },
+  { key: 'tracker', icon: '📺', label: 'Anime Tracker', sub: 'Log what you watch, saved locally', tint: '#f43f5e', route: 'Tracker' },
+  { key: 'filler', icon: '⏭️', label: 'Filler Guides', sub: 'Browse every AniFiller guide', tint: '#a78bfa', route: 'FillerLibrary' },
+  { key: 'feed', icon: '📰', label: 'Feed', sub: 'Drop a hot take', tint: '#c084fc', route: 'Feed' },
+  { key: 'vibe', icon: '🔥', label: 'Vibe', sub: 'Your anime pulse', tint: '#f472b6', route: 'Vibe' },
+  { key: 'communities', icon: '🏛️', label: 'Communities', sub: 'Join fandom clubs on this device', tint: '#f59e0b', route: 'CommunityHub' },
+  { key: 'chats', icon: '💬', label: 'Chat', sub: 'Local DMs and group chats', tint: '#22d3ee', route: 'LocalChats' },
   { key: 'discover', icon: '🧭', label: 'Discover people', sub: 'Find fans with similar taste', tint: '#22c55e', route: 'DiscoverPeople' },
   { key: 'channels', icon: '📣', label: 'Broadcast channels', sub: 'Follow creator updates', tint: '#f59e0b', route: 'Channels' },
   { key: 'stories', icon: '✨', label: 'Stories', sub: 'Watch daily moments', tint: '#f472b6', route: 'Stories' },
@@ -356,6 +362,14 @@ export default function ProfileScreen() {
   const load = useCallback(async () => {
     setSessionIssue('none');
     setAuthMessage(null);
+    const cacheKey = 'profile:me';
+    const cached = getScreenCache<{ profile: ProfileResponse; media: [number, Anime][] }>(cacheKey, 5 * 60_000);
+    if (cached) {
+      setProfile(cached.profile);
+      setMediaMap(new Map(cached.media));
+      setLoggedIn(true);
+      setLoading(false);
+    }
     try {
       const [hasSession, cachedUser] = await Promise.all([
         api.auth.isLoggedIn(),
@@ -371,13 +385,34 @@ export default function ProfileScreen() {
         return;
       }
 
-      // The profile request is the verification step. Cached user details are
-      // never rendered as a half-logged-in profile.
-      const data = await api.profile.get();
+      // The first request verifies the session and paints the core profile.
+      // It skips reviews/achievements/activity, which load in the background.
+      let data: ProfileResponse;
+      try {
+        data = await api.profile.summary();
+      } catch {
+        data = await api.profile.get();
+      }
       setProfile(data);
       setLoggedIn(true);
-      const map = await mediaMapFor(data.user.entries);
-      setMediaMap(map);
+      setLoading(false);
+      if (cached) {
+        setScreenCache(cacheKey, { profile: data, media: cached.media });
+      }
+
+      // Full profile + AniList artwork are non-blocking. The screen is already
+      // interactive with the summary and any cached posters above.
+      const full = await api.profile.get().catch(() => null);
+      if (full) {
+        setProfile(full);
+        const map = await mediaMapFor(full.user.entries);
+        setMediaMap(map);
+        setScreenCache(cacheKey, { profile: full, media: Array.from(map.entries()) });
+      } else if (!cached) {
+        const map = await mediaMapFor(data.user.entries);
+        setMediaMap(map);
+        setScreenCache(cacheKey, { profile: data, media: Array.from(map.entries()) });
+      }
     } catch (e: any) {
       const message = e?.message || 'Could not load your profile';
       if (isSessionError(message)) {
@@ -411,11 +446,14 @@ export default function ProfileScreen() {
           setLoggedIn(false);
         }
       } else {
-        setProfile(null);
-        setMediaMap(new Map());
-        setLoggedIn(false);
-        setSessionIssue('error');
-        setAuthMessage(message);
+        if (!cached) {
+          setProfile(null);
+          setMediaMap(new Map());
+          setLoggedIn(false);
+          setSessionIssue('error');
+          setAuthMessage(message);
+        }
+        // If cached profile is showing, keep it and fail silently on background refresh.
       }
     } finally {
       setLoading(false);

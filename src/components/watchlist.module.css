@@ -1,0 +1,308 @@
+/* Watchlist-only polish. All decorative motion is disabled under
+   prefers-reduced-motion; layout and controls stay identical. */
+
+@keyframes wlAuroraA {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(22px, 14px, 0) scale(1.12);
+  }
+}
+
+@keyframes wlAuroraB {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1.05);
+  }
+  50% {
+    transform: translate3d(-18px, 18px, 0) scale(0.94);
+  }
+}
+
+@keyframes wlAuroraC {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(0.96);
+  }
+  50% {
+    transform: translate3d(14px, -16px, 0) scale(1.1);
+  }
+}
+
+@keyframes wlSheenSweep {
+  0% {
+    transform: translateX(-125%);
+  }
+  55%,
+  100% {
+    transform: translateX(125%);
+  }
+}
+
+@keyframes wlSlideInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes wlLivePulse {
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 8px var(--color-cyan);
+  }
+  50% {
+    opacity: 0.6;
+    box-shadow: 0 0 16px var(--color-cyan);
+  }
+}
+
+@keyframes wlProgressFlow {
+  from {
+    transform: translateX(-110%);
+  }
+  to {
+    transform: translateX(110%);
+  }
+}
+
+@keyframes wlFloatY {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-7px);
+  }
+}
+
+@keyframes wlEmptyFloat {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-3deg);
+  }
+  50% {
+    transform: translateY(-8px) rotate(3deg);
+  }
+}
+
+.hero {
+  isolation: isolate;
+}
+
+.heroSheen {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(
+    110deg,
+    transparent 32%,
+    rgb(255 255 255 / 5%) 48%,
+    transparent 64%
+  );
+  transform: translateX(-125%);
+  animation: wlSheenSweep 9s ease-in-out infinite;
+}
+
+.auroraA {
+  animation: wlAuroraA 18s ease-in-out infinite;
+}
+
+.auroraB {
+  animation: wlAuroraB 22s ease-in-out infinite;
+}
+
+.auroraC {
+  animation: wlAuroraC 20s ease-in-out infinite;
+}
+
+.ring {
+  filter: drop-shadow(0 0 12px rgb(255 0 255 / 30%));
+}
+
+.statCard {
+  transition:
+    transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.25s ease;
+}
+
+.statCard:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 28px -16px rgb(0 0 0 / 80%);
+}
+
+.vibeChip {
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.vibeChip:hover {
+  transform: translateY(-2px);
+  border-color: var(--color-cyan);
+}
+
+.bulkBar {
+  animation: wlSlideInDown 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.liveDot {
+  animation: wlLivePulse 2.2s ease-in-out infinite;
+}
+
+.chip {
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.chip:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--color-cyan) 45%, transparent);
+}
+
+.chipActive {
+  box-shadow: 0 8px 24px -12px rgb(0 0 0 / 90%);
+}
+
+.actionBtn {
+  transition:
+    transform 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease,
+    background-color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.actionBtn:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+
+.actionBtn:active:not(:disabled) {
+  transform: translateY(0) scale(0.97);
+}
+
+.continueCard {
+  transition:
+    transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+.continueCard:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 14px 30px -18px rgb(0 0 0 / 90%);
+}
+
+.progressTrack {
+  position: relative;
+  overflow: hidden;
+}
+
+.progressFill {
+  position: relative;
+  overflow: hidden;
+}
+
+.progressFill::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgb(255 255 255 / 45%),
+    transparent
+  );
+  transform: translateX(-110%);
+  animation: wlProgressFlow 2.6s linear infinite;
+}
+
+.coverFrame {
+  overflow: hidden;
+}
+
+.coverShine {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  background: linear-gradient(
+    115deg,
+    transparent 32%,
+    rgb(255 255 255 / 13%) 48%,
+    transparent 64%
+  );
+  transform: translateX(-120%);
+  transition: transform 0.75s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.coverFrame:hover .coverShine {
+  transform: translateX(120%);
+}
+
+.cardLift {
+  transition:
+    transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.3s ease,
+    border-color 0.3s ease;
+}
+
+.cardLift:hover {
+  transform: translateY(-6px);
+}
+
+.carouselCard {
+  animation: wlFloatY 6s ease-in-out infinite;
+}
+
+.emptyIcon {
+  animation: wlEmptyFloat 4.5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .heroSheen,
+  .auroraA,
+  .auroraB,
+  .auroraC,
+  .bulkBar,
+  .liveDot,
+  .progressFill::after,
+  .carouselCard,
+  .emptyIcon {
+    animation: none !important;
+  }
+
+  .heroSheen,
+  .coverShine {
+    display: none;
+  }
+
+  .statCard,
+  .vibeChip,
+  .chip,
+  .actionBtn,
+  .continueCard,
+  .coverShine,
+  .cardLift {
+    transition: none !important;
+  }
+
+  .statCard:hover,
+  .vibeChip:hover,
+  .chip:hover,
+  .actionBtn:hover:not(:disabled),
+  .continueCard:hover,
+  .cardLift:hover {
+    transform: none !important;
+  }
+}

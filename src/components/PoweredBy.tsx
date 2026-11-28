@@ -1,123 +1,155 @@
 "use client";
 
-import { useCallback, useRef } from "react";
+import Link from "next/link";
 import Image from "next/image";
-import { motion } from "framer-motion";
+import { useCallback, type CSSProperties } from "react";
+import { amazonSearchUrl, playasiaUrl } from "@/lib/affiliate-config";
 
-type Program = {
+type CardItem = {
   name: string;
   desc: string;
-  href: string;
-  logo: string;
   badge: string;
   color: string;
+  logo: string;
+  href?: string;
 };
 
-const programs: Program[] = [
+const cards: CardItem[] = [
   {
     name: "Google Student Ambassador Program",
     desc: "Student Ambassador, India — sharing the power of Gemini with campuses.",
-    href: "",
-    logo: "/partners/gemini.png",
     badge: "Powered by Gemini",
     color: "#29f2e0",
+    logo: "/partners/gemini.png",
   },
   {
     name: "GeeksforGeeks Campus Mantri Program",
     desc: "Campus Mantri (Ambassador) — official campus representative of GeeksforGeeks.",
-    href: "",
-    logo: "/partners/gfg.svg",
     badge: "Campus Mantri",
     color: "#22c55e",
+    logo: "/partners/gfg.svg",
   },
   {
     name: "Physics Wallah Channel Partner",
     desc: "Official PW Channel Partner — helping students learn, grow and score.",
-    href: "",
-    logo: "/partners/pw.webp",
     badge: "PW Channel Partner",
     color: "#8a5cff",
+    logo: "/partners/pw.webp",
+  },
+  {
+    name: "Amazon",
+    desc: "Anime picks, manga and more on Amazon.in.",
+    badge: "Affiliate link",
+    color: "#ff9900",
+    logo: "/partners/amazon.svg",
+    href: amazonSearchUrl("anime"),
+  },
+  {
+    name: "Play-Asia",
+    desc: "Anime merch, games and collectibles.",
+    badge: "Affiliate link",
+    color: "#29f2e0",
+    logo: "/partners/play-asia.png",
+    href: playasiaUrl(),
   },
 ];
 
-function ProgramCard({ p, index }: { p: Program; index: number }) {
-  const ref = useRef<HTMLDivElement>(null);
+function vars(values: Record<string, string | number>) {
+  return values as CSSProperties;
+}
 
-  const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    const el = ref.current;
-    if (!el) return;
+function PartnerCard({ item, index }: { item: CardItem; index: number }) {
+  const handlePointerMove = useCallback((event: React.PointerEvent<HTMLElement>) => {
+    const el = event.currentTarget;
     const rect = el.getBoundingClientRect();
-    const cx = rect.left + rect.width / 2;
-    const cy = rect.top + rect.height / 2;
-    const px = (e.clientX - cx) / (rect.width / 2);
-    const py = (e.clientY - cy) / (rect.height / 2);
-    el.style.transform = `perspective(900px) rotateY(${px * 5}deg) rotateX(${-py * 5}deg) scale(1.02)`;
+    const px = (event.clientX - rect.left - rect.width / 2) / (rect.width / 2);
+    const py = (event.clientY - rect.top - rect.height / 2) / (rect.height / 2);
+    el.style.setProperty("--pwr-rx", `${(-py * 4).toFixed(2)}deg`);
+    el.style.setProperty("--pwr-ry", `${(px * 4).toFixed(2)}deg`);
   }, []);
 
-  const handlePointerLeave = useCallback(() => {
-    const el = ref.current;
-    if (!el) return;
-    el.style.transform = "perspective(900px) rotateY(0deg) rotateX(0deg) scale(1)";
+  const handlePointerLeave = useCallback((event: React.PointerEvent<HTMLElement>) => {
+    const el = event.currentTarget;
+    el.style.setProperty("--pwr-rx", "0deg");
+    el.style.setProperty("--pwr-ry", "0deg");
   }, []);
+
+  const content = (
+    <>
+      <span className="pwr-card-scan" aria-hidden="true" />
+      <div className="pwr-card-top">
+        <span className="pwr-card-rule" aria-hidden="true" />
+        <span className="pwr-badge">{item.badge}</span>
+      </div>
+      <div className="pwr-logo">
+        <Image
+          src={item.logo}
+          alt={`${item.name} logo`}
+          fill
+          sizes="68px"
+          className="pwr-logo-img"
+        />
+      </div>
+      <h3 className="pwr-card-name">{item.name}</h3>
+      <p className="pwr-card-desc">{item.desc}</p>
+      <span className="pwr-card-corner" aria-hidden="true" />
+      {item.href && <span className="pwr-card-go" aria-hidden="true">↗</span>}
+    </>
+  );
+
+  const style = vars({ "--pwr-i": index, "--pwr-accent": item.color });
+  const handlers = {
+    onPointerMove: handlePointerMove,
+    onPointerLeave: handlePointerLeave,
+  };
+
+  if (item.href) {
+    return (
+      <a
+        href={item.href}
+        target="_blank"
+        rel="noopener noreferrer sponsored"
+        className="pwr-card pwr-card--link"
+        style={style}
+        {...handlers}
+      >
+        {content}
+      </a>
+    );
+  }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 26, scale: 0.96 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ duration: 0.45, delay: (index % 6) * 0.07, ease: [0.22, 1, 0.36, 1] }}
-    >
-      <div
-        ref={ref}
-        onPointerMove={handlePointerMove}
-        onPointerLeave={handlePointerLeave}
-        className="neon-premium block rounded-[20px]"
-        style={{ transition: "transform 0.2s ease-out" }}
-      >
-        <div className="neon-premium-track" />
-        <div className="neon-premium-overlay" />
-        <div className="neon-premium-content rounded-[20px] p-5">
-          <div className="mb-4 flex items-center gap-2">
-            <span className="h-1.5 w-8 rounded-full" style={{ background: p.color, boxShadow: `0 0 10px ${p.color}88` }} />
-            <span
-              className="ml-auto rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider"
-              style={{ color: p.color, borderColor: `${p.color}55`, background: `${p.color}11` }}
-            >
-              {p.badge}
-            </span>
-          </div>
-          <span
-            className="relative grid h-16 w-16 place-items-center overflow-hidden rounded-2xl border border-[var(--color-line)] bg-white p-2"
-            style={{ boxShadow: `0 0 16px ${p.color}22` }}
-          >
-            <Image src={p.logo} alt={`${p.name} logo`} fill sizes="64px" className="object-contain" />
-          </span>
-          <p className="mt-3 font-display text-lg font-bold text-[var(--color-ink)]">{p.name}</p>
-          <p className="mt-1 text-xs text-[var(--color-mute)]">{p.desc}</p>
-        </div>
-      </div>
-    </motion.div>
+    <article className="pwr-card" style={style} {...handlers}>
+      {content}
+    </article>
   );
 }
 
 export default function PoweredBy() {
   return (
-    <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
-      <div className="neon-premium rounded-[20px]">
-        <div className="neon-premium-track" />
-        <div className="neon-premium-overlay" />
-        <div className="neon-premium-content rounded-[20px] p-5 sm:p-6">
-          <div className="mb-5 flex items-end justify-between">
-            <div className="rounded-xl px-4 py-2">
-              <p className="font-mono text-xs uppercase tracking-[0.2em] text-[var(--color-magenta)]">Powered By</p>
-              <h2 className="font-display text-2xl font-bold">Official Programs &amp; Affiliations</h2>
-            </div>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {programs.map((p, i) => (
-              <ProgramCard key={p.name} p={p} index={i} />
-            ))}
-          </div>
+    <section className="pwr-section" aria-labelledby="pwr-title">
+      <span className="pwr-halo" aria-hidden="true" />
+      <span className="pwr-beam" aria-hidden="true" />
+
+      <div className="pwr-shell">
+        <header className="pwr-header">
+          <p className="pwr-eyebrow">
+            <span className="pwr-signal" aria-hidden="true" />
+            Powered By
+          </p>
+          <h2 id="pwr-title" className="pwr-title">Programs &amp; Partners</h2>
+        </header>
+
+        <div className="pwr-grid">
+          {cards.map((item, index) => (
+            <PartnerCard key={item.name} item={item} index={index} />
+          ))}
         </div>
+
+        <p className="pwr-disclosure">
+          Amazon and Play-Asia cards use affiliate links. We may earn a small commission at no extra cost to you.{" "}
+          <Link href="/disclaimer">Details</Link>
+        </p>
       </div>
     </section>
   );

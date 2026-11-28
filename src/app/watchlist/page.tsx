@@ -8,6 +8,7 @@ import {
   motion,
   useMotionValue,
   useMotionValueEvent,
+  useReducedMotion,
   useSpring,
 } from "framer-motion";
 import {
@@ -22,6 +23,7 @@ import { DynamicWatchlistCarousel3D as WatchlistCarousel3D } from "@/components/
 import { PageTransition } from "@/components/PageTransition";
 import ListImportExport from "@/components/ListImportExport";
 import NativeBannerAd from "@/components/NativeBannerAd";
+import styles from "@/components/watchlist.module.css";
 
 const STATUS_OPTIONS: { label: string; value: ListStatus }[] =
   LIST_STATUSES.map((value) => ({
@@ -65,14 +67,21 @@ function Aurora() {
       aria-hidden
       className="pointer-events-none absolute inset-0 overflow-hidden"
     >
-      <div className="absolute -left-24 -top-28 h-64 w-64 rounded-full bg-[var(--color-magenta)]/25 blur-3xl" />
-      <div className="absolute -right-20 -top-10 h-60 w-60 rounded-full bg-[var(--color-cyan)]/20 blur-3xl" />
-      <div className="absolute -bottom-24 left-1/3 h-56 w-56 rounded-full bg-[var(--color-violet)]/25 blur-3xl" />
+      <div
+        className={`absolute -left-24 -top-28 h-64 w-64 rounded-full bg-[var(--color-magenta)]/25 blur-3xl ${styles.auroraA}`}
+      />
+      <div
+        className={`absolute -right-20 -top-10 h-60 w-60 rounded-full bg-[var(--color-cyan)]/20 blur-3xl ${styles.auroraB}`}
+      />
+      <div
+        className={`absolute -bottom-24 left-1/3 h-56 w-56 rounded-full bg-[var(--color-violet)]/25 blur-3xl ${styles.auroraC}`}
+      />
     </div>
   );
 }
 
 function AnimatedNumber({ value }: { value: number }) {
+  const reduced = useReducedMotion();
   const mv = useMotionValue(0);
   const spring = useSpring(mv, { stiffness: 120, damping: 22 });
   const [display, setDisplay] = useState(0);
@@ -82,7 +91,7 @@ function AnimatedNumber({ value }: { value: number }) {
   useMotionValueEvent(spring, "change", (v) =>
     setDisplay(Math.round(v as number)),
   );
-  return <>{display}</>;
+  return <>{reduced ? value : display}</>;
 }
 
 function CompletionRing({
@@ -92,11 +101,12 @@ function CompletionRing({
   completed: number;
   total: number;
 }) {
+  const reduced = useReducedMotion();
   const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
   const r = 34;
   const c = 2 * Math.PI * r;
   return (
-    <div className="relative h-24 w-24 shrink-0">
+    <div className={`relative h-24 w-24 shrink-0 ${styles.ring}`}>
       <svg viewBox="0 0 80 80" className="h-full w-full -rotate-90">
         <defs>
           <linearGradient id="watchlist-ring" x1="0" y1="0" x2="1" y2="1">
@@ -123,7 +133,7 @@ function CompletionRing({
           strokeDasharray={c}
           initial={{ strokeDashoffset: c }}
           animate={{ strokeDashoffset: c - (c * pct) / 100 }}
-          transition={{ duration: 1, ease: "easeOut" }}
+          transition={reduced ? { duration: 0 } : { duration: 1, ease: "easeOut" }}
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
@@ -151,13 +161,14 @@ function FilterChip({
   accent: string;
   children: ReactNode;
 }) {
+  const reduced = useReducedMotion();
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`relative shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+      className={`relative shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${styles.chip} ${
         active
-          ? "border-transparent text-black"
+          ? `border-transparent text-black ${styles.chipActive}`
           : "border-[var(--color-line)] bg-[var(--color-panel)] text-[var(--color-mute)] hover:text-[var(--color-ink)]"
       }`}
     >
@@ -166,7 +177,11 @@ function FilterChip({
           layoutId="watchlist-filter-pill"
           className="absolute inset-0 rounded-full"
           style={{ background: accent }}
-          transition={{ type: "spring", stiffness: 500, damping: 35 }}
+          transition={
+            reduced
+              ? { duration: 0 }
+              : { type: "spring", stiffness: 500, damping: 35 }
+          }
         />
       )}
       <span className="relative z-10">
@@ -194,7 +209,7 @@ function ViewButton({
       onClick={onClick}
       aria-label={label}
       aria-pressed={active}
-      className={`flex h-7 w-7 items-center justify-center rounded-md transition-all ${
+      className={`flex h-7 w-7 items-center justify-center rounded-md transition-all ${styles.actionBtn} ${
         active
           ? "bg-[var(--color-magenta)] text-black"
           : "text-[var(--color-mute)] hover:text-[var(--color-ink)]"
@@ -247,6 +262,7 @@ export default function WatchlistPage() {
     isLoading,
   } = useWatchlist();
   const { status: authStatus } = useSession();
+  const reduced = useReducedMotion();
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [bulkStatus, setBulkStatus] = useState<ListStatus>("COMPLETED");
   const [showBulkToolbar, setShowBulkToolbar] = useState(false);
@@ -536,8 +552,11 @@ export default function WatchlistPage() {
     <PageTransition>
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 animate-page-in">
         {/* Hero */}
-        <div className="relative overflow-hidden rounded-3xl border border-[var(--color-line)] bg-[var(--color-panel)]/50 p-6 sm:p-8">
+        <div
+          className={`relative overflow-hidden rounded-3xl border border-[var(--color-line)] bg-[var(--color-panel)]/50 p-6 sm:p-8 ${styles.hero}`}
+        >
           <Aurora />
+          <div className={styles.heroSheen} aria-hidden />
           <div className="relative flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <p className="font-mono text-xs uppercase tracking-[0.3em] text-[var(--color-cyan)]">
@@ -560,7 +579,7 @@ export default function WatchlistPage() {
                   {topGenres.map(([g, n]) => (
                     <span
                       key={g}
-                      className="glass-badge text-[var(--color-ink)]"
+                      className={`glass-badge text-[var(--color-ink)] ${styles.vibeChip}`}
                     >
                       {g} <span className="opacity-50">{n}</span>
                     </span>
@@ -579,7 +598,7 @@ export default function WatchlistPage() {
                   {stats.map((s) => (
                     <div
                       key={s.label}
-                      className="glass-card min-w-[92px] px-4 py-2.5 text-center"
+                      className={`glass-card min-w-[92px] px-4 py-2.5 text-center ${styles.statCard}`}
                     >
                       <div className="glass-content">
                         <p
@@ -604,14 +623,18 @@ export default function WatchlistPage() {
           <WatchlistSkeleton />
         ) : items.length === 0 ? (
           <motion.div
-            initial={{ opacity: 0, y: 24 }}
+            initial={reduced ? false : { opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.45, ease: "easeOut" }}
+            transition={
+              reduced ? { duration: 0 } : { duration: 0.45, ease: "easeOut" }
+            }
             className="relative mt-8 overflow-hidden rounded-3xl border border-[var(--color-line)] bg-[var(--color-panel)]/40 px-6 py-20 text-center"
           >
             <Aurora />
             <div className="relative">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-[var(--color-line)] bg-[var(--color-void)] text-3xl neon-rgb-border">
+              <div
+                className={`mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-[var(--color-line)] bg-[var(--color-void)] text-3xl neon-rgb-border ${styles.emptyIcon}`}
+              >
                 📺
               </div>
               <h2 className="mt-5 font-display text-2xl font-bold">
@@ -644,7 +667,9 @@ export default function WatchlistPage() {
               <div className="mt-8">
                 <div className="mb-2 flex items-center justify-between">
                   <p className="flex items-center gap-1.5 font-mono text-xs uppercase tracking-[0.25em] text-[var(--color-cyan)]">
-                    <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-cyan)] shadow-[0_0_8px_var(--color-cyan)]" />
+                    <span
+                      className={`h-1.5 w-1.5 rounded-full bg-[var(--color-cyan)] shadow-[0_0_8px_var(--color-cyan)] ${styles.liveDot}`}
+                    />
                     Continue Watching
                   </p>
                   <span className="text-[10px] font-mono text-[var(--color-mute)]">
@@ -652,7 +677,7 @@ export default function WatchlistPage() {
                   </span>
                 </div>
                 <div className="board-scroll flex gap-3 overflow-x-auto pb-2">
-                  {continueItems.slice(0, 10).map((item) => {
+                  {continueItems.slice(0, 10).map((item, index) => {
                     const p = getProgress(item.id);
                     const total = item.episodes ?? 0;
                     const pct =
@@ -669,46 +694,63 @@ export default function WatchlistPage() {
                       item.coverImage?.extraLarge ||
                       "";
                     return (
-                      <Link
+                      <motion.div
                         key={item.id}
-                        href={`/${item.type === "MANGA" ? "manga" : "anime"}/${item.id}`}
-                        className="group relative w-32 shrink-0 overflow-hidden rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] transition-all hover:border-[var(--color-cyan)]/60"
+                        initial={reduced ? false : { opacity: 0, y: 12 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={
+                          reduced
+                            ? { duration: 0 }
+                            : {
+                                duration: 0.35,
+                                delay: Math.min(index * 0.05, 0.35),
+                                ease: "easeOut",
+                              }
+                        }
+                        className="w-32 shrink-0"
                       >
-                        <div className="relative aspect-[2/3] w-full">
-                          {cover ? (
-                            <Image
-                              src={cover}
-                              alt={title}
-                              fill
-                              className="object-cover transition-transform duration-700 ease-out group-hover:scale-110"
-                              sizes="128px"
-                            />
-                          ) : (
-                            <div className="absolute inset-0 bg-gradient-to-br from-[var(--color-panel)] to-[var(--color-void)]" />
-                          )}
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
-                          <div className="absolute inset-x-0 bottom-0 p-2">
-                            <p className="line-clamp-2 text-[11px] font-semibold leading-tight text-white drop-shadow-lg">
-                              {title}
-                            </p>
+                        <Link
+                          href={`/${item.type === "MANGA" ? "manga" : "anime"}/${item.id}`}
+                          className={`group relative block overflow-hidden rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] transition-all hover:border-[var(--color-cyan)]/60 ${styles.continueCard}`}
+                        >
+                          <div className="relative aspect-[2/3] w-full">
+                            {cover ? (
+                              <Image
+                                src={cover}
+                                alt={title}
+                                fill
+                                className="object-cover transition-transform duration-700 ease-out group-hover:scale-110"
+                                sizes="128px"
+                              />
+                            ) : (
+                              <div className="absolute inset-0 bg-gradient-to-br from-[var(--color-panel)] to-[var(--color-void)]" />
+                            )}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
+                            <div className="absolute inset-x-0 bottom-0 p-2">
+                              <p className="line-clamp-2 text-[11px] font-semibold leading-tight text-white drop-shadow-lg">
+                                {title}
+                              </p>
+                            </div>
                           </div>
-                        </div>
-                        <div className="flex items-center justify-between px-2 py-1.5 text-[9px] font-mono text-[var(--color-mute)]">
-                          <span>
-                            EP {p}
-                            {total ? `/${total}` : ""}
-                          </span>
-                          <span className="text-[var(--color-cyan)]">
-                            {pct}%
-                          </span>
-                        </div>
-                        <div className="h-1 w-full bg-white/10">
+                          <div className="flex items-center justify-between px-2 py-1.5 text-[9px] font-mono text-[var(--color-mute)]">
+                            <span>
+                              EP {p}
+                              {total ? `/${total}` : ""}
+                            </span>
+                            <span className="text-[var(--color-cyan)]">
+                              {pct}%
+                            </span>
+                          </div>
                           <div
-                            className="h-full bg-[var(--color-cyan)] transition-all"
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                      </Link>
+                            className={`h-1 w-full bg-white/10 ${styles.progressTrack}`}
+                          >
+                            <div
+                              className={`h-full bg-[var(--color-cyan)] transition-all ${styles.progressFill}`}
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                        </Link>
+                      </motion.div>
                     );
                   })}
                 </div>
@@ -846,21 +888,21 @@ export default function WatchlistPage() {
                   onClick={handleRandom}
                   disabled={visibleItems.length === 0}
                   title="Pick a random title from your list"
-                  className="rounded-lg border border-[var(--color-line)] bg-[var(--color-panel)] px-3 py-1.5 text-xs font-medium text-[var(--color-text)] transition-all hover:border-[var(--color-magenta)] hover:text-[var(--color-magenta)] disabled:opacity-40"
+                  className={`rounded-lg border border-[var(--color-line)] bg-[var(--color-panel)] px-3 py-1.5 text-xs font-medium text-[var(--color-text)] transition-all hover:border-[var(--color-magenta)] hover:text-[var(--color-magenta)] disabled:opacity-40 ${styles.actionBtn}`}
                 >
                   Shuffle
                 </button>
                 <button
                   onClick={() => handleExport("csv")}
                   disabled={exporting}
-                  className="rounded-lg border border-[var(--color-line)] bg-[var(--color-panel)] px-3 py-1.5 text-xs font-medium text-[var(--color-text)] hover:border-[var(--color-cyan)] transition-all disabled:opacity-50"
+                  className={`rounded-lg border border-[var(--color-line)] bg-[var(--color-panel)] px-3 py-1.5 text-xs font-medium text-[var(--color-text)] hover:border-[var(--color-cyan)] transition-all disabled:opacity-50 ${styles.actionBtn}`}
                 >
                   {exporting ? "..." : "Export CSV"}
                 </button>
                 <button
                   onClick={() => handleExport("json")}
                   disabled={exporting}
-                  className="rounded-lg border border-[var(--color-line)] bg-[var(--color-panel)] px-3 py-1.5 text-xs font-medium text-[var(--color-text)] hover:border-[var(--color-cyan)] transition-all disabled:opacity-50"
+                  className={`rounded-lg border border-[var(--color-line)] bg-[var(--color-panel)] px-3 py-1.5 text-xs font-medium text-[var(--color-text)] hover:border-[var(--color-cyan)] transition-all disabled:opacity-50 ${styles.actionBtn}`}
                 >
                   {exporting ? "..." : "Export JSON"}
                 </button>
@@ -868,7 +910,7 @@ export default function WatchlistPage() {
                 <button
                   onClick={handleShare}
                   disabled={sharing}
-                  className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
+                  className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${styles.actionBtn} ${
                     shareUrl
                       ? "bg-emerald-500 text-black"
                       : "border border-[var(--color-line)] bg-[var(--color-panel)] text-[var(--color-text)] hover:border-[var(--color-cyan)]"
@@ -885,7 +927,7 @@ export default function WatchlistPage() {
                     href={shareUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="rounded-lg border border-[var(--color-cyan)]/40 bg-[var(--color-cyan)]/10 px-3 py-1.5 text-xs font-medium text-[var(--color-cyan)] hover:bg-[var(--color-cyan)]/20 transition-all"
+                    className={`rounded-lg border border-[var(--color-cyan)]/40 bg-[var(--color-cyan)]/10 px-3 py-1.5 text-xs font-medium text-[var(--color-cyan)] hover:bg-[var(--color-cyan)]/20 transition-all ${styles.actionBtn}`}
                   >
                     Open Card ↗
                   </a>
@@ -896,7 +938,7 @@ export default function WatchlistPage() {
                     setShowBulkToolbar(!showBulkToolbar);
                     if (showBulkToolbar) setSelected(new Set());
                   }}
-                  className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
+                  className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${styles.actionBtn} ${
                     showBulkToolbar
                       ? "bg-[var(--color-magenta)] text-black"
                       : "border border-[var(--color-line)] bg-[var(--color-panel)] text-[var(--color-text)] hover:border-[var(--color-magenta)]"
@@ -926,7 +968,9 @@ export default function WatchlistPage() {
 
             {/* Bulk Edit Toolbar */}
             {showBulkToolbar && (
-              <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-[var(--color-magenta)]/30 bg-[var(--color-panel)] p-3 animate-slide-in-down">
+              <div
+                className={`mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-[var(--color-magenta)]/30 bg-[var(--color-panel)] p-3 ${styles.bulkBar}`}
+              >
                 <button
                   onClick={selectAll}
                   className="rounded-lg bg-[var(--color-line)] px-3 py-1.5 text-xs font-medium text-[var(--color-text)] hover:bg-[var(--color-line)]/70 transition-all"

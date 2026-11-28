@@ -17,7 +17,10 @@ const contentSecurityPolicy = [
   "object-src 'none'",
   "frame-ancestors 'none'",
   "form-action 'self'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://www.google-analytics.com https://pagead2.googlesyndication.com https://apis.google.com https://challenges.cloudflare.com",
+  // bauval.org hosts every active Adsterra placement in src/lib/ads.ts.
+  // Without it the dynamically injected ad scripts are blocked by CSP and the
+  // slots stay empty even though the network/ad code is configured correctly.
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://www.google-analytics.com https://pagead2.googlesyndication.com https://apis.google.com https://challenges.cloudflare.com https://bauval.org",
   "style-src 'self' 'unsafe-inline'",
   "font-src 'self' data:",
   "img-src 'self' data: blob: https:",
@@ -27,6 +30,16 @@ const contentSecurityPolicy = [
   "worker-src 'self' blob:",
   "upgrade-insecure-requests",
 ].join("; ");
+
+// High-cardinality catalog detail pages are rendered dynamically (no ISR
+// writes, no per-id data-cache entries). Give the CDN a long public TTL so the
+// next crawl hit is served at the edge instead of starting a Node render.
+const CATALOG_CDN_CACHE = "public, s-maxage=604800, stale-while-revalidate=2592000";
+const CATALOG_CACHE_HEADERS = [{ key: "Cache-Control", value: CATALOG_CDN_CACHE }];
+const NOINDEX_MIRROR_HEADERS = [
+  { key: "Cache-Control", value: CATALOG_CDN_CACHE },
+  { key: "X-Robots-Tag", value: "noindex, nofollow, noarchive" },
+];
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ["@prisma/client", "sharp"],
@@ -85,6 +98,30 @@ const nextConfig: NextConfig = {
           { key: "Cache-Control", value: "public, s-maxage=86400, stale-while-revalidate=604800" },
         ],
       },
+      // Public, high-cardinality catalog pages render dynamically on the
+      // server (no ISR/data-cache writes) and are cached at the CDN instead.
+      // This keeps crawler traffic from becoming Node renders on every hit.
+      { source: "/anime/:path*", headers: CATALOG_CACHE_HEADERS },
+      { source: "/manga/:path*", headers: CATALOG_CACHE_HEADERS },
+      { source: "/character/:path*", headers: CATALOG_CACHE_HEADERS },
+      { source: "/staff/:path*", headers: CATALOG_CACHE_HEADERS },
+      { source: "/voice-actors/:path*", headers: CATALOG_CACHE_HEADERS },
+      { source: "/studio/:path*", headers: CATALOG_CACHE_HEADERS },
+      { source: "/themes/:path*", headers: CATALOG_CACHE_HEADERS },
+      { source: "/ost/:path*", headers: CATALOG_CACHE_HEADERS },
+      { source: "/watch-order/:path*", headers: CATALOG_CACHE_HEADERS },
+      { source: "/filler/:path*", headers: CATALOG_CACHE_HEADERS },
+      { source: "/wiki/:path*", headers: CATALOG_CACHE_HEADERS },
+      { source: "/alternatives/:path*", headers: CATALOG_CACHE_HEADERS },
+      // Infinite AniList mirrors are disallowed in robots.ts. Enforce noindex
+      // at the HTTP level too; section roots (/staff, /manga, /character) stay
+      // indexable, only detail pages are suppressed.
+      { source: "/character/:id", headers: NOINDEX_MIRROR_HEADERS },
+      { source: "/character/:id/:path*", headers: NOINDEX_MIRROR_HEADERS },
+      { source: "/staff/:id", headers: NOINDEX_MIRROR_HEADERS },
+      { source: "/staff/:id/:path*", headers: NOINDEX_MIRROR_HEADERS },
+      { source: "/manga/:id", headers: NOINDEX_MIRROR_HEADERS },
+      { source: "/manga/:id/:path*", headers: NOINDEX_MIRROR_HEADERS },
     ];
   },
   async redirects() {
@@ -93,11 +130,6 @@ const nextConfig: NextConfig = {
       {
         source: "/dub-schedule",
         destination: "/dubbed",
-        permanent: true,
-      },
-      {
-        source: "/calendar",
-        destination: "/schedule",
         permanent: true,
       },
       // Old /browse route -> /search. Still linked from genre empty-states,
@@ -171,7 +203,13 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "img.anili.st" },
       { protocol: "https", hostname: "s4.anilist.co" },
       { protocol: "https", hostname: "cdn.myanimelist.net" },
+      { protocol: "https", hostname: "uploads.mangadex.org", pathname: "/covers/**" },
+      // MangaDex covers are served through this public cover-only proxy because
+      // the uploads CDN challenges datacenter/browser requests with HTML.
+      { protocol: "https", hostname: "apsiknb-image.hf.space", pathname: "/covers/**" },
       { protocol: "https", hostname: "upload.wikimedia.org" },
+      { protocol: "https", hostname: "tickets.comicconindia.com" },
+      { protocol: "https", hostname: "otatokyo.jp" },
       { protocol: "https", hostname: "placewaifu.com" },
       { protocol: "https", hostname: "ui-avatars.com" },
     ],

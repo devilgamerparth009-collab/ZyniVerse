@@ -1,3 +1,5 @@
+import type { DiscoverMode } from '../types';
+
 export type BrowseMode =
   | 'trending'
   | 'popular'
@@ -9,7 +11,17 @@ export type RootStackParamList = {
   Splash: undefined;
   MainTabs: undefined;
   AnimeDetail: { id: number; title?: string };
-  FillerGuide: { id: number; title: string };
+  FillerGuide: {
+    id: number;
+    title: string;
+    image?: string;
+    malId?: number;
+    aliases?: string[];
+  };
+  FillerLibrary: undefined;
+  Tracker: undefined;
+  CommunityHub: undefined;
+  LocalChats: undefined;
   Browse: {
     mode?: BrowseMode;
     genre?: string;
@@ -30,6 +42,7 @@ export type RootStackParamList = {
   Settings: undefined;
   Recommendations: undefined;
   TournamentDetail: { id: string; title: string };
+  TournamentCreate: undefined;
   Login: undefined;
   FunZone: undefined;
   Quiz: undefined;
@@ -69,6 +82,14 @@ export type RootStackParamList = {
   Stories: undefined;
   Feed: undefined;
   Hub: { kind: string; title?: string };
+  Discover: {
+    mode: DiscoverMode;
+    title?: string;
+    query?: string;
+    letter?: string;
+    tag?: string;
+    id?: number;
+  };
   AllFeatures: undefined;
   EpisodePulse: undefined;
   /** WebView is locked to zyverse.in; pass a path, never a third-party URL. */

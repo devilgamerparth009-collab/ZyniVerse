@@ -13,6 +13,7 @@ import CharacterChat from "@/components/CharacterChat";
 import AdBanner from "@/components/AdBanner";
 import NativeBannerAd from "@/components/NativeBannerAd";
 import { amazonSearchUrl } from "@/lib/affiliate-config";
+import PlayAsiaPill from "@/components/PlayAsiaPill";
 
 function stripHtml(str: string | null | undefined = "") { return str ? str.replace(/<[^>]*>/g, "") : ""; }
 
@@ -248,6 +249,7 @@ export default function CharacterDetailClient({ initialChar }: { initialChar: Ch
           <a href={amazonSearchUrl("anime")} target="_blank" rel="noopener noreferrer sponsored"
             className="inline-flex items-center gap-1.5 rounded-full neon-rgb-border px-3 py-1.5 text-[9px] font-semibold text-[var(--color-mute)] hover:border-[var(--color-cyan)] hover:text-[var(--color-cyan)] transition-all"
           >📦 Buy Anime on Amazon</a>
+          <PlayAsiaPill query="anime figures" label="Figures on Play-Asia" />
         </div>
       </div>
     </div>

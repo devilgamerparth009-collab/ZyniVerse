@@ -1,4 +1,4 @@
-import { proxyImageUrl } from '../lib/avatar-src';
+import { directImageUrl, unproxyImageUrl } from '../lib/avatar-src';
 
 // Cleans up garbled characters, strips HTML entities, and normalizes macrons/accents to plain English.
 export function cleanText(text?: string | null): string {
@@ -203,14 +203,14 @@ export function webAbsoluteUrl(url?: string | null): string {
 /**
  * Absolute URL for any avatar/preset image.
  *
- * Remote artwork (AniList, Supabase, Google) is routed through zyverse.in's
- * cached `/api/avatar` proxy so mobile carriers do not hit upstream 429s.
+ * Direct upstream artwork is preferred so the app shows the same image as the
+ * website without a zyverse.in hop. Components with fallback support still try
+ * the cached proxy if this URL fails.
  */
 export function absoluteAvatarUrl(url?: string | null): string {
   if (!url) return '';
   if (/^data:|^blob:/i.test(url)) return url;
-  const proxied = proxyImageUrl(url) || url;
-  return webAbsoluteUrl(proxied);
+  return directImageUrl(unproxyImageUrl(url)) || webAbsoluteUrl(url);
 }
 
 /** Deterministic initials avatar for users who never uploaded a picture. */

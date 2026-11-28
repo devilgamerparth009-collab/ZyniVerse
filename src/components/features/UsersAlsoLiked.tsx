@@ -14,45 +14,55 @@ interface RecItem {
 
 interface Props {
   mediaId: number;
+  type?: "ANIME" | "MANGA";
 }
 
-export default function UsersAlsoLiked({ mediaId }: Props) {
+export default function UsersAlsoLiked({ mediaId, type = "ANIME" }: Props) {
   const [recs, setRecs] = useState<RecItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`/api/users-also-liked/${mediaId}`)
+    fetch(`/api/users-also-liked/${mediaId}?type=${type}`)
       .then((r) => r.json())
-      .then((d) => { setRecs(d.recommendations || []); setLoading(false); })
+      .then((d) => {
+        setRecs(d.recommendations || []);
+        setLoading(false);
+      })
       .catch(() => setLoading(false));
-  }, [mediaId]);
+  }, [mediaId, type]);
 
-  if (loading) return <div className="animate-pulse h-24 rounded-xl bg-[var(--color-panel)]" />;
+  if (loading) {
+    return <div className="mdt-ual-skeleton mdt-card animate-pulse" />;
+  }
   if (recs.length === 0) return null;
 
+  const section = type === "MANGA" ? "manga" : "anime";
+
   return (
-    <div className="rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5">
-      <h3 className="font-display text-sm font-bold mb-3">Users Also Liked</h3>
-      <div className="space-y-1.5">
+    <div className="mdt-card mdt-ual">
+      <div className="mdt-card-head">
+        <h3 className="font-display text-sm font-bold">Users Also Liked</h3>
+        <span className="mdt-card-badge">real overlap</span>
+      </div>
+      <div className="mdt-ual-list">
         {recs.slice(0, 8).map((r) => (
-          <Link key={r.mediaId} href={`/anime/${r.mediaId}`}
-            className="flex items-center gap-3 rounded-lg border border-[var(--color-line)] bg-black/20 p-2.5 hover:border-[var(--color-cyan)]/40 transition-all group"
-          >
+          <Link key={r.mediaId} href={`/${section}/${r.mediaId}`} className="mdt-ual-row">
             {r.coverImage ? (
-              <div className="h-10 w-7 rounded overflow-hidden border border-[var(--color-line)] shrink-0 bg-[var(--color-panel)]">
-                <Image src={r.coverImage} alt="" width={28} height={40} className="h-full w-full object-cover" />
-              </div>
+              <span className="mdt-ual-cover">
+                <Image src={r.coverImage} alt="" width={28} height={40} className="mdt-ual-img" />
+              </span>
             ) : (
-              <span className="text-[10px] font-mono text-[var(--color-cyan)] w-4 shrink-0">#{r.mediaId}</span>
+              <span className="mdt-ual-id" aria-hidden>#{r.mediaId}</span>
             )}
-            <div className="min-w-0 flex-1">
-              <p className="text-xs truncate group-hover:text-[var(--color-cyan)] transition-colors">{r.title || `Anime #${r.mediaId}`}</p>
-              <p className="text-[9px] text-[var(--color-mute)]">{r.count} users · Avg {(r.avgScore / 10).toFixed(1)}</p>
-            </div>
-            <span className="text-[10px] font-mono text-[var(--color-cyan)]">{r.count > 99 ? "99+" : r.count}</span>
+            <span className="mdt-ual-body">
+              <span className="mdt-ual-title">{r.title || `${section} #${r.mediaId}`}</span>
+              <span className="mdt-ual-meta">{r.count} users · Avg {(r.avgScore / 10).toFixed(1)}</span>
+            </span>
+            <span className="mdt-ual-count">{r.count > 99 ? "99+" : r.count}</span>
           </Link>
         ))}
       </div>
+      <p className="mdt-ual-note">Based on completed {section} lists on ZyniVerse</p>
     </div>
   );
 }

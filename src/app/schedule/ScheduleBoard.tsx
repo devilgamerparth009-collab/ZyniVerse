@@ -109,7 +109,7 @@ function useNow(intervalMs: number) {
 function LiveClock({ className = "" }: { className?: string }) {
   const now = useNow(1000);
   return (
-    <span className={`inline-flex items-center gap-2 ${className}`}>
+    <span className={`sbd-clock inline-flex items-center gap-2 ${className}`}>
       <span className="relative flex h-2 w-2">
         <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--color-cyan)] opacity-60" />
         <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--color-cyan)]" />
@@ -136,11 +136,11 @@ function Countdown({ targetSec, size = "lg" }: { targetSec: number; size?: "sm" 
   ];
 
   return (
-    <div className="flex items-stretch gap-1.5 sm:gap-2">
+    <div className="sbd-countdown flex items-stretch gap-1.5 sm:gap-2">
       {cells.map((c) => (
         <div
           key={c.l}
-          className={`flex flex-col items-center rounded-xl border border-[var(--color-cyan)]/20 bg-black/40 shadow-[inset_0_0_18px_-10px_var(--color-cyan)] ${
+          className={`sbd-countdown-cell flex flex-col items-center rounded-xl border border-[var(--color-cyan)]/20 bg-black/40 shadow-[inset_0_0_18px_-10px_var(--color-cyan)] ${
             big ? "min-w-[3.25rem] px-2 py-1.5" : "min-w-[2.4rem] px-1.5 py-1"
           }`}
         >
@@ -158,8 +158,8 @@ function Countdown({ targetSec, size = "lg" }: { targetSec: number; size?: "sm" 
 
 function ScheduleSkeleton() {
   return (
-    <div className="animate-pulse space-y-6">
-      <div className="rounded-3xl border border-white/5 bg-[var(--color-panel)]/60 p-5 sm:p-7">
+    <div className="sbd-skeleton animate-pulse space-y-6">
+      <div className="sbd-skeleton-card rounded-3xl border border-white/5 bg-[var(--color-panel)]/60 p-5 sm:p-7">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-center">
           <div className="h-40 w-28 rounded-2xl bg-white/5 sm:h-48 sm:w-32" />
           <div className="flex-1 space-y-3">
@@ -562,19 +562,20 @@ export default function ScheduleBoard({ initialSchedule, initialWeekStartMs, ini
     <PageTransition>
       <MotionConfig reducedMotion="user">
         <ErrorBoundary label="Schedule">
-          <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
+          <div className="sbd-root mx-auto max-w-7xl px-4 py-10 sm:px-6">
             {/* ── HEADER ── */}
-            <div className="neon-rgb-border relative mb-6 overflow-hidden rounded-2xl bg-[var(--color-panel)]/80 p-6 backdrop-blur-sm sm:p-8">
-              <div aria-hidden className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-[var(--color-violet)]/20 blur-3xl" />
+            <div className="sbd-header relative mb-6 overflow-hidden rounded-3xl p-6 sm:p-8">
+              <span className="sbd-header-grid" aria-hidden="true" />
+              <span className="sbd-header-orb sbd-header-orb-a" aria-hidden="true" />
+              <span className="sbd-header-orb sbd-header-orb-b" aria-hidden="true" />
+              <span className="sbd-header-beam" aria-hidden="true" />
               <div className="relative flex flex-wrap items-end justify-between gap-4">
                 <div>
-                  <p className="mb-1 font-mono text-[10px] uppercase tracking-[0.25em] text-[var(--color-cyan)]">Weekly Schedule</p>
+                  <p className="sbd-kicker mb-1 font-mono text-[10px] uppercase tracking-[0.25em] text-[var(--color-cyan)]">Weekly Schedule</p>
                   <h1 className="font-display text-3xl font-bold sm:text-4xl">
-                    <span className="bg-gradient-to-r from-[var(--color-magenta)] via-[var(--color-cyan)] to-[var(--color-violet)] bg-clip-text text-transparent">
-                      Broadcast Board
-                    </span>
+                    <span className="sbd-title">Broadcast Board</span>
                   </h1>
-                  <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-[var(--color-mute)]">
+                  <div className="sbd-meta mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-[var(--color-mute)]">
                     <span>
                       {formatIstDate(toIstWallMs(weekStartMs))} — {formatIstDate(toIstWallMs(weekStartMs + 6 * DAY_MS))}
                     </span>
@@ -585,25 +586,25 @@ export default function ScheduleBoard({ initialSchedule, initialWeekStartMs, ini
                 <div className="flex flex-wrap items-center gap-2">
                   <button
                     onClick={() => goToWeek(weekOffset - 1)}
-                    className="rounded-full border border-white/10 bg-black/30 px-4 py-2 text-xs font-semibold text-white/80 transition-colors hover:border-[var(--color-cyan)]/40 hover:text-white"
+                    className="sbd-nav-btn rounded-full border border-white/10 bg-black/30 px-4 py-2 text-xs font-semibold text-white/80 transition-colors hover:border-[var(--color-cyan)]/40 hover:text-white"
                   >← Prev</button>
                   <button
                     onClick={jumpToNow}
-                    className="rounded-full border border-[var(--color-cyan)]/30 bg-[var(--color-cyan)]/10 px-4 py-2 text-xs font-semibold text-[var(--color-cyan)] transition-colors hover:bg-[var(--color-cyan)]/20"
+                    className="sbd-nav-btn sbd-nav-now rounded-full border border-[var(--color-cyan)]/30 bg-[var(--color-cyan)]/10 px-4 py-2 text-xs font-semibold text-[var(--color-cyan)] transition-colors hover:bg-[var(--color-cyan)]/20"
                   >⟳ Now</button>
                   <button
                     onClick={() => goToWeek(weekOffset + 1)}
-                    className="rounded-full border border-white/10 bg-black/30 px-4 py-2 text-xs font-semibold text-white/80 transition-colors hover:border-[var(--color-cyan)]/40 hover:text-white"
+                    className="sbd-nav-btn rounded-full border border-white/10 bg-black/30 px-4 py-2 text-xs font-semibold text-white/80 transition-colors hover:border-[var(--color-cyan)]/40 hover:text-white"
                   >Next →</button>
                   <button
                     onClick={downloadIcs}
                     disabled={viewSchedule.length === 0}
                     title="Download what's on screen as a calendar file (.ics)"
-                    className="rounded-full border border-white/10 bg-black/30 px-4 py-2 text-xs font-semibold text-white/80 transition-colors hover:border-[var(--color-cyan)]/40 hover:text-white disabled:opacity-30"
+                    className="sbd-nav-btn sbd-nav-calendar rounded-full border border-white/10 bg-black/30 px-4 py-2 text-xs font-semibold text-white/80 transition-colors hover:border-[var(--color-cyan)]/40 hover:text-white disabled:opacity-30"
                   >📅 Calendar</button>
                   <button
                     onClick={() => setAutoScroll((a) => !a)}
-                    className={`rounded-full border px-4 py-2 text-xs font-semibold transition-colors ${
+                    className={`sbd-nav-btn sbd-nav-auto rounded-full border px-4 py-2 text-xs font-semibold transition-colors ${
                       autoScroll
                         ? "border-[var(--color-magenta)]/50 bg-[var(--color-magenta)]/10 text-[var(--color-magenta)]"
                         : "border-white/10 bg-black/30 text-[var(--color-mute)] hover:text-white"
@@ -614,26 +615,26 @@ export default function ScheduleBoard({ initialSchedule, initialWeekStartMs, ini
             </div>
 
             {/* ── WEEK STATS + FORMAT FILTER ── */}
-            <div className="mb-6">
+            <div className="sbd-toolbar mb-6">
               <div className="mb-3 flex flex-wrap items-center gap-2">
-                <span className="rounded-full border border-[var(--color-cyan)]/25 bg-[var(--color-cyan)]/10 px-3 py-1 font-mono text-[11px] text-[var(--color-cyan)]">
+                <span className="sbd-stat sbd-stat-cyan rounded-full border border-[var(--color-cyan)]/25 bg-[var(--color-cyan)]/10 px-3 py-1 font-mono text-[11px] text-[var(--color-cyan)]">
                   {stats.total} airing{stats.total !== 1 ? "s" : ""}
                 </span>
                 {stats.premieres > 0 && (
-                  <span className="rounded-full border border-[var(--color-magenta)]/25 bg-[var(--color-magenta)]/10 px-3 py-1 font-mono text-[11px] text-[var(--color-magenta)]">
+                  <span className="sbd-stat sbd-stat-magenta rounded-full border border-[var(--color-magenta)]/25 bg-[var(--color-magenta)]/10 px-3 py-1 font-mono text-[11px] text-[var(--color-magenta)]">
                     {stats.premieres} premiere{stats.premieres !== 1 ? "s" : ""}
                   </span>
                 )}
                 {stats.finales > 0 && (
-                  <span className="rounded-full border border-[var(--color-violet)]/25 bg-[var(--color-violet)]/10 px-3 py-1 font-mono text-[11px] text-[var(--color-violet)]">
+                  <span className="sbd-stat sbd-stat-violet rounded-full border border-[var(--color-violet)]/25 bg-[var(--color-violet)]/10 px-3 py-1 font-mono text-[11px] text-[var(--color-violet)]">
                     {stats.finales} finale{stats.finales !== 1 ? "s" : ""}
                   </span>
                 )}
-                <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 font-mono text-[11px] text-[var(--color-mute)]">
+                <span className="sbd-stat sbd-stat-mute rounded-full border border-white/10 bg-black/20 px-3 py-1 font-mono text-[11px] text-[var(--color-mute)]">
                   {stats.ongoing} ongoing
                 </span>
               </div>
-              <div className="flex flex-wrap items-center gap-1.5">
+              <div className="sbd-filters flex flex-wrap items-center gap-1.5">
                 {["All", ...presentFormats].map((f) => {
                   const active = (formatFilter ?? "All") === f;
                   return (
@@ -641,7 +642,7 @@ export default function ScheduleBoard({ initialSchedule, initialWeekStartMs, ini
                       key={f}
                       onClick={() => setFormatFilter(f === "All" ? null : f)}
                       aria-pressed={active}
-                      className={`relative rounded-full px-3 py-1.5 text-[11px] font-semibold transition-colors ${
+                      className={`sbd-filter relative rounded-full px-3 py-1.5 text-[11px] font-semibold transition-colors ${
                         active
                           ? "text-black"
                           : "border border-white/10 bg-black/20 text-[var(--color-mute)] hover:border-white/20 hover:text-white"
@@ -663,21 +664,21 @@ export default function ScheduleBoard({ initialSchedule, initialWeekStartMs, ini
                   onClick={() => setOnlyMyList((v) => !v)}
                   aria-pressed={onlyMyList}
                   title="Show only shows in your list"
-                  className={`rounded-full px-3 py-1.5 text-[11px] font-semibold transition-colors ${
+                  className={`sbd-filter sbd-filter-mylist rounded-full px-3 py-1.5 text-[11px] font-semibold transition-colors ${
                     onlyMyList
                       ? "bg-[var(--color-amber)] text-black"
                       : "border border-white/10 bg-black/20 text-[var(--color-mute)] hover:border-white/20 hover:text-white"
                   }`}
                 >★ My list</button>
 
-                <label className="relative ml-auto block w-full sm:w-56">
+                <label className="sbd-search relative ml-auto block w-full sm:w-56">
                   <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-mute)]">⌕</span>
                   <input
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     placeholder="Search this week…"
                     aria-label="Search this week's schedule"
-                    className="w-full rounded-full neon-rgb-border bg-black/30 py-1.5 pl-8 pr-8 text-[11px] text-white placeholder:text-[var(--color-mute)] focus:outline-none"
+                    className="sbd-search-input w-full rounded-full bg-black/30 py-1.5 pl-8 pr-8 text-[11px] text-white placeholder:text-[var(--color-mute)] focus:outline-none"
                   />
                   {query && (
                     <button
@@ -691,15 +692,15 @@ export default function ScheduleBoard({ initialSchedule, initialWeekStartMs, ini
             </div>
 
             {/* ── DAY PILLS ── */}
-            <div className="mb-6 flex gap-2 overflow-x-auto pb-1">
+            <div className="sbd-days mb-6 flex gap-2 overflow-x-auto pb-1">
               {DAY_LABELS.map((label, idx) => {
                 const isToday = isCurrentWeek && idx === todayIdx;
                 return (
                   <button
                     key={label}
                     onClick={() => scrollToDay(idx)}
-                    className={`relative shrink-0 rounded-full px-4 py-2 text-xs font-semibold transition-colors ${
-                      isToday ? "text-white" : "border border-white/5 bg-black/20 text-[var(--color-mute)] hover:border-white/15 hover:text-white"
+                    className={`sbd-day relative shrink-0 rounded-full px-4 py-2 text-xs font-semibold transition-colors ${
+                      isToday ? "sbd-day-active text-white" : "border border-white/5 bg-black/20 text-[var(--color-mute)] hover:border-white/15 hover:text-white"
                     }`}
                   >
                     {isToday && (
@@ -710,7 +711,7 @@ export default function ScheduleBoard({ initialSchedule, initialWeekStartMs, ini
                       />
                     )}
                     <span className="relative flex items-center gap-2">
-                      {isToday && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--color-magenta)]" />}
+                      {isToday && <span className="sbd-day-dot h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--color-magenta)]" />}
                       {label.slice(0, 3)}
                       <span className="text-[10px] opacity-60">{formatIstDate(toIstWallMs(weekStartMs) + idx * DAY_MS)}</span>
                     </span>
@@ -746,21 +747,15 @@ export default function ScheduleBoard({ initialSchedule, initialWeekStartMs, ini
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -8 }}
                       transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-                      className="relative mb-6 overflow-hidden rounded-3xl border border-white/5 bg-[var(--color-panel)]/70 backdrop-blur-sm"
+                      className="sbd-spotlight relative mb-6 overflow-hidden rounded-3xl"
                     >
-                      <div
-                        aria-hidden
-                        className="pointer-events-none absolute inset-0 opacity-80"
-                        style={{
-                          background:
-                            "radial-gradient(120% 140% at 12% 0%, rgba(255,45,120,0.18), transparent 55%), radial-gradient(120% 140% at 88% 20%, rgba(41,242,224,0.16), transparent 55%), radial-gradient(120% 120% at 60% 120%, rgba(138,92,255,0.18), transparent 60%)",
-                        }}
-                      />
-                      <div aria-hidden className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[var(--color-cyan)]/70 to-transparent" />
+                      <span className="sbd-spotlight-glow" aria-hidden="true" />
+                      <span className="sbd-spotlight-scan" aria-hidden="true" />
+                      <span className="sbd-spotlight-line" aria-hidden="true" />
 
-                      <div className="relative grid gap-6 p-5 sm:p-7 lg:grid-cols-[auto_1fr_auto] lg:items-center">
+                      <div className="sbd-spotlight-body relative grid gap-6 p-5 sm:p-7 lg:grid-cols-[auto_1fr_auto] lg:items-center">
                         <Link href={`/anime/${focus.media.id}`} className="group relative shrink-0 self-start">
-                          <div className="relative h-40 w-28 overflow-hidden rounded-2xl border border-white/10 shadow-[0_0_40px_-10px_var(--color-magenta)] sm:h-48 sm:w-32">
+                          <div className="sbd-poster relative h-40 w-28 overflow-hidden rounded-2xl border border-white/10 sm:h-48 sm:w-32">
                             {focus.media.coverImage?.large ? (
                               <Image
                                 src={focus.media.coverImage.large}
@@ -774,7 +769,7 @@ export default function ScheduleBoard({ initialSchedule, initialWeekStartMs, ini
                               <div className="flex h-full w-full items-center justify-center bg-white/5 text-3xl">📺</div>
                             )}
                           </div>
-                          <span className="absolute -bottom-2 -right-2 flex h-8 min-w-8 items-center justify-center rounded-full bg-[var(--color-cyan)] px-2 text-xs font-bold text-black shadow-lg shadow-[var(--color-cyan)]/40">
+                          <span className="sbd-ep-badge absolute -bottom-2 -right-2 flex h-8 min-w-8 items-center justify-center rounded-full bg-[var(--color-cyan)] px-2 text-xs font-bold text-black">
                             EP {focus.episode}
                           </span>
                         </Link>
@@ -782,7 +777,7 @@ export default function ScheduleBoard({ initialSchedule, initialWeekStartMs, ini
                         <div className="min-w-0">
                           <div className="mb-2 flex flex-wrap items-center gap-2">
                             {focusLive ? (
-                              <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-magenta)]/15 px-2.5 py-1 text-[10px] font-bold tracking-wider text-[var(--color-magenta)] ring-1 ring-[var(--color-magenta)]/40">
+                              <span className="sbd-status sbd-status-live inline-flex items-center gap-1.5 rounded-full bg-[var(--color-magenta)]/15 px-2.5 py-1 text-[10px] font-bold tracking-wider text-[var(--color-magenta)] ring-1 ring-[var(--color-magenta)]/40">
                                 <span className="relative flex h-1.5 w-1.5">
                                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--color-magenta)] opacity-70" />
                                   <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[var(--color-magenta)]" />
@@ -790,7 +785,7 @@ export default function ScheduleBoard({ initialSchedule, initialWeekStartMs, ini
                                 ON AIR
                               </span>
                             ) : (
-                              <span className="rounded-full bg-[var(--color-cyan)]/15 px-2.5 py-1 text-[10px] font-bold tracking-wider text-[var(--color-cyan)] ring-1 ring-[var(--color-cyan)]/40">
+                              <span className="sbd-status sbd-status-upnext rounded-full bg-[var(--color-cyan)]/15 px-2.5 py-1 text-[10px] font-bold tracking-wider text-[var(--color-cyan)] ring-1 ring-[var(--color-cyan)]/40">
                                 UP NEXT
                               </span>
                             )}
@@ -799,7 +794,7 @@ export default function ScheduleBoard({ initialSchedule, initialWeekStartMs, ini
                             </span>
                           </div>
                           <h2 className="font-display text-xl font-bold leading-tight text-white sm:text-2xl">
-                            <Link href={`/anime/${focus.media.id}`} className="transition-colors hover:text-[var(--color-cyan)]">
+                            <Link href={`/anime/${focus.media.id}`} className="sbd-spotlight-title transition-colors hover:text-[var(--color-cyan)]">
                               {bestTitle(focus.media.title)}
                             </Link>
                           </h2>
@@ -858,7 +853,7 @@ export default function ScheduleBoard({ initialSchedule, initialWeekStartMs, ini
                       </div>
 
                       {queue.length > 0 && (
-                        <div className="relative border-t border-white/5 px-5 py-3 sm:px-7">
+                        <div className="sbd-queue relative border-t border-white/5 px-5 py-3 sm:px-7">
                           <div className="flex items-center gap-3 overflow-x-auto">
                             <span className="shrink-0 font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--color-mute)]">Then</span>
                             {queue.map((q) => (
@@ -866,7 +861,7 @@ export default function ScheduleBoard({ initialSchedule, initialWeekStartMs, ini
                                 key={q.id}
                                 href={`/anime/${q.media.id}`}
                                 title={bestTitle(q.media.title)}
-                                className="group flex shrink-0 items-center gap-2 rounded-full border border-white/5 bg-black/30 py-1 pl-1 pr-3 transition-colors hover:border-[var(--color-cyan)]/40"
+                                className="sbd-queue-item group flex shrink-0 items-center gap-2 rounded-full border border-white/5 bg-black/30 py-1 pl-1 pr-3 transition-colors hover:border-[var(--color-cyan)]/40"
                               >
                                 <span className="relative flex h-7 w-5 shrink-0 items-center justify-center overflow-hidden rounded-md bg-white/5 text-[10px]">
                                   {q.media.coverImage?.large ? (
@@ -893,7 +888,7 @@ export default function ScheduleBoard({ initialSchedule, initialWeekStartMs, ini
                 {/* ── DAY CARDS (horizontal scroll) ── */}
                 <div
                   ref={scrollRef}
-                  className="board-scroll flex snap-x snap-mandatory gap-5 overflow-x-auto scroll-smooth pb-4"
+                  className="board-scroll sbd-board-scroll flex snap-x snap-mandatory gap-5 overflow-x-auto scroll-smooth pb-4"
                   onMouseEnter={() => { if (intervalRef.current) clearInterval(intervalRef.current); }}
                   onMouseLeave={() => startAutoScroll()}
                   onTouchStart={() => { if (intervalRef.current) clearInterval(intervalRef.current); }}
@@ -909,13 +904,13 @@ export default function ScheduleBoard({ initialSchedule, initialWeekStartMs, ini
                         initial={{ opacity: 0, y: 18 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.4, delay: Math.min(idx * 0.05, 0.3), ease: [0.22, 1, 0.36, 1] }}
-                        className="w-[85vw] max-w-sm shrink-0 snap-center"
+                        className="sbd-day-card w-[85vw] max-w-sm shrink-0 snap-center"
                       >
-                        <div className={`flex h-full flex-col overflow-hidden rounded-2xl bg-[var(--color-panel)]/60 backdrop-blur-sm ${
-                          isToday ? "neon-rgb-border" : "border border-white/5"
+                        <div className={`sbd-day-panel flex h-full flex-col overflow-hidden rounded-2xl ${
+                          isToday ? "sbd-day-panel-today" : ""
                         }`}>
                           {/* Day header */}
-                          <div className="relative flex items-center justify-between border-b border-white/5 px-5 pb-4 pt-5">
+                          <div className="sbd-day-head relative flex items-center justify-between border-b border-white/5 px-5 pb-4 pt-5">
                             <div aria-hidden className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[var(--color-magenta)]/50 to-transparent" />
                             <div>
                               <h3 className="flex items-center gap-2 font-display text-lg font-bold">
@@ -933,15 +928,15 @@ export default function ScheduleBoard({ initialSchedule, initialWeekStartMs, ini
                                 {formatIstDate(toIstWallMs(weekStartMs) + idx * DAY_MS)}
                               </p>
                             </div>
-                            <div className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-black/30">
+                            <div className="sbd-day-count flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-black/30">
                               <span className="font-mono text-xs font-bold text-white">{items.length}</span>
                             </div>
                           </div>
 
                           {/* Episode list */}
-                          <div className="board-scroll flex-1 space-y-2.5 overflow-y-auto p-4 max-h-[55vh] sm:max-h-[460px]">
+                          <div className="board-scroll sbd-day-list flex-1 space-y-2.5 overflow-y-auto p-4 max-h-[55vh] sm:max-h-[460px]">
                             {items.length === 0 && (
-                              <div className="flex flex-col items-center justify-center py-12 text-center">
+                              <div className="sbd-empty flex flex-col items-center justify-center py-12 text-center">
                                 <div className="mb-3 rounded-full bg-white/5 p-4">
                                   <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-[var(--color-mute)]/40">
                                     <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
@@ -975,7 +970,7 @@ export default function ScheduleBoard({ initialSchedule, initialWeekStartMs, ini
                                   <Link
                                     href={`/anime/${item.media.id}`}
                                     title={bestTitle(item.media.title)}
-                                    className={`group relative block overflow-hidden rounded-xl border bg-[var(--color-void)]/70 p-3 pr-9 transition-all duration-300 ${
+                                    className={`sbd-row ${live ? "sbd-row-live" : ""} group relative block overflow-hidden rounded-xl border bg-[var(--color-void)]/70 p-3 pr-9 transition-all duration-300 ${
                                       live
                                         ? "border-[var(--color-magenta)]/40 shadow-[0_0_26px_-10px_var(--color-magenta)]"
                                         : "border-white/5 hover:border-[var(--color-cyan)]/40 hover:shadow-[0_0_26px_-10px_var(--color-cyan)]"
@@ -988,7 +983,7 @@ export default function ScheduleBoard({ initialSchedule, initialWeekStartMs, ini
                                       }`}
                                     />
                                     <div className="flex items-center gap-3 pl-1.5">
-                                      <div className="relative flex h-16 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/5 bg-white/5 text-lg">
+                                      <div className="sbd-row-poster relative flex h-16 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/5 bg-white/5 text-lg">
                                         {item.media.coverImage?.large ? (
                                           <Image
                                             src={item.media.coverImage.large}
@@ -1001,7 +996,7 @@ export default function ScheduleBoard({ initialSchedule, initialWeekStartMs, ini
                                         ) : (
                                           "📺"
                                         )}
-                                        <div className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--color-cyan)] text-[9px] font-bold text-black shadow-lg shadow-[var(--color-cyan)]/30">
+                                        <div className="sbd-row-ep absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--color-cyan)] text-[9px] font-bold text-black">
                                           {item.episode}
                                         </div>
                                       </div>
@@ -1010,14 +1005,14 @@ export default function ScheduleBoard({ initialSchedule, initialWeekStartMs, ini
                                           {bestTitle(item.media.title)}
                                         </p>
                                         <div className="mt-1.5 flex flex-wrap items-center gap-2 font-mono text-[11px] text-[var(--color-mute)]">
-                                          <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-cyan)]/10 px-2 py-0.5 text-[var(--color-ink)]">
+                                          <span className="sbd-row-time inline-flex items-center gap-1.5 rounded-full bg-[var(--color-cyan)]/10 px-2 py-0.5 text-[var(--color-ink)]">
                                             {live && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--color-magenta)]" />}
                                             {formatISTTime(item.airingAt, { suffix: true })}
                                           </span>
                                           {live ? (
-                                            <span className="rounded-full bg-[var(--color-magenta)]/15 px-2 py-0.5 text-[10px] font-bold tracking-wider text-[var(--color-magenta)]">LIVE</span>
+                                            <span className="sbd-row-live-pill rounded-full bg-[var(--color-magenta)]/15 px-2 py-0.5 text-[10px] font-bold tracking-wider text-[var(--color-magenta)]">LIVE</span>
                                           ) : soon ? (
-                                            <span className="rounded-full bg-white/5 px-2 py-0.5 text-[10px] text-[var(--color-cyan)]">
+                                            <span className="sbd-row-soon rounded-full bg-white/5 px-2 py-0.5 text-[10px] text-[var(--color-cyan)]">
                                               in {countdownLabel(item.airingAt, now, true)}
                                             </span>
                                           ) : null}
@@ -1079,7 +1074,7 @@ export default function ScheduleBoard({ initialSchedule, initialWeekStartMs, ini
                 </div>
 
                 {/* ── FOOTER ── */}
-                <div className="mt-6 flex items-center justify-between text-xs text-[var(--color-mute)]/40">
+                <div className="sbd-footer mt-6 flex items-center justify-between text-xs text-[var(--color-mute)]/40">
                   <span className="flex items-center gap-1.5">
                     <span className="h-1 w-1 rounded-full bg-[var(--color-cyan)]" />
                     Hover or touch to pause auto-scroll · times in IST

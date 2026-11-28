@@ -27,6 +27,7 @@ import NativeBannerAd from "@/components/NativeBannerAd";
 import ExpandingFlexCard from "@/components/ExpandingFlexCard";
 import { CardSkeleton, ErrorState } from "@/components/Loader";
 import { amazonSearchUrl } from "@/lib/affiliate-config";
+import PlayAsiaPill from "@/components/PlayAsiaPill";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { PageTransition } from "@/components/PageTransition";
 import EmptyState from "@/components/EmptyState";
@@ -665,219 +666,243 @@ function SearchInner() {
           <div className="mx-auto max-w-7xl px-4 sm:px-6 py-10 sm:py-16">
             {/* Neon Search Bar */}
             <div
-              className="mb-10 max-w-2xl mx-auto text-center relative"
+              className="srch-hero mb-12 mx-auto max-w-5xl text-center relative"
               ref={suggestRef}
             >
-              <RevealLabel className="font-mono text-xs uppercase tracking-[0.25em] text-[var(--color-magenta)] mb-3">
-                Discover Anime
-              </RevealLabel>
-              <motion.div
-                className="neon-rgb-border rounded-xl px-4 py-2 inline-block"
-                initial={{ opacity: 0, scale: 0.94, y: 10 }}
-                whileInView={{
-                  opacity: 1,
-                  scale: 1,
-                  y: 0,
-                  filter: [
-                    "drop-shadow(0 0 0px rgba(0,255,255,0))",
-                    "drop-shadow(0 0 18px rgba(0,255,255,0.5))",
-                    "drop-shadow(0 0 0px rgba(0,255,255,0))",
-                  ],
-                }}
-                viewport={{ once: true, margin: "-40px" }}
-                transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-              >
-                <RevealTitle
-                  as="h1"
-                  text="Search Anime"
-                  className="font-display text-4xl sm:text-6xl font-black tracking-tight mb-6"
-                />
-              </motion.div>
-              <motion.div
-                className="mt-2"
-                initial={{ opacity: 0, y: 8 }}
-                whileInView={{
-                  opacity: 1,
-                  y: 0,
-                  filter: [
-                    "drop-shadow(0 0 0px rgba(0,255,255,0))",
-                    "drop-shadow(0 0 14px rgba(0,255,255,0.4))",
-                    "drop-shadow(0 0 0px rgba(0,255,255,0))",
-                  ],
-                }}
-                viewport={{ once: true, margin: "-40px" }}
-                transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: 0.06 }}
-              >
-                <div className="neon-rgb-border rounded-xl flex items-center overflow-hidden transition-all duration-300 focus-within:scale-[1.01] focus-within:shadow-[0_0_30px_-6px_var(--color-cyan)]">
-                  <svg
-                    width="20"
-                    height="20"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    className="ml-4 text-[var(--color-mute)] shrink-0"
-                  >
-                    <circle cx="11" cy="11" r="8" />
-                    <path d="M21 21l-4.35-4.35" />
-                  </svg>
-                  <input
-                    ref={searchInputRef}
-                    value={inputVal}
-                    onChange={(e) => setInputVal(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    onFocus={() =>
-                      suggestions.length > 0 && setShowSuggestions(true)
-                    }
-                    placeholder={typedPlaceholder || "Search thousands of anime..."}
-                    className="w-full bg-transparent py-4 px-3 text-base text-white placeholder-[var(--color-mute)]/50 outline-none"
-                  />
-                  {inputVal ? (
-                    <button
-                      onClick={() => {
-                        setInputVal("");
-                        setSuggestions([]);
-                        setShowSuggestions(false);
-                        setActiveSugg(-1);
-                      }}
-                      aria-label="Clear search"
-                      className="mr-2 shrink-0 rounded-full p-1.5 text-[var(--color-mute)] hover:bg-white/10 hover:text-white transition-colors"
-                    >
-                      <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2.5"
-                      >
-                        <path d="M18 6L6 18M6 6l12 12" />
-                      </svg>
-                    </button>
-                  ) : (
-                    <kbd className="mr-3 hidden shrink-0 items-center rounded-md border border-white/10 bg-black/30 px-1.5 py-0.5 font-mono text-[10px] text-[var(--color-mute)] sm:flex">
-                      /
-                    </kbd>
-                  )}
-                </div>
-              </motion.div>
-              <AnimatePresence>
-                {showSuggestions && (
-                  <motion.div
-                    key="sugg-landing"
-                    initial={{ opacity: 0, y: -6, scale: 0.98, x: "-50%" }}
-                    animate={{ opacity: 1, y: 0, scale: 1, x: "-50%" }}
-                    exit={{ opacity: 0, y: -6, scale: 0.98, x: "-50%" }}
-                    transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-                    className="absolute left-1/2 mt-1 w-[500px] max-w-[90vw] rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] shadow-2xl backdrop-blur-xl overflow-hidden z-50 text-left origin-top"
-                  >
-                    {suggestLoading && (
-                      <div className="flex items-center gap-2 px-3 py-2.5 text-[11px] text-[var(--color-mute)]">
-                        <span className="h-1 w-1 rounded-full bg-[var(--color-cyan)] animate-pulse" />
-                        searching...
-                      </div>
-                    )}
-                    <motion.div
-                      initial="hidden"
-                      animate="visible"
-                      variants={{
-                        hidden: {},
-                        visible: { transition: { staggerChildren: 0.03 } },
-                      }}
-                    >
-                      {suggestions.map(renderSuggestion)}
-                    </motion.div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-              <div className="mt-5">
-                <p className="mb-2 flex items-center justify-center gap-1.5 text-[10px] font-mono uppercase tracking-[0.25em] text-[var(--color-mute)]">
-                  <span className="text-[var(--color-cyan)]">✦</span>
-                  Trending searches
-                  <span className="text-[var(--color-magenta)]">✦</span>
-                </p>
+              <span className="srch-hero-aurora srch-hero-aurora-a" aria-hidden="true" />
+              <span className="srch-hero-aurora srch-hero-aurora-b" aria-hidden="true" />
+              <span className="srch-hero-orbit" aria-hidden="true" />
+              <div className="srch-hero-content">
                 <motion.div
-                  initial="hidden"
-                  animate="visible"
-                  variants={{
-                    hidden: {},
-                    visible: { transition: { staggerChildren: 0.05 } },
+                  className="inline-block"
+                  initial={{ opacity: 0, scale: 0.94, y: 10 }}
+                  whileInView={{
+                    opacity: 1,
+                    scale: 1,
+                    y: 0,
+                    filter: [
+                      "drop-shadow(0 0 0px rgba(0,255,255,0))",
+                      "drop-shadow(0 0 18px rgba(0,255,255,0.5))",
+                      "drop-shadow(0 0 0px rgba(0,255,255,0))",
+                    ],
                   }}
-                  className="flex flex-wrap justify-center gap-2"
+                  viewport={{ once: true, margin: "-40px" }}
+                  transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
                 >
-                  {popularAnime.slice(0, 6).map((p) => {
-                    const t = p.title.english || p.title.romaji || "";
-                    if (!t) return null;
-                    return (
-                      <motion.button
-                        key={p.id}
-                        variants={{
-                          hidden: { opacity: 0, y: 8, scale: 0.9 },
-                          visible: { opacity: 1, y: 0, scale: 1 },
-                        }}
-                        transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+                  <RevealTitle
+                    as="h1"
+                    text="Search Anime"
+                    className="srch-hero-title-text font-display text-4xl sm:text-6xl font-black tracking-tight mb-6"
+                  />
+                </motion.div>
+                <motion.div
+                  className="srch-search-wrap mt-2"
+                  initial={{ opacity: 0, y: 8 }}
+                  whileInView={{
+                    opacity: 1,
+                    y: 0,
+                    filter: [
+                      "drop-shadow(0 0 0px rgba(0,255,255,0))",
+                      "drop-shadow(0 0 14px rgba(0,255,255,0.4))",
+                      "drop-shadow(0 0 0px rgba(0,255,255,0))",
+                    ],
+                  }}
+                  viewport={{ once: true, margin: "-40px" }}
+                  transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: 0.06 }}
+                >
+                  <div className="srch-search-shell neon-rgb-border relative rounded-xl flex items-center overflow-hidden transition-all duration-300 focus-within:scale-[1.01] focus-within:shadow-[0_0_30px_-6px_var(--color-cyan)]">
+                    <svg
+                      width="20"
+                      height="20"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      className="srch-search-icon ml-4 text-[var(--color-mute)] shrink-0"
+                    >
+                      <circle cx="11" cy="11" r="8" />
+                      <path d="M21 21l-4.35-4.35" />
+                    </svg>
+                    <input
+                      ref={searchInputRef}
+                      value={inputVal}
+                      onChange={(e) => setInputVal(e.target.value)}
+                      onKeyDown={handleKeyDown}
+                      onFocus={() =>
+                        suggestions.length > 0 && setShowSuggestions(true)
+                      }
+                      placeholder={typedPlaceholder || "Search thousands of anime..."}
+                      className="srch-search-input w-full bg-transparent py-4 px-3 text-base text-white placeholder-[var(--color-mute)]/50 outline-none"
+                    />
+                    {inputVal ? (
+                      <button
                         onClick={() => {
-                          setInputVal(t);
+                          setInputVal("");
                           setSuggestions([]);
                           setShowSuggestions(false);
-                          updateParam("q", t);
+                          setActiveSugg(-1);
                         }}
-                        className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-xs text-[var(--color-mute)] hover:border-[var(--color-cyan)] hover:text-[var(--color-cyan)] hover:shadow-[0_0_12px_rgba(0,255,224,0.25)] transition-all"
+                        aria-label="Clear search"
+                        className="srch-search-clear mr-2 shrink-0 rounded-full p-1.5 text-[var(--color-mute)] hover:bg-white/10 hover:text-white transition-colors"
                       >
-                        {t}
-                      </motion.button>
-                    );
-                  })}
+                        <svg
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                        >
+                          <path d="M18 6L6 18M6 6l12 12" />
+                        </svg>
+                      </button>
+                    ) : (
+                      <kbd className="srch-search-key mr-3 hidden shrink-0 items-center rounded-md border border-white/10 bg-black/30 px-1.5 py-0.5 font-mono text-[10px] text-[var(--color-mute)] sm:flex">
+                        /
+                      </kbd>
+                    )}
+                  </div>
                 </motion.div>
+                <AnimatePresence>
+                  {showSuggestions && (
+                    <motion.div
+                      key="sugg-landing"
+                      initial={{ opacity: 0, y: -6, scale: 0.98, x: "-50%" }}
+                      animate={{ opacity: 1, y: 0, scale: 1, x: "-50%" }}
+                      exit={{ opacity: 0, y: -6, scale: 0.98, x: "-50%" }}
+                      transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+                      className="absolute left-1/2 mt-1 w-[500px] max-w-[90vw] rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] shadow-2xl backdrop-blur-xl overflow-hidden z-50 text-left origin-top"
+                    >
+                      {suggestLoading && (
+                        <div className="flex items-center gap-2 px-3 py-2.5 text-[11px] text-[var(--color-mute)]">
+                          <span className="h-1 w-1 rounded-full bg-[var(--color-cyan)] animate-pulse" />
+                          searching...
+                        </div>
+                      )}
+                      <motion.div
+                        initial="hidden"
+                        animate="visible"
+                        variants={{
+                          hidden: {},
+                          visible: { transition: { staggerChildren: 0.03 } },
+                        }}
+                      >
+                        {suggestions.map(renderSuggestion)}
+                      </motion.div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                <div className="srch-trends mt-7">
+                  <p className="srch-trend-label mb-4 flex items-center justify-center gap-1.5 text-[10px] font-mono uppercase tracking-[0.25em] text-[var(--color-mute)]">
+                    <span className="srch-trend-star srch-trend-star-a text-[var(--color-cyan)]">✦</span>
+                    Trending searches
+                    <span className="srch-trend-star srch-trend-star-b text-[var(--color-magenta)]">✦</span>
+                  </p>
+                  <motion.div
+                    initial="hidden"
+                    animate="visible"
+                    variants={{
+                      hidden: {},
+                      visible: { transition: { staggerChildren: 0.06 } },
+                    }}
+                    className="srch-trend-row grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6"
+                  >
+                    {popularAnime.slice(0, 6).map((p, idx) => {
+                      const t = p.title.english || p.title.romaji || "";
+                      if (!t) return null;
+                      return (
+                        <motion.button
+                          key={p.id}
+                          variants={{
+                            hidden: { opacity: 0, y: 12, scale: 0.94 },
+                            visible: { opacity: 1, y: 0, scale: 1 },
+                          }}
+                          transition={{ duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
+                          onClick={() => {
+                            setInputVal(t);
+                            setSuggestions([]);
+                            setShowSuggestions(false);
+                            updateParam("q", t);
+                          }}
+                          className="srch-trend-card group relative flex items-center gap-2.5 rounded-2xl border border-white/10 bg-black/20 p-2 text-left transition-all"
+                        >
+                          <span className="srch-trend-thumb relative block h-12 w-10 shrink-0 overflow-hidden rounded-lg border border-white/10">
+                            <Image
+                              src={p.coverImage?.extraLarge || p.coverImage?.large || p.coverImage?.medium || ""}
+                              alt=""
+                              fill
+                              sizes="40px"
+                              className="object-cover transition-transform duration-500 group-hover:scale-110"
+                            />
+                            <span className="srch-trend-rank" aria-hidden="true">
+                              {String(idx + 1).padStart(2, "0")}
+                            </span>
+                          </span>
+                          <span className="srch-trend-name line-clamp-2 text-[11px] font-semibold leading-tight">
+                            {t}
+                          </span>
+                        </motion.button>
+                      );
+                    })}
+                  </motion.div>
+                </div>
               </div>
             </div>
 
-            <div className="mb-8 flex items-end justify-between">
-              <div>
-                <RevealLabel className="font-mono text-xs uppercase tracking-[0.25em] text-[var(--color-cyan)]">
-                  Explore
-                </RevealLabel>
-                <RevealTitle
-                  as="h2"
-                  text="Most Popular"
-                  className="font-display text-3xl font-black sm:text-5xl tracking-tight"
-                  delay={0.05}
-                />
-                <p className="mt-1 text-sm text-[var(--color-mute)]">
-                  Discover what everyone is watching
-                </p>
-              </div>
-              <Link
-                href="/search?sort=POPULARITY_DESC"
-                className="shrink-0 text-xs uppercase tracking-wider text-[var(--color-mute)] hover:text-white transition-colors"
-              >
-                View all
-              </Link>
-            </div>
-            {popularAnime.length > 0 ? (
-              <ExpandingFlexCard items={popularAnime} />
-            ) : (
-              <>
-                <div className="flex gap-3 overflow-x-auto pb-2 md:hidden -mx-4 px-4">
-                  {Array.from({ length: 6 }).map((_, i) => (
-                    <div
-                      key={`ph-${i}`}
-                      className="relative w-[140px] shrink-0 rounded-2xl bg-[var(--color-panel)] animate-pulse overflow-hidden"
-                    >
-                      <div className="h-[210px]" />
-                    </div>
-                  ))}
-                </div>
-                <div className="hidden md:flex h-[400px] gap-2 w-full">
-                  {Array.from({ length: 8 }).map((_, i) => (
-                    <div
-                      key={`phd-${i}`}
-                      className="flex-1 rounded-2xl bg-[var(--color-panel)] animate-pulse overflow-hidden"
+            <section className="srch-explore-panel">
+              <span className="srch-halo" aria-hidden="true" />
+              <span className="srch-beam" aria-hidden="true" />
+              <div className="srch-inner">
+                <div className="srch-head mb-8 flex items-end justify-between">
+                  <div>
+                    <RevealLabel className="srch-eyebrow font-mono text-xs uppercase tracking-[0.25em] text-[var(--color-cyan)]">
+                      Explore
+                    </RevealLabel>
+                    <RevealTitle
+                      as="h2"
+                      text="Most Popular"
+                      className="font-display text-3xl font-black sm:text-5xl tracking-tight"
+                      delay={0.05}
                     />
-                  ))}
+                    <p className="mt-1 text-sm text-[var(--color-mute)]">
+                      Discover what everyone is watching
+                    </p>
+                  </div>
+                  <Link
+                    href="/search?sort=POPULARITY_DESC"
+                    className="srch-viewall shrink-0 text-xs uppercase tracking-wider text-[var(--color-mute)] hover:text-white transition-colors"
+                  >
+                    View all
+                  </Link>
                 </div>
-              </>
-            )}
+                {popularAnime.length > 0 ? (
+                  <div className="srch-cards">
+                    <ExpandingFlexCard items={popularAnime} />
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex gap-3 overflow-x-auto pb-2 md:hidden -mx-4 px-4">
+                      {Array.from({ length: 6 }).map((_, i) => (
+                        <div
+                          key={`ph-${i}`}
+                          className="relative w-[140px] shrink-0 rounded-2xl bg-[var(--color-panel)] animate-pulse overflow-hidden"
+                        >
+                          <div className="h-[210px]" />
+                        </div>
+                      ))}
+                    </div>
+                    <div className="hidden md:flex h-[400px] gap-2 w-full">
+                      {Array.from({ length: 8 }).map((_, i) => (
+                        <div
+                          key={`phd-${i}`}
+                          className="flex-1 rounded-2xl bg-[var(--color-panel)] animate-pulse overflow-hidden"
+                        />
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            </section>
           </div>
         </ErrorBoundary>
       ) : (
@@ -1575,6 +1600,7 @@ function SearchInner() {
                         >
                           📦 Amazon
                         </a>
+                        <PlayAsiaPill query="anime figures" label="Play-Asia merch" />
                       </div>
                     )}
                 </>

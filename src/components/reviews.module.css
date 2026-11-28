@@ -1,0 +1,816 @@
+/* Reviews + Long Reviews on anime detail pages.
+   Motion is CSS-only and fully disabled under prefers-reduced-motion.
+   All accents are colour-tinted; no plain dividers inside cards/chips. */
+
+.reviewSection {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: 1.4rem;
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 16%, transparent);
+  background:
+    radial-gradient(620px 210px at 4% -18%, color-mix(in srgb, var(--color-magenta) 14%, transparent), transparent 68%),
+    radial-gradient(520px 190px at 98% -14%, color-mix(in srgb, var(--color-cyan) 11%, transparent), transparent 70%),
+    color-mix(in srgb, var(--color-panel) 86%, var(--color-void));
+  box-shadow: 0 26px 70px -52px color-mix(in srgb, var(--color-magenta) 70%, transparent);
+  padding: 1.15rem 1.2rem 1.25rem;
+  animation: reviewsPanelIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.reviewSection::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(
+    140deg,
+    color-mix(in srgb, var(--color-cyan) 5%, transparent),
+    transparent 52%,
+    color-mix(in srgb, var(--color-magenta) 5%, transparent)
+  );
+}
+
+.longSection {
+  margin-top: 2rem;
+}
+
+.sectionHead {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+.sectionTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.18rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--color-ink);
+  background: linear-gradient(
+    100deg,
+    var(--color-ink),
+    var(--color-cyan),
+    var(--color-magenta),
+    var(--color-ink)
+  );
+  background-size: 240% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: reviewsHeadingSheen 9s ease-in-out infinite;
+}
+
+.sectionTitle::before {
+  content: "";
+  flex: none;
+  width: 0.4rem;
+  height: 1.05rem;
+  border-radius: 9999px;
+  background: linear-gradient(180deg, var(--color-magenta), var(--color-cyan));
+  box-shadow: 0 0 14px -3px color-mix(in srgb, var(--color-magenta) 85%, transparent);
+}
+
+.sectionTools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.signinHint {
+  position: relative;
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.2rem 0 1.05rem;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in srgb, var(--color-magenta) 18%, transparent);
+  background: color-mix(in srgb, var(--color-void) 46%, transparent);
+  padding: 0.4rem 0.65rem;
+  color: var(--color-mute);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  animation: reviewsCardIn 0.55s cubic-bezier(0.16, 1, 0.3, 1) 0.06s both;
+}
+
+.signinLink {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  background: linear-gradient(
+    120deg,
+    color-mix(in srgb, var(--color-magenta) 24%, transparent),
+    color-mix(in srgb, var(--color-cyan) 16%, transparent)
+  );
+  padding: 0.22rem 0.6rem;
+  color: var(--color-magenta);
+  font-weight: 800;
+  text-decoration: none;
+  transition: transform 0.22s ease, color 0.22s ease;
+}
+
+.signinLink:hover {
+  transform: translateY(-1px);
+  color: var(--color-cyan);
+}
+
+.emptyState {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8rem;
+  min-height: 9.25rem;
+  border-radius: 1rem;
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 14%, transparent);
+  background:
+    radial-gradient(340px 130px at 12% 0%, color-mix(in srgb, var(--color-magenta) 12%, transparent), transparent 72%),
+    radial-gradient(320px 130px at 92% 100%, color-mix(in srgb, var(--color-cyan) 10%, transparent), transparent 72%),
+    color-mix(in srgb, var(--color-void) 40%, transparent);
+  padding: 1.5rem 1rem;
+  text-align: center;
+  animation: reviewsCardIn 0.55s cubic-bezier(0.16, 1, 0.3, 1) 0.12s both;
+}
+
+.emptyGlyph {
+  position: relative;
+  width: 2.85rem;
+  height: 2.85rem;
+  border-radius: 1rem;
+  background: linear-gradient(
+    140deg,
+    color-mix(in srgb, var(--color-magenta) 26%, transparent),
+    color-mix(in srgb, var(--color-cyan) 18%, transparent)
+  );
+  box-shadow: 0 14px 34px -20px color-mix(in srgb, var(--color-cyan) 90%, transparent);
+  animation: reviewsFloat 4s ease-in-out infinite;
+}
+
+.emptyGlyph::before {
+  content: "";
+  position: absolute;
+  inset: 0.65rem;
+  border-radius: 0.55rem;
+  background: linear-gradient(135deg, var(--color-magenta), var(--color-cyan));
+  opacity: 0.85;
+}
+
+.emptyGlyph::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0.38rem;
+  height: 0.38rem;
+  transform: translate(-50%, -50%);
+  border-radius: 9999px;
+  background: var(--color-void);
+  box-shadow: 0 0 10px 2px color-mix(in srgb, var(--color-cyan) 50%, transparent);
+}
+
+.emptyText {
+  position: relative;
+  margin: 0;
+  color: var(--color-mute);
+  font-size: 0.875rem;
+  line-height: 1.65;
+}
+
+.sortTabs {
+  display: inline-flex;
+  gap: 0.2rem;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 18%, transparent);
+  background: color-mix(in srgb, var(--color-void) 52%, transparent);
+  padding: 0.22rem;
+}
+
+.sortTab {
+  border: 0;
+  border-radius: 9999px;
+  background: transparent;
+  padding: 0.42rem 0.85rem;
+  color: var(--color-mute);
+  font-size: 0.625rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+}
+
+.sortTab:hover {
+  color: var(--color-cyan);
+}
+
+.sortTabActive,
+.sortTabActive:hover {
+  background: linear-gradient(120deg, var(--color-magenta), color-mix(in srgb, var(--color-violet) 65%, var(--color-magenta)));
+  color: var(--color-void);
+  box-shadow: 0 8px 22px -14px color-mix(in srgb, var(--color-magenta) 95%, transparent);
+}
+
+.writeButton {
+  border: 0;
+  border-radius: 9999px;
+  background: linear-gradient(120deg, var(--color-magenta), color-mix(in srgb, var(--color-violet) 68%, var(--color-magenta)));
+  padding: 0.5rem 1rem;
+  color: var(--color-void);
+  font-size: 0.625rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  box-shadow: 0 10px 26px -16px color-mix(in srgb, var(--color-magenta) 95%, transparent);
+  transition: transform 0.22s ease, box-shadow 0.22s ease;
+}
+
+.writeButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 30px -16px color-mix(in srgb, var(--color-magenta) 100%, transparent);
+}
+
+.reviewForm,
+.longForm {
+  position: relative;
+  overflow: hidden;
+  margin: 0 0 1.25rem;
+  border-radius: 1rem;
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 16%, transparent);
+  background:
+    radial-gradient(420px 150px at 6% -20%, color-mix(in srgb, var(--color-magenta) 10%, transparent), transparent 70%),
+    color-mix(in srgb, var(--color-void) 48%, transparent);
+  padding: 1rem;
+  animation: reviewsCardIn 0.55s cubic-bezier(0.16, 1, 0.3, 1) 0.08s both;
+}
+
+.formRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.85rem;
+}
+
+.formLabel {
+  color: var(--color-mute);
+  font-size: 0.75rem;
+}
+
+.scoreButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 16%, transparent);
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--color-void) 54%, transparent);
+  color: var(--color-mute);
+  font-size: 0.65rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.2s ease, border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
+}
+
+.scoreButton:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--color-cyan) 42%, transparent);
+  color: var(--color-cyan);
+}
+
+.scoreButtonActive,
+.scoreButtonActive:hover {
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--color-magenta), color-mix(in srgb, var(--color-violet) 70%, var(--color-magenta)));
+  color: var(--color-void);
+  box-shadow: 0 8px 20px -14px color-mix(in srgb, var(--color-magenta) 100%, transparent);
+}
+
+.scoreSuffix {
+  margin-left: 0.3rem;
+  color: var(--color-mute);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.7rem;
+}
+
+.input,
+.textarea {
+  display: block;
+  width: 100%;
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 16%, transparent);
+  border-radius: 0.7rem;
+  background: color-mix(in srgb, var(--color-void) 62%, transparent);
+  padding: 0.6rem 0.75rem;
+  color: var(--color-ink);
+  font-size: 0.875rem;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.input::placeholder,
+.textarea::placeholder {
+  color: color-mix(in srgb, var(--color-mute) 72%, transparent);
+}
+
+.input:focus,
+.textarea:focus {
+  border-color: color-mix(in srgb, var(--color-cyan) 55%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-cyan) 12%, transparent);
+  background: color-mix(in srgb, var(--color-void) 72%, transparent);
+}
+
+.textarea {
+  min-height: 5rem;
+  resize: vertical;
+  line-height: 1.6;
+}
+
+.longTextarea {
+  min-height: 11rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.formActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.85rem;
+}
+
+.submitButton {
+  border: 0;
+  border-radius: 9999px;
+  background: linear-gradient(120deg, var(--color-magenta), color-mix(in srgb, var(--color-violet) 68%, var(--color-magenta)));
+  padding: 0.6rem 1.25rem;
+  color: var(--color-void);
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 12px 28px -16px color-mix(in srgb, var(--color-magenta) 100%, transparent);
+  transition: transform 0.22s ease, opacity 0.22s ease;
+}
+
+.submitButton:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+
+.submitButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cancelButton {
+  border: 0;
+  background: transparent;
+  padding: 0.4rem 0.2rem;
+  color: var(--color-mute);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.cancelButton:hover {
+  color: var(--color-cyan);
+}
+
+.formError {
+  margin: 0.7rem 0 0;
+  color: var(--color-magenta);
+  font-size: 0.75rem;
+}
+
+.fetchError {
+  position: relative;
+  overflow: hidden;
+  margin: 0 0 1rem;
+  border-radius: 0.85rem;
+  border: 1px solid color-mix(in srgb, #ef4444 32%, transparent);
+  background: color-mix(in srgb, #ef4444 12%, transparent);
+  padding: 0.7rem 0.9rem;
+  color: #fca5a5;
+  font-size: 0.875rem;
+}
+
+.reviewList,
+.skeletonList {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.reviewCard,
+.longCard {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1rem;
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 15%, transparent);
+  background: linear-gradient(
+    150deg,
+    color-mix(in srgb, var(--color-cyan) 6%, var(--color-panel)),
+    color-mix(in srgb, var(--color-void) 48%, var(--color-panel))
+  );
+  padding: 0.85rem 0.95rem;
+  animation: reviewsCardIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.reviewCard::before,
+.longCard::before {
+  content: "";
+  position: absolute;
+  top: -2.6rem;
+  right: -2.6rem;
+  width: 6.5rem;
+  height: 6.5rem;
+  border-radius: 9999px;
+  pointer-events: none;
+  background: radial-gradient(circle, color-mix(in srgb, var(--color-magenta) 20%, transparent), transparent 70%);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.reviewCard:hover,
+.longCard:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--color-cyan) 38%, transparent);
+  box-shadow: 0 18px 42px -34px color-mix(in srgb, var(--color-cyan) 92%, transparent);
+}
+
+.reviewCard:hover::before,
+.longCard:hover::before {
+  opacity: 1;
+}
+
+.reviewHead,
+.longHead {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.longHeadMain {
+  min-width: 0;
+  flex: 1;
+}
+
+.reviewUser {
+  color: var(--color-ink);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.reviewScore {
+  color: var(--color-magenta);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.reviewComment {
+  position: relative;
+  margin-top: 0.4rem;
+  color: var(--color-mute);
+  font-size: 0.875rem;
+  line-height: 1.65;
+}
+
+.reviewDate {
+  position: relative;
+  margin-top: 0.4rem;
+  color: color-mix(in srgb, var(--color-mute) 78%, transparent);
+  font-size: 0.5625rem;
+}
+
+.skeletonCard {
+  border-radius: 1rem;
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 14%, transparent);
+  background: color-mix(in srgb, var(--color-void) 48%, transparent);
+  padding: 1rem;
+  animation: reviewsPulse 1.8s ease-in-out infinite;
+}
+
+.skeletonLine {
+  border-radius: 0.4rem;
+  background: color-mix(in srgb, var(--color-cyan) 10%, var(--color-void));
+}
+
+.skeletonTitle {
+  width: 33%;
+  height: 1rem;
+}
+
+.skeletonText {
+  width: 100%;
+  height: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.skeletonShort {
+  width: 66%;
+  height: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.longBody {
+  position: relative;
+  margin-top: 0.75rem;
+  overflow: hidden;
+  color: var(--color-mute);
+  font-size: 0.875rem;
+  line-height: 1.7;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+.longBodyParagraph {
+  margin: 0;
+  color: var(--color-mute);
+  font-size: 0.875rem;
+  line-height: 1.7;
+}
+
+.longListItem {
+  margin-left: 1rem;
+  color: var(--color-mute);
+  font-size: 0.875rem;
+  line-height: 1.7;
+  list-style-type: disc;
+}
+
+.longBodyHeading {
+  margin: 0.5rem 0 0.35rem;
+  color: var(--color-ink);
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.longBodyQuote {
+  margin: 0.45rem 0;
+  border-left: 2px solid color-mix(in srgb, var(--color-cyan) 65%, transparent);
+  padding-left: 0.8rem;
+  color: var(--color-mute);
+  font-size: 0.875rem;
+  font-style: italic;
+}
+
+.longBodySpacer {
+  height: 0.5rem;
+}
+
+.longTitle {
+  color: var(--color-ink);
+  font-family: var(--font-display);
+  font-size: 0.875rem;
+  font-weight: 800;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.longTitle:hover {
+  color: var(--color-cyan);
+}
+
+.longMeta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+}
+
+.profileLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--color-mute);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.profileLink:hover {
+  color: var(--color-cyan);
+}
+
+.avatar,
+.avatarFallback {
+  flex: none;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 9999px;
+}
+
+.avatar {
+  position: relative;
+  overflow: hidden;
+}
+
+.avatarImage {
+  object-fit: cover;
+}
+
+.avatarFallback {
+  background: linear-gradient(135deg, var(--color-cyan), var(--color-violet));
+}
+
+.metaText {
+  color: color-mix(in srgb, var(--color-mute) 82%, transparent);
+  font-size: 0.625rem;
+}
+
+.scoreBadge {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9999px;
+  color: var(--color-void);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.75rem;
+  font-weight: 800;
+  box-shadow: 0 10px 24px -14px color-mix(in srgb, var(--color-magenta) 95%, transparent);
+}
+
+.voteRow {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.voteGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.voteButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  padding: 0.25rem;
+  color: var(--color-mute);
+  cursor: pointer;
+  transition: color 0.2s ease, background 0.2s ease;
+}
+
+.voteButton:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-cyan) 10%, transparent);
+  color: var(--color-cyan);
+}
+
+.voteButton:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.voteButtonUp {
+  color: var(--color-cyan);
+}
+
+.voteButtonDown {
+  color: var(--color-magenta);
+}
+
+.voteCount {
+  min-width: 1.5rem;
+  color: var(--color-mute);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.fullReviewLink {
+  color: color-mix(in srgb, var(--color-mute) 88%, transparent);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.625rem;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.fullReviewLink:hover {
+  color: var(--color-cyan);
+}
+
+.loadMoreWrap {
+  padding-top: 0.5rem;
+  text-align: center;
+}
+
+.loadMoreButton {
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 22%, transparent);
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--color-cyan) 8%, transparent);
+  padding: 0.55rem 1.5rem;
+  color: var(--color-cyan);
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 12px 28px -20px color-mix(in srgb, var(--color-cyan) 90%, transparent);
+  transition: transform 0.22s ease, background 0.22s ease;
+}
+
+.loadMoreButton:hover:not(:disabled) {
+  transform: translateY(-2px);
+  background: color-mix(in srgb, var(--color-cyan) 14%, transparent);
+}
+
+.loadMoreButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.signinLink:focus-visible,
+.sortTab:focus-visible,
+.writeButton:focus-visible,
+.scoreButton:focus-visible,
+.submitButton:focus-visible,
+.cancelButton:focus-visible,
+.voteButton:focus-visible,
+.fullReviewLink:focus-visible,
+.loadMoreButton:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-cyan) 75%, transparent);
+  outline-offset: 2px;
+}
+
+@keyframes reviewsPanelIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes reviewsHeadingSheen {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@keyframes reviewsCardIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.99); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes reviewsFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+@keyframes reviewsPulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reviewSection,
+  .sectionTitle,
+  .signinHint,
+  .signinLink,
+  .emptyState,
+  .emptyGlyph,
+  .sortTab,
+  .writeButton,
+  .reviewForm,
+  .longForm,
+  .scoreButton,
+  .submitButton,
+  .cancelButton,
+  .reviewCard,
+  .longCard,
+  .skeletonCard,
+  .profileLink,
+  .longTitle,
+  .voteButton,
+  .fullReviewLink,
+  .loadMoreButton {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .signinLink:hover,
+  .scoreButton:hover,
+  .writeButton:hover,
+  .submitButton:hover:not(:disabled),
+  .reviewCard:hover,
+  .longCard:hover,
+  .loadMoreButton:hover:not(:disabled) {
+    transform: none !important;
+  }
+}

@@ -51,23 +51,22 @@ export default function GamificationWidget() {
           setDataUserId(null);
         }
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [session?.user?.id]);
 
   if (!session?.user?.id) {
     return (
-      <Link href="/achievements"
-        className="group flex items-center justify-between gap-4 rounded-2xl neon-rgb-border bg-[var(--color-panel)]/60 px-5 py-4 transition-colors hover:bg-[var(--color-panel)]"
-      >
-        <div className="flex items-center gap-3 min-w-0">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--color-magenta)]/10 text-xl">🎮</span>
-          <div className="min-w-0">
-            <p className="font-display text-sm font-bold truncate">Level up your anime journey</p>
-            <p className="text-xs text-[var(--color-mute)] truncate">Earn XP, unlock badges &amp; climb the leaderboard</p>
-          </div>
-        </div>
-        <span className="shrink-0 rounded-full bg-[var(--color-magenta)] px-4 py-1.5 text-xs font-bold text-black transition-transform group-hover:scale-105">
-          Explore →
+      <Link href="/achievements" className="lvl-card lvl-card--guest">
+        <span className="lvl-icon" aria-hidden="true">🎮</span>
+        <span className="lvl-copy">
+          <span className="lvl-kicker">Ready when you are</span>
+          <span className="lvl-title">Level up your anime journey</span>
+          <span className="lvl-sub">Earn XP, unlock badges &amp; climb the leaderboard</span>
+        </span>
+        <span className="lvl-action">
+          Explore <span className="lvl-action-arrow" aria-hidden="true">→</span>
         </span>
       </Link>
     );
@@ -75,15 +74,14 @@ export default function GamificationWidget() {
 
   if (!data || dataUserId !== session.user.id) {
     return (
-      <div className="flex items-center justify-between gap-4 rounded-2xl neon-rgb-border bg-[var(--color-panel)]/60 px-5 py-4">
-        <div className="flex items-center gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--color-magenta)]/10 text-xl">🎮</span>
-          <div>
-            <p className="font-display text-sm font-bold">Loading your XP...</p>
-            <p className="text-xs text-[var(--color-mute)]">Earn badges by exploring anime</p>
-          </div>
-        </div>
-        <span className="h-4 w-4 animate-spin rounded-full border-2 border-[var(--color-cyan)] border-t-transparent" />
+      <div className="lvl-card lvl-card--loading" aria-live="polite">
+        <span className="lvl-icon" aria-hidden="true">🎮</span>
+        <span className="lvl-copy">
+          <span className="lvl-kicker">Syncing</span>
+          <span className="lvl-title">Loading your XP...</span>
+          <span className="lvl-sub">Earn badges by exploring anime</span>
+        </span>
+        <span className="lvl-spinner" aria-hidden="true" />
       </div>
     );
   }
@@ -91,39 +89,42 @@ export default function GamificationWidget() {
   const rank = getRankInfo(data.points);
   const earned = data.achievements.filter((a) => a.earned).length;
   const total = data.achievements.length;
-  const progress = data.nextLevel && data.nextLevel.needed > 0
-    ? Math.min(100, Math.round((data.nextLevel.current / data.nextLevel.needed) * 100))
-    : 0;
+  const progress =
+    data.nextLevel && data.nextLevel.needed > 0
+      ? Math.min(100, Math.round((data.nextLevel.current / data.nextLevel.needed) * 100))
+      : 0;
 
   return (
-    <Link href="/achievements"
-      className="group flex items-center justify-between gap-4 rounded-2xl neon-rgb-border bg-[var(--color-panel)]/60 px-5 py-4 transition-colors hover:bg-[var(--color-panel)]"
-    >
-      <div className="flex items-center gap-3 min-w-0">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--color-magenta)]/10 text-xl">
-          {rank.icon}
+    <Link href="/achievements" className="lvl-card lvl-card--active">
+      <span className="lvl-icon" aria-hidden="true">{rank.icon}</span>
+      <span className="lvl-copy">
+        <span className="lvl-kicker">Current rank</span>
+        <span className="lvl-title">{rank.name} · Lv.{data.level}</span>
+        <span className="lvl-sub">
+          {earned}/{total} badges · {data.points.toLocaleString()} XP
         </span>
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <p className="font-display text-sm font-bold">
-              {rank.name} · Lv.{data.level}
-            </p>
-          </div>
-          <p className="text-xs text-[var(--color-mute)] truncate">
-            {earned}/{total} badges · {data.points.toLocaleString()} XP
-          </p>
-        </div>
-      </div>
-      <div className="hidden sm:block w-40 shrink-0">
-        <div className="mb-1 flex items-center justify-between text-[10px] text-[var(--color-mute)]">
-          <span>{data.nextLevel.current.toLocaleString()} / {data.nextLevel.needed.toLocaleString()} XP</span>
-          <span>{progress}%</span>
-        </div>
-        <div className="h-1.5 overflow-hidden rounded-full bg-[var(--color-line)]">
-          <div className="h-full rounded-full bg-gradient-to-r from-[var(--color-cyan)] to-[var(--color-magenta)] transition-all duration-500" style={{ width: `${progress}%` }} />
-        </div>
-      </div>
-      <span className="shrink-0 text-xs font-bold text-[var(--color-cyan)] group-hover:underline">View all →</span>
+      </span>
+      <span className="lvl-progress">
+        <span className="lvl-progress-head">
+          <span>
+            {data.nextLevel.current.toLocaleString()} / {data.nextLevel.needed.toLocaleString()} XP
+          </span>
+          <strong>{progress}%</strong>
+        </span>
+        <span
+          className="lvl-progress-track"
+          role="progressbar"
+          aria-label="XP progress"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={progress}
+        >
+          <span className="lvl-progress-fill" style={{ width: `${progress}%` }} />
+        </span>
+      </span>
+      <span className="lvl-action">
+        View all <span className="lvl-action-arrow" aria-hidden="true">→</span>
+      </span>
     </Link>
   );
 }

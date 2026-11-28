@@ -2,7 +2,11 @@ import type { Metadata } from "next";
 import { cache } from "react";
 import { getCharacter, bestTitle } from "@/lib/anilist";
 
-const getCharacterCached = cache(getCharacter);
+// The page is force-dynamic with no-store AniList fetches; metadata must use
+// the same policy or it recreates one data-cache entry per crawled character id.
+const getCharacterCached = cache((id: string) =>
+  getCharacter(id, { noStore: true }),
+);
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "https://zyverse.in";
 
@@ -12,6 +16,9 @@ interface Props {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
+  if (!/^\d+$/.test(id)) {
+    return { title: "Character Details", robots: { index: false, follow: false } };
+  }
   try {
     const char = await getCharacterCached(id);
     const name = char.name?.full || "Unknown Character";
@@ -47,15 +54,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       // Thin AniList mirror: the same character text exists on AniList/MAL/
       // Fandom, so indexing these pages only adds near-duplicate thin content
       // that keeps landing in Google's "crawled - currently not indexed".
-      // follow:true so link equity still flows to the anime/filler pages.
-      robots: { index: false, follow: true },
+      // This route is also rate-limited/hard-404'd for abusive crawlers, so
+      // nofollow matches the HTTP X-Robots-Tag header exactly.
+      robots: { index: false, follow: false },
     };
   } catch {
     return {
       title: "Character Details",
       description: "Explore detailed anime character information including voice actors, appearances, and trivia. Free anime platform.",
       alternates: { canonical: `${BASE_URL}/character/${id}` },
-      robots: { index: false, follow: true },
+      robots: { index: false, follow: false },
     };
   }
 }

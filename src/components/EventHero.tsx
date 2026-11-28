@@ -1,175 +1,305 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { motion } from "framer-motion";
+import Image from "next/image";
+import { motion, useReducedMotion } from "framer-motion";
 
-function useCountUp(target: number, duration = 1100, start = false): number {
+function useCountUp(target: number, duration = 1000, start = false): number {
   const [value, setValue] = useState(0);
   const fromRef = useRef(0);
+  // A missing or malformed count must never become "NaN" in the UI.
+  const safeTarget = Number.isFinite(target) ? Math.max(0, target) : 0;
 
   useEffect(() => {
     if (!start || typeof window === "undefined") return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      const frame = requestAnimationFrame(() => {
+        fromRef.current = safeTarget;
+        setValue(safeTarget);
+      });
+      return () => cancelAnimationFrame(frame);
+    }
     const from = fromRef.current;
     const startTime = performance.now();
     let raf = 0;
     const tick = (now: number) => {
-      const p = Math.min((now - startTime) / duration, 1);
-      const eased = 1 - Math.pow(1 - p, 3);
-      const v = Math.round(from + (target - from) * eased);
-      fromRef.current = v;
-      setValue(v);
-      if (p < 1) raf = requestAnimationFrame(tick);
+      const progress = Math.min((now - startTime) / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const next = Math.round(from + (safeTarget - from) * eased);
+      fromRef.current = next;
+      setValue(next);
+      if (progress < 1) raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [target, duration, start]);
+    // Background tabs throttle rAF; this guarantees the final value is shown.
+    const settle = window.setTimeout(() => {
+      fromRef.current = safeTarget;
+      setValue(safeTarget);
+    }, duration + 150);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.clearTimeout(settle);
+    };
+  }, [safeTarget, duration, start]);
 
   return value;
 }
 
+// SSR-safe: server and first client render both show 9:41, then local time takes over.
+function useLiveClock() {
+  const [clock, setClock] = useState({ time: "9:41", seconds: "" });
+
+  useEffect(() => {
+    const update = () => {
+      const now = new Date();
+      const hours = now.getHours() % 12 || 12;
+      const minutes = String(now.getMinutes()).padStart(2, "0");
+      const seconds = String(now.getSeconds()).padStart(2, "0");
+      setClock({ time: `${hours}:${minutes}`, seconds });
+    };
+    update();
+    const timer = window.setInterval(update, 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  return clock;
+}
+
 const heroStagger = {
   hidden: {},
-  show: { transition: { staggerChildren: 0.12, delayChildren: 0.1 } },
+  show: { transition: { staggerChildren: 0.1, delayChildren: 0.08 } },
 };
 
 const heroItem = {
-  hidden: { opacity: 0, y: 26 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.55, ease: [0.22, 1, 0.36, 1] as const } },
+  hidden: { opacity: 0, y: 22 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] as const } },
 };
 
 interface EventHeroProps {
   eventsCount: number;
-  announcementsCount: number;
   countriesCount: number;
+  verifiedCount: number;
+  lastUpdated: string;
 }
 
 export default function EventHero({
   eventsCount,
-  announcementsCount,
   countriesCount,
+  verifiedCount,
+  lastUpdated,
 }: EventHeroProps) {
+  const reduceMotion = useReducedMotion();
   const [inView, setInView] = useState(false);
   const statsRef = useRef<HTMLDivElement>(null);
+  const { time, seconds } = useLiveClock();
 
   useEffect(() => {
-    const el = statsRef.current;
-    if (!el) return;
-    const obs = new IntersectionObserver(
+    const element = statsRef.current;
+    if (!element) return;
+    const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) setInView(true);
       },
-      { threshold: 0.4 }
+      { threshold: 0.35 }
     );
-    obs.observe(el);
-    return () => obs.disconnect();
+    observer.observe(element);
+    return () => observer.disconnect();
   }, []);
 
-  const events = useCountUp(eventsCount, 1100, inView);
-  const announcements = useCountUp(announcementsCount, 1100, inView);
-  const countries = useCountUp(countriesCount, 1100, inView);
+  const events = useCountUp(eventsCount, 1000, inView);
+  const countries = useCountUp(countriesCount, 1000, inView);
+  const verified = useCountUp(verifiedCount, 1000, inView);
 
-  const stats = [
-    { value: events, label: "Events", color: "cyan" },
-    { value: announcements, label: "Announcements", color: "magenta" },
-    { value: countries, label: "Countries", color: "cyan" },
-  ];
+  const safeCount = (value: number) => (Number.isFinite(value) ? Math.max(0, value) : 0);
+  const maxCount = Math.max(
+    safeCount(eventsCount),
+    safeCount(countriesCount),
+    safeCount(verifiedCount),
+    1
+  );
+  const fillFor = (value: number) => `${Math.max(14, (safeCount(value) / maxCount) * 100)}%`;
 
   return (
-    <section className="relative overflow-hidden border-b border-[var(--color-line)]">
-      {/* Animated background layers */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 1.2 }}
-        className="absolute inset-0 bg-gradient-to-br from-[var(--color-cyan)]/8 via-[var(--color-magenta)]/5 to-transparent"
-      />
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 1.6, ease: [0.22, 1, 0.36, 1] }}
-        className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--color-cyan)_0%,_transparent_50%)] opacity-30"
-      />
-      {/* Floating particles */}
-      {[
-        { left: "12%", top: "22%", size: 6, delay: 0, color: "rgba(0,255,224,0.35)" },
-        { left: "82%", top: "30%", size: 5, delay: 0.4, color: "rgba(255,45,120,0.3)" },
-        { left: "68%", top: "72%", size: 7, delay: 0.8, color: "rgba(0,255,224,0.25)" },
-        { left: "22%", top: "70%", size: 4, delay: 1.2, color: "rgba(255,45,120,0.3)" },
-      ].map((p, i) => (
-        <motion.span
-          key={i}
-          className="pointer-events-none absolute rounded-full"
-          style={{ left: p.left, top: p.top, width: p.size, height: p.size, background: p.color, boxShadow: `0 0 12px ${p.color}` }}
-          animate={{ y: [0, -22, 0], opacity: [0.4, 0.9, 0.4] }}
-          transition={{ duration: 5 + i, repeat: Infinity, ease: "easeInOut", delay: p.delay }}
-        />
-      ))}
+    <section className="evp-hero">
+      <div className="evp-hero-grid" aria-hidden="true" />
+      <div className="evp-hero-beam" aria-hidden="true" />
+      <div className="evp-hero-orb evp-hero-orb-a" aria-hidden="true" />
+      <div className="evp-hero-orb evp-hero-orb-b" aria-hidden="true" />
 
-      <div className="relative mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-20">
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8">
-          <motion.div
-            variants={heroStagger}
-            initial="hidden"
-            animate="show"
-            className="max-w-2xl"
-          >
-            <motion.div variants={heroItem} className="flex items-center gap-2 mb-3">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--color-cyan)]/30 bg-[var(--color-cyan)]/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-[var(--color-cyan)]">
-                <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-cyan)] animate-pulse" />
-                Live Tracking
-              </span>
-            </motion.div>
-            <motion.div variants={heroItem} className="neon-rgb-border rounded-xl px-4 py-2 inline-block">
-              <h1 className="font-display text-4xl font-black sm:text-5xl lg:text-6xl tracking-tight leading-[1.1]">
-                Anime{" "}
-                <span className="bg-gradient-to-r from-[var(--color-cyan)] to-[var(--color-magenta)] bg-clip-text text-transparent">
-                  Events Hub
+      <div className="evp-hero-inner">
+        <motion.div
+          variants={heroStagger}
+          initial={reduceMotion ? false : "hidden"}
+          animate="show"
+          className="evp-hero-copy"
+        >
+          <motion.div variants={heroItem} className="evp-hero-kicker">
+            <span className="evp-hero-pulse" />
+            Live tracking · official-first
+          </motion.div>
+          <motion.h1 variants={heroItem} className="evp-hero-title">
+            Anime <span>Events Hub</span>
+          </motion.h1>
+          <motion.p variants={heroItem} className="evp-hero-lead">
+            Conventions, expos and festivals worldwide. Dates and venues are checked against
+            organiser pages before they appear here — no invented attendance, no unsourced reveals.
+          </motion.p>
+          <motion.div variants={heroItem} className="evp-hero-meta">
+            <span className="evp-hero-meta-dot" />
+            Sources last checked {lastUpdated} · statuses update automatically
+          </motion.div>
+        </motion.div>
+
+        <motion.div
+          ref={statsRef}
+          initial={reduceMotion ? false : { opacity: 0, y: 30, scale: 0.94 }}
+          animate={inView || reduceMotion ? { opacity: 1, y: 0, scale: 1 } : undefined}
+          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+          className="evp-phone-stage"
+        >
+          <div className="evp-phone-aura" aria-hidden="true" />
+          <div className="evp-phone-ring evp-phone-ring-a" aria-hidden="true" />
+          <div className="evp-phone-ring evp-phone-ring-b" aria-hidden="true" />
+
+          <div className="evp-duo">
+            <div className="evp-duo-frame">
+              {/* Folded left pane — live coverage visual */}
+              <div className="evp-duo-pane evp-duo-pane-visual" aria-hidden="true">
+                <div className="evp-duo-aurora" />
+                <div className="evp-duo-grid" />
+                <div className="evp-duo-logo" aria-hidden="true">
+                  <Image
+                    src="/zyniverse-logo-3d.png"
+                    alt=""
+                    width={512}
+                    height={512}
+                    priority
+                  />
+                </div>
+                <div className="evp-duo-orbit evp-duo-orbit-c" />
+                <div className="evp-duo-orbit evp-duo-orbit-b" />
+                <div className="evp-duo-orbit evp-duo-orbit-a" />
+                <span className="evp-duo-node evp-duo-node-a" />
+                <span className="evp-duo-node evp-duo-node-b" />
+                <span className="evp-duo-node evp-duo-node-c" />
+                <span className="evp-duo-visual-label">
+                  <span className="evp-duo-visual-dot" />
+                  coverage signal
                 </span>
-              </h1>
-            </motion.div>
-            <motion.p
-              variants={heroItem}
-              className="mt-4 text-base sm:text-lg text-[var(--color-mute)] max-w-xl leading-relaxed"
-            >
-              Track every major anime event worldwide. Conventions, expos, festivals — with
-              all announcements, trailers, reveals, and key visuals in one place.
-            </motion.p>
-          </motion.div>
+              </div>
 
-          {/* Stats */}
-          <motion.div
-            ref={statsRef}
-            initial={{ opacity: 0, y: 30 }}
-            animate={inView ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-            className="flex gap-4 sm:gap-6"
-          >
-            {stats.map((s, i) => (
-              <motion.div
-                key={s.label}
-                initial={{ opacity: 0, y: 20 }}
-                animate={inView ? { opacity: 1, y: 0 } : {}}
-                transition={{ duration: 0.5, delay: i * 0.12 }}
-                className={`rounded-xl border px-5 py-3 text-center min-w-[90px] ${
-                  s.color === "cyan"
-                    ? "border-[var(--color-cyan)]/20 bg-[var(--color-cyan)]/5"
-                    : "border-[var(--color-magenta)]/20 bg-[var(--color-magenta)]/5"
-                }`}
-              >
-                <div
-                  className={`font-display text-2xl sm:text-3xl font-black tabular-nums ${
-                    s.color === "cyan" ? "text-[var(--color-cyan)]" : "text-[var(--color-magenta)]"
-                  }`}
-                >
-                  {s.value.toLocaleString("en-US")}
+              {/* Titanium hinge / soft crease */}
+              <div className="evp-duo-crease" aria-hidden="true">
+                <span />
+              </div>
+
+              {/* Flat right pane — the app UI */}
+              <div className="evp-duo-pane evp-duo-pane-ui">
+                <div className="evp-duo-screen">
+                  <div className="evp-duo-scan" aria-hidden="true" />
+
+                  <div className="evp-duo-status" aria-hidden="true">
+                    <span className="evp-duo-time">
+                      {time}
+                      {seconds && <span className="evp-duo-seconds">:{seconds}</span>}
+                    </span>
+                    <span className="evp-duo-status-icons">
+                      <span />
+                      <span />
+                      <span />
+                      <span className="evp-duo-battery" />
+                    </span>
+                  </div>
+
+                  <div className="evp-duo-appbar">
+                    <span className="evp-duo-app">ZyniVerse</span>
+                    <span className="evp-duo-live">
+                      <span className="evp-hero-pulse" aria-hidden="true" />
+                      live
+                    </span>
+                  </div>
+
+                  <div className="evp-duo-screen-head">
+                    <p className="evp-duo-kicker">Coverage snapshot</p>
+                    <p className="evp-duo-sub">daily refresh · checked {lastUpdated}</p>
+                  </div>
+
+                  <div className="evp-duo-dashboard">
+                    <div className="evp-duo-spotlight">
+                      <span className="evp-duo-spotlight-chip">auto status</span>
+                      <span className="evp-duo-spotlight-label">events tracked</span>
+                      <span className="evp-duo-spotlight-value">
+                        {safeCount(events).toLocaleString("en-US")}
+                      </span>
+                      <svg className="evp-duo-spark" viewBox="0 0 120 28" preserveAspectRatio="none" aria-hidden="true">
+                        <defs>
+                          <linearGradient id="evpSparkGradient" x1="0" x2="1" y1="0" y2="0">
+                            <stop offset="0%" stopColor="#29f2e0" />
+                            <stop offset="55%" stopColor="#8a5cff" />
+                            <stop offset="100%" stopColor="#ff2d78" />
+                          </linearGradient>
+                        </defs>
+                        <path
+                          className="evp-duo-spark-area"
+                          d="M0 22 C12 20 18 12 28 15 S45 8 56 11 S72 3 84 8 S102 5 120 2 L120 28 L0 28 Z"
+                        />
+                        <path
+                          className="evp-duo-spark-line"
+                          d="M0 22 C12 20 18 12 28 15 S45 8 56 11 S72 3 84 8 S102 5 120 2"
+                        />
+                      </svg>
+                    </div>
+
+                    <div className="evp-duo-mini-grid">
+                      <div className="evp-duo-mini evp-duo-mini-violet">
+                        <span className="evp-duo-mini-icon" aria-hidden="true">◎</span>
+                        <span className="evp-duo-mini-value">{safeCount(countries)}</span>
+                        <span className="evp-duo-mini-label">countries</span>
+                        <span className="evp-duo-mini-bar" aria-hidden="true">
+                          <span style={{ width: fillFor(countriesCount) }} />
+                        </span>
+                      </div>
+                      <div className="evp-duo-mini evp-duo-mini-magenta">
+                        <span className="evp-duo-mini-icon" aria-hidden="true">◇</span>
+                        <span className="evp-duo-mini-value">{safeCount(verified)}</span>
+                        <span className="evp-duo-mini-label">official sources</span>
+                        <span className="evp-duo-mini-bar" aria-hidden="true">
+                          <span style={{ width: fillFor(verifiedCount) }} />
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="evp-duo-footer">
+                    <span className="evp-duo-footer-dot" aria-hidden="true" />
+                    source-checked listings
+                    <span aria-hidden="true">↗</span>
+                  </div>
                 </div>
-                <div className="text-[10px] font-mono text-[var(--color-mute)]/60 uppercase tracking-wider mt-0.5">
-                  {s.label}
+
+                {/* Brand watermark kept fully inside the right pane. */}
+                <div className="evp-duo-watermark" aria-hidden="true">
+                  <span>ZyniVerse</span>
                 </div>
-              </motion.div>
-            ))}
-          </motion.div>
-        </div>
+              </div>
+
+              {/* Dual Fusion camera bump peeking from the outer edge */}
+              <div className="evp-duo-cameras" aria-hidden="true">
+                <span className="evp-duo-lens" />
+                <span className="evp-duo-lens" />
+                <span className="evp-duo-flash" />
+              </div>
+
+            </div>
+          </div>
+
+          <div className="evp-phone-chip evp-phone-chip-a" aria-hidden="true">
+            ✓ verified
+          </div>
+          <div className="evp-phone-chip evp-phone-chip-b" aria-hidden="true">
+            auto status
+          </div>
+        </motion.div>
       </div>
     </section>
   );

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { resolveUserId } from "@/lib/resolve-user";
 import { prisma } from "@/lib/prisma";
 import { getTournamentRounds } from "@/lib/character-tournaments";
 
@@ -9,12 +9,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const id = (await params).id;
 
   const hasSessionCookie =
-    req.cookies.has("authjs.session-token") || req.cookies.has("__Secure-authjs.session-token");
+    req.cookies.has("authjs.session-token") ||
+    req.cookies.has("__Secure-authjs.session-token") ||
+    req.cookies.has("next-auth.session-token") ||
+    req.cookies.has("__Secure-next-auth.session-token");
+  const hasBearer = /^Bearer\s+/i.test(req.headers.get("authorization") || "");
 
-  // auth() hits the database on every call (the session callback looks the user
-  // up), so it is skipped entirely when there is no session cookie. Anonymous
-  // page views are the overwhelming majority of this route's traffic.
-  const userId = hasSessionCookie ? ((await auth())?.user?.id ?? null) : null;
+  // Anonymous page views are the majority of this route's traffic, so only pay
+  // for session resolution when the caller actually supplied credentials.
+  const userId = hasSessionCookie || hasBearer ? await resolveUserId() : null;
 
   const rawDeviceId = req.headers.get("x-device-id");
   const deviceId = rawDeviceId && DEVICE_ID_RE.test(rawDeviceId) ? rawDeviceId : null;

@@ -10,7 +10,9 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../../hooks/useTheme';
 import { borderRadius, fontSize, spacing } from '../../theme';
-import { absoluteAvatarUrl } from '../../utils/helpers';
+import { imageCandidates } from '../../lib/avatar-src';
+import { localBrandLogo } from '../../utils/channelLogos';
+import ImageWithFallback from '../ImageWithFallback';
 
 /** Friendly sign-in prompt shared by every native social screen. */
 export function SignedOutCard({ message }: { message?: string }) {
@@ -102,52 +104,124 @@ export function EmptyBlock({
   );
 }
 
+/** Names that always represent the official ZyniVerse account/channel. */
+export function isOfficialAccountName(name?: string | null): boolean {
+  const n = (name || '').trim().toLowerCase();
+  return n === 'zyniverse' || n === 'zynibot' || n === 'system-bot' || n === 'official';
+}
+
 export function SocialAvatar({
   name,
   uri,
   size = 46,
   ring,
+  verified,
 }: {
   name: string;
   uri?: string | null;
   size?: number;
   /** Ring colour used by story rows; omit for a plain avatar. */
   ring?: string;
+  verified?: boolean;
 }) {
   const { colors } = useTheme();
-  const source = uri ? absoluteAvatarUrl(uri) : null;
+  const sources = imageCandidates(uri);
+  const brandLogo = localBrandLogo(uri);
+  const isVerified = verified ?? isOfficialAccountName(name);
+  const badgeSize = Math.max(14, Math.round(size * 0.34));
   return (
-    <View
-      style={[
-        styles.avatarWrap,
-        {
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          borderColor: ring || colors.border,
-          borderWidth: ring ? 2 : 1,
-        },
-      ]}
-    >
-      {source ? (
-        <Image source={{ uri: source }} style={{ width: size - 4, height: size - 4, borderRadius: (size - 4) / 2 }} />
-      ) : (
+    <View style={{ width: size, height: size }}>
+      <View
+        style={[
+          styles.avatarWrap,
+          {
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+            borderColor: ring || colors.border,
+            borderWidth: ring ? 2 : 1,
+          },
+        ]}
+      >
+        {brandLogo ? (
+          <Image
+            source={brandLogo}
+            style={{ width: size - 4, height: size - 4, borderRadius: (size - 4) / 2 }}
+            resizeMode="cover"
+          />
+        ) : sources.length > 0 ? (
+          <ImageWithFallback
+            sources={sources}
+            style={{ width: size - 4, height: size - 4, borderRadius: (size - 4) / 2 }}
+            resizeMode="cover"
+          />
+        ) : (
+          <View
+            style={{
+              width: size - 4,
+              height: size - 4,
+              borderRadius: (size - 4) / 2,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: `${colors.primary}22`,
+            }}
+          >
+            <Text style={[styles.avatarLetter, { color: colors.primary, fontSize: size / 2.6 }]}>
+              {(name || '?').charAt(0).toUpperCase()}
+            </Text>
+          </View>
+        )}
+      </View>
+      {isVerified && (
         <View
           style={{
-            width: size - 4,
-            height: size - 4,
-            borderRadius: (size - 4) / 2,
+            position: 'absolute',
+            right: -1,
+            bottom: -1,
+            width: badgeSize,
+            height: badgeSize,
+            borderRadius: badgeSize / 2,
+            backgroundColor: '#3b82f6',
             alignItems: 'center',
             justifyContent: 'center',
-            backgroundColor: `${colors.primary}22`,
+            borderWidth: 1.5,
+            borderColor: colors.background,
           }}
         >
-          <Text style={[styles.avatarLetter, { color: colors.primary, fontSize: size / 2.6 }]}>
-            {(name || '?').charAt(0).toUpperCase()}
-          </Text>
+          <Text style={{ color: '#fff', fontSize: badgeSize * 0.55, fontWeight: '900', lineHeight: badgeSize * 0.62 }}>✓</Text>
         </View>
       )}
     </View>
+  );
+}
+
+/** Verified/system name with the ZyniVerse tick, used anywhere a username is rendered. */
+export function UserName({
+  name,
+  verified,
+  color,
+  prefix,
+  numberOfLines,
+  style,
+}: {
+  name: string;
+  verified?: boolean;
+  color?: string;
+  prefix?: string;
+  numberOfLines?: number;
+  style?: import('react-native').StyleProp<import('react-native').TextStyle>;
+}) {
+  const { colors } = useTheme();
+  const isVerified = verified ?? isOfficialAccountName(name);
+  return (
+    <Text
+      numberOfLines={numberOfLines}
+      style={[{ fontWeight: '800' }, { color: color || colors.text }, style]}
+    >
+      {prefix}
+      {name}
+      {isVerified ? <Text style={{ color: '#3b82f6' }}> ✓</Text> : null}
+    </Text>
   );
 }
 

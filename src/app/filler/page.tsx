@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import type { Metadata } from "next";
 import AffiliateLink from "@/components/AffiliateLink";
+import PlayAsiaPill from "@/components/PlayAsiaPill";
 import FillerSearch from "@/components/FillerSearch";
 import AdBanner from "@/components/AdBanner";
 import NativeBannerAd from "@/components/NativeBannerAd";
@@ -78,6 +79,7 @@ export default async function FillerListingPage() {
         <AffiliateLink partner="amazon" path="https://www.amazon.in/s?k=anime+blu+ray"
           className="inline-flex items-center gap-2 rounded-full neon-rgb-border px-5 py-2.5 text-sm font-semibold text-[var(--color-mute)] hover:border-[var(--color-cyan)] hover:text-[var(--color-cyan)] transition-all"
         >📦 Buy Anime on Amazon</AffiliateLink>
+        <PlayAsiaPill query="anime blu ray" label="Play-Asia Blu-rays" />
       </div>
 
       <div className="mb-6 max-w-[728px] mx-auto">

@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, type CSSProperties } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import MangaCard from "@/components/MangaCard";
 import AffiliateLink from "@/components/AffiliateLink";
+import PlayAsiaPill from "@/components/PlayAsiaPill";
 import RevealTitle from "@/components/RevealTitle";
 import RevealLabel from "@/components/RevealLabel";
 import EmptyState from "@/components/EmptyState";
@@ -24,8 +25,6 @@ interface MangaEntryDB {
   totalVolumes: number | null;
   score: number | null;
 }
-
-const EASE = [0.22, 1, 0.36, 1] as const;
 
 const FADE_UP = { initial: { opacity: 0, y: 20 }, whileInView: { opacity: 1, y: 0 }, viewport: { once: true }, transition: { duration: 0.5 } };
 
@@ -64,6 +63,7 @@ export default function LightNovelBrowseClient({
   initialHasNext?: boolean;
 }) {
   const { data: session } = useSession();
+  const reduce = useReducedMotion() ?? false;
   const [tab, setTab] = useState("trending");
   const [list, setList] = useState<Media[]>(initialList);
   const [loading, setLoading] = useState(initialList.length === 0);
@@ -221,88 +221,71 @@ export default function LightNovelBrowseClient({
   ];
 
   return (
-    <div className="min-h-screen animate-page-in">
+    <div className="lnv-page min-h-screen animate-page-in">
       {/* ═══════════════ HERO ═══════════════ */}
-      <div className="relative overflow-hidden border-b border-[var(--color-line)]">
-        <div className="absolute inset-0 bg-[var(--color-void)]" />
-        <div className="absolute top-0 left-0 w-full h-full">
-          <div className="absolute top-10 left-20 w-72 h-72 bg-[#00ffff]/15 rounded-full blur-[120px] animate-pulse" />
-          <div className="absolute bottom-10 right-20 w-96 h-96 bg-[#8a2be2]/20 rounded-full blur-[150px] animate-pulse" style={{ animationDelay: "1s" }} />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-[#00ffff]/10 rounded-full blur-[100px] animate-pulse" style={{ animationDelay: "0.5s" }} />
-        </div>
-        <div className="absolute inset-0 opacity-10" style={{
-          backgroundImage: "linear-gradient(rgba(0,255,255,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(138,43,226,0.3) 1px, transparent 1px)",
-          backgroundSize: "50px 50px"
-        }} />
-
-        <div className="relative mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-20">
-          <div className="flex flex-col items-center text-center">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.6, rotate: -14 }}
-              animate={{ opacity: 1, scale: 1, rotate: 0 }}
-              transition={{ duration: 0.55, ease: EASE }}
-              className="neon-rgb-border rounded-xl h-12 w-12 mb-4 flex items-center justify-center bg-[var(--color-panel)]/60 backdrop-blur-sm"
-            >
-              <span className="text-xl">📖</span>
-            </motion.div>
-
-            <RevealLabel
-              as="span"
-              spacing="0.2em"
-              fromSpacing="0.4em"
-              className="font-mono text-xs uppercase tracking-[0.2em] text-[#00ffff] mb-3"
-              style={{ textShadow: "0 0 10px rgba(0,255,255,0.5)" }}
-            >
-              Light Novels
-            </RevealLabel>
-
-            <motion.div
-              className="neon-rgb-border rounded-xl px-4 py-2"
-              initial={{ opacity: 0, scale: 0.94, y: 12, filter: "drop-shadow(0 0 0px rgba(0,255,255,0))" }}
-              animate={{
-                opacity: 1,
-                scale: 1,
-                y: 0,
-                filter: [
-                  "drop-shadow(0 0 0px rgba(0,255,255,0))",
-                  "drop-shadow(0 0 20px rgba(0,255,255,0.5))",
-                  "drop-shadow(0 0 6px rgba(0,255,255,0.15))",
-                ],
-              }}
-              transition={{ duration: 0.7, ease: EASE, delay: 0.1 }}
-            >
-              <RevealTitle
-                as="h1"
-                className="font-display text-4xl sm:text-5xl font-bold text-[var(--color-ink)]"
-                style={{ textShadow: "0 0 30px rgba(0,255,255,0.3), 0 0 60px rgba(138,43,226,0.2)" }}
-              >
-                Track Your <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00ffff] via-[#8a2be2] to-[#ff00ff]">Reading Journey</span>
-              </RevealTitle>
-            </motion.div>
-            <p className="mt-3 text-base text-[var(--color-mute)] max-w-lg">
-              Discover trending light novels, track your progress, and find your next favorite series.
-            </p>
-
-            {/* Quick Stats */}
-            {session?.user?.id && (
-              <div className="flex flex-wrap justify-center gap-x-6 gap-y-3 mt-6">
-                {HERO_STATS.map((s) => (
-                  <div key={s.label} className="text-center">
-                    <div className="text-lg font-bold font-mono" style={{ color: s.color }}>{s.value}</div>
-                    <div className="text-[9px] text-[var(--color-mute)] uppercase tracking-widest">{s.label}</div>
-                  </div>
-                ))}
+      <div className="mx-auto max-w-7xl px-4 pt-8 sm:px-6">
+        <div className="lnv-hero relative overflow-hidden rounded-3xl border border-[var(--color-line)]">
+          <div className="lnv-hero-glow" aria-hidden />
+          <div className="lnv-hero-grid" aria-hidden />
+          <div className="lnv-hero-inner relative grid gap-8 px-6 py-10 sm:px-10 sm:py-12 lg:grid-cols-[minmax(0,1fr)_260px] lg:items-center">
+            <div className="lnv-hero-copy flex flex-col items-center text-center lg:items-start lg:text-left">
+              <div className="lnv-hero-icon mb-4 flex h-12 w-12 items-center justify-center rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)]/70 backdrop-blur-sm">
+                <span className="text-xl">📖</span>
               </div>
-            )}
+
+              <RevealLabel
+                as="span"
+                spacing="0.2em"
+                fromSpacing="0.4em"
+                className="lnv-kicker mb-3 font-mono text-xs uppercase tracking-[0.2em] text-[var(--color-cyan)]"
+              >
+                Light Novels
+              </RevealLabel>
+
+              <div className="lnv-title-wrap mt-1 rounded-xl px-4 py-2">
+                <RevealTitle
+                  as="h1"
+                  className="font-display text-4xl font-bold text-[var(--color-ink)] sm:text-5xl"
+                >
+                  Track Your <span className="lnv-title-accent">Reading Journey</span>
+                </RevealTitle>
+              </div>
+              <p className="lnv-hero-subtitle mt-3 max-w-lg text-base text-[var(--color-mute)]">
+                Discover trending light novels, track your progress, and find your next favorite series.
+              </p>
+
+              {/* Quick Stats */}
+              {session?.user?.id && (
+                <div className="mt-6 flex flex-wrap justify-center gap-x-6 gap-y-3 lg:justify-start">
+                  {HERO_STATS.map((s, i) => (
+                    <div key={s.label} className="lnv-stat text-center" style={{ "--lnv-stat-i": i } as CSSProperties}>
+                      <div className="font-mono text-lg font-bold" style={{ color: s.color }}>{s.value}</div>
+                      <div className="text-[9px] uppercase tracking-widest text-[var(--color-mute)]">{s.label}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="lnv-hero-art" aria-hidden>
+              <span className="lnv-book-orbit" />
+              <span className="lnv-book">
+                <span className="lnv-book-page lnv-book-page-left" />
+                <span className="lnv-book-page lnv-book-page-right" />
+                <span className="lnv-book-spine" />
+                <span className="lnv-book-shine" />
+              </span>
+              <span className="lnv-book-dot lnv-book-dot-a" />
+              <span className="lnv-book-dot lnv-book-dot-b" />
+            </div>
           </div>
         </div>
-        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#00ffff] to-transparent shadow-[0_0_10px_rgba(0,255,255,0.5)]" />
       </div>
 
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8 space-y-6">
+      <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6">
         {/* Search */}
-        <motion.div {...FADE_UP}>
-          <div className="neon-rgb-border rounded-xl bg-[var(--color-panel)]/60 backdrop-blur-sm">
+        <motion.div {...FADE_UP} className="lnv-panel">
+          <div className="lnv-search rounded-xl bg-[var(--color-panel)]/60 backdrop-blur-sm">
             <form onSubmit={(e) => { e.preventDefault(); setShowMyList(false); }} className="flex items-center gap-3 px-4 py-3">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[var(--color-mute)] shrink-0">
                 <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
@@ -318,56 +301,56 @@ export default function LightNovelBrowseClient({
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
                 </button>
               )}
-              <button type="submit" className="neon-rgb-border rounded-xl px-6 py-2.5 text-sm font-bold" style={{ color: "#00ffff" }}>Search</button>
+              <button type="submit" className="lnv-search-btn rounded-xl px-6 py-2.5 text-sm font-bold">Search</button>
             </form>
           </div>
         </motion.div>
 
         {/* Toggle: Browse / My List */}
-        <motion.div {...FADE_UP}>
+        <motion.div {...FADE_UP} className="lnv-panel">
           <div className="flex items-center gap-3 border-b border-[var(--color-line)] pb-3">
             <button
               onClick={() => { setShowMyList(false); setTab("trending"); setQuery(""); setDebouncedQuery(""); }}
-              className={`relative px-6 py-2.5 text-sm font-semibold rounded-xl transition-colors ${!showMyList ? "text-[#00ffff] bg-[#00ffff]/5" : "text-[var(--color-mute)] hover:text-[var(--color-ink)]"}`}
+              className={`lnv-toggle relative rounded-xl px-6 py-2.5 text-sm font-semibold transition-colors ${!showMyList ? "is-active" : ""}`}
             >
               Browse
               {!showMyList && (
-                <motion.span layoutId="ln-toggle-underline" className="absolute -bottom-3 left-0 right-0 h-0.5 rounded-full bg-[#00ffff] shadow-[0_0_10px_rgba(0,255,255,0.7)]" />
+                <motion.span layoutId="ln-toggle-underline" className="lnv-toggle-underline absolute -bottom-3 left-0 right-0 h-0.5 rounded-full bg-[var(--color-cyan)]" />
               )}
             </button>
             {session?.user?.id && (
               <button
                 onClick={() => setShowMyList(true)}
-                className={`relative px-6 py-2.5 text-sm font-semibold rounded-xl transition-colors ${showMyList ? "text-[#00ffff] bg-[#00ffff]/5" : "text-[var(--color-mute)] hover:text-[var(--color-ink)]"}`}
+                className={`lnv-toggle relative rounded-xl px-6 py-2.5 text-sm font-semibold transition-colors ${showMyList ? "is-active" : ""}`}
               >
                 My List {myListTotal > 0 && <span className="ml-1 text-[10px] font-mono opacity-60">({myListTotal})</span>}
                 {showMyList && (
-                  <motion.span layoutId="ln-toggle-underline" className="absolute -bottom-3 left-0 right-0 h-0.5 rounded-full bg-[#00ffff] shadow-[0_0_10px_rgba(0,255,255,0.7)]" />
+                  <motion.span layoutId="ln-toggle-underline" className="lnv-toggle-underline absolute -bottom-3 left-0 right-0 h-0.5 rounded-full bg-[var(--color-cyan)]" />
                 )}
               </button>
             )}
             <Link href="/search?type=MANGA&format=NOVEL"
-              className="ml-auto text-xs text-[var(--color-mute)] hover:text-[#00ffff] transition-colors"
+              className="lnv-text-link ml-auto text-xs text-[var(--color-mute)] transition-colors"
             >Advanced Search →</Link>
           </div>
         </motion.div>
 
         {/* Continue Reading */}
         {!showMyList && !debouncedQuery.trim() && continueReading.length > 0 && (
-          <motion.div {...FADE_UP}>
+          <motion.div {...FADE_UP} className="lnv-panel">
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="flex items-center gap-2 font-display text-lg font-bold">
-                <span className="h-4 w-1 rounded-full bg-[#00ffff]" />
+              <h2 className="lnv-section-title flex items-center gap-2 font-display text-lg font-bold">
+                <span className="lnv-section-mark" aria-hidden />
                 Continue Reading
               </h2>
-              <button onClick={() => setShowMyList(true)} className="text-xs text-[var(--color-mute)] transition-colors hover:text-[#00ffff]">
+              <button onClick={() => setShowMyList(true)} className="lnv-text-link text-xs text-[var(--color-mute)] transition-colors">
                 View list →
               </button>
             </div>
-            <div className="-mx-1 flex snap-x gap-3 overflow-x-auto px-1 pb-2">
+            <div className="lnv-rail -mx-1 flex snap-x gap-3 overflow-x-auto px-1 pb-2">
               {continueReading.map((entry, i) => (
-                <div key={entry.id} className="w-32 shrink-0 snap-start">
-                  <MangaCard manga={entry} entry={entry} showProgress index={i} />
+                <div key={entry.id} className="lnv-card-cell w-32 shrink-0 snap-start" style={{ "--lnv-i": i } as CSSProperties}>
+                  <MangaCard manga={entry} entry={entry} showProgress index={i} subtle />
                 </div>
               ))}
             </div>
@@ -376,16 +359,15 @@ export default function LightNovelBrowseClient({
 
         {/* Browse Tabs + Genre Filters */}
         {!showMyList && !debouncedQuery.trim() && (
-          <motion.div {...FADE_UP} className="space-y-3">
+          <motion.div {...FADE_UP} className="lnv-panel space-y-3">
             <div className="flex flex-wrap items-center gap-2">
               {TABS.map((t) => {
                 const active = tab === t.key;
                 return (
                   <button key={t.key} onClick={() => setTab(t.key)}
-                    className="neon-rgb-border relative rounded-xl px-6 py-3 text-sm font-bold transition-colors"
-                    style={{ color: active ? "#00ffff" : "var(--color-mute)" }}
+                    className={`lnv-chip lnv-chip-lg relative rounded-xl px-6 py-3 text-sm font-bold transition-colors ${active ? "is-active" : ""}`}
                   >
-                    {active && <motion.span layoutId="ln-tab-bg" className="absolute inset-0 rounded-xl bg-[#00ffff]/10" transition={PILL_SPRING} />}
+                    {active && <motion.span layoutId="ln-tab-bg" className="lnv-chip-bg absolute inset-0 rounded-xl" transition={reduce ? { duration: 0 } : PILL_SPRING} />}
                     <span className="relative z-10">{t.label}</span>
                   </button>
                 );
@@ -396,10 +378,9 @@ export default function LightNovelBrowseClient({
                 const isActive = selectedGenre === g.value;
                 return (
                   <button key={g.value || "all"} onClick={() => setSelectedGenre(g.value)}
-                    className="neon-rgb-border relative rounded-xl px-4 py-2 text-xs font-bold transition-colors"
-                    style={{ color: isActive ? "#00ffff" : "var(--color-mute)" }}
+                    className={`lnv-chip relative rounded-xl px-4 py-2 text-xs font-bold transition-colors ${isActive ? "is-active" : ""}`}
                   >
-                    {isActive && <motion.span layoutId="ln-genre-bg" className="absolute inset-0 rounded-xl bg-[#00ffff]/10" transition={PILL_SPRING} />}
+                    {isActive && <motion.span layoutId="ln-genre-bg" className="lnv-chip-bg absolute inset-0 rounded-xl" transition={reduce ? { duration: 0 } : PILL_SPRING} />}
                     <span className="relative z-10">{g.label}</span>
                   </button>
                 );
@@ -410,14 +391,13 @@ export default function LightNovelBrowseClient({
 
         {/* My List Status Tabs */}
         {showMyList && (
-          <motion.div {...FADE_UP}>
+          <motion.div {...FADE_UP} className="lnv-panel">
             <div className="flex flex-wrap gap-2">
               {STATUS_FILTERS.map((s) => (
                 <button key={s} onClick={() => setListTab(s)}
-                  className="neon-rgb-border relative rounded-xl px-5 py-2.5 text-sm font-bold transition-colors"
-                  style={{ color: listTab === s ? "#00ffff" : "var(--color-mute)" }}
+                  className={`lnv-chip lnv-chip-lg relative rounded-xl px-5 py-2.5 text-sm font-bold transition-colors ${listTab === s ? "is-active" : ""}`}
                 >
-                  {listTab === s && <motion.span layoutId="ln-status-bg" className="absolute inset-0 rounded-xl bg-[#00ffff]/10" transition={PILL_SPRING} />}
+                  {listTab === s && <motion.span layoutId="ln-status-bg" className="lnv-chip-bg absolute inset-0 rounded-xl" transition={reduce ? { duration: 0 } : PILL_SPRING} />}
                   <span className="relative z-10">{s === "ALL" ? "All" : STATUS_LABELS[s] || s}</span>
                 </button>
               ))}
@@ -426,13 +406,14 @@ export default function LightNovelBrowseClient({
         )}
 
         {/* Affiliate Links */}
-        <motion.div {...FADE_UP} className="flex flex-wrap gap-3">
+        <motion.div {...FADE_UP} className="lnv-panel lnv-affiliates flex flex-wrap gap-3">
           <AffiliateLink partner="bookwalker" path="https://global.bookwalker.jp"
-            className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#00ffff] to-[#8a2be2] px-5 py-2.5 text-sm font-bold text-black hover:opacity-90 transition-opacity"
+            className="lnv-affiliate lnv-affiliate-primary inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-bold transition-all"
           >📖 Buy on BookWalker</AffiliateLink>
           <AffiliateLink partner="amazon" path="https://www.amazon.in/s?k=light+novel"
-            className="inline-flex items-center gap-2 rounded-full neon-rgb-border px-5 py-2.5 text-sm font-semibold text-[var(--color-mute)] hover:border-[#00ffff] hover:text-[#00ffff] transition-all"
+            className="lnv-affiliate inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition-all"
           >📦 Buy on Amazon</AffiliateLink>
+          <PlayAsiaPill query="light novel merch" label="Play-Asia merch" className="lnv-affiliate" />
         </motion.div>
 
         {/* Error */}
@@ -443,17 +424,17 @@ export default function LightNovelBrowseClient({
         )}
 
         {/* Grid */}
-        <motion.div {...FADE_UP}>
+        <motion.div {...FADE_UP} className="lnv-panel lnv-grid-panel">
           {!loading && total > 0 && (
-            <p className="mb-3 text-xs font-mono uppercase tracking-widest text-[var(--color-mute)]">
+            <p className="lnv-count mb-3 text-xs font-mono uppercase tracking-widest text-[var(--color-mute)]">
               {total.toLocaleString()} light novel{total === 1 ? "" : "s"}
             </p>
           )}
 
           {loading ? (
-            <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+            <div className="lnv-grid grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
               {Array.from({ length: 12 }).map((_, i) => (
-                <div key={i} className="neon-rgb-border rounded-xl bg-[var(--color-panel)]/60 backdrop-blur-sm overflow-hidden animate-pulse">
+                <div key={i} className="lnv-skeleton rounded-xl bg-[var(--color-panel)]/60 backdrop-blur-sm overflow-hidden">
                   <div className="aspect-[3/4] bg-[var(--color-void)]" />
                   <div className="p-3 space-y-2">
                     <div className="h-4 w-3/4 bg-[var(--color-void)] rounded" />
@@ -463,14 +444,20 @@ export default function LightNovelBrowseClient({
               ))}
             </div>
           ) : showMyList ? (
-            <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+            <div className="lnv-grid grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
               {myEntries.map((entry, i) => (
-                <MangaCard key={entry.id} manga={entry} entry={entry} showProgress index={i} />
+                <div key={entry.id} className="lnv-card-cell" style={{ "--lnv-i": i } as CSSProperties}>
+                  <MangaCard manga={entry} entry={entry} showProgress index={i} subtle />
+                </div>
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-              {list.map((m, i) => <MangaCard key={m.id} manga={m} index={i} href={`/light-novels/${m.id}`} />)}
+            <div className="lnv-grid grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+              {list.map((m, i) => (
+                <div key={m.id} className="lnv-card-cell" style={{ "--lnv-i": i } as CSSProperties}>
+                  <MangaCard manga={m} index={i} href={`/light-novels/${m.id}`} subtle />
+                </div>
+              ))}
             </div>
           )}
 
@@ -505,7 +492,7 @@ export default function LightNovelBrowseClient({
               <button
                 onClick={loadMore}
                 disabled={loadingMore}
-                className="neon-rgb-border rounded-full px-8 py-3 text-sm font-bold text-[#00ffff] transition-all hover:bg-[#00ffff]/10 disabled:opacity-50"
+                className="lnv-load-more rounded-full px-8 py-3 text-sm font-bold transition-all disabled:opacity-50"
               >
                 {loadingMore ? "Loading…" : "Load More"}
               </button>

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { resolveUserId } from "@/lib/resolve-user";
 import { apiLimiter } from "@/lib/rate-limiter";
 import { castPollVote, getPollVoteState } from "@/lib/character-tournaments";
 
@@ -11,6 +11,14 @@ function readDeviceId(req: NextRequest): string | null {
   return raw;
 }
 
+async function readUserId(req: NextRequest): Promise<string | null> {
+  const hasBearer = /^Bearer\s+/i.test(req.headers.get("authorization") || "");
+  const hasSessionCookie = /(?:^|;\s*)(?:__Secure-)?(?:authjs|next-auth)\.session-token=/.test(
+    req.headers.get("cookie") || ""
+  );
+  return hasBearer || hasSessionCookie ? resolveUserId() : null;
+}
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -19,8 +27,7 @@ export async function POST(
   if (rateCheck) return rateCheck;
 
   const { id } = await params;
-  const session = await auth();
-  const userId = session?.user?.id ?? null;
+  const userId = await readUserId(req);
   const deviceId = readDeviceId(req);
   if (!userId && !deviceId) {
     return NextResponse.json({ error: "Vote requires a device" }, { status: 400 });
@@ -53,8 +60,7 @@ export async function GET(
   if (rateCheck) return rateCheck;
 
   const { id } = await params;
-  const session = await auth();
-  const userId = session?.user?.id ?? null;
+  const userId = await readUserId(req);
   const deviceId = readDeviceId(req);
 
   try {

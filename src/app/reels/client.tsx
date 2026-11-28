@@ -216,9 +216,9 @@ function ActionButton({
     <button
       onClick={onClick}
       aria-label={ariaLabel}
-      className="group flex flex-col items-center gap-1 text-white"
+      className="rls-action group flex flex-col items-center gap-1 text-white"
     >
-      <span className="flex h-10 w-10 items-center justify-center rounded-full bg-black/45 backdrop-blur transition-all duration-200 group-hover:bg-pink-600/80 group-hover:scale-110 active:scale-90">
+      <span className="rls-action-icon flex h-10 w-10 items-center justify-center rounded-full bg-black/45 backdrop-blur transition-all duration-200 group-hover:bg-pink-600/80 group-hover:scale-110 active:scale-90">
         {children}
       </span>
       <span
@@ -702,29 +702,35 @@ function ReelsFeed({
 
   return (
     <PageTransition>
-      <div className="relative mx-auto max-w-3xl px-2 py-4 sm:px-4">
-        <div className="mb-4 flex items-center justify-between px-1">
-          <div>
-            <p className="font-mono text-xs uppercase tracking-[0.2em] text-[var(--color-magenta)]">
-              Reels
-            </p>
-            <div className="neon-rgb-border rounded-xl px-4 py-2 inline-block mt-1">
-              <h1 className="font-display text-xl font-bold leading-none">
-                Reels
-              </h1>
+      <div className="rls-shell relative mx-auto max-w-3xl px-2 py-4 sm:px-4">
+        <span className="rls-orb rls-orb--a" aria-hidden="true" />
+        <span className="rls-orb rls-orb--b" aria-hidden="true" />
+        <div className="rls-head mb-4 flex items-center justify-between gap-3 px-1">
+          <div className="rls-brand flex min-w-0 items-center gap-3">
+            <span className="rls-brand-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
+                <path d="M8 5.14v13.72L19 12 8 5.14z" />
+              </svg>
+            </span>
+            <div className="min-w-0">
+              <div className="rls-title-wrap">
+                <p className="rls-eyebrow font-mono text-[10px] uppercase tracking-[0.22em] text-[var(--color-magenta)]">
+                  Short anime edits
+                </p>
+                <h1 className="rls-title font-display text-2xl font-black uppercase leading-none sm:text-[28px]">
+                  REELS
+                </h1>
+              </div>
             </div>
           </div>
-          <Link
-            href="/reels/upload"
-            className="rounded-full neon-rgb-border bg-gradient-to-r from-pink-600 to-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-pink-600/20 transition hover:brightness-110"
-          >
-            + Upload Reel
+          <Link href="/reels/upload" className="rls-upload">
+            <span aria-hidden="true">＋</span> Upload Reel
           </Link>
         </div>
 
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 px-1">
+        <div className="rls-filters mb-3 flex flex-wrap items-center justify-between gap-2 px-1">
           <div
-            className="flex gap-0.5 rounded-lg border border-[var(--color-line)] p-0.5"
+            className="rls-segments flex gap-0.5 rounded-lg border border-[var(--color-line)] p-0.5"
             role="group"
             aria-label="Sort reels"
           >
@@ -742,9 +748,9 @@ function ReelsFeed({
                   containerRef.current?.scrollTo({ top: 0 });
                 }}
                 aria-pressed={sort === s}
-                className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-all ${
+                className={`rls-segment rounded-md px-3 py-1.5 text-xs font-semibold transition-all ${
                   sort === s
-                    ? "bg-gradient-to-r from-pink-600 to-purple-600 text-white shadow-md shadow-pink-600/20"
+                    ? "rls-segment--active bg-gradient-to-r from-pink-600 to-purple-600 text-white shadow-md shadow-pink-600/20"
                     : "text-[var(--color-mute)] hover:text-[var(--color-ink)]"
                 }`}
               >
@@ -767,9 +773,9 @@ function ReelsFeed({
                 containerRef.current?.scrollTo({ top: 0 });
               }}
               aria-pressed={followMode}
-              className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-all ${
+              className={`rls-segment rounded-md px-3 py-1.5 text-xs font-semibold transition-all ${
                 followMode
-                  ? "bg-gradient-to-r from-pink-600 to-purple-600 text-white shadow-md shadow-pink-600/20"
+                  ? "rls-segment--active bg-gradient-to-r from-pink-600 to-purple-600 text-white shadow-md shadow-pink-600/20"
                   : "text-[var(--color-mute)] hover:text-[var(--color-ink)]"
               }`}
             >
@@ -779,7 +785,7 @@ function ReelsFeed({
           {feedUsername && (
             <Link
               href="/reels"
-              className="inline-flex items-center gap-1.5 rounded-full neon-rgb-border bg-[var(--color-panel)]/80 px-3 py-1.5 text-xs font-semibold text-[var(--color-magenta)] transition hover:brightness-110"
+              className="rls-filter-chip inline-flex items-center gap-1.5 rounded-full neon-rgb-border bg-[var(--color-panel)]/80 px-3 py-1.5 text-xs font-semibold text-[var(--color-magenta)] transition hover:brightness-110"
             >
               Showing reels from @{feedUsername}
               <span className="text-[var(--color-mute)]">· clear filter ✕</span>
@@ -788,20 +794,34 @@ function ReelsFeed({
         </div>
 
         {reels.length > 1 && (
-          <div className="mb-2 flex gap-1 px-1">
-            {reels.map((r, i) => (
-              <button
-                key={r.id}
-                type="button"
-                onClick={() => jumpTo(i)}
-                aria-label={`Go to reel ${i + 1}`}
-                className={`h-1 flex-1 rounded-full transition-all ${
-                  i <= activeIndex
-                    ? "bg-white/80"
-                    : "bg-white/20 hover:bg-white/40"
-                }`}
-              />
-            ))}
+          <div className="rls-rail mb-2 flex items-center gap-3 px-1">
+            <span
+              className="rls-rail-count"
+              aria-label={`Reel ${activeIndex + 1} of ${reels.length}`}
+            >
+              <span key={activeIndex} className="rls-rail-count-value">
+                {String(activeIndex + 1).padStart(2, "0")}
+              </span>{" "}
+              <span>/ {String(reels.length).padStart(2, "0")}</span>
+            </span>
+            <div className="rls-rail-dots" role="group" aria-label="Browse reels">
+              {reels.map((r, i) => (
+                <button
+                  key={r.id}
+                  type="button"
+                  onClick={() => jumpTo(i)}
+                  aria-label={`Go to reel ${i + 1}`}
+                  aria-current={i === activeIndex ? "true" : undefined}
+                  className={`rls-rail-dot h-1 flex-1 rounded-full transition-all ${
+                    i === activeIndex
+                      ? "rls-rail-dot--active bg-gradient-to-r from-pink-500 to-purple-500"
+                      : i < activeIndex
+                      ? "bg-white/60"
+                      : "bg-white/20 hover:bg-white/40"
+                  }`}
+                />
+              ))}
+            </div>
           </div>
         )}
 
@@ -811,7 +831,7 @@ function ReelsFeed({
               {[0, 1].map((i) => (
                 <div
                   key={i}
-                  className="relative mx-auto h-[calc(100dvh-10.5rem)] w-full max-w-sm overflow-hidden rounded-2xl neon-rgb-border bg-[var(--color-panel)]/60"
+                  className="rls-skeleton relative mx-auto h-[calc(100dvh-10.5rem)] w-full max-w-sm overflow-hidden rounded-2xl neon-rgb-border bg-[var(--color-panel)]/60"
                 >
                   <div className="absolute inset-0 animate-pulse bg-gradient-to-b from-white/5 via-white/10 to-white/5" />
                   <div className="absolute right-3 top-1/2 flex -translate-y-1/2 flex-col items-center gap-5">
@@ -834,7 +854,8 @@ function ReelsFeed({
               ))}
             </div>
           ) : reels.length === 0 ? (
-            <div className="flex h-64 flex-col items-center justify-center gap-3 text-center">
+            <div className="rls-empty flex h-64 flex-col items-center justify-center gap-3 text-center">
+              <span className="rls-empty-icon" aria-hidden="true">▶</span>
               <p className="text-[var(--color-muted)]">
                 {followMode
                   ? "No reels from people you follow yet."
@@ -843,7 +864,7 @@ function ReelsFeed({
               {!followMode && (
                 <Link
                   href="/reels/upload"
-                  className="rounded-full neon-rgb-border bg-gradient-to-r from-pink-600 to-purple-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:brightness-110"
+                  className="rls-upload rls-upload--lg"
                 >
                   Upload your first reel
                 </Link>
@@ -852,13 +873,13 @@ function ReelsFeed({
           ) : (
             <div
               ref={containerRef}
-              className="relative h-[calc(100dvh-10.5rem)] overflow-y-auto snap-y snap-mandatory scrollbar-thin"
+              className="rls-feed relative h-[calc(100dvh-10.5rem)] overflow-y-auto snap-y snap-mandatory scrollbar-thin"
             >
               {reels.map((reel, idx) => (
                 <div
                   key={reel.id}
                   data-index={idx}
-                  className="mb-3 flex h-full snap-start snap-always items-center justify-center"
+                  className="rls-slide mb-3 flex h-full snap-start snap-always items-center justify-center"
                 >
                   <ReelCard
                     reel={reel}
@@ -875,16 +896,23 @@ function ReelsFeed({
                     onShare={() => shareReel(reel)}
                     onReport={() => setReporting(reel)}
                   />
+                  {idx === 0 && activeIndex === 0 && reels.length > 1 && (
+                    <div className="rls-swipe-hint pointer-events-none absolute inset-x-0 top-1/3 z-[12] flex justify-center">
+                      <span className="rls-swipe-pill">
+                        Swipe up for more ↑
+                      </span>
+                    </div>
+                  )}
                 </div>
               ))}
               <div ref={sentinelRef} className="h-2" />
               {loadingMore && (
-                <div className="py-4 text-center text-sm text-[var(--color-muted)]">
+                <div className="rls-feed-note py-4 text-center text-sm text-[var(--color-muted)]">
                   Loading more...
                 </div>
               )}
               {!loadingMore && page >= totalPages && reels.length > 0 && (
-                <div className="py-4 text-center text-xs text-[var(--color-muted)]">
+                <div className="rls-feed-note py-4 text-center text-xs text-[var(--color-muted)]">
                   — End of reels —
                 </div>
               )}
@@ -893,11 +921,11 @@ function ReelsFeed({
         </div>
 
         {reels.length > 0 && (
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-1 text-xs text-[var(--color-muted)]">
-            <span>↑ / ↓ or scroll to navigate</span>
-            <span>tap video = pause/play · double-tap = like</span>
-            <span>Space = play/pause</span>
-            <span>M = mute/unmute</span>
+          <div className="rls-shortcuts mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-1 text-xs text-[var(--color-muted)]">
+            <span><kbd>↑</kbd> / <kbd>↓</kbd> or scroll to navigate</span>
+            <span>tap = pause/play · double-tap = like</span>
+            <span><kbd>Space</kbd> play/pause</span>
+            <span><kbd>M</kbd> mute/unmute</span>
           </div>
         )}
       </div>
@@ -914,11 +942,11 @@ function ReelsFeed({
 
       {reporting && (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center sm:p-4"
+          className="rls-overlay fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center sm:p-4"
           onClick={() => setReporting(null)}
         >
           <div
-            className="w-full max-w-sm rounded-t-3xl sm:rounded-3xl neon-rgb-border bg-[var(--color-panel)]/95 backdrop-blur-xl p-5 animate-page-in"
+            className="rls-sheet w-full max-w-sm rounded-t-3xl sm:rounded-3xl neon-rgb-border bg-[var(--color-panel)]/95 backdrop-blur-xl p-5"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-4 flex items-start justify-between">
@@ -935,7 +963,7 @@ function ReelsFeed({
               </div>
               <button
                 onClick={() => setReporting(null)}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full neon-rgb-border text-[var(--color-mute)] transition hover:text-white"
+                className="rls-sheet-close flex h-10 w-10 shrink-0 items-center justify-center rounded-full neon-rgb-border text-[var(--color-mute)] transition hover:text-white"
                 aria-label="Close report dialog"
               >
                 ✕
@@ -947,7 +975,7 @@ function ReelsFeed({
                   key={r.key}
                   onClick={() => submitReport(r.key)}
                   disabled={reportSubmitting}
-                  className="group rounded-xl neon-rgb-border bg-[var(--color-void)] px-4 py-3 text-left transition hover:border-[var(--color-magenta)] disabled:pointer-events-none disabled:opacity-50"
+                  className="rls-report-option group rounded-xl neon-rgb-border bg-[var(--color-void)] px-4 py-3 text-left transition hover:border-[var(--color-magenta)] disabled:pointer-events-none disabled:opacity-50"
                 >
                   <span className="block text-sm font-semibold capitalize group-hover:text-[var(--color-magenta)]">
                     {r.label}
@@ -959,13 +987,13 @@ function ReelsFeed({
               ))}
             </div>
             {reportSubmitting && (
-              <p className="mt-3 text-center text-xs text-[var(--color-mute)]">
+              <p className="rls-sheet-note mt-3 text-center text-xs text-[var(--color-mute)]">
                 Submitting report...
               </p>
             )}
             <button
               onClick={() => setReporting(null)}
-              className="mt-3 w-full rounded-full neon-rgb-border px-3 py-2 text-sm text-[var(--color-mute)] transition hover:text-white"
+              className="rls-sheet-cancel mt-3 w-full rounded-full neon-rgb-border px-3 py-2 text-sm text-[var(--color-mute)] transition hover:text-white"
             >
               Cancel
             </button>
@@ -974,7 +1002,7 @@ function ReelsFeed({
       )}
 
       {toast && (
-        <div className="fixed bottom-24 left-1/2 z-[60] -translate-x-1/2 rounded-full neon-rgb-border bg-black/90 px-4 py-2 text-sm text-white shadow-lg">
+        <div className="rls-toast fixed bottom-24 left-1/2 z-[60] -translate-x-1/2 rounded-full neon-rgb-border bg-black/90 px-4 py-2 text-sm text-white shadow-lg">
           {toast}
         </div>
       )}
@@ -1067,11 +1095,12 @@ function ReelCard({
     <div
       onClick={handleCardTap}
       style={{ width: "min(100%, calc((100dvh - 10.5rem) * 0.5625))" }}
-      className={`relative aspect-[9/16] touch-manipulation overflow-hidden rounded-2xl neon-rgb-border bg-black shadow-xl transition-[transform,opacity,box-shadow] duration-500 ease-out ${
+      className={`rls-card relative aspect-[9/16] touch-manipulation overflow-hidden rounded-2xl neon-rgb-border bg-black shadow-xl transition-[transform,opacity,box-shadow] duration-500 ease-out ${
         active
-          ? "scale-100 opacity-100 shadow-pink-500/25"
-          : "scale-[0.96] opacity-70 shadow-transparent"
+          ? "rls-card--active scale-100 opacity-100 shadow-pink-500/25"
+          : "rls-card--idle scale-[0.96] opacity-70 shadow-transparent"
       }`}
+      data-active={active}
     >
       <video
         ref={(el) => {
@@ -1096,10 +1125,35 @@ function ReelCard({
 
       <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/70 to-transparent" />
 
+      <div
+        className="rls-stat-chip"
+        aria-label={`${formatCount(reel.views)} views`}
+      >
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          aria-hidden="true"
+        >
+          <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" />
+          <circle cx="12" cy="12" r="3" />
+        </svg>
+        <span>{formatCount(reel.views)}</span>
+        {reel.duration > 0 && (
+          <>
+            <span className="rls-stat-sep">·</span>
+            <span>{Math.round(reel.duration)}s</span>
+          </>
+        )}
+      </div>
+
       <div className="absolute inset-x-3 top-2">
-        <div className="h-1 overflow-hidden rounded-full bg-white/20">
+        <div className="rls-progress h-1 overflow-hidden rounded-full bg-white/20">
           <div
-            className="h-full rounded-full bg-gradient-to-r from-pink-500 to-purple-500 transition-[width] duration-200"
+            className="rls-progress-fill h-full rounded-full bg-gradient-to-r from-pink-500 to-purple-500 transition-[width] duration-200"
             style={{ width: `${progress}%` }}
           />
         </div>
@@ -1107,7 +1161,7 @@ function ReelCard({
 
       <button
         onClick={onMutedToggle}
-        className="absolute right-3 top-6 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur transition hover:bg-black/70 active:scale-90"
+        className="rls-mute absolute right-3 top-6 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur transition hover:bg-black/70 active:scale-90"
         aria-label={muted ? "Unmute" : "Mute"}
         title={muted ? "Unmute" : "Mute"}
       >
@@ -1141,7 +1195,7 @@ function ReelCard({
             }
           >
             <span
-              className={`block ${reel.likedByMe ? "animate-heart-pop" : ""}`}
+              className={`rls-heart block ${reel.likedByMe ? "animate-heart-pop" : ""}`}
             >
               <HeartIcon filled={reel.likedByMe} />
             </span>
@@ -1167,14 +1221,14 @@ function ReelCard({
         </ActionButton>
       </div>
 
-      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-4 pt-16">
+      <div className="rls-info absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-4 pt-16">
         {(reel.likedBy && reel.likedBy.length > 0) || reel.likedByMe ? (
           <div className="mb-2.5 flex items-center gap-2">
-            <div className="flex shrink-0 -space-x-2">
+            <div className="rls-avatar-stack flex shrink-0 -space-x-2">
               {reel.likedBy.slice(0, 3).map((u) => (
                 <span
                   key={u.id}
-                  className="relative h-6 w-6 overflow-hidden rounded-full border-2 border-black ring-1 ring-pink-500/60"
+                  className="rls-avatar relative h-6 w-6 overflow-hidden rounded-full border-2 border-black ring-1 ring-pink-500/60"
                 >
                   {u.avatar ? (
                     <Image
@@ -1249,9 +1303,9 @@ function ReelCard({
             <button
               type="button"
               onClick={onToggleFollow}
-              className={`shrink-0 rounded-full px-3 py-1 text-[10px] font-bold transition-all ${
+              className={`rls-follow shrink-0 rounded-full px-3 py-1 text-[10px] font-bold transition-all ${
                 reel.user.followedByMe
-                  ? "border border-white/25 bg-white/10 text-white hover:bg-white/20"
+                  ? "rls-follow--on border border-white/25 bg-white/10 text-white hover:bg-white/20"
                   : "bg-gradient-to-r from-pink-600 to-purple-600 text-white shadow-md shadow-pink-600/30 hover:brightness-110"
               }`}
             >
@@ -1264,7 +1318,7 @@ function ReelCard({
             href={
               reel.animeId ? `/anime/${reel.animeId}` : "/search?type=ANIME"
             }
-            className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-cyan-400/30 bg-cyan-500/15 px-2.5 py-1 text-[11px] font-bold text-cyan-200 backdrop-blur transition hover:bg-cyan-500/25 hover:text-white"
+            className="rls-anime-tag mt-2 inline-flex items-center gap-1.5 rounded-full border border-cyan-400/30 bg-cyan-500/15 px-2.5 py-1 text-[11px] font-bold text-cyan-200 backdrop-blur transition hover:bg-cyan-500/25 hover:text-white"
           >
             <svg viewBox="0 0 24 24" fill="currentColor" className="h-3 w-3">
               <path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
@@ -1275,7 +1329,7 @@ function ReelCard({
         {reel.caption && (
           <div className="mt-2">
             <div
-              className={`text-sm text-white/90 ${
+              className={`rls-caption text-sm text-white/90 ${
                 captionOpen ? "" : "line-clamp-3"
               }`}
             >
@@ -1285,7 +1339,7 @@ function ReelCard({
               <button
                 type="button"
                 onClick={() => setCaptionOpen((o) => !o)}
-                className="mt-0.5 text-xs font-bold text-pink-300 transition hover:text-pink-200"
+                className="rls-more mt-0.5 text-xs font-bold text-pink-300 transition hover:text-pink-200"
               >
                 {captionOpen ? "less ▲" : "more ▼"}
               </button>
@@ -1294,7 +1348,7 @@ function ReelCard({
         )}
         <Link
           href={`/reels/${reel.id}`}
-          className="mt-1 block text-xs text-white/50 hover:text-white/80"
+          className="rls-reel-meta mt-1 block text-xs text-white/50 hover:text-white/80"
         >
           {formatCount(reel.views)} views ·{" "}
           <span suppressHydrationWarning>{timeAgo(reel.createdAt)}</span> · open
@@ -1305,7 +1359,7 @@ function ReelCard({
       {burst && (
         <div
           key={burst.id}
-          className="pointer-events-none absolute z-20"
+          className="rls-burst pointer-events-none absolute z-20"
           style={{
             left: burst.x,
             top: burst.y,
@@ -1337,8 +1391,8 @@ function ReelCard({
       )}
 
       {!playing && active && (
-        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/25">
-          <span className="relative flex h-16 w-16 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur">
+        <div className="rls-paused absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/25">
+          <span className="rls-play relative flex h-16 w-16 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur">
             <span className="absolute inset-0 animate-ping rounded-full bg-white/10" />
             <span className="absolute -inset-2 animate-pulse rounded-full border border-white/20" />
             <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor">
@@ -1369,11 +1423,11 @@ function CommentPanel({
 }) {
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+      className="rls-overlay fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
-        className="absolute inset-x-0 bottom-0 flex h-[85dvh] w-full flex-col overflow-hidden rounded-t-3xl sm:inset-auto sm:bottom-4 sm:right-4 sm:h-[calc(100dvh-2rem)] sm:w-[400px] sm:rounded-3xl neon-rgb-border bg-[var(--color-panel)]/95 backdrop-blur-xl animate-page-in"
+        className="rls-sheet rls-sheet--comments absolute inset-x-0 bottom-0 flex h-[85dvh] w-full flex-col overflow-hidden rounded-t-3xl sm:inset-auto sm:bottom-4 sm:right-4 sm:h-[calc(100dvh-2rem)] sm:w-[400px] sm:rounded-3xl neon-rgb-border bg-[var(--color-panel)]/95 backdrop-blur-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-[var(--color-line)] px-4 py-3">
@@ -1382,7 +1436,7 @@ function CommentPanel({
           </h3>
           <button
             onClick={onClose}
-            className="flex h-10 w-10 items-center justify-center rounded-full neon-rgb-border text-[var(--color-mute)] transition hover:text-white"
+            className="rls-sheet-close flex h-10 w-10 items-center justify-center rounded-full neon-rgb-border text-[var(--color-mute)] transition hover:text-white"
             aria-label="Close comments"
           >
             ✕
@@ -1395,7 +1449,7 @@ function CommentPanel({
             </p>
           ) : (
             <div className="flex flex-col gap-3">
-              {comments.map((c) => (
+              {comments.map((c, i) => (
                 <div key={c.id} className="flex gap-2.5">
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-[var(--color-violet)] to-[var(--color-magenta)]">
                     {c.user.avatar ? (
@@ -1412,7 +1466,10 @@ function CommentPanel({
                       </span>
                     )}
                   </div>
-                  <div className="min-w-0 flex-1 rounded-xl neon-rgb-border bg-[var(--color-void)] px-3 py-2">
+                  <div
+                    className="rls-comment min-w-0 flex-1 rounded-xl neon-rgb-border bg-[var(--color-void)] px-3 py-2"
+                    style={{ animationDelay: `${Math.min(i * 0.05, 0.3)}s` }}
+                  >
                     <div className="flex items-baseline gap-2">
                       <span className="text-sm font-semibold text-[var(--color-ink)]">
                         @{c.user.username}
@@ -1438,11 +1495,11 @@ function CommentPanel({
               if (e.key === "Enter") onPost();
             }}
             placeholder="Write a comment..."
-            className="flex-1 rounded-xl neon-rgb-border bg-[var(--color-void)] px-4 py-2 text-sm placeholder:text-[var(--color-mute)]/50"
+            className="rls-comment-input flex-1 rounded-xl neon-rgb-border bg-[var(--color-void)] px-4 py-2 text-sm placeholder:text-[var(--color-mute)]/50"
           />
           <button
             onClick={onPost}
-            className="rounded-full bg-gradient-to-r from-pink-600 to-purple-600 px-5 text-sm font-semibold text-white transition hover:brightness-110"
+            className="rls-post rounded-full bg-gradient-to-r from-pink-600 to-purple-600 px-5 text-sm font-semibold text-white transition hover:brightness-110"
           >
             Post
           </button>

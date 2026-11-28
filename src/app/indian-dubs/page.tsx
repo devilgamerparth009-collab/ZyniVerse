@@ -1,38 +1,43 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { INDIAN_DUB_GUIDES } from "@/lib/indian-dub-guides";
-import { getMediaBatch, type MediaBasic } from "@/lib/anilist";
-import NativeBannerAd from "@/components/NativeBannerAd";
-import DubExplorer, { type DubListItem } from "@/components/indian-dubs/DubExplorer";
-import LiveDubFeeds from "@/components/indian-dubs/LiveDubFeeds";
-import IndianDubCountdown from "@/components/indian-dubs/IndianDubCountdown";
 import {
-  WEEKDAYS,
-  parseDubSlot,
-  nextAiringAt,
-  formatIST,
-  firstNumber,
-  todayIndexInIST,
-} from "@/lib/indian-dub-schedule";
+  getDubCatalog,
+  getDubGenreStats,
+  getDubLanguages,
+  getDubSchedule,
+  getDubStats,
+  groupScheduleByDay,
+} from "@/lib/dub-import/queries";
+import { sortDubScheduleByNext } from "@/lib/dub-schedule-time";
+import { DubLiveSchedulePanel } from "@/components/hindi-dub/DubLiveSchedulePanel";
+import { DubCountdownChip, DubScheduleTickerProvider } from "@/components/hindi-dub/DubScheduleTicker";
+import { FadeIn, StaggerGrid, StaggerItem } from "@/components/PageTransition";
+import NativeBannerAd from "@/components/NativeBannerAd";
+import IndianDubCatalogBrowser from "@/components/indian-dubs/IndianDubCatalogBrowser";
+import LiveDubFeeds from "@/components/indian-dubs/LiveDubFeeds";
+import { INDIAN_DUB_GUIDES } from "@/lib/indian-dub-guides";
+import { DUB_PAGES } from "@/lib/dub-page-index";
 import "./indian-dubs.css";
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "https://zyverse.in";
 
+// Catalogue and schedule rows come from the synced dub database. One hour keeps
+// ISR churn low; the browser-side sections poll their own public APIs.
+export const revalidate = 3600;
+
 export const metadata: Metadata = {
-  title: "Hindi, Tamil & Telugu Dubbed Anime — Indian Dub Meter (2026)",
+  title: "Indian Dubs — Hindi, Tamil & Telugu Anime Dub Tracker (2026)",
   description:
-    "India's live dub meter for One Piece, Naruto, Attack on Titan, Doraemon and more. IST drop windows, episode counts and where to watch every Hindi, Tamil & Telugu anime dub — compiled from official sources.",
+    "Browse Hindi, Tamil, Telugu and other Indian-language anime dubs with real airing times in IST, a live searchable catalogue, official-channel uploads and detailed guides.",
   keywords: [
     "hindi dubbed anime", "tamil dubbed anime", "telugu dubbed anime", "anime in hindi",
     "anime in tamil", "anime in telugu", "indian dubbed anime list", "dubbed anime schedule india",
-    "one piece hindi dub", "naruto hindi dub", "attack on titan hindi dub",
-    "anime hindi me kaise dekhe", "hindi dub anime", "anime hindi mein", "anime hindi me episode", "hindi anime list",
-    "doraemon hindi", "shin chan hindi", "pokemon in hindi", "solo leveling hindi dub",
+    "hindi dub anime", "anime hindi me kaise dekhe", "hindi anime list", "indian anime dub guide",
   ],
   openGraph: {
     images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "ZyniVerse — anime filler guides, watch orders and dub tracking" }],
-    title: "Hindi, Tamil & Telugu Dubbed Anime — Indian Dub Meter",
-    description: "India's live dub meter: IST schedules, weekly countdowns and where to watch every Indian anime dub.",
+    title: "Indian Dubs — Hindi, Tamil & Telugu Anime Dub Tracker",
+    description: "Real IST airing times, a searchable dub catalogue and detailed Indian dub guides.",
     url: `${BASE_URL}/indian-dubs`,
     type: "website",
     siteName: "ZyniVerse",
@@ -40,469 +45,487 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     site: "@GuptaParth2857",
-    title: "Indian Dub Meter — Hindi, Tamil & Telugu",
-    description: "Every Hindi, Tamil & Telugu anime dub, one live meter. Countdowns, schedules, guides.",
+    title: "Indian Dubs — Hindi, Tamil & Telugu",
+    description: "Real IST airing times, live catalogue and Indian dub guides.",
   },
   alternates: { canonical: `${BASE_URL}/indian-dubs` },
   robots: { index: true, follow: true },
 };
 
-async function loadPosterMap(guides: (typeof INDIAN_DUB_GUIDES)[number][]): Promise<Map<number, MediaBasic>> {
-  const ids = guides.map((g) => g.anilistId).filter((v): v is number => typeof v === "number");
-  const map = new Map<number, MediaBasic>();
-  if (ids.length === 0) return map;
-  try {
-    const batch = await getMediaBatch(ids);
-    for (const m of batch) map.set(m.id, m);
-  } catch {
-    // Poster art is decorative — the hub still works without it.
-  }
-  return map;
-}
-
-function toItems(guides: (typeof INDIAN_DUB_GUIDES)[number][], posterMap: Map<number, MediaBasic>): DubListItem[] {
-  return guides.map((g) => {
-    const media = g.anilistId != null ? posterMap.get(g.anilistId) : undefined;
-    return {
-      slug: g.slug,
-      name: g.name,
-      tagline: g.tagline,
-      genres: g.genres,
-      platforms: g.platforms,
-      languages: g.languages,
-      status: g.status,
-      episodeCount: g.episodeCount,
-      schedule: g.schedule,
-      poster: media?.coverImage?.large || media?.coverImage?.extraLarge || null,
-      color: media?.coverImage?.color || null,
-      score: media?.averageScore ?? null,
-    };
+function formatSyncTime(value: string | null): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    day: "numeric",
+    month: "short",
+    hour: "numeric",
+    minute: "2-digit",
   });
 }
 
-function formatClock(hour: number, minute: number): string {
-  const h12 = hour % 12 === 0 ? 12 : hour % 12;
-  const ap = hour < 12 ? "AM" : "PM";
-  return `${h12}:${String(minute).padStart(2, "0")} ${ap}`;
-}
-
 export default async function IndianDubsPage() {
-  const posterMap = await loadPosterMap(INDIAN_DUB_GUIDES);
-  const items = toItems(INDIAN_DUB_GUIDES, posterMap);
+  const [stats, languages, genres, catalog, schedule] = await Promise.all([
+    getDubStats(),
+    getDubLanguages(),
+    getDubGenreStats(undefined, 21),
+    getDubCatalog({ sort: "recent", limit: 12 }),
+    getDubSchedule({ limit: 200 }),
+  ]);
 
-  const byStatus = {
-    Airing: items.filter((i) => i.status === "Airing"),
-    Completed: items.filter((i) => i.status === "Completed"),
-    Upcoming: items.filter((i) => i.status === "Upcoming"),
-  };
+  const timedSchedule = sortDubScheduleByNext(schedule);
+  const grouped = groupScheduleByDay(schedule);
+  const languageChips = [...languages]
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 8);
+  const genreChips = genres.slice(0, 12);
+  const guides = INDIAN_DUB_GUIDES.slice(0, 6);
+  const syncedAt = formatSyncTime(stats.updatedAt);
 
-  const totalEpisodes = INDIAN_DUB_GUIDES.reduce((sum, g) => sum + firstNumber(g.episodeCount), 0);
-  const langSet = new Set<string>();
-  INDIAN_DUB_GUIDES.forEach((g) => g.languages.forEach((l) => langSet.add(l)));
-  const langCount = langSet.size;
-  const hindiCount = INDIAN_DUB_GUIDES.filter((g) => g.languages.includes("Hindi")).length;
-  const tamilCount = INDIAN_DUB_GUIDES.filter((g) => g.languages.includes("Tamil")).length;
-  const teluguCount = INDIAN_DUB_GUIDES.filter((g) => g.languages.includes("Telugu")).length;
+  const statCards = [
+    { label: "Titles listed", value: stats.total.toLocaleString("en-IN"), accent: "var(--color-cyan)" },
+    { label: "Airing entries", value: stats.scheduleCount.toLocaleString("en-IN"), accent: "var(--color-violet)" },
+    { label: "Languages", value: String(stats.languages), accent: "var(--color-magenta)" },
+    { label: "Detail pages", value: DUB_PAGES.length.toLocaleString("en-IN"), accent: "var(--color-amber)" },
+  ];
 
-  const drops = byStatus.Airing
-    .map((item) => ({ item, target: nextAiringAt(item.schedule) }))
-    .filter((d): d is { item: DubListItem; target: number } => d.target != null)
-    .sort((a, b) => a.target - b.target);
-
-  const nextDrop = drops[0] ?? null;
-  const nextThree = drops.slice(0, 3);
-
-  const todayIdx = todayIndexInIST();
-
-  const stats = [
-    { label: "Dubs Tracked", value: items.length, accent: "text-[var(--color-cyan)]", sub: "official Indian dubs" },
-    { label: "Episodes", value: `${Math.floor(totalEpisodes / 1000)}k+`, accent: "text-[var(--color-magenta)]", sub: "dubbed & counted" },
-    { label: "Languages", value: langCount, accent: "text-[var(--color-violet)]", sub: "Hindi · Tamil · Telugu" },
-    { label: "On Air Now", value: byStatus.Airing.length, accent: "text-amber-300", sub: "airing or rolling out" },
+  const quickLinks = [
+    { href: "/hindi-dub/schedule", label: "Weekly schedule", hint: `${stats.scheduleCount} real airing entries`, accent: "var(--color-cyan)", step: "01" },
+    { href: "/hindi-dub/series", label: "Anime series", hint: `${stats.series.toLocaleString("en-IN")} dubbed series`, accent: "var(--color-violet)", step: "02" },
+    { href: "/hindi-dub/movies", label: "Dub movies", hint: `${stats.movies.toLocaleString("en-IN")} dubbed movies`, accent: "var(--color-magenta)", step: "03" },
   ];
 
   const jsonLd = [
     {
       "@context": "https://schema.org",
       "@type": "ItemList",
-      name: "Indian Anime Dub Guides — Hindi, Tamil & Telugu",
-      description: "Every Indian anime dub tracked from official sources: drop windows, episodes and where to watch in IST.",
-      numberOfItems: items.length,
-      itemListElement: items.map((it, i) => ({
+      name: "Indian anime dub catalogue",
+      description: "Hindi, Tamil, Telugu and other Indian-language anime dubs listed in the ZyniVerse dub catalogue.",
+      numberOfItems: stats.total,
+      itemListElement: catalog.items.map((item, index) => ({
         "@type": "ListItem",
-        position: i + 1,
-        url: `${BASE_URL}/indian-dubs/${it.slug}`,
-        name: `${it.name} (${it.languages.join(" / ")} dub)`,
+        position: index + 1,
+        url: `${BASE_URL}/hindi-dub/series?q=${encodeURIComponent(item.title)}`,
+        name: item.title,
       })),
     },
   ];
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
+    <main className="idub-page mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 sm:py-10">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
-      {/* Breadcrumb */}
-      <nav className="mb-6 flex flex-wrap items-center gap-1.5 text-xs text-[var(--color-mute)]" aria-label="Breadcrumb">
-        <Link href="/" className="hover:text-[var(--color-cyan)]">Home</Link>
-        <span className="text-white/20">/</span>
-        <span className="text-[var(--color-cyan)]">Indian Dubs</span>
+      <nav className="dub-crumbs mb-6 flex flex-wrap items-center gap-2 text-xs text-[var(--color-mute)]" aria-label="Breadcrumb">
+        <Link href="/" className="hover:text-[var(--color-cyan)]" prefetch={false}>Home</Link>
+        <span aria-hidden="true">/</span>
+        <span className="font-semibold text-[var(--color-ink)]">Indian Dubs</span>
       </nav>
 
-      {/* ─────────── Hero ─────────── */}
-      <section className="dub-hero rounded-3xl border border-white/10">
-        <div className="dub-hero-bg" />
-        <div className="dub-hero-glow" />
-        <div className="tricolor-beam relative z-10" />
+      <FadeIn>
+        <section
+          className="idub-hero dub-hero relative overflow-hidden rounded-[2rem] border border-[var(--color-line)] bg-[var(--color-panel)] p-6 sm:p-10 lg:p-12"
+          style={{ "--dub-accent": "var(--color-cyan)" } as React.CSSProperties}
+        >
+          <div className="idub-tricolor-beam pointer-events-none absolute inset-x-0 top-0 h-[3px]" />
+          <div className="dub-aurora pointer-events-none absolute -right-24 -top-28 h-72 w-72 rounded-full bg-[var(--color-violet)]/25 blur-3xl" />
+          <div className="dub-aurora dub-aurora--slow pointer-events-none absolute -bottom-28 left-1/3 h-56 w-56 rounded-full bg-[var(--color-magenta)]/20 blur-3xl" />
+          <div className="dub-grid pointer-events-none absolute inset-0 opacity-[0.12]" />
+          <div className="dub-hero-scan pointer-events-none absolute inset-0" />
 
-        <div className="relative z-10 grid gap-8 p-6 sm:p-10 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="dub-wordmark">ZyniVerse · Dub Meter</span>
-              <span className="glass-badge flex items-center gap-1.5 text-[var(--color-cyan)]">
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--color-cyan)]" />
+          <div className="relative">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <span className="idub-wordmark">ZyniVerse · Indian Dubs</span>
+              <span className="dub-sync-pill inline-flex items-center gap-2 rounded-full border border-[var(--color-line)] bg-black/25 px-3 py-1.5 text-[11px] text-[var(--color-mute)]">
+                <span className="dub-live-dot" aria-hidden="true" />
                 Live · IST
               </span>
             </div>
 
-            <h1 className="mt-4 font-display text-4xl font-black leading-[1.02] tracking-tight text-white sm:text-5xl md:text-6xl">
-              <span className="gradient-text">Hindi, Tamil & Telugu</span>
-              <br />
-              Dubbed Anime. One Meter.
+            <h1 className="dub-hero-title font-display mt-4 max-w-4xl text-4xl font-black leading-[1.05] tracking-tight text-[var(--color-ink)] sm:text-6xl lg:text-7xl">
+              Hindi, Tamil &amp; Telugu dubs —{" "}
+              <span className="dub-gradient-text">one real-time board.</span>
             </h1>
-
-            <p className="mt-4 max-w-xl text-sm leading-relaxed text-[var(--color-mute)] sm:text-base">
-              Every official Indian anime dub — One Piece, Naruto, Doraemon, Solo Leveling — compiled into one
-              broadcast-style board: IST drop windows, episode counts, languages and where to watch. Data is drawn
-              from official platforms and announcements; where a slot isn&apos;t confirmed, we say so instead of guessing.
+            <p className="dub-lede mt-5 max-w-2xl text-sm leading-relaxed text-[var(--color-mute)] sm:text-base">
+              Check real airing times in IST, search the full dubbed catalogue, watch fresh uploads from official
+              channels and open detailed guides. Where a date is not announced, it stays unannounced here.
             </p>
 
-            <div className="mt-6 flex flex-wrap gap-3">
-              <Link href="#explore"
-                className="btn-magnetic inline-flex items-center gap-2 rounded-xl bg-[var(--color-cyan)] px-5 py-3 text-sm font-bold text-black">
-                Explore All Dubs
+            <div className="mt-7 flex flex-wrap gap-3">
+              <Link
+                href="#schedule"
+                className="dub-cta dub-cta--primary group inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-bold text-[var(--color-void)]"
+              >
+                See live schedule
+                <span className="dub-cta-arrow transition-transform" aria-hidden="true">→</span>
               </Link>
-              <Link href="/dubbed"
-                className="neon-rgb-border inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-bold text-white transition-colors hover:text-[var(--color-cyan)]">
-                Live Dub Tracker →
+              <Link
+                href="#catalogue"
+                className="dub-cta dub-cta--secondary group inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-bold text-[var(--color-ink)]"
+              >
+                Browse catalogue
               </Link>
-              <Link href="/voice-actors/indian"
-                className="neon-rgb-border inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-bold text-white transition-colors hover:text-[var(--color-cyan)]">
-                Indian Voice Actors
+              <Link
+                href="#guides"
+                className="dub-cta dub-cta--secondary group inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-bold text-[var(--color-ink)]"
+              >
+                Dub guides
               </Link>
             </div>
 
             <div className="mt-6 flex flex-wrap gap-2">
-              {[
-                { l: "Hindi", c: hindiCount, cls: "text-[#ffb366] border-[#ff9933]/40 bg-[#ff9933]/10" },
-                { l: "Tamil", c: tamilCount, cls: "text-[#8ec5ff] border-[#4fa3ff]/40 bg-[#4fa3ff]/10" },
-                { l: "Telugu", c: teluguCount, cls: "text-[#6ee0a4] border-[#2fbf71]/40 bg-[#2fbf71]/10" },
-              ].map((chip) => (
-                <span key={chip.l} className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold ${chip.cls}`}>
-                  <span className="h-1.5 w-1.5 rounded-full bg-current" />
-                  {chip.l} · {chip.c} shows
-                </span>
+              {languageChips.slice(0, 3).map((item) => (
+                <Link
+                  key={item.language}
+                  href={`/hindi-dub/series?language=${encodeURIComponent(item.language)}`}
+                  className="idub-lang-chip inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold"
+                  prefetch={false}
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden="true" />
+                  {item.language} · {item.total.toLocaleString("en-IN")}
+                </Link>
               ))}
             </div>
-          </div>
 
-          {/* Next drop card */}
-          <div className="neon-premium rounded-2xl">
-            <div className="neon-premium-track" />
-            <div className="neon-premium-overlay" />
-            <div className="neon-premium-content rounded-2xl p-5 sm:p-6">
-              <div className="flex items-center justify-between">
-                <p className="console-label">Next Drop Window</p>
-                <span className="flex items-center gap-1.5 font-mono text-[10px] font-bold uppercase tracking-widest text-[var(--color-magenta)]">
-                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--color-magenta)]" />
-                  On Air Track
-                </span>
-              </div>
-
-              {nextDrop ? (
-                <>
-                  <div className="mt-4 flex items-center gap-4">
-                    {nextDrop.item.poster ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={nextDrop.item.poster}
-                        alt={`${nextDrop.item.name} poster`}
-                        className="h-24 w-16 shrink-0 rounded-lg border border-white/10 object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-24 w-16 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-gradient-to-br from-[var(--color-violet)] to-[var(--color-magenta)]">
-                        <span className="font-display text-2xl font-black text-white/60">{nextDrop.item.name.charAt(0)}</span>
-                      </div>
-                    )}
-                    <div className="min-w-0">
-                      <Link href={`/indian-dubs/${nextDrop.item.slug}`} className="font-display text-2xl font-black leading-tight text-white transition-colors hover:text-[var(--color-cyan)]">
-                        {nextDrop.item.name}
-                      </Link>
-                      <p className="mt-1 font-mono text-xs text-[var(--color-cyan)]">{formatIST(nextDrop.target)}</p>
-                      <p className="mt-1 text-[11px] text-[var(--color-mute)]">
-                        {nextDrop.item.languages.join(" · ")} dub on {nextDrop.item.platforms.join(" / ")}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="mt-5">
-                    <IndianDubCountdown target={nextDrop.target} size="lg" />
-                  </div>
-                </>
-              ) : (
-                <div className="mt-4 space-y-3">
-                  <p className="text-sm leading-relaxed text-[var(--color-mute)]">
-                    No official drop date is confirmed right now. Indian dubs now land in seasonal batches — these are
-                    the live rollout windows we&apos;re tracking:
-                  </p>
-                  <ul className="space-y-2">
-                    {byStatus.Airing.slice(0, 4).map((d) => (
-                      <li key={d.slug}>
-                        <Link href={`/indian-dubs/${d.slug}`} className="group flex items-center justify-between gap-3 text-xs">
-                          <span className="font-semibold text-white group-hover:text-[var(--color-cyan)]">{d.name}</span>
-                          <span className="line-clamp-1 text-right text-[var(--color-mute)]">{d.schedule}</span>
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                  <p className="text-[11px] text-[var(--color-mute)]/70">
-                    A live countdown starts the moment a window is officially announced — we never project a date.
-                  </p>
-                </div>
-              )}
-
-              {nextThree.length > 1 && (
-                <div className="mt-5 space-y-2 border-t border-white/10 pt-4">
-                  {nextThree.slice(1).map((d) => (
-                    <Link key={d.item.slug} href={`/indian-dubs/${d.item.slug}`}
-                      className="flex items-center justify-between gap-3 text-xs">
-                      <span className="text-[var(--color-mute)] hover:text-[var(--color-cyan)]">{d.item.name}</span>
-                      <span className="font-mono text-[var(--color-cyan)]/80">{formatIST(d.target)}</span>
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ─────────── Stats Strip ─────────── */}
-      <section className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Dub hub stats">
-        {stats.map((s) => (
-          <div key={s.label} className="dub-stat-card">
-            <div className="rounded-xl p-4 sm:p-5">
-              <p className="console-label">{s.label}</p>
-              <p className={`mt-1 font-display text-3xl font-black sm:text-4xl ${s.accent}`}>{s.value}</p>
-              <p className="mt-0.5 text-[11px] text-[var(--color-mute)]">{s.sub}</p>
-            </div>
-          </div>
-        ))}
-      </section>
-
-      {/* ─────────── Dub Radar Ticker ─────────── */}
-      {byStatus.Airing.length > 0 && (
-        <section className="on-air-ticker relative mt-6" aria-label="Weekly Indian dub radar">
-          <div className="relative flex items-stretch rounded-xl bg-[var(--color-panel)]/80">
-            <div className="on-air-badge hidden select-none items-center gap-2 sm:flex">
-              <span className="h-2 w-2 rounded-full bg-[var(--color-magenta)] pulse-dot" />
-              <span>DUB RADAR</span>
-            </div>
-            <div className="ticker-window relative flex-1 overflow-hidden py-2.5">
-              <div className="ticker-track flex w-max whitespace-nowrap">
-                {[...byStatus.Airing, ...byStatus.Airing].map((item, idx) => (
-                  <Link
-                    key={`${item.slug}-${idx}`}
-                    href={`/indian-dubs/${item.slug}`}
-                    aria-hidden={idx >= byStatus.Airing.length || undefined}
-                    tabIndex={idx >= byStatus.Airing.length ? -1 : undefined}
-                    className="dub-on-air-item mx-5 inline-flex items-center gap-2 text-sm"
+            <StaggerGrid className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
+              {statCards.map((stat) => (
+                <StaggerItem key={stat.label}>
+                  <div
+                    className="dub-stat-card relative overflow-hidden rounded-2xl border border-[var(--color-line)] bg-black/25 px-4 py-4 sm:px-5 sm:py-5"
+                    style={{ "--dub-accent": stat.accent } as React.CSSProperties}
                   >
-                    <span className="on-air-dot h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--color-magenta)] pulse-dot" />
-                    <span className="neon-tick-title font-display font-semibold text-[var(--color-ink)]">{item.name}</span>
-                    <span className="neon-tick-ep font-mono text-xs tracking-wider text-[var(--color-cyan)]">
-                      {item.episodeCount}
-                    </span>
-                    <span className="text-[var(--color-mute)]/70">·</span>
-                    <span className="text-xs text-[var(--color-mute)]">{item.schedule}</span>
-                  </Link>
-                ))}
+                    <span className="dub-stat-mark" aria-hidden="true" />
+                    <p className="dub-stat-value font-display relative text-3xl font-black text-[var(--color-ink)] sm:text-4xl">
+                      {stat.value}
+                    </p>
+                    <p className="relative mt-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-mute)]">
+                      {stat.label}
+                    </p>
+                  </div>
+                </StaggerItem>
+              ))}
+            </StaggerGrid>
+
+            {syncedAt && (
+              <p className="dub-sync-pill mt-5 inline-flex items-center gap-2 rounded-full border border-[var(--color-line)] bg-black/25 px-3 py-1.5 text-xs text-[var(--color-mute)]">
+                <span className="dub-sync-dot" aria-hidden="true" />
+                Catalogue synced {syncedAt} IST
+              </p>
+            )}
+          </div>
+        </section>
+      </FadeIn>
+
+      <FadeIn delay={0.05} className="mt-6">
+        <StaggerGrid className="grid gap-4 sm:grid-cols-3">
+          {quickLinks.map((link) => (
+            <StaggerItem key={link.href}>
+              <Link
+                href={link.href}
+                className="dub-quick-card group relative block overflow-hidden rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5 transition hover:-translate-y-1 sm:p-6"
+                style={{ "--dub-accent": link.accent } as React.CSSProperties}
+                prefetch={false}
+              >
+                <span className="dub-step pointer-events-none absolute -right-1 -top-3 font-display text-6xl font-black opacity-[0.07]">
+                  {link.step}
+                </span>
+                <span className="dub-quick-rule inline-block h-1.5 w-12 rounded-full" />
+                <p className="font-display relative mt-4 text-xl font-black text-[var(--color-ink)] transition group-hover:text-[var(--color-cyan)] sm:text-2xl">
+                  {link.label}
+                </p>
+                <p className="relative mt-1 text-sm text-[var(--color-mute)]">{link.hint}</p>
+                <span className="relative mt-4 inline-flex items-center gap-1 text-xs font-bold text-[var(--color-cyan)]">
+                  Open <span className="dub-quick-arrow inline-block" aria-hidden="true">→</span>
+                </span>
+              </Link>
+            </StaggerItem>
+          ))}
+        </StaggerGrid>
+      </FadeIn>
+
+      <div id="schedule" className="scroll-mt-24">
+        <FadeIn delay={0.08} className="mt-6">
+          <DubScheduleTickerProvider>
+            <DubLiveSchedulePanel
+              rows={timedSchedule}
+              limit={6}
+              eyebrow="Live schedule · IST"
+              title="Next real airing"
+            />
+          </DubScheduleTickerProvider>
+        </FadeIn>
+
+        {grouped.groups.length > 0 && (
+          <FadeIn delay={0.1} className="mt-6">
+            <section
+              className="dub-section rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5 sm:p-7"
+              style={{ "--dub-accent": "var(--color-violet)" } as React.CSSProperties}
+            >
+              <div className="dub-section-head">
+                <div>
+                  <p className="dub-eyebrow">Synced listing</p>
+                  <h2 className="dub-section-title font-display text-2xl font-black text-[var(--color-ink)] sm:text-3xl">
+                    Airings by day
+                  </h2>
+                </div>
+                <Link href="/hindi-dub/schedule" className="dub-section-link text-xs font-semibold text-[var(--color-cyan)]" prefetch={false}>
+                  Full schedule →
+                </Link>
               </div>
+
+              <StaggerGrid className="idub-week-grid mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {grouped.groups.slice(0, 8).map((group) => (
+                  <StaggerItem key={group.day}>
+                    <Link
+                      href={`/hindi-dub/schedule?day=${encodeURIComponent(group.day)}`}
+                      className="idub-week-col group block rounded-xl border border-[var(--color-line)] bg-black/20 p-4"
+                      prefetch={false}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-black text-[var(--color-ink)]">{group.day}</p>
+                        <span className="idub-week-count font-mono text-xs text-[var(--color-violet)]">
+                          {group.items.length}
+                        </span>
+                      </div>
+                      <ul className="mt-3 space-y-2">
+                        {group.items.slice(0, 3).map((row) => (
+                          <li key={row.id} className="min-w-0">
+                            <p className="truncate text-xs font-semibold text-[var(--color-mute)] transition group-hover:text-[var(--color-ink)]">
+                              {row.title}
+                            </p>
+                            <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                              <span className="font-mono text-[10px] text-[var(--color-amber)]">
+                                {[row.dayLabel, row.timeLabel].filter(Boolean).join(" · ") || "Slot TBA"}
+                              </span>
+                              <DubCountdownChip slot={row} />
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </Link>
+                  </StaggerItem>
+                ))}
+              </StaggerGrid>
+
+              {grouped.other.length > 0 && (
+                <p className="mt-4 text-xs leading-relaxed text-[var(--color-mute)]">
+                  <span className="font-semibold text-[var(--color-ink)]">Announced later: </span>
+                  {grouped.other.slice(0, 4).map((row, index) => (
+                    <span key={row.id}>
+                      {index > 0 && <span className="mx-1.5 text-white/25">·</span>}
+                      <Link href={`/search?q=${encodeURIComponent(row.title)}`} className="hover:text-[var(--color-cyan)]" prefetch={false}>
+                        {row.title}
+                      </Link>
+                    </span>
+                  ))}
+                  <span> — no fixed weekly slot listed yet.</span>
+                </p>
+              )}
+            </section>
+          </FadeIn>
+        )}
+      </div>
+
+      <FadeIn delay={0.12} className="mt-6">
+        <section
+          className="dub-section rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5 sm:p-7"
+          style={{ "--dub-accent": "var(--color-magenta)" } as React.CSSProperties}
+        >
+          <div className="dub-section-head">
+            <div>
+              <p className="dub-eyebrow">Browse</p>
+              <h2 className="dub-section-title font-display text-2xl font-black text-[var(--color-ink)] sm:text-3xl">
+                Pick a language or genre
+              </h2>
+            </div>
+            <Link href="/hindi-dub/series" className="dub-section-link text-xs font-semibold text-[var(--color-cyan)]" prefetch={false}>
+              All titles →
+            </Link>
+          </div>
+
+          <StaggerGrid className="dub-chip-cloud mt-5 flex flex-wrap gap-2.5">
+            {languageChips.map((item) => (
+              <StaggerItem key={`lang-${item.language}`}>
+                <Link
+                  href={`/hindi-dub/series?language=${encodeURIComponent(item.language)}`}
+                  className="dub-chip group inline-flex items-center gap-2 rounded-full border border-[var(--color-line)] bg-black/20 py-2 pl-8 pr-4 text-sm font-medium text-[var(--color-ink)]"
+                  prefetch={false}
+                >
+                  <span>{item.language}</span>
+                  <span className="dub-chip-count">{item.total.toLocaleString("en-IN")}</span>
+                  <span className="dub-chip-arrow" aria-hidden="true">→</span>
+                </Link>
+              </StaggerItem>
+            ))}
+          </StaggerGrid>
+
+          <StaggerGrid className="dub-chip-cloud mt-4 flex flex-wrap gap-2.5">
+            {genreChips.map((item) => (
+              <StaggerItem key={`genre-${item.slug}`}>
+                <Link
+                  href={`/hindi-dub/series?genre=${encodeURIComponent(item.genre)}`}
+                  className="dub-chip group inline-flex items-center gap-2 rounded-full border border-[var(--color-line)] bg-black/20 py-2 pl-8 pr-4 text-sm font-medium text-[var(--color-ink)]"
+                  prefetch={false}
+                >
+                  <span>{item.genre}</span>
+                  <span className="dub-chip-count">{item.total.toLocaleString("en-IN")}</span>
+                  <span className="dub-chip-arrow" aria-hidden="true">→</span>
+                </Link>
+              </StaggerItem>
+            ))}
+          </StaggerGrid>
+        </section>
+      </FadeIn>
+
+      <FadeIn delay={0.14} className="mt-10">
+        <IndianDubCatalogBrowser
+          initial={{
+            items: catalog.items,
+            total: catalog.total,
+            page: catalog.page,
+            totalPages: catalog.totalPages,
+          }}
+          languages={languages}
+        />
+      </FadeIn>
+
+      <div className="mt-8">
+        <NativeBannerAd />
+      </div>
+
+      <LiveDubFeeds />
+
+      <FadeIn className="mt-14 grid gap-5 lg:grid-cols-2">
+        <section
+          id="guides"
+          className="dub-guide relative scroll-mt-24 overflow-hidden rounded-[1.75rem] border border-[var(--color-line)] bg-[var(--color-panel)] p-5 sm:p-7 lg:p-8"
+          style={{ "--dub-accent": "var(--color-violet)" } as React.CSSProperties}
+        >
+          <div className="dub-guide-glow pointer-events-none absolute -left-20 -top-24 h-64 w-64 rounded-full" />
+          <div className="relative">
+            <p className="dub-eyebrow">Start here</p>
+            <h2 className="dub-section-title font-display mt-1.5 text-2xl font-black text-[var(--color-ink)] sm:text-3xl">
+              Popular dub guides
+            </h2>
+            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[var(--color-mute)]">
+              Short explainers on dubbing history, languages, platforms and where each series is listed.
+            </p>
+
+            <StaggerGrid className="mt-5 grid gap-3 sm:grid-cols-2">
+              {guides.map((guide) => (
+                <StaggerItem key={guide.slug}>
+                  <Link
+                    href={`/indian-dubs/${guide.slug}`}
+                    className="idub-guide-card group flex h-full items-start gap-3 rounded-xl border border-[var(--color-line)] bg-black/20 p-4"
+                    prefetch={false}
+                  >
+                    <span className="idub-guide-mark font-display flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-lg font-black">
+                      {guide.name.charAt(0)}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-sm font-bold text-[var(--color-ink)] transition group-hover:text-[var(--color-cyan)]">
+                        {guide.name}
+                      </span>
+                      <span className="mt-1 block text-[11px] font-semibold text-[var(--color-violet)]">
+                        {guide.languages.slice(0, 3).join(" · ")}
+                      </span>
+                      <span className="mt-1 block line-clamp-2 text-[11px] leading-relaxed text-[var(--color-mute)]">
+                        {guide.tagline}
+                      </span>
+                    </span>
+                  </Link>
+                </StaggerItem>
+              ))}
+            </StaggerGrid>
+
+            <Link href="/dubbed" className="dub-section-link mt-5 inline-flex text-xs font-semibold text-[var(--color-cyan)]" prefetch={false}>
+              Browse all dub pages →
+            </Link>
+          </div>
+        </section>
+
+        <section
+          className="dub-faq relative overflow-hidden rounded-[1.75rem] border border-[var(--color-line)] bg-[var(--color-panel)] p-5 sm:p-7 lg:p-8"
+          style={{ "--dub-accent": "var(--color-cyan)" } as React.CSSProperties}
+        >
+          <div className="dub-faq-glow pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full" />
+          <div className="relative">
+            <p className="dub-eyebrow">Good to know</p>
+            <h2 className="dub-section-title font-display mt-1.5 text-2xl font-black text-[var(--color-ink)] sm:text-3xl">
+              Indian dub FAQ
+            </h2>
+            <div className="mt-5 space-y-3">
+              {[
+                {
+                  q: "Does ZyniVerse stream dubbed episodes?",
+                  a: "No. This page helps you find listings, airing times and guides. Episodes play on the platform that holds the rights.",
+                },
+                {
+                  q: "Are the times really in IST?",
+                  a: "Yes. Countdowns and airing rows use Indian Standard Time. Entries without an announced date show TBA instead of a guessed slot.",
+                },
+                {
+                  q: "Why can availability differ by region?",
+                  a: "Audio tracks and streaming rights change by platform and country. Check the official listing before you watch.",
+                },
+              ].map((item) => (
+                <div key={item.q} className="dub-faq-item rounded-xl border border-[var(--color-line)] bg-black/20 p-4">
+                  <h3 className="flex gap-2.5 text-sm font-semibold text-[var(--color-ink)]">
+                    <span className="dub-faq-mark" aria-hidden="true">?</span>
+                    <span>{item.q}</span>
+                  </h3>
+                  <p className="mt-2 pl-[26px] text-xs leading-relaxed text-[var(--color-mute)]">{item.a}</p>
+                </div>
+              ))}
             </div>
           </div>
         </section>
-      )}
+      </FadeIn>
 
-      {/* ─────────── Weekly Broadcast Board ─────────── */}
-      <section className="mt-10">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <p className="console-label">IST Drop Board</p>
-            <h2 className="mt-1 font-display text-2xl font-black text-white sm:text-3xl">Confirmed Drop Windows</h2>
+      <FadeIn className="mt-10">
+        <section
+          className="dub-coverage relative overflow-hidden rounded-[1.75rem] border border-[var(--color-line)] bg-[var(--color-panel)] p-5 sm:p-7 lg:p-8"
+          style={{ "--dub-accent": "var(--color-amber)" } as React.CSSProperties}
+        >
+          <div className="dub-coverage-glow pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full" />
+          <div className="relative flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="dub-eyebrow">At a glance</p>
+              <h2 className="dub-section-title font-display mt-1.5 text-2xl font-black text-[var(--color-ink)] sm:text-3xl">
+                Catalogue coverage
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm text-[var(--color-mute)]">
+                Counts below come from the synced dub catalogue and airing table, not a hand-written list.
+              </p>
+            </div>
+            <span className="dub-coverage-pill inline-flex items-center gap-2 rounded-full border border-[var(--color-line)] bg-black/25 px-3 py-1.5 text-xs text-[var(--color-mute)]">
+              <span className="dub-live-dot" aria-hidden="true" />
+              Updated regularly
+            </span>
           </div>
-          <p className="max-w-md text-xs text-[var(--color-mute)]">
-            Indian streaming dubs now roll out in seasonal batches rather than fixed weekly slots — this board shows
-            the confirmed recurring windows, not guesses.
-          </p>
-        </div>
-
-        <div className="dub-week mt-4">
-          {WEEKDAYS.map((day, idx) => {
-            const shows = byStatus.Airing.filter((it) => {
-              const slot = parseDubSlot(it.schedule);
-              return slot && slot.day === day;
-            });
-            const isToday = idx === todayIdx;
-            return (
-              <div key={day} className={`dub-week-col ${isToday ? "is-today" : ""}`}>
-                <div className="dub-week-header">
-                  {isToday && <span className="dub-week-dot" />}
-                  {day.slice(0, 3)}
-                  {isToday && <span className="ml-auto font-bold normal-case text-[var(--color-magenta)]">Today</span>}
-                </div>
-                {shows.length === 0 ? (
-                  <p className="text-[11px] text-[var(--color-mute)]/50">No confirmed window</p>
-                ) : (
-                  <ul className="space-y-2">
-                    {shows.map((it) => {
-                      const slot = parseDubSlot(it.schedule);
-                      return (
-                        <li key={it.slug}>
-                          <Link href={`/indian-dubs/${it.slug}`} className="group block rounded-lg border border-white/5 bg-white/[0.03] p-2 transition-colors hover:border-[var(--color-cyan)]/40 hover:bg-white/[0.06]">
-                            <p className="truncate text-xs font-semibold text-white group-hover:text-[var(--color-cyan)]">{it.name}</p>
-                            <p className="mt-0.5 font-mono text-[10px] text-[var(--color-magenta)]">
-                              {slot ? formatClock(slot.hour, slot.minute) : "—"} · {it.platforms.join("/")}
-                            </p>
-                          </Link>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {(() => {
-          const rolling = byStatus.Airing.filter((it) => !parseDubSlot(it.schedule));
-          if (rolling.length === 0) return null;
-          return (
-            <p className="mt-4 text-xs leading-relaxed text-[var(--color-mute)]">
-              <span className="font-semibold text-white">Also airing / rolling out in batches: </span>
-              {rolling.map((it, i) => (
-                <span key={it.slug}>
-                  {i > 0 && <span className="text-white/30"> · </span>}
-                  <Link href={`/indian-dubs/${it.slug}`} className="hover:text-[var(--color-cyan)]">{it.name}</Link>
-                </span>
-              ))}
-              <span className="text-white/30"> — these drop to on-demand in batches, not fixed weekly slots.</span>
-            </p>
-          );
-        })()}
-      </section>
-
-      {/* ─────────── Dub Explorer ─────────── */}
-      <div className="mt-12">
-        <DubExplorer items={items} />
-      </div>
-
-      {/* ─────────── Live Auto-fetched Feed ─────────── */}
-      <LiveDubFeeds />
-
-      {/* ─────────── Why ZyniVerse ─────────── */}
-      <section className="mt-14 grid gap-4 lg:grid-cols-3">
-        <div className="glass-card rounded-xl p-5">
-          <p className="font-display text-lg font-bold text-white">Honest sourcing</p>
-          <p className="mt-2 text-sm leading-relaxed text-[var(--color-mute)]">
-            Indian dub schedules shift constantly — channels re-block, streaming refreshes land late, some dubs pause.
-            Every entry here is compiled from official platforms and announcements, and where a slot isn&apos;t confirmed
-            we say so instead of inventing one.
-          </p>
-        </div>
-        <div className="glass-card rounded-xl p-5">
-          <p className="font-display text-lg font-bold text-white">Clocks in IST</p>
-          <p className="mt-2 text-sm leading-relaxed text-[var(--color-mute)]">
-            No timezone math anywhere. Every window, board and countdown is set to Indian Standard Time — from the
-            late-night One Piece batches to daily Attack on Titan drops on official channels.
-            When an official date is announced, we start the countdown.
-          </p>
-        </div>
-        <div className="glass-card rounded-xl p-5">
-          <p className="font-display text-lg font-bold text-white">Deep guides, not just lists</p>
-          <p className="mt-2 text-sm leading-relaxed text-[var(--color-mute)]">
-            Each dub links to a full guide: dubbing studio, dub history, where to watch, and a FAQ. The beginner-friendly
-            way to jump between Hindi, Tamil and Telugu tracks without guessing.
-          </p>
-        </div>
-      </section>
-
-      {/* ─────────── CTA Band ─────────── */}
-      <section className="neon-banner-card mt-14 rounded-2xl">
-        <div className="relative z-10 flex flex-wrap items-center justify-between gap-5 rounded-2xl p-6 sm:p-8">
-          <div>
-            <p className="console-label">Backed by India&apos;s anime platform</p>
-            <h2 className="mt-2 font-display text-2xl font-black text-white sm:text-3xl">
-              Follow the whole dub schedule, <span className="gradient-text">not just the guides.</span>
-            </h2>
-            <p className="mt-2 max-w-xl text-sm text-[var(--color-mute)]">
-              The live interactive dub hub refreshes in real time across Hindi, Tamil and Telugu — including the
-              shows we cannot squeeze into a static page.
-            </p>
-          </div>
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <Link href="/dubbed" className="btn-magnetic rounded-xl bg-[var(--color-cyan)] px-6 py-3 text-sm font-bold text-black">
-              Open Live Dub Tracker
-            </Link>
-            <Link href="/dubbed" className="neon-rgb-border rounded-xl px-6 py-3 text-sm font-bold text-white transition-colors hover:text-[var(--color-cyan)]">
-              Week Schedule
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* ─────────── Editorial + FAQ ─────────── */}
-      <section className="mt-14 grid gap-8 lg:grid-cols-2">
-        <div>
-          <p className="console-label">Why this exists</p>
-          <h2 className="mt-1 font-display text-2xl font-black text-white sm:text-3xl">
-            Why ZyniVerse tracks Indian dubs
-          </h2>
-          <p className="mt-3 text-sm leading-relaxed text-[var(--color-mute)]">
-            Release dates for Hindi, Tamil and Telugu dubs are scattered across channel announcement blocks, streaming
-            refreshes and the grapevine — and they change constantly. ZyniVerse keeps a single, sourced record of which
-            anime is dubbed in which language, how many episodes exist, which platform carries it, and when the next
-            drop window lands in IST.
-          </p>
-          <p className="mt-3 text-sm leading-relaxed text-[var(--color-mute)]">
-            The Dub Meter merges that record into one broadcast-style board: the shows that air this week, a live
-            countdown to every drop, and deep guides that answer the questions Indian fans actually ask — where to
-            watch, who dubbed it, and whether a Tamil or Telugu track exists yet.
-          </p>
-        </div>
-
-        <div>
-          <h2 className="font-display text-2xl font-black text-white sm:text-3xl">Your dub questions, answered</h2>
-          <div className="mt-4 space-y-3">
+          <StaggerGrid className="relative mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[
-              { q: "Which anime has a Hindi dub on Crunchyroll?", a: "One Piece, Naruto: Shippuden, Solo Leveling, Jujutsu Kaisen, Frieren and Fullmetal Alchemist: Brotherhood — plus more of an everyday rotation. Death Note's Hindi dub streams on Anime Times, Dragon Ball Super aired on Cartoon Network, and Detective Conan lives on ETV Bal Bharat TV." },
-              { q: "Do Hindi-dubbed anime also get Tamil or Telugu?", a: "Some do. One Piece, Naruto: Shippuden, Attack on Titan, Frieren, Fullmetal Alchemist: Brotherhood, Solo Leveling and Dragon Ball Super all have Tamil and Telugu tracks. Filter the directory by Tamil or Telugu to see them all." },
-              { q: "Are the schedules in Indian time?", a: "Yes — every slot, countdown and clock on this page is in Indian Standard Time (IST). Where a fixed weekly window isn't confirmed, the card says so openly rather than guessing." },
-            ].map((f, i) => (
-              <details key={f.q} className="glass-card group rounded-xl p-4" open={i === 0}>
-                <summary className="cursor-pointer list-none font-semibold text-white">
-                  <span className="mr-2 inline-block text-[var(--color-cyan)] transition-transform group-open:rotate-90">›</span>
-                  {f.q}
-                </summary>
-                <p className="mt-3 pl-5 text-sm leading-relaxed text-[var(--color-mute)]">{f.a}</p>
-              </details>
+              { label: "Catalogues checked", value: stats.sources.length.toLocaleString("en-IN") },
+              { label: "Titles listed", value: stats.total.toLocaleString("en-IN") },
+              { label: "Airing entries", value: stats.scheduleCount.toLocaleString("en-IN") },
+              { label: "Last synced", value: syncedAt ? syncedAt.split(",")[0] : "—" },
+            ].map((item) => (
+              <StaggerItem key={item.label}>
+                <div className="dub-coverage-stat h-full rounded-xl border border-[var(--color-line)] bg-black/20 p-4">
+                  <p className="dub-coverage-stat-value font-display text-xl font-black text-[var(--color-ink)] sm:text-2xl">
+                    {item.value}
+                  </p>
+                  <p className="mt-1 text-[10px] uppercase tracking-wide text-[var(--color-mute)]">{item.label}</p>
+                </div>
+              </StaggerItem>
             ))}
-          </div>
-        </div>
-      </section>
+          </StaggerGrid>
+        </section>
+      </FadeIn>
 
       <div className="mt-12">
         <NativeBannerAd />
       </div>
-    </div>
+    </main>
   );
 }

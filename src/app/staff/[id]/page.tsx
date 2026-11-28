@@ -4,20 +4,19 @@ import { getStaffBasic, getStaffMedia, AniListUnavailableError } from "@/lib/ani
 import StaffDetailClient from "./staff-client";
 import AnimeUnavailableCard from "@/components/AnimeUnavailableCard";
 
-// AniList staff metadata is immutable for our purposes; cache until deploy.
-export const revalidate = false;
+// Noindex/disallowed AniList mirror. Dynamic rendering + no-store data fetches
+// stop one ISR entry and two data-cache entries per crawled staff id; the CDN
+// caches the rendered response instead.
+export const dynamic = "force-dynamic";
 
-// Empty array => no build-time prerender, but on-demand ISR at runtime
-// (Next.js only enables it for a dynamic segment when this function exists).
-export function generateStaticParams() {
-  return [];
-}
-
-const getStaffBasicCached = cache(getStaffBasic);
-const getStaffMediaCached = cache(getStaffMedia);
+const getStaffBasicCached = cache((id: string) => getStaffBasic(id, { noStore: true }));
+const getStaffMediaCached = cache((id: string) => getStaffMedia(id, 50, { noStore: true }));
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  if (!/^\d+$/.test(id)) {
+    return { title: "Staff", robots: { index: false, follow: false } };
+  }
   try {
     const staff = await getStaffBasicCached(id);
     const name = staff.name?.full || "Staff";
@@ -25,6 +24,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     return {
       title: `${name} — Staff`,
       description: description || `Anime works, roles and details for ${name}.`,
+      robots: { index: false, follow: false },
       openGraph: {
         title: `${name} — Staff`,
         description,
@@ -32,7 +32,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
       },
     };
   } catch {
-    return { title: "Staff" };
+    return { title: "Staff", robots: { index: false, follow: false } };
   }
 }
 
@@ -42,6 +42,7 @@ export default async function StaffDetailsPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  if (!/^\d+$/.test(id)) notFound();
   let staff;
   try {
     staff = await getStaffBasicCached(id);

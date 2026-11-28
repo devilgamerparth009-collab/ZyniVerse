@@ -2,9 +2,10 @@
 
 import { useRef, useCallback } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { motion } from "framer-motion";
-import type { CartoonEntry } from "@/lib/toons-data";
+import { formatToonYears, type CartoonEntry } from "@/lib/toons-data";
+import ToonArtwork from "../ToonArtwork";
+import styles from "../toons.module.css";
 
 const COUNTRY_FLAG: Record<string, string> = {
   India: "🇮🇳",
@@ -25,10 +26,15 @@ const POPULARITY_LABEL: Record<string, string> = {
   low: "○ Niche",
 };
 
+function prefersReducedMotion() {
+  return typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
 export default function ToonDetailClient({ toon }: { toon: CartoonEntry }) {
   const ref = useRef<HTMLDivElement>(null);
 
   const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (prefersReducedMotion()) return;
     const el = ref.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
@@ -40,24 +46,31 @@ export default function ToonDetailClient({ toon }: { toon: CartoonEntry }) {
   }, []);
 
   const handlePointerLeave = useCallback(() => {
+    if (prefersReducedMotion()) return;
     const el = ref.current;
     if (!el) return;
     el.style.transform = "perspective(900px) rotateY(0deg) rotateX(0deg) scale(1)";
   }, []);
 
+  // Unknown values are omitted rather than shown as placeholder dashes.
   const facts = [
     { label: "Network", value: toon.network },
-    { label: "Studio", value: toon.studio || "—" },
-    { label: "Creator", value: toon.creator || "—" },
+    { label: "Studio", value: toon.studio },
+    { label: "Creator", value: toon.creator },
     { label: "Country", value: `${COUNTRY_FLAG[toon.country] || "🌍"} ${toon.country}` },
-    { label: "Release", value: `${toon.releaseYear}${toon.endYear ? ` – ${toon.endYear}` : ""}` },
-    { label: "Episodes", value: toon.totalEpisodes ? String(toon.totalEpisodes) : "—" },
-    { label: "Seasons", value: toon.seasons ? String(toon.seasons) : "—" },
-    { label: "Rating", value: toon.rating || "—" },
-  ];
+    { label: "Release", value: formatToonYears(toon) },
+    { label: "Episodes", value: toon.totalEpisodes != null ? String(toon.totalEpisodes) : undefined },
+    { label: "Seasons", value: toon.seasons != null ? String(toon.seasons) : undefined },
+    { label: "Rating", value: toon.rating },
+  ].filter((fact): fact is { label: string; value: string } => Boolean(fact.value));
+
+  const footerMeta = [
+    toon.totalEpisodes != null ? `${toon.totalEpisodes} eps` : null,
+    toon.seasons != null ? `${toon.seasons} seasons` : null,
+  ].filter(Boolean) as string[];
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 animate-page-in">
+    <div className={`${styles.page} mx-auto max-w-4xl px-4 py-10 sm:px-6 animate-page-in`}>
       {/* Breadcrumb */}
       <nav className="mb-6 flex items-center gap-2 text-xs text-[var(--color-mute)]">
         <Link href="/" className="hover:text-[var(--color-cyan)] transition-colors">Home</Link>
@@ -72,7 +85,7 @@ export default function ToonDetailClient({ toon }: { toon: CartoonEntry }) {
         initial={{ opacity: 0, y: 26, scale: 0.96 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-        className="neon-premium rounded-[20px]"
+        className={`${styles.detailHero} neon-premium rounded-[20px]`}
       >
         <div className="neon-premium-track" />
         <div className="neon-premium-overlay" style={{ background: "rgba(10,10,15,0.92)" }} />
@@ -97,32 +110,19 @@ export default function ToonDetailClient({ toon }: { toon: CartoonEntry }) {
               className="relative aspect-[4/3] w-full shrink-0 overflow-hidden rounded-xl sm:w-72 sm:aspect-[4/3]"
               style={{ transition: "transform 0.2s ease-out" }}
             >
-              {toon.image ? (
-                <Image
-                  src={toon.image}
-                  alt={toon.displayTitle}
-                  fill
-                  sizes="(max-width: 640px) 100vw, 288px"
-                  className="object-cover"
-                  referrerPolicy="no-referrer"
-                />
-              ) : (
-                <div
-                  className="absolute inset-0 flex items-center justify-center"
-                  style={{ background: `linear-gradient(135deg, ${toon.country === "India" ? "#ff6b35, #1a1a2e" : toon.country === "Japan" ? "#e50914, #1a1a2e" : "#00b4d8, #1a1a2e"})` }}
-                >
-                  <span className="text-4xl font-black text-white/90 drop-shadow-lg">
-                    {toon.displayTitle.split(" ").map((w) => w[0]).join("").slice(0, 3).toUpperCase()}
-                  </span>
-                </div>
-              )}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
+              <ToonArtwork
+                toon={toon}
+                sizes="(max-width: 640px) 100vw, 288px"
+                priority
+              />
             </motion.div>
 
             {/* Info */}
             <div className="min-w-0 flex-1">
-              <h1 className="font-display text-2xl font-black sm:text-3xl">{toon.displayTitle}</h1>
-              <p className="mt-1 text-xs text-[var(--color-mute)]">{toon.network} · {toon.releaseYear}</p>
+              <h1 className={`${styles.titleGlow} font-display text-2xl font-black sm:text-3xl`}>{toon.displayTitle}</h1>
+              <p className="mt-1 text-xs text-[var(--color-mute)]">
+                {[toon.network, formatToonYears(toon)].filter(Boolean).join(" · ")}
+              </p>
 
               <div className="mt-3 flex flex-wrap gap-2">
                 <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${STATUS_COLOR[toon.status] || "bg-[var(--color-line)]/50 text-[var(--color-mute)]"}`}>
@@ -145,7 +145,7 @@ export default function ToonDetailClient({ toon }: { toon: CartoonEntry }) {
               {/* Genres */}
               <div className="mt-4 flex flex-wrap gap-1.5">
                 {toon.genres.map((g) => (
-                  <span key={g} className="rounded-full bg-[var(--color-line)]/50 px-2.5 py-1 text-[10px] font-semibold text-[var(--color-mute)]">
+                  <span key={g} className={`${styles.tagChip} rounded-full bg-[var(--color-line)]/50 px-2.5 py-1 text-[10px] font-semibold text-[var(--color-mute)]`}>
                     {g}
                   </span>
                 ))}
@@ -155,7 +155,7 @@ export default function ToonDetailClient({ toon }: { toon: CartoonEntry }) {
               {toon.language.length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-1.5">
                   {toon.language.map((l) => (
-                    <span key={l} className="rounded bg-[var(--color-cyan)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--color-cyan)]">
+                    <span key={l} className={`${styles.tagChip} rounded bg-[var(--color-cyan)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--color-cyan)]`}>
                       {l}
                     </span>
                   ))}
@@ -164,7 +164,7 @@ export default function ToonDetailClient({ toon }: { toon: CartoonEntry }) {
 
               {/* Watch platform */}
               {toon.dubPlatform && (
-                <div className="mt-4 rounded-xl border border-[var(--color-cyan)]/15 bg-[var(--color-cyan)]/5 px-4 py-3">
+                <div className="mt-4 rounded-xl bg-[var(--color-cyan)]/5 px-4 py-3 ring-1 ring-inset ring-[var(--color-cyan)]/15">
                   <p className="text-[10px] text-[var(--color-mute)] uppercase tracking-wider">Watch on</p>
                   <p className="text-sm font-bold text-[var(--color-cyan)]">{toon.dubPlatform}</p>
                 </div>
@@ -175,9 +175,9 @@ export default function ToonDetailClient({ toon }: { toon: CartoonEntry }) {
           {/* Facts grid */}
           <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
             {facts.map((f) => (
-              <div key={f.label} className="rounded-xl border border-[var(--color-line)]/60 bg-[var(--color-void)]/40 px-3 py-2.5">
+              <div key={f.label} className={`${styles.factCard} rounded-xl bg-[var(--color-void)]/40 px-3 py-2.5 ring-1 ring-inset ring-[var(--color-line)]/60`}>
                 <p className="text-[9px] font-mono text-[var(--color-mute)] uppercase tracking-wider">{f.label}</p>
-                <p className="mt-0.5 truncate text-xs font-semibold text-[var(--color-ink)]">{f.value}</p>
+                <p className="mt-0.5 truncate text-xs font-semibold text-[var(--color-ink)]" title={f.value}>{f.value}</p>
               </div>
             ))}
           </div>
@@ -188,7 +188,7 @@ export default function ToonDetailClient({ toon }: { toon: CartoonEntry }) {
               <p className="mb-2 text-[10px] font-mono text-[var(--color-mute)] uppercase tracking-wider">Tags</p>
               <div className="flex flex-wrap gap-1.5">
                 {toon.tags.map((t) => (
-                  <span key={t} className="rounded-full border border-[var(--color-line)] px-2.5 py-1 text-[10px] text-[var(--color-mute)]">
+                  <span key={t} className={`${styles.tagChip} rounded-full px-2.5 py-1 text-[10px] text-[var(--color-mute)] ring-1 ring-inset ring-[var(--color-line)]`}>
                     #{t}
                   </span>
                 ))}
@@ -197,12 +197,12 @@ export default function ToonDetailClient({ toon }: { toon: CartoonEntry }) {
           )}
 
           <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-            <Link href="/toons" className="rounded-xl neon-rgb-border bg-[var(--color-panel)] px-4 py-2 text-xs font-semibold text-[var(--color-cyan)] hover:bg-[var(--color-cyan)]/5 transition-all no-underline">
+            <Link href="/toons" className={`${styles.detailCta} rounded-xl neon-rgb-border bg-[var(--color-panel)] px-4 py-2 text-xs font-semibold text-[var(--color-cyan)] no-underline`}>
               ← Browse all toons
             </Link>
-            <p className="font-mono text-[10px] text-[var(--color-mute)]">
-              {toon.totalEpisodes ? `${toon.totalEpisodes} eps` : ""}{toon.totalEpisodes && toon.seasons ? " · " : ""}{toon.seasons ? `${toon.seasons} seasons` : ""}
-            </p>
+            {footerMeta.length > 0 && (
+              <p className="font-mono text-[10px] text-[var(--color-mute)]">{footerMeta.join(" · ")}</p>
+            )}
           </div>
         </div>
       </motion.div>

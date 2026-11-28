@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { bestTitle, type Media } from "@/lib/anilist";
 
 interface AOTD {
   day: string;
@@ -19,7 +20,14 @@ interface AOTD {
   why: string;
 }
 
-export default function AnimeOfTheDay() {
+function compactCount(value?: number): string {
+  if (!value) return "";
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
+  return String(value);
+}
+
+export default function AnimeOfTheDay({ companions = [] }: { companions?: Media[] }) {
   const [data, setData] = useState<AOTD | null>(null);
   const [error, setError] = useState(false);
 
@@ -41,32 +49,143 @@ export default function AnimeOfTheDay() {
   if (error) return null;
   if (!data) return null;
 
+  const { anime } = data;
+  const companion =
+    companions.find((item) => item.id !== anime.id) ?? companions[0] ?? null;
+
   return (
-    <Link href={`/anime/${data.anime.id}`} className="group block">
-      <div className="relative overflow-hidden rounded-2xl border border-[var(--color-line)]">
-        <div className="relative h-40 w-full sm:h-52">
-          {data.anime.image ? (
-            <Image src={data.anime.image} alt={data.anime.title} fill className="object-cover" sizes="(max-width: 768px) 100vw, 1200px" loading="eager" priority />
+    <section
+      className={`aotd-card group${companion ? "" : " aotd-card--solo"}`}
+      aria-label="Anime of the Day and trending pick"
+    >
+      <Link href={`/anime/${anime.id}`} className="aotd-half aotd-half--pick">
+        <div className="aotd-poster">
+          {anime.image ? (
+            <Image
+              src={anime.image}
+              alt={anime.title}
+              fill
+              className="aotd-img"
+              sizes="(max-width: 767px) 100vw, (max-width: 1024px) 104px, 124px"
+              loading="eager"
+              priority
+            />
           ) : null}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent" />
-          <div className="absolute left-4 top-4 rounded-full bg-[var(--color-magenta)] px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-widest">
+          <span className="aotd-sheen" aria-hidden="true" />
+          <span className="aotd-day">
+            <span className="aotd-day-dot" aria-hidden="true" />
             Anime of the Day
+          </span>
+        </div>
+
+        <div className="aotd-body">
+          <div className="aotd-eyebrow-row">
+            <span className="aotd-eyebrow">Today&apos;s pick</span>
+            <span className="aotd-daily">Fresh daily</span>
           </div>
-          <div className="absolute bottom-0 left-0 right-0 p-4">
-            <p className="font-display text-2xl font-bold text-white group-hover:text-[var(--color-cyan)] transition-colors sm:text-3xl">
-              {data.anime.title}
+          <h2 className="aotd-title">{anime.title}</h2>
+          <p className="aotd-why">{data.why}</p>
+          <div className="aotd-stats">
+            {anime.format ? (
+              <span className="aotd-stat">
+                <strong>{anime.format}</strong>
+              </span>
+            ) : null}
+            {!!anime.episodes ? (
+              <span className="aotd-stat">
+                <strong>{anime.episodes}</strong> eps
+              </span>
+            ) : null}
+            {!!anime.score ? (
+              <span className="aotd-score">
+                <span aria-hidden="true">★</span> {anime.score}%
+              </span>
+            ) : null}
+          </div>
+          {anime.genres?.length ? (
+            <div className="aotd-chips">
+              {anime.genres.slice(0, 3).map((genre) => (
+                <span key={genre} className="aotd-chip">
+                  {genre}
+                </span>
+              ))}
+            </div>
+          ) : null}
+          <span className="aotd-cta">
+            Explore <span aria-hidden="true">→</span>
+          </span>
+        </div>
+      </Link>
+
+      {companion ? (
+        <Link href={`/anime/${companion.id}`} className="aotd-half aotd-half--trending">
+          <div className="aotd-poster">
+            {companion.coverImage?.extraLarge ||
+            companion.coverImage?.large ||
+            companion.coverImage?.medium ? (
+              <Image
+                src={
+                  companion.coverImage.extraLarge ||
+                  companion.coverImage.large ||
+                  companion.coverImage.medium ||
+                  ""
+                }
+                alt={bestTitle(companion.title)}
+                fill
+                className="aotd-img"
+                sizes="(max-width: 767px) 100vw, (max-width: 1024px) 104px, 124px"
+              />
+            ) : null}
+            <span className="aotd-sheen" aria-hidden="true" />
+            <span className="aotd-day aotd-day--cyan">
+              <span className="aotd-day-dot" aria-hidden="true" />
+              Trending now
+            </span>
+          </div>
+
+          <div className="aotd-body">
+            <div className="aotd-eyebrow-row">
+              <span className="aotd-eyebrow aotd-eyebrow--cyan">Also popular</span>
+              <span className="aotd-daily">
+                {compactCount(companion.popularity)} fans
+              </span>
+            </div>
+            <h2 className="aotd-title">{bestTitle(companion.title)}</h2>
+            <p className="aotd-why">
+              Trending alongside today&apos;s pick — another anime the community is watching right now.
             </p>
-            <p className="mt-1 line-clamp-2 text-xs text-white/80 sm:text-sm">{data.why}</p>
+            <div className="aotd-stats">
+              {companion.format ? (
+                <span className="aotd-stat">
+                  <strong>{companion.format}</strong>
+                </span>
+              ) : null}
+              {!!companion.episodes ? (
+                <span className="aotd-stat">
+                  <strong>{companion.episodes}</strong> eps
+                </span>
+              ) : null}
+              {!!companion.averageScore ? (
+                <span className="aotd-score">
+                  <span aria-hidden="true">★</span> {companion.averageScore}%
+                </span>
+              ) : null}
+            </div>
+            {companion.genres?.length ? (
+              <div className="aotd-chips">
+                {companion.genres.slice(0, 3).map((genre) => (
+                  <span key={genre} className="aotd-chip">
+                    {genre}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+            <span className="aotd-cta">
+              Explore <span aria-hidden="true">→</span>
+            </span>
           </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 border-t border-[var(--color-line)] bg-[var(--color-panel)] px-4 py-3 text-xs text-[var(--color-mute)]">
-          {data.anime.format && <span>{data.anime.format}</span>}
-          {!!data.anime.episodes && <span>• {data.anime.episodes} eps</span>}
-          {!!data.anime.score && <span className="text-amber-400">• ★ {data.anime.score}%</span>}
-          {data.anime.genres && data.anime.genres.slice(0, 3).map((g) => <span key={g} className="rounded-full border border-[var(--color-line)] px-2 py-0.5">{g}</span>)}
-          <span className="ml-auto text-[var(--color-cyan)] group-hover:underline">Explore →</span>
-        </div>
-      </div>
-    </Link>
+        </Link>
+      ) : null}
+    </section>
   );
 }

@@ -5,7 +5,7 @@ import { POST as resetPasswordPOST } from "@/app/api/auth/reset-password/route";
 
 /**
  * Both password-reset endpoints must be behind the shared `authLimiter`
- * (10 req/min per IP). The in-memory limiter store is per-test-file, so reset
+ * (30 req/min per IP). The in-memory limiter store is per-test-file, so reset
  * it between tests for determinism.
  */
 beforeEach(() => {
@@ -23,7 +23,7 @@ function postReq(ip: string, body: unknown): Request {
 describe("forgot-password route", () => {
   it("rate-limits repeated requests from the same IP", async () => {
     const ip = "203.0.113.10";
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 30; i++) {
       const res = await forgotPasswordPOST(postReq(ip, { email: "user@example.com" }));
       expect(res.status).not.toBe(429);
     }
@@ -40,7 +40,7 @@ describe("forgot-password route", () => {
 describe("reset-password route", () => {
   it("rate-limits repeated requests from the same IP", async () => {
     const ip = "198.51.100.20";
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 30; i++) {
       const res = await resetPasswordPOST(
         postReq(ip, { email: "user@example.com", token: "123456", newPassword: "newpass123" })
       );
@@ -53,13 +53,13 @@ describe("reset-password route", () => {
   });
 
   it("shares the same limiter bucket as forgot-password", async () => {
-    // 9 requests on forgot-password...
-    for (let i = 0; i < 9; i++) {
+    // 29 requests on forgot-password...
+    for (let i = 0; i < 29; i++) {
       const res = await forgotPasswordPOST(postReq("203.0.113.50", { email: "user@example.com" }));
       expect(res.status).not.toBe(429);
     }
     await forgotPasswordPOST(postReq("203.0.113.50", { email: "user@example.com" }));
-    // ...then reset-password from the same IP is already over the 10/min limit.
+    // ...then reset-password from the same IP is already over the 30/min limit.
     const blocked = await resetPasswordPOST(
       postReq("203.0.113.50", { email: "user@example.com", token: "123456", newPassword: "newpass123" })
     );

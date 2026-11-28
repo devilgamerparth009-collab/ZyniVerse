@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { getIndiaDateKey, toDateKey } from "@/lib/convention-dates";
 
 export interface Convention {
   id: string;
@@ -36,19 +37,22 @@ export async function getConventions(filters?: {
   }
   if (filters?.month !== undefined || filters?.year !== undefined) {
     const AND: Record<string, unknown>[] = [];
-    if (filters?.month !== undefined) {
+    const referenceYear = filters?.year ?? new Date().getFullYear();
+    if (filters?.month !== undefined && filters.month >= 1 && filters.month <= 12) {
+      const nextMonth = filters.month === 12 ? 1 : filters.month + 1;
+      const nextYear = filters.month === 12 ? referenceYear + 1 : referenceYear;
       AND.push({
         startDate: {
-          gte: new Date(`${new Date().getFullYear()}-${String(filters.month).padStart(2, "0")}-01`),
-          lt: new Date(`${new Date().getFullYear()}-${String(filters.month + 1 > 12 ? 1 : filters.month + 1).padStart(2, "0")}-01`),
+          gte: new Date(Date.UTC(referenceYear, filters.month - 1, 1)),
+          lt: new Date(Date.UTC(nextYear, nextMonth - 1, 1)),
         },
       });
     }
     if (filters?.year !== undefined) {
       AND.push({
         startDate: {
-          gte: new Date(`${filters.year}-01-01`),
-          lt: new Date(`${filters.year + 1}-01-01`),
+          gte: new Date(Date.UTC(filters.year, 0, 1)),
+          lt: new Date(Date.UTC(filters.year + 1, 0, 1)),
         },
       });
     }
@@ -67,14 +71,14 @@ export async function getConventions(filters?: {
     city: r.city,
     state: r.state,
     venue: r.venue,
-    startDate: r.startDate.toISOString().split("T")[0],
-    endDate: r.endDate.toISOString().split("T")[0],
+    startDate: toDateKey(r.startDate),
+    endDate: toDateKey(r.endDate),
     website: r.website,
     ticketUrl: r.ticketUrl,
     image: r.image,
     description: r.description,
     estimatedAttendance: r.estimatedAttendance,
-    status: computeStatus(r),
+    status: computeConventionStatus(r),
     organizers: r.organizers,
     tags: r.tags,
   }));
@@ -86,15 +90,21 @@ export async function getConventions(filters?: {
   return mapped;
 }
 
-function computeStatus(r: { startDate: Date; endDate: Date; status: string }, now: Date = new Date()): Convention["status"] {
+/** Compare date keys so an event stays "ongoing" for its full final day. */
+export function computeConventionStatus(
+  r: { startDate: Date; endDate: Date; status: string },
+  now: Date = new Date()
+): Convention["status"] {
   if (r.status === "cancelled") return "cancelled";
-  if (now < r.startDate) return "upcoming";
-  if (now <= r.endDate) return "ongoing";
+  const today = getIndiaDateKey(now);
+  if (today < toDateKey(r.startDate)) return "upcoming";
+  if (today <= toDateKey(r.endDate)) return "ongoing";
   return "past";
 }
 
+
 export async function getConventionById(id: string): Promise<Convention | null> {
-  const result = await prisma.convention.findUnique({ where: { id } });
+  const result = await prisma.convention.findFirst({ where: { id, isPublic: true } });
   if (!result) return null;
   return {
     id: result.id,
@@ -103,14 +113,14 @@ export async function getConventionById(id: string): Promise<Convention | null> 
     city: result.city,
     state: result.state,
     venue: result.venue,
-    startDate: result.startDate.toISOString().split("T")[0],
-    endDate: result.endDate.toISOString().split("T")[0],
+    startDate: toDateKey(result.startDate),
+    endDate: toDateKey(result.endDate),
     website: result.website,
     ticketUrl: result.ticketUrl,
     image: result.image,
     description: result.description,
     estimatedAttendance: result.estimatedAttendance,
-    status: computeStatus(result),
+    status: computeConventionStatus(result),
     organizers: result.organizers,
     tags: result.tags,
   };

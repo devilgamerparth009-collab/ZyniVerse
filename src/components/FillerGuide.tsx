@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useSession } from "next-auth/react";
 import { logError } from "@/lib/logger";
 import { amazonSearchUrl } from "@/lib/affiliate-config";
+import boxStyles from "./detailBoxes.module.css";
 
 interface FillerEpisode {
   episode: number;
@@ -132,11 +133,16 @@ export default function FillerGuide({
   animeTitle,
   malId,
   aliases,
+  internalOnly = false,
+  className = "",
 }: {
   anilistId: number;
   animeTitle?: string;
   malId?: number;
   aliases?: string[];
+  /** Anime detail pages keep visitors on-site: source text only, no exits. */
+  internalOnly?: boolean;
+  className?: string;
 }) {
   const { data: session } = useSession();
   const [data, setData] = useState<FillerData | null>(null);
@@ -294,7 +300,7 @@ export default function FillerGuide({
 
   if (loading) {
     return (
-      <div className="rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5">
+      <div className={`${boxStyles.box} ${className}`}>
         <div className="flex items-center gap-2 text-sm text-[var(--color-mute)]">
           <span className="h-4 w-4 animate-spin rounded-full border-2 border-[var(--color-magenta)] border-t-transparent" />
           Loading filler guide...
@@ -306,24 +312,24 @@ export default function FillerGuide({
   if (!data?.found || data.error || !data.episodes) {
     const isError = !!data?.error;
     return (
-      <div className="rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5">
-        <h3 className="font-display text-sm font-bold flex items-center gap-2 mb-2">
-          <span className="h-3 w-1 rounded-full bg-[var(--color-magenta)]" />
+      <div className={`${boxStyles.box} ${className}`}>
+        <h3 className={`font-display text-sm font-bold flex items-center gap-2 mb-2 ${boxStyles.boxTitle}`}>
+          <span className={boxStyles.headingMark} />
           Filler Guide
         </h3>
-        <p className="text-xs text-[var(--color-mute)] leading-relaxed">
+        <div className={boxStyles.emptyState}>
           {isError
             ? "Could not load the filler guide. Please try again."
             : "Filler guide not available for this anime."}
-        </p>
+        </div>
         <div className="mt-2 flex flex-wrap items-center gap-3">
           <button
             type="button"
             onClick={retry}
-            className="inline-flex text-xs text-[var(--color-cyan)] hover:underline"
+            className={boxStyles.textLink}
           >{isError ? "Retry" : "Check again"}</button>
           <Link href="/filler"
-            className="inline-flex text-xs text-[var(--color-cyan)] hover:underline"
+            className={boxStyles.textLink}
           >Search all filler guides →</Link>
         </div>
       </div>
@@ -333,17 +339,17 @@ export default function FillerGuide({
   // A curated guide with no filler episodes is still a guide, not a miss.
   if (data.episodes.length === 0) {
     return (
-      <div className="rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5">
-        <h3 className="font-display text-sm font-bold flex items-center gap-2 mb-2">
-          <span className="h-3 w-1 rounded-full bg-[var(--color-magenta)]" />
+      <div className={`${boxStyles.box} ${className}`}>
+        <h3 className={`font-display text-sm font-bold flex items-center gap-2 mb-2 ${boxStyles.boxTitle}`}>
+          <span className={boxStyles.headingMark} />
           Filler Guide
         </h3>
-        <p className="text-xs text-[var(--color-mute)] leading-relaxed">
+        <div className={boxStyles.emptyState}>
           No filler episodes listed — all episodes are canon.
           {data.title ? ` Episodes for ${data.title} are listed as canon.` : ""}
-        </p>
+        </div>
         <Link href="/filler"
-          className="mt-2 inline-flex text-xs text-[var(--color-cyan)] hover:underline"
+          className={`mt-2 inline-block ${boxStyles.textLink}`}
         >Search all filler guides →</Link>
       </div>
     );
@@ -375,86 +381,82 @@ export default function FillerGuide({
   }
 
   return (
-    <div className="rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] overflow-hidden">
+    <div className={boxStyles.boxFlush}>
       {/* Header */}
-      <div className="p-5 pb-3">
-        <div className="flex items-center justify-between">
-          <h3 className="font-display text-base font-bold flex items-center gap-2">
-            <span className="h-3 w-1 rounded-full bg-[var(--color-magenta)]" />
+      <div className={boxStyles.fillerHeader}>
+        <div className="flex items-center justify-between gap-2">
+          <h3 className={`font-display text-base font-bold flex items-center gap-2 ${boxStyles.boxTitle}`}>
+            <span className={boxStyles.headingMark} />
             Filler Guide
-            <a href={`https://www.animefillerlist.com/shows/${data.slug}`}
-              target="_blank" rel="noopener noreferrer"
-              className="text-[10px] font-normal text-[var(--color-mute)] underline ml-1"
-            >via animefillerlist.com</a>
+            {internalOnly ? (
+              <span className={`${boxStyles.sourceChip} ml-1`}>
+                via animefillerlist.com
+              </span>
+            ) : (
+              <a href={`https://www.animefillerlist.com/shows/${data.slug}`}
+                target="_blank" rel="noopener noreferrer"
+                className={`${boxStyles.sourceChip} ml-1 underline`}
+              >via animefillerlist.com</a>
+            )}
             {overriddenCount > 0 && (
-              <span className="rounded-full bg-[var(--color-cyan)]/10 px-2 py-0.5 text-[8px] font-mono text-[var(--color-cyan)] border border-[var(--color-cyan)]/20 ml-1">
+              <span className={`${boxStyles.sourceChip} ml-1 font-mono`}>
                 {overriddenCount} overridden
               </span>
             )}
           </h3>
           {totalVotesAll > 0 && (
-            <span className="text-[10px] text-[var(--color-mute)] font-mono">
+            <span className={boxStyles.voteMeta}>
               {totalVotesAll} votes · {Object.keys(consensusOverrides).length} settled
             </span>
           )}
         </div>
       </div>
 
-      {/* Affiliate CTA */}
-      <div className="mx-5 mb-3">
-        <a
-          href={`https://www.crunchyroll.com/search?q=${encodeURIComponent(animeTitle || "")}&ref=zyniverse`}
-          target="_blank" rel="noopener noreferrer sponsored"
-          className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[#F47521] to-[#f59e0b] px-5 py-2.5 text-[10px] font-bold text-black hover:opacity-90 transition-opacity"
-        >▶ Watch on Crunchyroll</a>
-        <a
-          href={amazonSearchUrl((animeTitle || "") + " anime")}
-          target="_blank" rel="noopener noreferrer sponsored"
-          className="ml-2 inline-flex items-center gap-1.5 rounded-full border border-[var(--color-line)] px-5 py-2.5 text-[10px] font-semibold text-[var(--color-mute)] hover:border-[var(--color-cyan)] hover:text-[var(--color-cyan)] transition-all"
-        >📦 Buy on Amazon</a>
-      </div>
+      {/* Affiliate CTA — hidden on anime detail so nobody is sent off-site */}
+      {!internalOnly && (
+        <div className="mx-5 mb-3">
+          <a
+            href={`https://www.crunchyroll.com/search?q=${encodeURIComponent(animeTitle || "")}&ref=zyniverse`}
+            target="_blank" rel="noopener noreferrer sponsored"
+            className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[#F47521] to-[#f59e0b] px-5 py-2.5 text-[10px] font-bold text-black hover:opacity-90 transition-opacity"
+          >▶ Watch on Crunchyroll</a>
+          <a
+            href={amazonSearchUrl((animeTitle || "") + " anime")}
+            target="_blank" rel="noopener noreferrer sponsored"
+            className="ml-2 inline-flex items-center gap-1.5 rounded-full border border-[var(--color-line)] px-5 py-2.5 text-[10px] font-semibold text-[var(--color-mute)] hover:border-[var(--color-cyan)] hover:text-[var(--color-cyan)] transition-all"
+          >📦 Buy on Amazon</a>
+        </div>
+      )}
 
       {/* Filter Toggle */}
-      <div className="mx-5 mb-3 flex flex-wrap items-center gap-2">
+      <div className={`${boxStyles.fillerPad} ${boxStyles.pillRow} mb-3`}>
         {baseFilters.map((bf) => (
           <button key={bf.label} onClick={() => setFilter(filter === bf.value ? null : bf.value)}
-            className={`rounded-full px-5 py-2.5 text-xs font-semibold uppercase tracking-wider transition-all ${
-              filter === bf.value
-                ? "bg-[var(--color-magenta)] text-black"
-                : "border border-[var(--color-line)] text-[var(--color-mute)] hover:text-[var(--color-ink)]"
-            }`}
+            className={`${boxStyles.tab} ${filter === bf.value ? boxStyles.tabActive : ""}`}
           >{bf.label}</button>
         ))}
         {overriddenCount > 0 && (
           <button onClick={() => setFilter(filter === "overridden" ? null : "overridden")}
-            className={`rounded-full px-5 py-2.5 text-xs font-semibold uppercase tracking-wider transition-all ${
-              filter === "overridden"
-                ? "bg-[var(--color-cyan)] text-black"
-                : "border border-[var(--color-line)] text-[var(--color-mute)] hover:text-[var(--color-ink)]"
-            }`}
+            className={`${boxStyles.tab} ${filter === "overridden" ? boxStyles.tabActive : ""}`}
           >🛠 Overridden</button>
         )}
       </div>
 
       {/* Stats Bar */}
-      <div className="mx-5 mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <div className={`${boxStyles.fillerPad} mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4`}>
         {(["manga-canon", "anime-canon", "mixed-manga", "filler"] as const).map((type) => {
           const count = statsCount(type);
           const original = type === "mixed-manga" ? data.mixed : data[type === "manga-canon" ? "mangaCanon" : type === "anime-canon" ? "animeCanon" : "filler" as keyof FillerData] as number;
           const changed = count !== original;
           return (
             <button key={type} onClick={() => setFilter(filter === type ? null : type)}
-              className={`rounded-lg border px-2 py-2 text-center transition-all ${
-                filter === type
-                  ? "border-transparent text-black font-bold"
-                  : "border-[var(--color-line)] hover:bg-white/5"
-              } ${changed ? "ring-1 ring-[var(--color-cyan)]/30" : ""}`}
-              style={filter === type ? { background: TYPE_COLORS[type], borderColor: TYPE_COLORS[type] } : {}}
+              className={`${boxStyles.statCard} ${filter === type ? boxStyles.statCardActive : ""} ${changed ? "ring-1 ring-[var(--color-cyan)]/30" : ""}`}
+              style={filter === type ? { background: TYPE_COLORS[type] } : {}}
             >
-              <div className="text-lg font-bold font-mono" style={filter !== type ? { color: TYPE_COLORS[type] } : {}}>
+              <div className={boxStyles.statValue} style={filter !== type ? { color: TYPE_COLORS[type] } : {}}>
                 {count}{changed ? "*" : ""}
               </div>
-              <div className="text-[9px] uppercase tracking-wider" style={filter !== type ? { color: "var(--color-mute)" } : {}}>
+              <div className={boxStyles.statLabel}>
                 {TYPE_LABELS[type]}
               </div>
             </button>
@@ -463,15 +465,17 @@ export default function FillerGuide({
       </div>
 
       {/* Progress Bar */}
-      <div className="mx-5 mb-4 flex h-2 rounded-full overflow-hidden bg-[var(--color-line)]">
-        {TYPE_ORDER.filter((t) => statsCount(t) > 0).map((type) => {
-          const pct = consensusStats.total > 0 ? (statsCount(type) / consensusStats.total) * 100 : 0;
-          return <div key={type} style={{ width: `${pct}%`, background: TYPE_COLORS[type] }} />;
-        })}
+      <div className={`${boxStyles.fillerPad} mb-4`}>
+        <div className={boxStyles.fillerProgress}>
+          {TYPE_ORDER.filter((t) => statsCount(t) > 0).map((type) => {
+            const pct = consensusStats.total > 0 ? (statsCount(type) / consensusStats.total) * 100 : 0;
+            return <div key={type} style={{ width: `${pct}%`, background: TYPE_COLORS[type] }} />;
+          })}
+        </div>
       </div>
 
       {/* Quick List */}
-      <div className="mx-5 mb-3 space-y-1.5">
+      <div className={`${boxStyles.fillerPad} mb-3 space-y-1.5`}>
         {(["manga-canon", "anime-canon", "mixed-manga", "filler"] as const).filter((t) => {
           const all = episodesWithConsensus.filter((ep) => ep.effectiveType === t);
           return all.length > 0;
@@ -486,7 +490,7 @@ export default function FillerGuide({
               <span className="text-[var(--color-mute)]">
                 {ranges.map((r, i) => (
                   <button key={i} onClick={() => setFilter(type)}
-                    className="hover:text-[var(--color-ink)] hover:underline transition-colors cursor-pointer"
+                    className={boxStyles.quickRange}
                   >{r}{i < ranges.length - 1 ? ", " : ""}</button>
                 ))}
               </span>
@@ -496,7 +500,7 @@ export default function FillerGuide({
       </div>
 
       {/* Summary */}
-      <div className="mx-5 mb-3 flex items-center justify-between text-xs text-[var(--color-mute)]">
+      <div className={`${boxStyles.fillerPad} ${boxStyles.summaryRow} mb-3`}>
         <span>
           {consensusStats.total} episodes
           {overriddenCount > 0 && ` · ${overriddenCount} community-verified`}
@@ -512,23 +516,23 @@ export default function FillerGuide({
 
       {/* Login prompt */}
       {!isLoggedIn && totalVotesAll > 0 && (
-        <div className="mx-5 mb-3 rounded-lg border border-[var(--color-cyan)]/20 bg-[var(--color-cyan)]/5 px-4 py-2">
-          <p className="text-[10px] text-[var(--color-mute)] text-center">
-            <a href="/login" className="text-[var(--color-cyan)] hover:underline">Log in</a> to vote — {CONSENSUS_THRESHOLD}+ votes automatically override the source data.
-          </p>
+        <div className={`${boxStyles.fillerPad} mb-3`}>
+          <div className={`${boxStyles.noteCard} ${boxStyles.tinyMuted} text-center`}>
+            <a href="/login" className={boxStyles.textLink}>Log in</a> to vote — {CONSENSUS_THRESHOLD}+ votes automatically override the source data.
+          </div>
         </div>
       )}
 
       {/* Jump to Episode */}
       {showAll && data.total! > 50 && (
-        <div className="border-t border-[var(--color-line)] px-5 py-2">
-          <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-mute)] mb-1">
+        <div className={`${boxStyles.rowDivider} ${boxStyles.fillerPad} py-2`}>
+          <div className={`${boxStyles.eyebrow} mb-1`}>
             <span>Jump to</span>
           </div>
           <div ref={jumpRef} className="flex gap-1 overflow-x-auto pb-1 scrollbar-thin" style={{ scrollbarWidth: "thin" }}>
             {filtered.map((ep) => (
               <button key={ep.episode} onClick={() => scrollToEpisode(ep.episode)}
-                className="shrink-0 w-6 h-6 rounded text-[10px] font-mono font-medium transition-all"
+                className={`${boxStyles.jumpChip} shrink-0`}
                 style={{
                   background: `${TYPE_COLORS[ep.effectiveType]}20`,
                   color: TYPE_COLORS[ep.effectiveType],
@@ -541,9 +545,9 @@ export default function FillerGuide({
       )}
 
       {/* Episode List */}
-      <div className="border-t border-[var(--color-line)] overflow-x-auto">
+      <div className={`${boxStyles.rowDivider} ${boxStyles.fillerTable}`}>
         <div className="min-w-[620px]">
-        <div className="flex items-center gap-3 px-5 py-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-mute)] bg-black/20">
+        <div className={`${boxStyles.fillerHead} flex`}>
           <span className="w-8 text-right">#</span>
           <span className={`${showTitles ? "flex-1" : "w-0 overflow-hidden"}`}>Title</span>
           <span className="w-24 text-right">Type</span>
@@ -552,7 +556,7 @@ export default function FillerGuide({
           {isLoggedIn && <span className="w-28 text-center">Your Vote</span>}
           {isLoggedIn && <span className="w-5 text-center shrink-0" />}
           <button onClick={() => setShowTitles(!showTitles)}
-            className="ml-auto text-[9px] text-[var(--color-cyan)] hover:underline shrink-0"
+            className={`${boxStyles.tinyLink} ml-auto shrink-0`}
           >{showTitles ? "Hide" : "Show"} Titles</button>
         </div>
         {display.map((ep, i) => {
@@ -568,14 +572,12 @@ export default function FillerGuide({
               initial={{ opacity: 0, x: -8 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: i * 0.01 }}
-              className={`flex items-center gap-3 border-b border-[var(--color-line)]/50 px-5 py-2 text-sm transition-colors scroll-mt-4 ${
-                isOverridden ? "bg-[var(--color-cyan)]/[0.03]" : "hover:bg-white/[0.02]"
-              }`}
+              className={`${boxStyles.fillerRow} ${isOverridden ? boxStyles.fillerOverridden : ""} text-sm scroll-mt-4`}
             >
               <span className="w-8 text-right font-mono text-xs text-[var(--color-mute)] shrink-0">{ep.episode}</span>
 
               {/* Status dot — show consensus dot when overridden */}
-              <span className="relative h-3 w-3 rounded-full shrink-0" style={{ background: TYPE_COLORS[displayType] }}>
+              <span className={`${boxStyles.voteDot} relative shrink-0`} style={{ background: TYPE_COLORS[displayType] }}>
                 {isOverridden && (
                   <span className="absolute -inset-0.5 rounded-full animate-ping opacity-30" style={{ background: TYPE_COLORS[displayType] }} />
                 )}
@@ -584,7 +586,7 @@ export default function FillerGuide({
               <span className={`${showTitles ? "min-w-0 flex-1 truncate" : "w-0 overflow-hidden"}`}>
                 {ep.title}
                 {isOverridden && (
-                  <span className="ml-1.5 rounded bg-[var(--color-cyan)]/15 px-1 py-0.5 text-[7px] font-mono text-[var(--color-cyan)] align-middle border border-[var(--color-cyan)]/20">
+                  <span className={`${boxStyles.communityChip} ml-1.5 align-middle`}>
                     community
                   </span>
                 )}
@@ -634,11 +636,7 @@ export default function FillerGuide({
                       <button key={opt.value}
                         onClick={() => submitVote(ep.episode, opt.value)}
                         disabled={isVoting}
-                        className={`w-5 h-5 rounded text-[8px] font-bold transition-all ${
-                          isSelected
-                            ? "text-black scale-110"
-                            : "opacity-30 hover:opacity-80 text-[var(--color-mute)]"
-                        }`}
+                        className={`${boxStyles.voteButton} ${boxStyles.fillerVote} ${isSelected ? `${boxStyles.voteButtonActive} text-black scale-105` : "opacity-40"}`}
                         style={isSelected ? { background: opt.color } : {}}
                         title={`Vote as ${opt.label}`}
                       >{opt.label.slice(0, 2).toUpperCase()}</button>
@@ -664,9 +662,9 @@ export default function FillerGuide({
                         initial={{ opacity: 0, scale: 0.95, y: -4 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: -4 }}
-                        className="absolute right-0 top-full mt-1 z-50 w-36 rounded-lg border border-[var(--color-line)] bg-[var(--color-panel)] shadow-xl overflow-hidden"
+                        className={`${boxStyles.subCard} absolute right-0 top-full mt-1 z-50 w-36 overflow-hidden shadow-xl`}
                       >
-                        <p className="px-3 py-1.5 text-[9px] font-semibold text-[var(--color-mute)] border-b border-[var(--color-line)]">Report as:</p>
+                        <p className={`${boxStyles.rowDivider} ${boxStyles.tinyMuted} px-3 py-1.5 font-semibold`}>Report as:</p>
                         {[
                           { value: "wrong-type", label: "Wrong Type" },
                           { value: "wrong-order", label: "Wrong Order" },
@@ -691,31 +689,30 @@ export default function FillerGuide({
 
       {/* Unauthenticated vote prompt */}
       {!isLoggedIn && (
-        <div className="px-5 py-3 border-t border-[var(--color-line)]">
-          <a href="/login"
-            className="text-[10px] text-[var(--color-cyan)] hover:underline"
+        <div className={`${boxStyles.rowDivider} ${boxStyles.fillerPad} py-3`}>
+          <a href="/login" className={`${boxStyles.textLink} text-[10px]`}
           >Log in to vote and help correct the data →</a>
         </div>
       )}
 
       {/* Show More / Filter Reset */}
-      <div className="flex items-center justify-between px-5 py-3 border-t border-[var(--color-line)]">
+      <div className={`${boxStyles.rowDivider} ${boxStyles.fillerPad} ${boxStyles.summaryRow} py-3`}>
         {!showAll && filtered.length > 50 ? (
           <button onClick={() => setShowAll(true)}
-            className="text-xs text-[var(--color-mute)] hover:text-[var(--color-ink)] transition-colors"
+            className={boxStyles.tinyMuted}
           >Show all {filtered.length} episodes →</button>
         ) : showAll && filtered.length > 50 ? (
           <button onClick={() => setShowAll(false)}
-            className="text-xs text-[var(--color-mute)] hover:text-[var(--color-ink)] transition-colors"
+            className={boxStyles.tinyMuted}
           >Show less</button>
         ) : <span />}
         <div className="flex items-center gap-3">
           {overriddenCount > 0 && (
-            <span className="text-[9px] text-[var(--color-mute)]">{overriddenCount} episodes community-verified (≥{CONSENSUS_THRESHOLD} votes)</span>
+            <span className={boxStyles.tinyMuted}>{overriddenCount} episodes community-verified (≥{CONSENSUS_THRESHOLD} votes)</span>
           )}
           {filter && (
             <button onClick={() => setFilter(null)}
-              className="text-xs text-[var(--color-cyan)] hover:underline"
+              className={boxStyles.textLink}
             >Clear filter</button>
           )}
         </div>

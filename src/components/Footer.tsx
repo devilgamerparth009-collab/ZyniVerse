@@ -2,12 +2,10 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { motion } from "framer-motion";
-import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
+import { useEffect, useState, type CSSProperties } from "react";
 import { t } from "@/lib/i18n";
 import FeedbackForm from "./FeedbackForm";
-
-const FADE_UP = { initial: { opacity: 0, y: 20 }, whileInView: { opacity: 1, y: 0 }, viewport: { once: true }, transition: { duration: 0.5 } };
 
 const SOCIAL_LINKS = [
   { label: "YouTube", href: "https://www.youtube.com/@Itz_parth_2007", icon: "youtube" },
@@ -108,6 +106,8 @@ const LINK_COLUMNS: FooterColumn[] = [
   },
 ];
 
+const COLUMN_ACCENTS = ["#29f2e0", "#ff2d78", "#8a5cff", "#f59e0b"];
+
 const ICON_PATHS: Record<string, string> = {
   "search": "M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z",
   "book": "M4 19.5A2.5 2.5 0 016.5 17H20M4 19.5A2.5 2.5 0 016.5 17H20M4 19.5V4.5A2.5 2.5 0 016.5 2H20v15H6.5A2.5 2.5 0 004 19.5z",
@@ -119,7 +119,6 @@ const ICON_PATHS: Record<string, string> = {
   "edit": "M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z",
   "shuffle": "M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15",
   "users": "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z",
-  "user-check": "M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2m8-10a4 4 0 100-8 4 4 0 000 8zm8 2l2 2 4-4",
   "award": "M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z",
   "list": "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01",
   "user": "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z",
@@ -132,205 +131,279 @@ const ICON_PATHS: Record<string, string> = {
   "tv": "M9.75 17.9l4.4-2.2c.4-.2.9-.2 1.3 0l4.4 2.2V4a1 1 0 00-1-1H5.3a1 1 0 00-1 1v13.9zM3 5h18v14H3V5z",
   "mic": "M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3zM19 10v2a7 7 0 01-14 0v-2M12 19v4m-4 0h8",
   "shopping-bag": "M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18M16 10a4 4 0 01-8 0",
+  "zap": "M13 2L3 14h7l-1 8 10-12h-7z",
+  "palette": "M12 3a9 9 0 100 18h1.5a2.5 2.5 0 002.5-2.5c0-.7-.3-1.3-.8-1.8-.4-.4-.7-1-.7-1.7a2 2 0 012-2H19a2 2 0 002-2A9 9 0 0012 3zM7.5 11a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm3-4a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm5 0a1.5 1.5 0 110-3 1.5 1.5 0 010 3z",
+  "sparkles": "M12 3l1.4 3.6L17 8l-3.6 1.4L12 13l-1.4-3.6L7 8l3.6-1.4zM19 14l.8 2.2L22 17l-2.2.8L19 20l-.8-2.2L16 17l2.2-.8zM5 13l.7 1.8L7.5 15.5l-1.8.7L5 18l-.7-1.8L2.5 15.5l1.8-.7z",
 };
+
+const QUICK_LINKS = [
+  { label: "Browse Anime", href: "/search" },
+  { label: "Guides", href: "/guides" },
+  { label: "Theatrical", href: "/theatrical-releases" },
+  { label: "Toons", href: "/toons" },
+  { label: "Podcast", href: "/podcast" },
+  { label: "Merch", href: "/merch" },
+  { label: "Forum", href: "/forum" },
+  { label: "Filler Guides", href: "/filler" },
+  { label: "Watch Orders", href: "/watch-order" },
+  { label: "Changelog", href: "/changelog" },
+  { label: "18+ Hub", href: "/mature" },
+  { label: "API Docs", href: "/docs" },
+];
+
+const LEGAL_LINKS = [
+  { label: "Privacy", href: "/privacy" },
+  { label: "Terms", href: "/terms" },
+  { label: "Contact", href: "/contact" },
+  { label: "Developer", href: "/developer" },
+];
+
+function vars(values: Record<string, string | number>) {
+  return values as CSSProperties;
+}
+
+function Glyph({ path, size = 12 }: { path: string; size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d={path} />
+    </svg>
+  );
+}
 
 export default function Footer() {
   const [year, setYear] = useState(2026);
+  const pathname = usePathname();
+  // Anime detail pages keep visitors inside the app: no social/support exits.
+  const hideExternalExits = pathname?.startsWith("/anime/") ?? false;
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setYear(new Date().getFullYear()); }, []);
+
   return (
-    <footer className="border-t border-[var(--color-line)] bg-[var(--color-void)] relative z-20">
-      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
-        {/* Top section: Brand + Newsletter-style CTA */}
-        {/* Brand */}
-        <motion.div {...FADE_UP} className="mb-8">
-          <Link href="/" className="inline-flex items-center gap-3 mb-3 group">
-            <div className="relative w-10 h-10 rounded-lg overflow-hidden neon-rgb-border">
-              <Image src="/logo.png" alt="ZyniVerse" width={40} height={40} className="object-cover" />
-            </div>
-            <span className="font-display text-xl font-bold logo-text">ZyniVerse</span>
-          </Link>
-          <p className="text-xs leading-relaxed text-[var(--color-mute)] mb-4 max-w-md">
-            Discover, track, and discuss anime & manga. Your ultimate anime companion for Indian fans.
-          </p>
-          <div className="flex flex-wrap gap-4 items-center mb-4">
-            <Link href="/contact" className="flex items-center gap-2 text-xs text-[var(--color-mute)] hover:text-[var(--color-cyan)] transition-colors">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="4" width="20" height="16" rx="2" /><path d="M22 4l-10 8L2 4" /></svg>
-              Contact Us
+    <footer className="zft-footer">
+      <span className="zft-beam" aria-hidden="true" />
+      <span className="zft-grid" aria-hidden="true" />
+
+      <div className="zft-shell">
+        <section className="zft-brand-panel" aria-label="About ZyniVerse">
+          <span className="zft-radar" aria-hidden="true">
+            <i />
+            <i />
+            <i />
+          </span>
+
+          <div className="zft-brand-main">
+            <Link href="/" className="zft-brand">
+              <span className="zft-brand-mark">
+                <Image src="/logo.png" alt="ZyniVerse" width={48} height={48} className="zft-brand-img" />
+                <span className="zft-brand-ring" aria-hidden="true" />
+              </span>
+              <span className="zft-brand-name">ZyniVerse</span>
             </Link>
-            <span className="flex items-center gap-2 text-xs text-[var(--color-mute)]">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" /></svg>
-              Delhi, India
-            </span>
-          </div>
-          <div className="flex gap-2.5">
-            {SOCIAL_LINKS.map((s) => (
-              <a key={s.label} href={s.href} target="_blank" rel="noopener noreferrer"
-                className="w-10 h-10 sm:w-9 sm:h-9 rounded-full bg-[var(--color-panel)] flex items-center justify-center text-[var(--color-mute)] hover:text-[var(--color-cyan)] neon-rgb-border"
-                aria-label={s.label}
-              >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d={SOCIAL_PATHS[s.icon]} />
-                </svg>
-              </a>
-            ))}
-          </div>
-        </motion.div>
 
-        {/* Link Columns */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
-          {LINK_COLUMNS.map((col, i) => (
-            <motion.div key={col.title} {...FADE_UP} transition={{ duration: 0.5, delay: 0.1 * (i + 1) }}
-              className="neon-rgb-border rounded-xl bg-[var(--color-panel)]/40 backdrop-blur-sm p-4 hover:bg-[var(--color-panel)]/70 transition-all duration-300"
-            >
-              <h3 className="font-display text-xs font-bold uppercase tracking-wider text-[var(--color-cyan)] mb-4 flex items-center gap-2 pb-2 border-b border-[var(--color-line)]/50">
-                {t(`footer.col.${col.title.toLowerCase()}`)}
-              </h3>
-              <ul className="space-y-0.5">
-                {col.links.map((link) => (
-                  <li key={link.href}>
-                    {link.external ? (
-                      <a href={link.href} target="_blank" rel="noopener noreferrer"
-                        className="flex items-center gap-2 text-[11px] text-[var(--color-mute)] hover:text-[var(--color-cyan)] hover:bg-[var(--color-cyan)]/5 rounded-md px-2 py-1.5 transition-all duration-200 group/link"
-                      >
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 opacity-50 group-hover/link:opacity-100 transition-opacity">
-                          <path d={ICON_PATHS[link.icon]} />
-                        </svg>
-                        {link.label}
-                        <span className="opacity-50">↗</span>
-                      </a>
-                    ) : (
-                      <Link href={link.href}
-                        className="flex items-center gap-2 text-[11px] text-[var(--color-mute)] hover:text-[var(--color-cyan)] hover:bg-[var(--color-cyan)]/5 rounded-md px-2 py-1.5 transition-all duration-200 group/link"
-                      >
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 opacity-50 group-hover/link:opacity-100 transition-opacity">
-                          <path d={ICON_PATHS[link.icon]} />
-                        </svg>
-                        {link.label}
-                      </Link>
-                    )}
-                  </li>
+            <p className="zft-brand-tagline">
+              Discover, track, and discuss anime &amp; manga. Your ultimate anime companion for Indian fans.
+            </p>
+
+            <div className="zft-meta">
+              <Link href="/contact" className="zft-chip">
+                <Glyph path="M22 4H2v16h20zM22 4l-10 8L2 4" size={11} />
+                Contact Us
+              </Link>
+              <span className="zft-chip zft-chip--static">
+                <Glyph path="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0zM12 10a3 3 0 100 6 3 3 0 000-6z" size={11} />
+                Delhi, India
+              </span>
+            </div>
+
+            {!hideExternalExits && (
+              <div className="zft-socials" aria-label="ZyniVerse social links">
+                {SOCIAL_LINKS.map((social) => (
+                  <a
+                    key={social.label}
+                    href={social.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="zft-social"
+                    aria-label={social.label}
+                  >
+                    <Glyph path={SOCIAL_PATHS[social.icon]} size={14} />
+                  </a>
                 ))}
+              </div>
+            )}
+          </div>
+
+          <div className="zft-brand-visual" aria-hidden="true">
+            <span className="zft-visual-card zft-visual-card--one" />
+            <span className="zft-visual-card zft-visual-card--two" />
+            <span className="zft-visual-card zft-visual-card--three" />
+            <span className="zft-visual-core">ZY</span>
+            <span className="zft-visual-tag">ANIME · MANGA · COMMUNITY</span>
+          </div>
+        </section>
+
+        <nav className="zft-atlas" aria-label="Footer navigation">
+          {LINK_COLUMNS.map((column, columnIndex) => (
+            <section
+              key={column.title}
+              className="zft-column"
+              style={vars({
+                "--zft-col": columnIndex,
+                "--zft-accent": COLUMN_ACCENTS[columnIndex],
+              })}
+            >
+              <div className="zft-column-head">
+                <span className="zft-column-index">{String(columnIndex + 1).padStart(2, "0")}</span>
+                <h2 className="zft-column-title">{t(`footer.col.${column.title.toLowerCase()}`)}</h2>
+                <span className="zft-column-line" aria-hidden="true" />
+              </div>
+
+              <ul className="zft-link-list">
+                {column.links
+                  .filter((link) => !hideExternalExits || !link.external)
+                  .map((link, linkIndex) => {
+                    const content = (
+                      <>
+                        <Glyph path={ICON_PATHS[link.icon] ?? ICON_PATHS.book} />
+                        <span className="zft-link-label">{link.label}</span>
+                        {link.external && <span className="zft-link-arrow">↗</span>}
+                      </>
+                    );
+
+                    return (
+                      <li key={link.href} style={vars({ "--zft-i": linkIndex })}>
+                        {link.external ? (
+                          <a
+                            href={link.href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="zft-link"
+                          >
+                            {content}
+                          </a>
+                        ) : (
+                          <Link href={link.href} className="zft-link">
+                            {content}
+                          </Link>
+                        )}
+                      </li>
+                    );
+                  })}
               </ul>
-            </motion.div>
+            </section>
           ))}
-        </div>
+        </nav>
 
-        {/* CTA Row */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-8">
-          {/* Support CTA */}
-          <motion.div {...FADE_UP} transition={{ duration: 0.5, delay: 0.35 }}
-            className="neon-rgb-border rounded-2xl bg-gradient-to-r from-[var(--color-magenta)]/10 to-[var(--color-violet)]/10 p-5 flex flex-col sm:flex-row items-center justify-between gap-4"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-[var(--color-magenta)]/20 flex items-center justify-center shrink-0">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-magenta)" strokeWidth="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" /></svg>
-              </div>
-              <div>
-                <p className="text-sm font-bold text-[var(--color-ink)]">Support ZyniVerse</p>
-                <p className="text-xs text-[var(--color-mute)]">Help us keep running — no ads, just passion.</p>
-              </div>
+        <div className="zft-cta-row">
+          <section className="zft-cta zft-cta--support">
+            <span className="zft-cta-icon" aria-hidden="true">
+              <Glyph path={ICON_PATHS.award} size={18} />
+            </span>
+            <div className="zft-cta-copy">
+              <h2 className="zft-cta-title">Support ZyniVerse</h2>
+              <p className="zft-cta-desc">Help us keep running — no ads, just passion.</p>
             </div>
-            <div className="flex gap-3 shrink-0">
-              <a href="https://www.buymeacoffee.com/zyniverse" target="_blank" rel="noopener noreferrer"
-                className="px-5 py-2.5 bg-[var(--color-magenta)] text-black text-xs font-bold rounded-xl hover:opacity-90 transition shadow-lg shadow-[var(--color-magenta)]/30"
-              >Buy me a coffee</a>
-              <Link href="/premium"
-                className="px-5 py-2.5 bg-[var(--color-cyan)] text-black text-xs font-bold rounded-xl hover:opacity-90 transition shadow-lg shadow-[var(--color-cyan)]/30"
-              >Go Premium</Link>
-            </div>
-          </motion.div>
-
-          {/* Community CTA */}
-          <motion.div {...FADE_UP} transition={{ duration: 0.5, delay: 0.4 }}
-            className="neon-rgb-border rounded-2xl bg-gradient-to-r from-[var(--color-cyan)]/10 to-[var(--color-magenta)]/10 p-5 flex flex-col sm:flex-row items-center justify-between gap-4"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-[var(--color-cyan)]/20 flex items-center justify-center shrink-0">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-cyan)" strokeWidth="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" /></svg>
-              </div>
-              <div>
-                <p className="text-sm font-bold text-[var(--color-ink)]">Join the Discussion</p>
-                <p className="text-xs text-[var(--color-mute)]">Share reviews, critiques, and connect with anime fans.</p>
-              </div>
-            </div>
-            <Link href="/community"
-              className="px-5 py-2.5 bg-[var(--color-cyan)] text-black text-xs font-bold rounded-xl hover:opacity-90 transition shadow-lg shadow-[var(--color-cyan)]/30 shrink-0"
-            >Explore Community</Link>
-          </motion.div>
-        </div>
-
-        {/* Feedback Form */}
-        <motion.div {...FADE_UP} transition={{ duration: 0.5, delay: 0.45 }}
-          className="mt-6"
-        >
-          <FeedbackForm />
-        </motion.div>
-
-        {/* Bottom links */}
-        <motion.div {...FADE_UP} transition={{ duration: 0.5, delay: 0.5 }}
-          className="mt-8 pt-6 border-t border-[var(--color-line)]"
-        >
-          <div className="flex flex-col sm:flex-row justify-between items-start gap-6">
-            {/* Quick links with neon pills */}
-            <div className="flex flex-wrap gap-2">
-              {[
-                { label: "Browse Anime", href: "/search" },
-                { label: "Guides", href: "/guides" },
-                { label: "Theatrical", href: "/theatrical-releases" },
-                { label: "Toons", href: "/toons" },
-                { label: "Podcast", href: "/podcast" },
-                { label: "Merch", href: "/merch" },
-                { label: "Forum", href: "/forum" },
-                { label: "Filler Guides", href: "/filler" },
-                { label: "Watch Orders", href: "/watch-order" },
-                { label: "Changelog", href: "/changelog" },
-                { label: "18+ Hub", href: "/mature" },
-                { label: "API Docs", href: "/docs" },
-              ].map((link) => (
-                <Link
-                  key={link.label}
-                  href={link.href}
-                  className="neon-rgb-border rounded-full px-3 py-1.5 text-[10px] font-semibold text-[var(--color-mute)] hover:text-[var(--color-cyan)] bg-[var(--color-panel)]/40 transition-all hover:scale-105"
+            <div className="zft-actions">
+              {!hideExternalExits && (
+                <a
+                  href="https://www.buymeacoffee.com/zyniverse"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="zft-action zft-action--magenta"
                 >
-                  {link.label}
-                </Link>
-              ))}
+                  Buy me a coffee
+                </a>
+              )}
+              <Link href="/premium" className="zft-action zft-action--cyan">Go Premium</Link>
             </div>
+          </section>
 
-            {/* Legal links */}
-            <div className="flex gap-2 shrink-0">
-              {[
-                { label: "Privacy", href: "/privacy" },
-                { label: "Terms", href: "/terms" },
-                { label: "Contact", href: "/contact" },
-                { label: "Developer", href: "/developer" },
-              ].map((link) => (
+          <section className="zft-cta zft-cta--community">
+            <span className="zft-cta-icon" aria-hidden="true">
+              <Glyph path={ICON_PATHS["message-circle"]} size={18} />
+            </span>
+            <div className="zft-cta-copy">
+              <h2 className="zft-cta-title">Join the Discussion</h2>
+              <p className="zft-cta-desc">Share reviews, critiques, and connect with anime fans.</p>
+            </div>
+            <div className="zft-actions">
+              <Link href="/community" className="zft-action zft-action--cyan">Explore Community</Link>
+            </div>
+          </section>
+        </div>
+
+        <section className="zft-feedback" aria-label="Send feedback">
+          <p className="zft-feedback-label">
+            <span aria-hidden="true" />
+            Send Feedback
+          </p>
+          <FeedbackForm />
+        </section>
+
+        <section className="zft-shortcuts" aria-label="Quick links">
+          <div>
+            <h2 className="zft-shortcut-title">Quick links</h2>
+            <div className="zft-pills">
+              {QUICK_LINKS.map((link, index) => (
                 <Link
                   key={link.label}
                   href={link.href}
-                  className="neon-rgb-border rounded-lg px-2.5 py-1.5 text-[10px] font-semibold text-[var(--color-mute)] hover:text-[var(--color-cyan)] bg-[var(--color-panel)]/40 transition-all hover:scale-105"
+                  className="zft-pill"
+                  style={vars({ "--zft-i": index })}
                 >
                   {link.label}
                 </Link>
               ))}
             </div>
           </div>
-        </motion.div>
+
+          <div className="zft-shortcuts--legal">
+            <h2 className="zft-shortcut-title">Legal</h2>
+            <div className="zft-pills">
+              {LEGAL_LINKS.map((link, index) => (
+                <Link
+                  key={link.label}
+                  href={link.href}
+                  className="zft-pill"
+                  style={vars({ "--zft-i": index })}
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
       </div>
 
-      {/* Bottom bar */}
-      <div className="border-t border-[var(--color-line)] bg-black/10">
-        <div className="mx-auto max-w-7xl px-4 py-4 flex flex-col sm:flex-row justify-between items-center gap-2">
-          <p className="text-xs text-[var(--color-mute)]">
+      <div className="zft-bottom">
+        <div className="zft-bottom-inner">
+          <p className="zft-bottom-note">
+            <span className="zft-bottom-dot" aria-hidden="true" />
             &copy; {year} ZyniVerse. All rights reserved.
           </p>
-          <p className="text-[10px] text-[var(--color-mute)]">
+          <p className="zft-bottom-note zft-bottom-note--muted">
             Made with care for anime fans. No content is hosted here.
           </p>
-          <p className="text-[10px] text-[var(--color-mute)]">
-            <a href="https://www.promotebusinessdirectory.com/" target="_blank" rel="noopener noreferrer" className="hover:text-[var(--color-cyan)] transition-colors">Promote Business Directory</a>
-          </p>
+          {!hideExternalExits && (
+            <a
+              href="https://www.promotebusinessdirectory.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="zft-bottom-link"
+            >
+              Promote Business Directory
+            </a>
+          )}
         </div>
       </div>
     </footer>

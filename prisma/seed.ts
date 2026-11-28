@@ -3,8 +3,8 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 const SYSTEM_USER_ID = "system-bot";
-const SYSTEM_EMAIL = "system@zyverse.in";
-const SYSTEM_USERNAME = "ZyniBot";
+const SYSTEM_EMAIL = "system@zyniverse.app";
+const SYSTEM_USERNAME = "ZyniVerse";
 
 const WIKI_SEED = [
   {

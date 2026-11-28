@@ -1,198 +1,292 @@
-/* ═══ Indian Dub Hub — Page Scope ═══ */
+/* ═══ Indian Dub Hub — real-data page polish ═══ */
 
-/* ─── Hero Aurora ─── */
-.dub-hero {
-  position: relative;
-  overflow: hidden;
-}
-.dub-hero-bg {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(85% 130% at 8% -10%, rgba(255,153,51,0.18), transparent 60%),
-    radial-gradient(80% 110% at 90% 15%, rgba(19,136,8,0.16), transparent 50%),
-    radial-gradient(70% 120% at 50% 110%, rgba(41,242,224,0.10), transparent 65%),
-    radial-gradient(90% 90% at 25% 60%, rgba(138,92,251,0.14), transparent 70%),
-    linear-gradient(155deg, #120b20 0%, #0a0a0f 75%);
-}
-.dub-hero-glow {
-  position: absolute;
-  top: -40%;
-  left: 30%;
-  width: 55%;
-  height: 110%;
-  pointer-events: none;
-  background: radial-gradient(ellipse at center, rgba(255,45,120,0.12), transparent 65%);
-  filter: blur(50px);
-  opacity: 0.7;
+.idub-page {
+  --idub-cyan: var(--color-cyan);
+  --idub-violet: var(--color-violet);
+  --idub-magenta: var(--color-magenta);
+  --idub-amber: var(--color-amber);
 }
 
-/* ─── Tricolor Beam ─── */
-.tricolor-beam {
-  height: 3px;
-  background: linear-gradient(90deg, #ff9933, #ffffff 40%, #ffffff 60%, #138808);
-  background-size: 200% 100%;
-  animation: tricolorSweep 5.5s ease-in-out infinite;
-  box-shadow: 0 0 12px rgba(255,153,51,0.35), 0 0 12px rgba(19,136,8,0.35);
-}
-@keyframes tricolorSweep {
-  0%, 100% { background-position: 0% 50%; }
-  50%      { background-position: 100% 50%; }
+/* Hero ----------------------------------------------------------------- */
+.idub-hero {
+  isolation: isolate;
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--color-cyan) 22%, transparent),
+    0 30px 90px -55px color-mix(in srgb, var(--color-violet) 80%, transparent);
 }
 
-/* ─── Brand Wordmark ─── */
-.dub-wordmark {
+.idub-tricolor-beam {
+  background: linear-gradient(90deg, #ff9933, #ffffff 38%, #ffffff 62%, #138808);
+  background-size: 220% 100%;
+  animation: idubBeam 6s ease-in-out infinite;
+  box-shadow:
+    0 0 14px color-mix(in srgb, #ff9933 42%, transparent),
+    0 0 14px color-mix(in srgb, #138808 42%, transparent);
+}
+
+.idub-wordmark {
   font-family: var(--font-display);
-  font-weight: 700;
-  letter-spacing: 0.22em;
   font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.22em;
   background: linear-gradient(90deg, #ff9933, #ffffff, #138808, #ff9933);
   background-size: 300% 100%;
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  animation: tricolorSweep 4s ease-in-out infinite;
+  animation: idubBeam 5s ease-in-out infinite;
 }
 
-/* ─── Stats Strip ─── */
-.dub-stat-card {
+.idub-lang-chip {
+  border-color: color-mix(in srgb, var(--idub-amber) 34%, var(--color-line));
+  background: color-mix(in srgb, var(--idub-amber) 8%, transparent);
+  color: var(--color-ink);
+  transition:
+    transform 0.22s ease,
+    border-color 0.22s ease,
+    background-color 0.22s ease,
+    box-shadow 0.22s ease;
+}
+
+.idub-lang-chip span {
+  color: var(--idub-amber);
+  box-shadow: 0 0 8px var(--idub-amber);
+}
+
+.idub-lang-chip:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--idub-amber) 62%, var(--color-line));
+  background: color-mix(in srgb, var(--idub-amber) 15%, transparent);
+  box-shadow: 0 10px 24px -16px var(--idub-amber);
+}
+
+/* Weekly airing board --------------------------------------------------- */
+.idub-week-grid {
+  align-items: start;
+}
+
+.idub-week-col {
   position: relative;
-  border-radius: 1rem;
-  padding: 1px;
   overflow: hidden;
-}
-.dub-stat-card::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: conic-gradient(
-    from 0deg,
-    transparent,
-    #00ffe0,
-    transparent,
-    #ff00e6,
-    transparent,
-    #7000ff,
-    transparent,
-    #00ffe0
-  );
-  animation: spin 6s linear infinite;
-  opacity: 0.18;
-  transition: opacity 0.4s ease;
-  pointer-events: none;
-}
-.dub-stat-card:hover::before {
-  opacity: 0.55;
-}
-.dub-stat-card::after {
-  content: "";
-  position: absolute;
-  inset: 1px;
-  border-radius: calc(1rem - 1px);
-  background: var(--color-panel);
-  z-index: 0;
-  pointer-events: none;
-}
-.dub-stat-card > * {
-  position: relative;
-  z-index: 1;
+  min-height: 100%;
+  transition:
+    transform 0.25s ease,
+    border-color 0.25s ease,
+    box-shadow 0.25s ease;
 }
 
-/* ─── Poster Card Art ─── */
-.dub-poster-card {
-  position: relative;
-  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.4s ease;
-}
-.dub-poster-card:hover {
-  transform: translateY(-6px) scale(1.02);
-  box-shadow:
-    0 16px 50px -14px rgba(0,0,0,0.75),
-    0 0 20px -6px var(--color-magenta);
-}
-.dub-poster-card::before {
+.idub-week-col::before {
   content: "";
   position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: linear-gradient(120deg, rgba(255,255,255,0.10) 0%, transparent 55%, rgba(139,92,246,0.14) 100%);
-  opacity: 0;
-  transition: opacity 0.4s ease;
-  pointer-events: none;
-  z-index: 5;
+  inset: 0 0 auto;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--idub-violet), transparent);
+  opacity: 0.55;
+  transition: opacity 0.25s ease;
 }
-.dub-poster-card:hover::before {
+
+.idub-week-col:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--idub-violet) 48%, var(--color-line));
+  box-shadow: 0 18px 34px -26px var(--idub-violet);
+}
+
+.idub-week-col:hover::before {
   opacity: 1;
 }
 
-/* ─── Week Board ─── */
-.dub-week {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 0.5rem;
-}
-@media (max-width: 768px) {
-  .dub-week {
-    display: flex;
-    overflow-x: auto;
-    scroll-snap-type: x mandatory;
-    -webkit-overflow-scrolling: touch;
-    gap: 0.5rem;
-  }
-  .dub-week > * {
-    flex: 0 0 140px;
-    scroll-snap-align: start;
-  }
-}
-.dub-week-col {
-  border-radius: 0.75rem;
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  padding: 0.75rem;
-  min-height: 6rem;
-}
-.dub-week-col.is-today {
-  border-color: var(--color-magenta);
-  box-shadow: 0 0 14px rgba(255,45,120,0.22), inset 0 0 14px rgba(255,45,120,0.06);
-}
-.dub-week-header {
-  font-family: var(--font-mono);
-  font-size: 0.625rem;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--color-mute);
-  margin-bottom: 0.5rem;
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-}
-.is-today .dub-week-header {
-  color: var(--color-magenta);
-}
-.dub-week-dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 9999px;
-  background: currentColor;
-  box-shadow: 0 0 6px currentColor;
+.idub-week-count {
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--idub-violet) 30%, var(--color-line));
+  background: color-mix(in srgb, var(--idub-violet) 10%, transparent);
+  padding: 2px 8px;
+  font-weight: 800;
 }
 
-/* ─── Ticker Enhancements ─── */
-.dub-on-air-item {
-  transition: text-shadow 0.3s ease, color 0.3s ease;
-}
-.dub-on-air-item:hover {
-  color: var(--color-cyan);
-  text-shadow: 0 0 8px rgba(41,242,224,0.4);
+/* Live catalogue browser ------------------------------------------------ */
+.idub-browser {
+  --dub-accent: var(--color-cyan);
 }
 
-/* ─── Reduced Motion ─── */
+.idub-browser-count {
+  border-color: color-mix(in srgb, var(--idub-cyan) 28%, var(--color-line));
+  color: color-mix(in srgb, var(--color-ink) 74%, var(--idub-cyan));
+}
+
+.idub-browser-controls {
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--idub-cyan) 12%, transparent);
+}
+
+.idub-browser-search input {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.idub-browser-search input:focus {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--idub-cyan) 12%, transparent);
+}
+
+.idub-browser-chip {
+  border-color: color-mix(in srgb, var(--idub-cyan) 22%, var(--color-line));
+  background: color-mix(in srgb, var(--idub-cyan) 5%, transparent);
+  transition:
+    transform 0.22s ease,
+    border-color 0.22s ease,
+    background-color 0.22s ease,
+    color 0.22s ease,
+    box-shadow 0.22s ease;
+}
+
+.idub-browser-chip:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--idub-cyan) 48%, var(--color-line));
+  color: var(--color-ink);
+}
+
+.idub-browser-chip[data-active="true"] {
+  border-color: var(--idub-cyan);
+  background: color-mix(in srgb, var(--idub-cyan) 16%, transparent);
+  color: var(--color-ink);
+  box-shadow: 0 8px 20px -14px var(--idub-cyan);
+}
+
+.idub-browser-reset {
+  border: 1px solid color-mix(in srgb, var(--idub-magenta) 34%, var(--color-line));
+  background: color-mix(in srgb, var(--idub-magenta) 8%, transparent);
+}
+
+.idub-browser-reset:hover {
+  border-color: var(--idub-magenta);
+  box-shadow: 0 8px 20px -14px var(--idub-magenta);
+}
+
+.idub-browser-grid {
+  transition: opacity 0.25s ease;
+}
+
+.idub-browser-grid.is-loading {
+  opacity: 0.5;
+}
+
+.idub-catalog-card {
+  min-width: 0;
+  animation: idubCardIn 0.42s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+.idub-page-button {
+  border-color: color-mix(in srgb, var(--idub-cyan) 24%, var(--color-line));
+  background: color-mix(in srgb, var(--idub-cyan) 6%, transparent);
+  transition:
+    transform 0.22s ease,
+    border-color 0.22s ease,
+    background-color 0.22s ease,
+    box-shadow 0.22s ease;
+}
+
+.idub-page-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--idub-cyan) 58%, var(--color-line));
+  background: color-mix(in srgb, var(--idub-cyan) 14%, transparent);
+  box-shadow: 0 10px 22px -14px var(--idub-cyan);
+}
+
+/* Official-channel feed ------------------------------------------------- */
+.idub-feed-card {
+  --dub-accent: var(--idub-magenta);
+  position: relative;
+  overflow: hidden;
+  border-radius: 1rem;
+  border: 1px solid var(--color-line);
+  background: var(--color-panel);
+  padding: 1rem;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.idub-feed-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--idub-magenta), transparent);
+  opacity: 0.6;
+}
+
+.idub-feed-card:hover {
+  border-color: color-mix(in srgb, var(--idub-magenta) 42%, var(--color-line));
+  box-shadow: 0 18px 38px -30px var(--idub-magenta);
+}
+
+.idub-feed-title {
+  color: var(--color-ink);
+}
+
+.idub-feed-row {
+  animation: idubCardIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+/* Guide cards ----------------------------------------------------------- */
+.idub-guide-card {
+  transition:
+    transform 0.25s ease,
+    border-color 0.25s ease,
+    background-color 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+.idub-guide-card:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--idub-violet) 48%, var(--color-line));
+  background: color-mix(in srgb, var(--idub-violet) 8%, transparent);
+  box-shadow: 0 16px 32px -26px var(--idub-violet);
+}
+
+.idub-guide-mark {
+  border: 1px solid color-mix(in srgb, var(--idub-violet) 34%, var(--color-line));
+  background: color-mix(in srgb, var(--idub-violet) 12%, transparent);
+  color: color-mix(in srgb, var(--color-ink) 70%, var(--idub-violet));
+  transition: box-shadow 0.25s ease, transform 0.25s ease;
+}
+
+.idub-guide-card:hover .idub-guide-mark {
+  transform: scale(1.05);
+  box-shadow: 0 0 18px -8px var(--idub-violet);
+}
+
+/* Animations ------------------------------------------------------------ */
+@keyframes idubBeam {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@keyframes idubCardIn {
+  from { opacity: 0; transform: translateY(14px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .tricolor-beam { animation: none; background-position: 0% 50%; }
-  .dub-wordmark { animation: none; background-position: 0% 50%; }
-  .dub-stat-card::before { animation: none; opacity: 0.3; }
-  .dub-poster-card:hover { transform: none; }
-  .dub-poster-card:hover::before { opacity: 0; }
-  .dub-on-air-item:hover { text-shadow: none; }
+  .idub-tricolor-beam,
+  .idub-wordmark,
+  .idub-catalog-card,
+  .idub-feed-row {
+    animation: none;
+  }
+
+  .idub-lang-chip,
+  .idub-week-col,
+  .idub-browser-chip,
+  .idub-browser-reset,
+  .idub-page-button,
+  .idub-feed-card,
+  .idub-guide-card,
+  .idub-guide-mark {
+    transition: none;
+  }
+
+  .idub-lang-chip:hover,
+  .idub-week-col:hover,
+  .idub-browser-chip:hover,
+  .idub-page-button:hover:not(:disabled),
+  .idub-guide-card:hover,
+  .idub-guide-card:hover .idub-guide-mark {
+    transform: none;
+  }
 }

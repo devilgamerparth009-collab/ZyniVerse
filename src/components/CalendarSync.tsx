@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import styles from "./CalendarSync.module.css";
 
 interface CalendarSyncProps {
   animeId: number;
@@ -11,9 +12,11 @@ interface CalendarSyncProps {
     timeUntil?: string;
   };
   className?: string;
+  /** Anime detail pages keep every visitor on-site; only the .ics download remains. */
+  internalOnly?: boolean;
 }
 
-export default function CalendarSync({ animeId, title, nextEpisode, className = "" }: CalendarSyncProps) {
+export default function CalendarSync({ animeId, title, nextEpisode, className = "", internalOnly = false }: CalendarSyncProps) {
   const [synced, setSynced] = useState(false);
 
   const generateICalEvent = () => {
@@ -98,27 +101,28 @@ END:VCALENDAR`;
 
   if (!nextEpisode) {
     return (
-      <div className={`rounded-xl neon-rgb-border bg-[var(--color-panel)] p-4 ${className}`}>
-        <p className="text-sm text-[var(--color-mute)]">No upcoming episode scheduled.</p>
+      <div className={`${styles.card} ${className}`.trim()}>
+        <p className={styles.empty}>No upcoming episode scheduled.</p>
       </div>
     );
   }
 
   return (
-    <div className={`rounded-xl neon-rgb-border bg-[var(--color-panel)] p-4 ${className}`}>
-      <div className="mb-3 flex items-center justify-between">
-        <h3 className="font-display text-sm font-bold flex items-center gap-1.5">
-          <span className="text-xs">📅</span> Calendar Sync
+    <div className={`${styles.card} ${className}`.trim()}>
+      <div className={styles.header}>
+        <h3 className={styles.title}>
+          <span className={styles.calendarIcon} aria-hidden="true">📅</span>
+          Calendar Sync
         </h3>
         {synced && (
-          <span className="text-xs text-green-400">✓ Synced!</span>
+          <span className={styles.synced}>✓ Synced!</span>
         )}
       </div>
-      
-      <div className="mb-3 rounded-lg bg-[var(--color-void)] p-3">
-        <p className="text-xs text-[var(--color-mute)]">Next Episode</p>
-        <p className="text-sm font-medium">Episode {nextEpisode.episode}</p>
-        <p className="text-xs text-[var(--color-mute)]">
+
+      <div className={styles.nextPanel}>
+        <p className={styles.eyebrow}>Next Episode</p>
+        <p className={styles.episode}>Episode {nextEpisode.episode}</p>
+        <p className={styles.date}>
           {new Date(nextEpisode.airDate).toLocaleDateString("en-IN", {
             weekday: "long",
             day: "numeric",
@@ -127,38 +131,42 @@ END:VCALENDAR`;
           })}
         </p>
         {nextEpisode.timeUntil && (
-          <p className="text-xs text-[var(--color-cyan)]">{nextEpisode.timeUntil}</p>
+          <span className={styles.timePill}>{nextEpisode.timeUntil}</span>
         )}
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <a
-          href={generateGoogleCalendarUrl()}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={() => setSynced(true)}
-          className="flex-1 rounded-lg bg-blue-500/20 px-3 py-2 text-center text-xs font-medium text-blue-400 transition-colors hover:bg-blue-500/30"
-        >
-          Google Calendar
-        </a>
-        <a
-          href={generateAppleCalendarUrl()}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={() => setSynced(true)}
-          className="flex-1 rounded-lg bg-purple-500/20 px-3 py-2 text-center text-xs font-medium text-purple-400 transition-colors hover:bg-purple-500/30"
-        >
-          Apple Calendar
-        </a>
+      <div className={styles.actions}>
+        {!internalOnly && (
+          <>
+            <a
+              href={generateGoogleCalendarUrl()}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setSynced(true)}
+              className={`${styles.action} ${styles.googleAction}`}
+            >
+              Google Calendar
+            </a>
+            <a
+              href={generateAppleCalendarUrl()}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setSynced(true)}
+              className={`${styles.action} ${styles.appleAction}`}
+            >
+              Apple Calendar
+            </a>
+          </>
+        )}
         <button
           onClick={handleDownloadICal}
-          className="flex-1 rounded-lg bg-green-500/20 px-3 py-2 text-center text-xs font-medium text-green-400 transition-colors hover:bg-green-500/30"
+          className={`${styles.action} ${styles.icsAction}`}
         >
           Download .ics
         </button>
       </div>
 
-      <p className="mt-3 text-[10px] text-[var(--color-mute)]">
+      <p className={styles.note}>
         Add this anime to your calendar to never miss an episode!
       </p>
     </div>

@@ -2,7 +2,7 @@
 
 import { useCallback } from "react";
 import { logError } from "@/lib/logger";
-import { AMAZON_TAG } from "@/lib/affiliate-config";
+import { AMAZON_TAG, PLAYASIA_AFFILIATE_ID } from "@/lib/affiliate-config";
 
 interface AffiliateLinkProps {
   partner: string;
@@ -14,7 +14,11 @@ interface AffiliateLinkProps {
 
 export default function AffiliateLink({ partner, path, children, className, params }: AffiliateLinkProps) {
   const url = new URL(path.startsWith("http") ? path : `https://${path}`);
-  url.searchParams.set("ref", "zyniverse");
+  if (partner === "playasia") {
+    url.searchParams.set("affiliate_id", PLAYASIA_AFFILIATE_ID);
+  } else {
+    url.searchParams.set("ref", "zyniverse");
+  }
   if (params) {
     for (const [key, value] of Object.entries(params)) {
       url.searchParams.set(key, value);

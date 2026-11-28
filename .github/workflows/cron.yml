@@ -1,13 +1,11 @@
 name: ZyniVerse crons
 
-# Vercel Hobby allows only 2 cron jobs, each running at most once per day, so
-# most of the schedules this app needs cannot live in vercel.json (a Hobby
-# deploy with more than 2 crons fails config validation outright). The dub
-# sync is the exception: it is configured as the single daily Vercel cron in
-# vercel.json at `30 20 * * *`, which matches the dub-sync entry below. The
-# GitHub entry is kept as a harmless backup — this workflow may still be
-# unpushed / suspended, and the Vercel cron does not depend on it. Both callers
-# are idempotent (upserts + per-stage cursors).
+# Vercel Hobby allows cron jobs only once per day, so frequent polling cannot
+# live in vercel.json (a sub-daily expression fails config validation at
+# deploy). vercel.json keeps the single daily full dub-sync at `30 20 * * *`.
+# This workflow mirrors that daily run as a backup and adds a cheap 2-hourly
+# schedule-only refresh via /api/cron/dub-schedule — no catalogue crawling, so
+# frequent checks stay light. Both callers are idempotent (upserts, no deletes).
 #
 # The /api/cron/* routes authenticate with `Authorization: Bearer $CRON_SECRET`
 # (Vercel's native header); the dub route also accepts the older `?secret=` and
@@ -38,7 +36,11 @@ on:
     - cron: "0 2 1 * *" # refresh-awards (1st, 02:00)
     - cron: "0 4 1 * *" # refresh-posters (1st, 04:00)
     - cron: "0 6 1 * *" # analytics (1st, 06:00)
-    - cron: "30 20 * * *" # dub-sync (daily, 02:00 IST) — mirrors the Vercel cron
+    - cron: "30 20 * * *" # dub-sync (daily full, 02:00 IST) — mirrors the Vercel cron
+    - cron: "0 */2 * * *" # dub-schedule (2-hourly, schedule-only; no catalogue crawl)
+    - cron: "0 10 * * *" # theatrical-refresh (daily Wikipedia box-office sync + republish)
+    - cron: "0 11 * * *" # events-refresh (daily official-schema/venue check + republish)
+    - cron: "0 12 * * *" # conventions-refresh (daily official/ticket-source field sync)
   workflow_dispatch:
     inputs:
       endpoint:
@@ -97,6 +99,10 @@ jobs:
             "0 4 1 * *") LIST="refresh-posters" ;;
             "0 6 1 * *") LIST="analytics" ;;
             "30 20 * * *") LIST="dub-sync" ;;
+            "0 */2 * * *") LIST="dub-schedule" ;;
+            "0 10 * * *") LIST="theatrical-refresh" ;;
+            "0 11 * * *") LIST="events-refresh" ;;
+            "0 12 * * *") LIST="conventions-refresh" ;;
             "")           LIST="__manual__" ;;
             *)            LIST="" ;;
           esac
@@ -117,6 +123,9 @@ jobs:
               06) [ "$DOM" = "01" ] && LIST="analytics" ;;
               08) [ "$DOW" = "1" ]  && LIST="indexnow" ;;
               09) LIST="character-tournaments" ;;
+              10) LIST="theatrical-refresh" ;;
+              11) LIST="events-refresh" ;;
+              12) LIST="conventions-refresh" ;;
               20) LIST="dub-sync" ;;
               *)  LIST="" ;;
             esac

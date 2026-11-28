@@ -12,15 +12,23 @@ import {
   Easing,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useTheme } from '../hooks/useTheme';
 import { api } from '../services/api';
+import { listLocalRecords } from '../services/localRepo';
 import { VibeResponse, VibeTitle } from '../types';
 import ScreenHeader from '../components/ScreenHeader';
 import PressableScale from '../components/PressableScale';
 import FadeInView from '../components/FadeInView';
 import { spacing, borderRadius } from '../theme';
 import { formatCount } from '../utils/helpers';
+
+interface LocalVibe {
+  tracked: number;
+  clubs: number;
+  hotTakes: number;
+  chats: number;
+}
 
 function PulseStat({ label, value, color }: { label: string; value: string; color: string }) {
   const { colors } = useTheme();
@@ -90,6 +98,32 @@ export default function VibeScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [localVibe, setLocalVibe] = useState<LocalVibe | null>(null);
+
+  const loadLocal = useCallback(async () => {
+    try {
+      const [tracker, clubs, hotTakes, chats] = await Promise.all([
+        listLocalRecords('tracker:entries'),
+        listLocalRecords('community:clubs'),
+        listLocalRecords('feed:hot-takes'),
+        listLocalRecords('chat:conversations'),
+      ]);
+      setLocalVibe({
+        tracked: tracker.length,
+        clubs: clubs.length,
+        hotTakes: hotTakes.length,
+        chats: chats.length,
+      });
+    } catch {
+      setLocalVibe(null);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadLocal();
+    }, [loadLocal])
+  );
 
   const load = useCallback(async (isRefresh = false) => {
     try {
@@ -165,6 +199,27 @@ export default function VibeScreen() {
                   A privacy-first roll-up of the last {data.windowDays} days. Only counts — never names,
                   never anyone's list.
                 </Text>
+              </View>
+            </FadeInView>
+
+            {/* Local summary */}
+            <FadeInView delay={45}>
+              <View style={[styles.localCard, { backgroundColor: colors.surface, borderColor: `${tint}33` }]}>
+                <Text style={[styles.localTitle, { color: tint }]}>🔥 Your vibe</Text>
+                <Text style={[styles.localBody, { color: colors.textMuted }]}>
+                  {localVibe && (localVibe.tracked || localVibe.clubs || localVibe.hotTakes || localVibe.chats)
+                    ? `${localVibe.tracked} tracked titles · ${localVibe.clubs} communities · ${localVibe.hotTakes} hot takes · ${localVibe.chats} chats`
+                    : 'Start your local vibe by tracking a title, joining a community or sharing a hot take.'}
+                </Text>
+                <Text style={[styles.localNote, { color: colors.textDim }]}>Saved on this device</Text>
+                <View style={styles.localActions}>
+                  <TouchableOpacity onPress={() => navigation.navigate('Tracker')}>
+                    <Text style={[styles.localLink, { color: tint }]}>Open tracker →</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => navigation.navigate('CommunityHub')}>
+                    <Text style={[styles.localLink, { color: tint }]}>Communities →</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </FadeInView>
 
@@ -291,6 +346,12 @@ const styles = StyleSheet.create({
   heroEyebrow: { fontSize: 8.5, fontWeight: '900', letterSpacing: 1.4 },
   heroTitle: { fontSize: 17, fontWeight: '900', lineHeight: 22, marginTop: 5 },
   heroSub: { fontSize: 11.5, lineHeight: 17, marginTop: 6 },
+  localCard: { marginHorizontal: spacing.md, marginTop: spacing.sm, borderWidth: 1, borderRadius: borderRadius.md, padding: spacing.sm },
+  localTitle: { fontSize: 12, fontWeight: '900' },
+  localBody: { fontSize: 11, lineHeight: 16, marginTop: 4 },
+  localNote: { fontSize: 9, marginTop: 5 },
+  localActions: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.sm },
+  localLink: { fontSize: 10, fontWeight: '900' },
   statRow: { flexDirection: 'row', gap: 7, paddingHorizontal: spacing.md, marginTop: spacing.md },
   stat: { flex: 1, borderWidth: 1, borderRadius: borderRadius.md, paddingVertical: 9, paddingHorizontal: 8 },
   statValue: { fontSize: 16, fontWeight: '900' },

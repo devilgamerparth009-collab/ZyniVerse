@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 
 interface MangaStats {
   mangadex: {
@@ -17,89 +17,130 @@ interface MangaStats {
 
 interface Props {
   mediaId: number;
+  malId?: number | null;
+  dexId?: string | null;
+  title?: string;
 }
 
-export default function MangaStatsCard({ mediaId }: Props) {
+function formatCount(value?: number | null) {
+  return value && value > 0 ? value.toLocaleString("en-US") : "—";
+}
+
+export default function MangaStatsCard({ mediaId, malId, dexId, title }: Props) {
   const [data, setData] = useState<MangaStats | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`/api/manga/${mediaId}/chapter-ratings`)
+    const params = new URLSearchParams();
+    if (dexId) params.set("dexId", dexId);
+    if (malId) params.set("malId", String(malId));
+    if (title) params.set("title", title);
+    const query = params.toString();
+
+    fetch(`/api/manga/${mediaId}/chapter-ratings${query ? `?${query}` : ""}`)
       .then((r) => {
         if (!r.ok) throw new Error("Failed");
         return r.json();
       })
-      .then((d) => { setData(d); setLoading(false); })
-      .catch(() => { setLoading(false); });
-  }, [mediaId]);
+      .then((d: MangaStats) => {
+        setData(d);
+        setLoading(false);
+      })
+      .catch(() => {
+        setData(null);
+        setLoading(false);
+      });
+  }, [mediaId, malId, dexId, title]);
 
   if (loading) {
     return (
-      <div className="rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5">
-        <div className="animate-pulse space-y-3">
-          <div className="h-4 bg-[var(--color-line)] rounded w-1/2" />
+      <div className="mdt-card mdt-stats-card">
+        <div className="mdt-skeleton animate-pulse space-y-3">
+          <div className="h-4 w-1/2 rounded bg-[var(--color-line)]" />
           <div className="space-y-2">
-            <div className="h-3 bg-[var(--color-line)] rounded w-3/4" />
-            <div className="h-3 bg-[var(--color-line)] rounded w-1/2" />
+            <div className="h-3 w-3/4 rounded bg-[var(--color-line)]" />
+            <div className="h-3 w-1/2 rounded bg-[var(--color-line)]" />
           </div>
         </div>
       </div>
     );
   }
 
-  if (!data) return null;
-
-  const hasMangadex = data.mangadex && data.mangadex.average > 0;
-  const hasPublisher = data.mal && (data.mal.magazine || data.mal.publisher);
-
-  if (!hasMangadex && !hasPublisher) return null;
+  const mangadex = data?.mangadex;
+  const mal = data?.mal;
+  const hasMangadex = Boolean(mangadex && mangadex.average > 0);
+  const hasMal = Boolean(mal && (mal.magazine || mal.publisher || mal.serialization));
+  const dexPct = hasMangadex
+    ? Math.max(0, Math.min(100, (mangadex!.average / 10) * 100))
+    : 0;
+  const gaugeStyle = { "--mdt-ring": `${dexPct}%` } as CSSProperties;
+  const dexHref = dexId
+    ? `https://mangadex.org/title/${dexId}`
+    : "https://mangadex.org";
+  const malHref = malId ? `https://myanimelist.net/manga/${malId}` : "https://myanimelist.net";
 
   return (
-    <div className="rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5">
-      <h3 className="font-display text-sm font-bold mb-3 flex items-center gap-2">
-        <span className="h-3 w-1 rounded-full bg-[var(--color-cyan)]" />
-        Manga Details
-      </h3>
+    <div className="mdt-card mdt-stats-card">
+      <div className="mdt-card-head">
+        <h3 className="font-display text-sm font-bold">Community Data</h3>
+        <span className="mdt-card-badge">public sources</span>
+      </div>
 
-      {/* MangaDex Rating */}
-      {hasMangadex && (
-        <div className="mb-3">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[10px] text-[var(--color-mute)] uppercase tracking-wider">MangaDex Rating</span>
-            <span className="font-mono text-sm font-bold text-[var(--color-cyan)]">
-              {data.mangadex!.average.toFixed(2)} <span className="text-[10px] text-[var(--color-mute)]">/ 5</span>
+      {hasMangadex ? (
+        <div className="mdt-community-rating">
+          <div className="mdt-community-top">
+            <span>MangaDex rating</span>
+            <span className="mdt-community-source">rating</span>
+          </div>
+          <div
+            className="mdt-community-gauge"
+            style={gaugeStyle}
+            role="img"
+            aria-label={`MangaDex rating ${mangadex!.average.toFixed(2)} out of 10`}
+          >
+            <span className="mdt-community-gauge-inner">
+              <strong>{mangadex!.average.toFixed(2)}</strong>
+              <small>/ 10</small>
             </span>
           </div>
-          <div className="flex items-center gap-3 text-[10px] text-[var(--color-mute)]">
-            <span>Bayesian: {data.mangadex!.bayesian.toFixed(2)}</span>
-            <span>·</span>
-            <span>{data.mangadex!.follows.toLocaleString()} follows</span>
+          <div className="mdt-community-track" aria-hidden>
+            <span style={{ width: `${dexPct}%` }} />
+          </div>
+          <div className="mdt-community-meta">
+            <span>Bayesian {mangadex!.bayesian.toFixed(2)}</span>
+            <span>{formatCount(mangadex!.follows)} follows</span>
           </div>
         </div>
-      )}
+      ) : null}
 
-      {/* Publisher/Magazine Info */}
-      {hasPublisher && (
-        <div className="space-y-1.5 border-t border-[var(--color-line)] pt-3">
-          {data.mal!.magazine && (
-            <div className="flex justify-between text-xs">
-              <span className="text-[var(--color-mute)]">Magazine</span>
-              <span className="text-right">{data.mal!.magazine}</span>
-            </div>
-          )}
-          {data.mal!.publisher && (
-            <div className="flex justify-between text-xs">
-              <span className="text-[var(--color-mute)]">Publisher</span>
-              <span className="text-right">{data.mal!.publisher}</span>
-            </div>
-          )}
+      {hasMal ? (
+        <div className="mdt-community-rows">
+          {mal!.magazine ? (
+            <div className="mdt-community-row"><span>Magazine</span><strong>{mal!.magazine}</strong></div>
+          ) : null}
+          {mal!.publisher ? (
+            <div className="mdt-community-row"><span>Publisher</span><strong>{mal!.publisher}</strong></div>
+          ) : null}
+          {mal!.serialization && mal!.serialization !== mal!.publisher ? (
+            <div className="mdt-community-row"><span>Serialization</span><strong>{mal!.serialization}</strong></div>
+          ) : null}
         </div>
-      )}
+      ) : null}
 
-      <p className="mt-3 text-[9px] text-[var(--color-mute)] text-center">
-        Data from <a href="https://mangadex.org" target="_blank" rel="noopener noreferrer" className="underline hover:text-[var(--color-cyan)]">MangaDex</a>
-        {hasPublisher && <> & <a href="https://myanimelist.net" target="_blank" rel="noopener noreferrer" className="underline hover:text-[var(--color-cyan)]">MAL</a></>}
-      </p>
+      {!hasMangadex && !hasMal ? (
+        <p className="mdt-community-empty">
+          Community stats are unavailable right now. Source links stay live.
+        </p>
+      ) : null}
+
+      <div className="mdt-community-links">
+        <a href={dexHref} target="_blank" rel="noopener noreferrer" className="mdt-community-link">
+          MangaDex <span aria-hidden>↗</span>
+        </a>
+        <a href={malHref} target="_blank" rel="noopener noreferrer" className="mdt-community-link">
+          MyAnimeList <span aria-hidden>↗</span>
+        </a>
+      </div>
     </div>
   );
 }

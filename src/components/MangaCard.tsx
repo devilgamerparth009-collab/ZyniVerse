@@ -26,13 +26,15 @@ interface Props {
   showProgress?: boolean;
   href?: string;
   index?: number;
+  /** Opt-in calm treatment for browse grids that use their own stagger reveal. */
+  subtle?: boolean;
 }
 
 function isEntry(manga: Media | MangaEntryCard): manga is MangaEntryCard {
   return "mediaId" in manga;
 }
 
-export default function MangaCard({ manga, entry, showProgress = true, href, index = 0 }: Props) {
+export default function MangaCard({ manga, entry, showProgress = true, href, index = 0, subtle = false }: Props) {
   const title = isEntry(manga) ? manga.title : bestTitle(manga.title);
   const cover = isEntry(manga)
     ? (manga.coverImage || "")
@@ -70,20 +72,26 @@ export default function MangaCard({ manga, entry, showProgress = true, href, ind
     el.style.transform = "perspective(800px) rotateY(0deg) rotateX(0deg) scale(1)";
   }, []);
 
+  const still = subtle || reduce;
+
   return (
     <motion.div
       ref={ref}
-      initial={reduce ? false : { opacity: 0, y: 24 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: reduce ? 0 : 0.45, delay: reduce ? 0 : Math.min(index, 12) * 0.06, ease: [0.22, 1, 0.36, 1] }}
-      onPointerMove={handlePointerMove}
-      onPointerLeave={handlePointerLeave}
+      initial={still ? false : { opacity: 0, y: 24 }}
+      animate={still ? undefined : { opacity: 1, y: 0 }}
+      transition={still ? undefined : { duration: 0.45, delay: Math.min(index, 12) * 0.06, ease: [0.22, 1, 0.36, 1] }}
+      onPointerMove={subtle ? undefined : handlePointerMove}
+      onPointerLeave={subtle ? undefined : handlePointerLeave}
       className="group h-full"
-      style={{ transition: "transform 0.2s ease-out" }}
+      style={subtle ? undefined : { transition: "transform 0.2s ease-out" }}
     >
       <Link
         href={linkHref}
-        className="neon-rgb-border relative block h-full rounded-xl bg-[var(--color-panel)]/60 backdrop-blur-sm overflow-hidden transition-all duration-300 hover:shadow-[0_0_30px_-8px_var(--color-violet)]"
+        className={`relative block h-full overflow-hidden rounded-xl bg-[var(--color-panel)]/60 backdrop-blur-sm transition-all duration-300 ${
+          subtle
+            ? "lnv-card border border-[var(--color-line)]"
+            : "neon-rgb-border hover:shadow-[0_0_30px_-8px_var(--color-violet)]"
+        }`}
       >
         <div className="relative aspect-[2/3] overflow-hidden">
           {cover ? (
@@ -99,11 +107,13 @@ export default function MangaCard({ manga, entry, showProgress = true, href, ind
               📖
             </div>
           )}
-          <span
-            aria-hidden
-            className="pointer-events-none absolute inset-0 z-10 -translate-x-full bg-gradient-to-r from-transparent via-white/15 to-transparent transition-transform duration-700 ease-out group-hover:translate-x-full"
-          />
-          <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/60 to-transparent" />
+          {!subtle && (
+            <span
+              aria-hidden
+              className="pointer-events-none absolute inset-0 z-10 -translate-x-full bg-gradient-to-r from-transparent via-white/15 to-transparent transition-transform duration-700 ease-out group-hover:translate-x-full"
+            />
+          )}
+          <div className={`absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t ${subtle ? "from-black/45" : "from-black/60"} to-transparent`} />
           {score ? (
             <span className="absolute right-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-mono font-semibold text-white">
               ★ {(score / 10).toFixed(1)}

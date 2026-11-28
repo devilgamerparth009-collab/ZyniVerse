@@ -159,6 +159,140 @@ export function safeWebUrl(value?: string | null, fallback = '/'): string {
   return `${SAFE_WEB_ORIGIN}${internalPath(value, fallback)}`;
 }
 
+type NativeNav =
+  | { name: string; params?: any; tab?: false }
+  | { name: string; params?: any; tab: true };
+
+function nativeRouteForPath(path: string): NativeNav | null {
+  let pathname = (path || '/').split('#')[0].split('?')[0];
+  let params = new URLSearchParams();
+  try {
+    const parsed = new URL(path || '/', SAFE_WEB_ORIGIN);
+    pathname = parsed.pathname;
+    params = parsed.searchParams;
+  } catch {
+    // Relative paths still work with the stripped value above.
+  }
+  const clean = (pathname.replace(/\/+$/, '') || '/').toLowerCase();
+  const m = (re: RegExp) => clean.match(re);
+  const query = params.get('q') || params.get('search') || params.get('query') || undefined;
+  const discover = (mode: string, extra: Record<string, any> = {}): NativeNav => ({
+    name: 'Discover',
+    params: { mode, query, ...extra },
+  });
+
+  let r: RegExpMatchArray | null;
+  if ((r = m(/^\/anime\/(\d+)/i))) return { name: 'AnimeDetail', params: { id: Number(r[1]) } };
+  if ((r = m(/^\/forum\/(?:thread|threads)\/([A-Za-z0-9_-]+)/i))) return { name: 'ThreadDetail', params: { id: r[1] } };
+  if ((r = m(/^\/character-tournaments\/([A-Za-z0-9_-]+)/i))) return { name: 'TournamentDetail', params: { id: r[1], title: 'Tournament' } };
+  if ((r = m(/^\/channels\/([A-Za-z0-9_-]+)/i))) return { name: 'ChannelDetail', params: { slug: r[1] } };
+  if ((r = m(/^\/(?:user|profile|u)\/([A-Za-z0-9_.-]+)/i))) return { name: 'UserProfile', params: { username: r[1] } };
+
+  // Account/API-token tabs contain sensitive account actions: leave them server-side.
+  if (clean === '/profile' && params.get('tab') === 'api') return null;
+
+  if (/^\/(tournaments?|arena)\/?$/i.test(clean)) return { name: 'Tournaments', tab: true };
+  if (/^\/channels\/?$/i.test(clean)) return { name: 'Channels', tab: true };
+  if (/^\/forum\/?$/i.test(clean)) return { name: 'Forum', tab: true };
+  if (/^\/reels\/?$/i.test(clean)) return { name: 'Reels' };
+  if (/^\/feed\/?$/i.test(clean)) return { name: 'Feed' };
+  if (/^\/schedule\/?$/i.test(clean)) return { name: 'Schedule', tab: true };
+  if (/^\/dubbed|^\/dub-schedule|^\/hindi-dub|^\/indian-dubs/i.test(clean)) return { name: 'HindiDub' };
+  if (/^\/notifications\/?$/i.test(clean)) return { name: 'Notifications' };
+  if (/^\/polls\/?$/i.test(clean)) return { name: 'Polls' };
+  if (/^\/news\/?$/i.test(clean)) return { name: 'News' };
+  if (/^\/settings\/?$/i.test(clean)) return { name: 'Settings' };
+  if (/^\/profile\/?$/i.test(clean)) return { name: 'Profile', tab: true };
+  if (/^\/all-features\/?$/i.test(clean)) return { name: 'AllFeatures' };
+
+  const DISCOVER_PATHS: Array<[RegExp, string]> = [
+    [/^\/a-z$/, 'a-z'],
+    [/^\/genres$/, 'genres'],
+    [/^\/tags$/, 'tags'],
+    [/^\/search\/semantic$/, 'semantic'],
+    [/^\/search$/, 'semantic'],
+    [/^\/compare-anime$/, 'compare'],
+    [/^\/watch-order$/, 'watch-order'],
+    [/^\/wiki$/, 'wiki'],
+    [/^\/characters$/, 'characters'],
+    [/^\/popular-characters$/, 'characters'],
+    [/^\/my-characters$/, 'saved'],
+    [/^\/staff$/, 'staff'],
+    [/^\/studios$/, 'studios'],
+    [/^\/voice-actors(?:\/.*)?$/, 'voice-actors'],
+    [/^\/watch$/, 'guides'],
+    [/^\/guides$/, 'guides'],
+    [/^\/critiques$/, 'critiques'],
+    [/^\/theories$/, 'theories'],
+    [/^\/filler$/, 'filler-time'],
+    [/^\/anime-birthdays$/, 'calendar'],
+    [/^\/anime-night$/, 'random'],
+    [/^\/theatrical-releases$/, 'calendar'],
+    [/^\/manga-releases$/, 'manga-releases'],
+    [/^\/manga-list$/, 'lists'],
+    [/^\/manga-million$/, 'challenges'],
+    [/^\/manga(?:\/.*)?$/, 'manga'],
+    [/^\/light-novels$/, 'light-novels'],
+    [/^\/toons$/, 'toons'],
+    [/^\/doujinshi$/, 'doujinshi'],
+    [/^\/figures$/, 'figures'],
+    [/^\/live-action$/, 'live-action'],
+    [/^\/voice-lines$/, 'voice-lines'],
+    [/^\/podcast$/, 'blog'],
+    [/^\/lists$/, 'lists'],
+    [/^\/shared-watchlists$/, 'shared-watchlists'],
+    [/^\/seasonal-tracker$/, 'seasonal-tracker'],
+    [/^\/stats\/timeline$/, 'timeline'],
+    [/^\/stats\/wrapped$/, 'wrapped'],
+    [/^\/stats$/, 'stats'],
+    [/^\/graph$/, 'graph'],
+    [/^\/activity$/, 'activity'],
+    [/^\/backlog$/, 'backlog'],
+    [/^\/saved$/, 'saved'],
+    [/^\/tierlist$/, 'tierlist'],
+    [/^\/tools\/binge-calculator$/, 'binge-calculator'],
+    [/^\/tools\/filler-time$/, 'filler-time'],
+    [/^\/tools\/watch-stats$/, 'watch-stats'],
+    [/^\/tools$/, 'tools'],
+    [/^\/calendar$/, 'calendar'],
+    [/^\/random$/, 'random'],
+    [/^\/events$/, 'events'],
+    [/^\/conventions$/, 'conventions'],
+    [/^\/awards$/, 'awards'],
+    [/^\/challenges$/, 'challenges'],
+    [/^\/contests$/, 'contests'],
+    [/^\/ai$/, 'semantic'],
+    [/^\/earn$/, 'rewards'],
+    [/^\/premium$/, 'premium'],
+    [/^\/merch$/, 'merch'],
+    [/^\/my-orders$/, 'orders'],
+    [/^\/commissions$/, 'commissions'],
+    [/^\/clubs$/, 'clubs'],
+    [/^\/blog$/, 'blog'],
+    [/^\/moments$/, 'posts'],
+  ];
+  for (const [pattern, mode] of DISCOVER_PATHS) {
+    if (pattern.test(clean)) return discover(mode);
+  }
+  return null;
+}
+
+function navigateNative(path: string): boolean {
+  if (!navigationRef.isReady()) return false;
+  const route = nativeRouteForPath(path);
+  if (!route) return false;
+  try {
+    if (route.tab) {
+      navigationRef.navigate('MainTabs', { screen: route.name, params: route.params } as any);
+    } else {
+      navigationRef.navigate(route.name as any, route.params as any);
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** Open a ZyniVerse page in-app, or a trusted official platform URL externally. */
 export function openSafeWebUrl(value?: string | null, fallback = '/'): void {
   const trusted = trustedExternalUrl(value);
@@ -167,6 +301,7 @@ export function openSafeWebUrl(value?: string | null, fallback = '/'): void {
     return;
   }
   const path = internalPath(value, fallback);
+  if (navigateNative(path)) return;
   if (navigationRef.isReady()) {
     try {
       navigationRef.navigate('Web', { path });

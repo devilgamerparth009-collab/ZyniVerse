@@ -306,7 +306,7 @@ export default function AnimeDetailScreen() {
       const opened = await openTrustedExternalUrl(`https://www.youtube.com/watch?v=${trailerId}`);
       if (opened) return;
     }
-    Alert.alert('Trailer', 'Trailer ka direct link abhi available nahi hai.');
+    Alert.alert('Trailer', 'An official trailer link is not available yet.');
   };
 
   const description = useMemo(() => cleanDescription(anime?.description), [anime?.description]);
@@ -627,7 +627,7 @@ export default function AnimeDetailScreen() {
                     if (trusted) {
                       openTrustedExternalUrl(trusted).catch(() => {});
                     } else {
-                      Alert.alert('Watch link', 'Is platform ka direct official link abhi available nahi hai.');
+                      Alert.alert('Watch link', 'An official watch link is not available for this platform yet.');
                     }
                   }}
                 >

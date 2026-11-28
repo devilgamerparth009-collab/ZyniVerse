@@ -162,7 +162,7 @@ export default function LiveDubsScreen() {
   const openEntry = async (entry: LiveDubEntry) => {
     const opened = await openTrustedExternalUrl(entry.url);
     if (opened) return;
-    Alert.alert('Watch link', 'Is episode ka direct official link abhi available nahi hai.');
+    Alert.alert('Watch link', 'An official watch link is not available for this episode yet.');
   };
 
   return (

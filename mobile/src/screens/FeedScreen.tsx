@@ -8,6 +8,7 @@ import {
   Image,
   RefreshControl,
   ActivityIndicator,
+  TextInput,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -17,6 +18,11 @@ import { spacing, fontSize, borderRadius } from '../theme';
 import { api } from '../services/api';
 import { absoluteAvatarUrl, cleanText, timeAgo } from '../utils/helpers';
 import { openSafeWebUrl } from '../utils/safeLinks';
+import { SocialAvatar, UserName } from '../components/social/SocialBits';
+import { listLocalRecords, putLocalRecord } from '../services/localRepo';
+
+const HOT_TAKE_COPY =
+  "Got a hot take? Drop it. Share thoughts, theories, and opinions with fans who'll agree — or disagree.";
 
 interface FeedItem {
   id: string;
@@ -29,6 +35,7 @@ interface FeedItem {
   createdAt?: string;
   likes?: number;
   views?: number;
+  local?: boolean;
 }
 
 type Mode = 'foryou' | 'following';
@@ -43,12 +50,24 @@ export default function FeedScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [draft, setDraft] = useState('');
+  const [posting, setPosting] = useState(false);
 
   const load = useCallback(async (nextMode: Mode = mode) => {
     try {
       setError(null);
-      const data = await api.feed.get(nextMode, 24);
-      setItems(data?.items || []);
+      const [localRecords, data] = await Promise.all([
+        listLocalRecords<FeedItem>('feed:hot-takes'),
+        api.feed.get(nextMode, 24),
+      ]);
+      const localItems: FeedItem[] = localRecords.map((record) => ({
+        ...record.data,
+        id: record.id,
+        type: 'hot_take',
+        local: true,
+        createdAt: record.data.createdAt || new Date(record.updatedAt).toISOString(),
+      }));
+      setItems([...localItems, ...(data?.items || [])]);
     } catch (e: any) {
       setError(e?.message || 'Could not load your feed');
     } finally {
@@ -75,7 +94,31 @@ export default function FeedScreen() {
     load(mode);
   };
 
+  const postHotTake = useCallback(async () => {
+    const body = draft.trim();
+    if (!body || posting) return;
+    setPosting(true);
+    try {
+      await putLocalRecord<FeedItem>('feed:hot-takes', {
+        id: `hot-${Date.now()}`,
+        type: 'hot_take',
+        body,
+        author: null,
+        createdAt: new Date().toISOString(),
+        likes: 0,
+        views: 0,
+      });
+      setDraft('');
+      await load(mode);
+    } catch (e: any) {
+      setError(e?.message || 'Could not save your hot take');
+    } finally {
+      setPosting(false);
+    }
+  }, [draft, posting, load, mode]);
+
   const openItem = (item: FeedItem) => {
+    if (item.local) return;
     if (item.author?.username) {
       navigation.navigate('UserProfile', { username: item.author.username });
       return;
@@ -89,6 +132,7 @@ export default function FeedScreen() {
 
   const renderItem = ({ item }: { item: FeedItem }) => {
     const author = item.author;
+    const authorName = item.local ? 'You' : author?.username || 'ZyniVerse';
     return (
       <TouchableOpacity
         style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
@@ -96,22 +140,13 @@ export default function FeedScreen() {
         activeOpacity={0.85}
       >
         <View style={styles.authorRow}>
-          {author?.avatar ? (
-            <Image source={{ uri: absoluteAvatarUrl(author.avatar) }} style={styles.avatar} />
-          ) : (
-            <View style={[styles.avatar, styles.avatarFallback, { backgroundColor: `${colors.primary}22` }]}>
-              <Text style={{ color: colors.primary, fontWeight: '900' }}>
-                {(author?.username || 'Z').charAt(0).toUpperCase()}
-              </Text>
-            </View>
-          )}
+          <SocialAvatar uri={item.local ? undefined : author?.avatar} name={authorName} size={36} />
           <View style={{ flex: 1 }}>
-            <Text style={[styles.author, { color: colors.text }]} numberOfLines={1}>
-              {author?.username || 'ZyniVerse'}
-            </Text>
+            <UserName name={authorName} style={[styles.author, { color: colors.text }]} />
             <Text style={[styles.time, { color: colors.textDim }]}>
               {item.type?.replace(/_/g, ' ')}
               {item.createdAt ? ` · ${timeAgo(item.createdAt)}` : ''}
+              {item.local ? ' · Saved on this device' : ''}
             </Text>
           </View>
         </View>
@@ -142,6 +177,29 @@ export default function FeedScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ScreenHeader title="Social Feed" emoji="📰" subtitle="What the community is posting" />
+
+      <View style={[styles.composer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <Text style={[styles.hotTakeCopy, { color: colors.text }]}>{HOT_TAKE_COPY}</Text>
+        <TextInput
+          value={draft}
+          onChangeText={setDraft}
+          placeholder="Drop your hot take…"
+          placeholderTextColor={colors.textDim}
+          style={[styles.composerInput, { color: colors.text }]}
+          multiline
+          maxLength={500}
+        />
+        <View style={styles.composerFooter}>
+          <Text style={[styles.localNote, { color: colors.textDim }]}>Saved on this device</Text>
+          <TouchableOpacity
+            onPress={() => void postHotTake()}
+            disabled={!draft.trim() || posting}
+            style={[styles.postBtn, { backgroundColor: draft.trim() ? colors.primary : colors.surfaceLight }]}
+          >
+            <Text style={styles.postBtnText}>{posting ? 'Saving…' : 'Post'}</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
 
       <View style={styles.tabs}>
         {([
@@ -182,7 +240,7 @@ export default function FeedScreen() {
               <Text style={styles.emptyEmoji}>📰</Text>
               <Text style={[styles.empty, { color: colors.text }]}>Nothing here yet</Text>
               <Text style={[styles.emptySub, { color: colors.textMuted }]}>
-                Post reviews, memes and fan art on zyverse.in and they show up here.
+                Write the first hot take above. Your posts stay saved on this device.
               </Text>
             </View>
           }
@@ -197,6 +255,29 @@ export default function FeedScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  composer: {
+    marginHorizontal: spacing.md,
+    marginTop: spacing.sm,
+    borderWidth: 1,
+    borderRadius: borderRadius.lg,
+    padding: spacing.sm,
+  },
+  hotTakeCopy: { fontSize: fontSize.xs, lineHeight: 17, fontWeight: '700' },
+  composerInput: {
+    minHeight: 48,
+    maxHeight: 110,
+    marginTop: spacing.sm,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: borderRadius.sm,
+    backgroundColor: '#00000022',
+    fontSize: fontSize.sm,
+    textAlignVertical: 'top',
+  },
+  composerFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 },
+  localNote: { fontSize: 10 },
+  postBtn: { paddingHorizontal: 18, paddingVertical: 8, borderRadius: borderRadius.full },
+  postBtnText: { color: '#08090f', fontSize: 11, fontWeight: '900' },
   tabs: { flexDirection: 'row', gap: 8, paddingHorizontal: spacing.md, marginTop: spacing.sm },
   tab: { flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: borderRadius.full, borderWidth: 1 },
   tabText: { fontSize: 11, fontWeight: '800' },

@@ -6,7 +6,7 @@ import {
   StyleSheet,
   RefreshControl,
 } from 'react-native';
-import { useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { colors, themed, spacing, fontSize, borderRadius } from '../theme';
 import { useTheme } from '../hooks/useTheme';
 import { getEpisodeTypeColor } from '../utils/helpers';
@@ -27,6 +27,7 @@ type GuideState =
 
 export default function FillerGuideScreen() {
   const route = useRoute<any>();
+  const navigation = useNavigation<any>();
   const { id, title: animeTitle, image, malId: routeMalId, aliases: routeAliases } = route.params || {};
   const { colors, isLaunch } = useTheme();
   const primaryAccent = isLaunch ? '#22d3ee' : colors.primary;
@@ -50,7 +51,8 @@ export default function FillerGuideScreen() {
   const fetchData = useCallback(async () => {
     setState({ kind: 'loading' });
     try {
-      if (!Number.isFinite(fillerId) || fillerId <= 0) {
+      const validAnilistId = Number.isFinite(fillerId) && fillerId > 0 ? fillerId : undefined;
+      if (!validAnilistId && !validMalId && !hasTitle) {
         setState({
           kind: 'error',
           message: 'This title could not be looked up. Please open it again from its detail page.',
@@ -58,7 +60,7 @@ export default function FillerGuideScreen() {
         return;
       }
       const result = await api.filler.get({
-        anilistId: fillerId,
+        anilistId: validAnilistId,
         malId: validMalId,
         title: hasTitle ? displayTitle : undefined,
         aliases,
@@ -243,6 +245,12 @@ export default function FillerGuideScreen() {
           <PressableScale onPress={fetchData} style={[styles.retryBtn, { backgroundColor: primaryAccent }]}>
             <Text style={[styles.retryText, { color: '#0a0a0f' }]}>Check again</Text>
           </PressableScale>
+          <PressableScale
+            onPress={() => navigation.navigate('FillerLibrary')}
+            style={[styles.secondaryBtn, { backgroundColor: colors.surfaceLight, borderColor: colors.border }]}
+          >
+            <Text style={[styles.retryText, { color: colors.text }]}>Browse all filler lists</Text>
+          </PressableScale>
         </View>
       ) : (
         renderGuide(state.data, state.kind === 'no-fillers')
@@ -333,6 +341,13 @@ const styles = themed(() => ({
   retryText: {
     fontSize: fontSize.sm,
     fontWeight: '800',
+  },
+  secondaryBtn: {
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm + 2,
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
   },
   noticeCard: {
     borderWidth: 1,

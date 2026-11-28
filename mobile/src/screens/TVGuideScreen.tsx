@@ -5,12 +5,12 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Image,
   RefreshControl,
   Animated,
   Modal,
   TextInput,
   Dimensions,
+  Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -22,7 +22,9 @@ import PressableScale from '../components/PressableScale';
 import FadeInView from '../components/FadeInView';
 import AdBanner from '../components/AdBanner';
 import { spacing, borderRadius } from '../theme';
-import { webAbsoluteUrl } from '../utils/helpers';
+import ImageWithFallback from '../components/ImageWithFallback';
+import { imageCandidates } from '../lib/avatar-src';
+import { localChannelLogo } from '../utils/channelLogos';
 
 const TV_DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
@@ -204,10 +206,14 @@ function ChannelBadge({
   size?: number;
   rounded?: number;
 }) {
-  const [imgError, setImgError] = React.useState(false);
   const ch = channel || {};
-  const logoSrc = webAbsoluteUrl(ch.logoProxyUrl || ch.logoUrl);
-  const showImg = !!logoSrc && !imgError;
+  const bundledLogo = localChannelLogo(ch.id);
+  const candidates = React.useMemo(
+    () => imageCandidates(ch.logoUrl),
+    [ch.logoUrl, ch.id]
+  );
+  const [failed, setFailed] = React.useState(false);
+  React.useEffect(() => { setFailed(false); }, [ch.id, ch.logoProxyUrl, ch.logoUrl]);
   const brandColor = ch.color || '#3b82f6';
   const label = ch.shortName || ch.name || 'TV';
   const plate = ch.logoPlate === 'dark' ? '#0b0b14' : '#f6f7fb';
@@ -233,12 +239,18 @@ function ChannelBadge({
         elevation: 5,
       }}
     >
-      {showImg ? (
+      {bundledLogo ? (
         <Image
-          source={{ uri: logoSrc }}
+          source={bundledLogo}
           style={{ width: '100%', height: '100%' }}
           resizeMode="contain"
-          onError={() => setImgError(true)}
+        />
+      ) : candidates.length > 0 && !failed ? (
+        <ImageWithFallback
+          sources={candidates}
+          style={{ width: '100%', height: '100%' }}
+          resizeMode="contain"
+          onGiveUp={() => setFailed(true)}
         />
       ) : (
         <View style={{ alignItems: 'center', justifyContent: 'center' }}>

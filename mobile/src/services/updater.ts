@@ -9,17 +9,23 @@ import { base64ToBytes, createSha256, normaliseSha256 } from './sha256';
  * In-app APK updater.
  *
  * Flow (Free Fire / big-platform style):
- *   1. app launch → check `/api/mobile/version` with the installed build number;
+ *   1. app launch → check the public GitHub release manifest;
  *   2. if a newer build exists, download it quietly in the background;
  *   3. once the file is ready, show a one-tap "Install update" card/sheet;
  *   4. tapping it opens Android's own installer (no Play Store, no browser).
  *
+ * Both the manifest and the APK are hosted on GitHub Releases. The website is
+ * no longer on the update path, so a site outage/billing block cannot stop
+ * existing installs from receiving a new build. `latest/download` keeps
+ * working across releases without an APK rebuild.
+ *
  * Content that does not need native code (announcements, featured rows, copy)
- * is delivered separately by `/api/mobile/feed`, so those changes appear with
- * no download at all.
+ * is bundled with the app, so it needs no network call at all.
  */
 
-const WEB_HOST = 'https://zyverse.in';
+export const GITHUB_RELEASES_URL =
+  'https://github.com/devilgamerparth009-collab/ZyniVerse/releases';
+const MIRROR_MANIFEST_URL = `${GITHUB_RELEASES_URL}/latest/download/version.json`;
 const APK_FILE = 'ZyniVerse-update.apk';
 const META_KEY = 'zv_update_meta';
 const SKIPPED_KEY = 'zv_update_skipped';
@@ -77,7 +83,7 @@ export function currentVersionCode(): number {
 
 /** Marketing version baked into the installed APK (e.g. "1.4.1"). */
 export function currentVersionName(): string {
-  return Application.nativeApplicationVersion || '1.4.4';
+  return Application.nativeApplicationVersion || '1.4.5';
 }
 
 export function formatBytes(bytes?: number | null): string {
@@ -133,43 +139,53 @@ async function discardStaleCachedUpdate(expected?: UpdateRelease | null): Promis
   if (meta && !isCachedReleaseUsable(meta, expected)) await clearReadyUpdate();
 }
 
-/** Ask the website which build is current. Never throws. */
-export async function checkForUpdate(): Promise<UpdateRelease | null> {
-  if (Platform.OS !== 'android') return null;
+async function fetchReleaseManifest(
+  url: string,
+  headers: Record<string, string>
+): Promise<UpdateRelease | null> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 9000);
   try {
-    const code = currentVersionCode();
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 12000);
-    const res = await fetch(
-      `${WEB_HOST}/api/mobile/version?platform=android&versionCode=${code}`,
-      {
-        headers: {
-          Accept: 'application/json',
-          'x-zyniverse-client': 'zyniverse-mobile-v1',
-        },
-        signal: controller.signal,
-      }
-    ).finally(() => clearTimeout(timer));
+    const res = await fetch(url, {
+      headers: { Accept: 'application/json', ...headers },
+      signal: controller.signal,
+    });
     if (!res.ok) return null;
     const json = (await res.json()) as UpdateRelease;
-    if (!json?.latestVersionCode || !json?.apkUrl) return null;
-    // Only accept an older build when the server explicitly marks it as a
-    // rollback. This still guards against a misconfigured deploy.
-    const rollback = json.rollback === true && json.latestVersionCode < code;
-    const release: UpdateRelease = {
-      ...json,
-      rollback,
-      updateAvailable: json.latestVersionCode > code || rollback,
-    };
-    // A downloaded APK left by a previous release must not keep offering a
-    // stale Install button after the website has moved on (or after the same
-    // build was installed from another source).
-    await discardStaleCachedUpdate(release);
-    await clearUpdatePrompt(release.latestVersionCode);
-    return release;
+    if (!json?.latestVersionCode || typeof json?.apkUrl !== 'string' || !json.apkUrl) return null;
+    return json;
   } catch {
     return null;
+  } finally {
+    clearTimeout(timer);
   }
+}
+
+/**
+ * Ask the independent GitHub release mirror. Never throws: a dead host simply
+ * means "no update right now", never a broken app. The website is deliberately
+ * not consulted, so updater availability no longer depends on zyverse.in.
+ */
+export async function checkForUpdate(): Promise<UpdateRelease | null> {
+  if (Platform.OS !== 'android') return null;
+  const code = currentVersionCode();
+  const json = await fetchReleaseManifest(MIRROR_MANIFEST_URL, {});
+  if (!json) return null;
+
+  // Only accept an older build when the server explicitly marks it as a
+  // rollback. This still guards against a misconfigured deploy.
+  const rollback = json.rollback === true && json.latestVersionCode < code;
+  const release: UpdateRelease = {
+    ...json,
+    rollback,
+    updateAvailable: json.latestVersionCode > code || rollback,
+  };
+  // A downloaded APK left by a previous release must not keep offering a
+  // stale Install button after the mirror has moved on (or after the same
+  // build was installed from another source).
+  await discardStaleCachedUpdate(release);
+  await clearUpdatePrompt(release.latestVersionCode);
+  return release;
 }
 
 export async function isSkipped(versionCode: number): Promise<boolean> {

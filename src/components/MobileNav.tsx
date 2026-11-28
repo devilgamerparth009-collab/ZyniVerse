@@ -20,7 +20,7 @@ const MORE_ITEMS = [
   { href: "/podcast", label: "Podcast" },
   { href: "/merch", label: "Merch Store" },
   { href: "/indian-dubs", label: "Indian Dubs" },
-  { href: "/hindi-dub", label: "Hindi Dub Library" },
+  { href: "/hindi-dub", label: "Dub Hub / Hindi Dub" },
   { href: "/hindi-dub/schedule", label: "Hindi Dub Schedule" },
   { href: "/posts", label: "Posts & Posters" },
   { href: "/creators", label: "Creators & Reels" },

@@ -1,32 +1,39 @@
 {
-  "updatedAt": "2026-11-19T00:00:00.000Z",
+  "updatedAt": "2026-11-24T18:00:00.000Z",
   "announcement": {
     "active": true,
-    "id": "v141-launch",
+    "id": "v160-launch",
     "emoji": "🚀",
-    "title": "ZyniVerse 1.4.1 is here",
-    "message": "Stories and Broadcast Channels are working, and you can now vote in live tournament matchups. Tap to see what's new.",
+    "title": "ZyniVerse 1.6.0 is here",
+    "message": "Dub Hub artwork is refreshed, filler guides are easier to browse, and new Feed, Tracker, Communities, Chat and Vibe screens keep your anime life in one place.",
     "ctaLabel": "What's new",
     "ctaScreen": "Update",
     "tint": "#22d3ee"
   },
   "spotlight": [
     {
-      "id": "new-season",
-      "emoji": "🌸",
-      "title": "New season picks",
-      "subtitle": "Freshly airing anime, updated by the server",
-      "screen": "Browse",
-      "params": { "mode": "seasonal", "title": "This Season" },
-      "tint": "#f472b6"
+      "id": "filler-library",
+      "emoji": "⏭️",
+      "title": "Every filler guide",
+      "subtitle": "Search the full guide library",
+      "screen": "FillerLibrary",
+      "tint": "#a78bfa"
     },
     {
-      "id": "tv-tonight",
+      "id": "anime-tracker",
       "emoji": "📺",
-      "title": "TV tonight",
-      "subtitle": "Live TV with channel guide",
-      "screen": "TVGuide",
-      "tint": "#60a5fa"
+      "title": "Anime Tracker",
+      "subtitle": "Log what you watch",
+      "screen": "Tracker",
+      "tint": "#22d3ee"
+    },
+    {
+      "id": "hot-takes",
+      "emoji": "🔥",
+      "title": "Hot takes",
+      "subtitle": "Share thoughts and theories",
+      "screen": "Feed",
+      "tint": "#f472b6"
     }
   ]
 }

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
+import { getEventSourceBadge } from "./anime-event-sources";
 
 const ttlCache = new Map<string, { promise: Promise<unknown>; expiresAt: number }>();
 
@@ -15,9 +16,14 @@ async function cached<T>(key: string, ttlSeconds: number, fn: () => Promise<T>):
   return promise;
 }
 
+/** Called by the events cron after a successful source sync. */
+export function invalidateAnimeEventsCache(): void {
+  ttlCache.clear();
+}
+
 export const ANIME_EVENTS_META = {
-  disclaimer: "Anime event data is curated from public sources. Dates, announcements, and details may change — verify with official event websites.",
-  source: "curated",
+  disclaimer: "Dates and venue details are checked against official event pages where available. Unverified attendance and announcements are not shown; confirm tickets and schedules on the organiser's website.",
+  source: "official + curated",
 } as const;
 
 export function computeEventStatus(startDate: Date, endDate: Date): AnimeEvent["status"] {
@@ -68,11 +74,15 @@ export interface AnimeEvent {
   attendance?: number;
   tags: string[];
   announcements: AnimeAnnouncement[];
+  sourceLabel: string;
+  sourceUrl: string;
+  sourceTone: "official" | "reference" | "curated";
 }
 
 type AnimeEventRecord = Prisma.AnimeEventGetPayload<{ include: { announcements: true } }>;
 
 function mapEvent(e: AnimeEventRecord): AnimeEvent {
+  const source = getEventSourceBadge(e.slug, e.website);
   return {
     id: e.id,
     slug: e.slug,
@@ -89,16 +99,21 @@ function mapEvent(e: AnimeEventRecord): AnimeEvent {
     status: computeEventStatus(e.startDate, e.endDate),
     attendance: e.attendance ?? undefined,
     tags: e.tags ?? [],
-    announcements: (e.announcements ?? []).map((a) => ({
-      id: a.id,
-      title: a.title,
-      description: a.description,
-      category: a.category as AnimeAnnouncement["category"],
-      trailerUrl: a.trailerUrl ?? undefined,
-      posterUrl: a.posterUrl ?? undefined,
-      sourceUrl: a.sourceUrl ?? undefined,
-      animeId: a.animeId ?? undefined,
-    })),
+    sourceLabel: source.label,
+    sourceUrl: source.url,
+    sourceTone: source.tone,
+    announcements: (e.announcements ?? [])
+      .filter((a) => Boolean(a.sourceUrl?.trim()))
+      .map((a) => ({
+        id: a.id,
+        title: a.title,
+        description: a.description,
+        category: a.category as AnimeAnnouncement["category"],
+        trailerUrl: a.trailerUrl ?? undefined,
+        posterUrl: a.posterUrl ?? undefined,
+        sourceUrl: a.sourceUrl ?? undefined,
+        animeId: a.animeId ?? undefined,
+      })),
   };
 }
 
@@ -215,21 +230,23 @@ export async function getAllAnnouncements(): Promise<(AnimeAnnouncement & {
     })
   );
 
-  return results.map((a) => ({
-    id: a.id,
-    title: a.title,
-    description: a.description,
-    category: a.category as AnimeAnnouncement["category"],
-    trailerUrl: a.trailerUrl ?? undefined,
-    posterUrl: a.posterUrl ?? undefined,
-    sourceUrl: a.sourceUrl ?? undefined,
-    animeId: a.animeId ?? undefined,
-    eventSlug: a.event.slug,
-    eventName: a.event.name,
-    eventDate: a.event.startDate instanceof Date
-      ? a.event.startDate.toISOString().split("T")[0]
-      : String(a.event.startDate),
-  }));
+  return results
+    .filter((a) => Boolean(a.sourceUrl?.trim()))
+    .map((a) => ({
+      id: a.id,
+      title: a.title,
+      description: a.description,
+      category: a.category as AnimeAnnouncement["category"],
+      trailerUrl: a.trailerUrl ?? undefined,
+      posterUrl: a.posterUrl ?? undefined,
+      sourceUrl: a.sourceUrl ?? undefined,
+      animeId: a.animeId ?? undefined,
+      eventSlug: a.event.slug,
+      eventName: a.event.name,
+      eventDate: a.event.startDate instanceof Date
+        ? a.event.startDate.toISOString().split("T")[0]
+        : String(a.event.startDate),
+    }));
 }
 
 export async function getAnnouncementCategories(): Promise<string[]> {

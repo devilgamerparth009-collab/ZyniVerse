@@ -133,7 +133,7 @@ async function main() {
     create: {
       id: SYSTEM_USER_ID,
       email: "system@zyverse.in",
-      username: "ZyniBot",
+      username: "ZyniVerse",
       bio: "System bot for curated seed data",
       provider: "credentials",
     },

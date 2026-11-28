@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, type CSSProperties } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useSession } from "next-auth/react";
-import { motion } from "framer-motion";
+import { fetchJson } from "@/lib/safe-json";
 
 interface Activity {
   id: string;
@@ -24,15 +24,25 @@ interface UserGroup {
   latestTime: string;
 }
 
+interface ActivityResponse {
+  activities?: Activity[];
+  total?: number;
+  fallback?: boolean;
+  scope?: "following" | "global";
+  reason?: "no_follows" | "not_signed_in";
+}
+
 const TYPE_ICONS: Record<string, string> = {
   COMPLETED: "✅", WATCHING: "▶️", CURRENT: "▶️", PLANNING: "📋",
   DROPPED: "⛔", PAUSED: "⏸️", REWATCHING: "🔄", REVIEWED: "⭐", RATED: "🎯", IMPORTED: "📥",
+  watched_episode: "📌",
 };
 
 const TYPE_LABELS: Record<string, string> = {
   COMPLETED: "completed", WATCHING: "started watching", CURRENT: "is watching",
   PLANNING: "plans to watch", DROPPED: "dropped", PAUSED: "paused",
   REWATCHING: "rewatching", REVIEWED: "reviewed", RATED: "rated",
+  watched_episode: "watched episode",
 };
 
 const TYPE_COLORS: Record<string, { bg: string; border: string; text: string }> = {
@@ -46,9 +56,20 @@ const TYPE_COLORS: Record<string, { bg: string; border: string; text: string }> 
   REVIEWED: { bg: "rgba(255,179,0,0.12)", border: "rgba(255,179,0,0.25)", text: "#f59e0b" },
   RATED: { bg: "rgba(41,242,224,0.12)", border: "rgba(41,242,224,0.25)", text: "#29f2e0" },
   IMPORTED: { bg: "rgba(138,92,255,0.12)", border: "rgba(138,92,255,0.25)", text: "#8a5cff" },
+  watched_episode: { bg: "rgba(41,242,224,0.10)", border: "rgba(41,242,224,0.22)", text: "#29f2e0" },
 };
 
-const CARD_COLORS = ["#29f2e0", "#ff2d78", "#8a5cff", "#22c55e", "#f59e0b", "#06b6d4", "#ec4899", "#f97316"];
+const CARD_COLORS = ["#29f2e0", "#ff2d78", "#8a5cff", "#22c55e", "#f59e0b", "#06b6d4", "#ec4899", "#f97316", "#14b8a6", "#e11d48"];
+
+function userColor(id: string): string {
+  let hash = 0;
+  for (let i = 0; i < id.length; i += 1) {
+    hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+  }
+  return CARD_COLORS[hash % CARD_COLORS.length];
+}
+
+const VARIANTS = ["spotlight", "timeline", "grid", "poster"] as const;
 
 function timeAgo(date: string) {
   const diff = Date.now() - new Date(date).getTime();
@@ -69,78 +90,136 @@ function groupByUser(activities: Activity[]): UserGroup[] {
     if (existing) existing.activities.push(a);
     else map.set(a.userId, { user: a.user, activities: [a], latestTime: a.createdAt });
   }
-  return Array.from(map.values()).sort((a, b) => new Date(b.latestTime).getTime() - new Date(a.latestTime).getTime());
+
+  return Array.from(map.values())
+    .map((group) => {
+      // Oldest → newest, so the last-watched anime always sits at the bottom.
+      const sorted = [...group.activities].sort(
+        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      );
+      return {
+        ...group,
+        activities: sorted,
+        latestTime: sorted[sorted.length - 1]?.createdAt ?? group.latestTime,
+      };
+    })
+    .sort((a, b) => new Date(b.latestTime).getTime() - new Date(a.latestTime).getTime());
 }
 
-function ActivityPill({ activity }: { activity: Activity }) {
+function ActivityItem({
+  activity,
+  variant,
+  latest,
+}: {
+  activity: Activity;
+  variant: string;
+  latest: boolean;
+}) {
   const c = TYPE_COLORS[activity.type] || { bg: "rgba(128,123,163,0.12)", border: "rgba(128,123,163,0.25)", text: "#807ba3" };
+  const label = TYPE_LABELS[activity.type] || activity.type?.replace(/_/g, " ") || "activity";
+  const hasThumb = !!activity.mediaImage && !!activity.mediaId;
+
   return (
-    <div className="flex items-center gap-2 rounded-lg px-2 py-1.5 shrink-0"
-      style={{ background: c.bg, border: `1px solid ${c.border}` }}>
-      <span className="text-xs">{TYPE_ICONS[activity.type] || "📌"}</span>
-      <span className="text-[11px] whitespace-nowrap overflow-hidden text-ellipsis min-w-0">
-        <span style={{ color: c.text }}>{TYPE_LABELS[activity.type] || activity.type?.toLowerCase()}</span>
-        {activity.mediaTitle && (
-          <Link href={`/anime/${activity.mediaId}`} className="font-semibold text-white/90 hover:opacity-80 ml-1">{activity.mediaTitle}</Link>
-        )}
+    <div
+      className={`fa-item${latest ? " fa-item--latest" : ""}`}
+      style={
+        {
+          "--fa-type": c.text,
+          "--fa-type-bg": c.bg,
+          "--fa-type-border": c.border,
+        } as CSSProperties
+      }
+    >
+      <span className="fa-item-icon" aria-hidden="true">
+        {TYPE_ICONS[activity.type] || "📌"}
       </span>
-      {activity.mediaImage && activity.mediaId && (
-        <Link href={`/anime/${activity.mediaId}`} className="shrink-0" aria-label={activity.mediaTitle ? `View ${activity.mediaTitle}` : "View anime"}>
-          <div className="relative h-6 w-5 rounded overflow-hidden" style={{ border: `1px solid ${c.border}` }}>
-            <Image src={activity.mediaImage} alt="" fill className="object-cover" sizes="20px" />
-          </div>
+      <span className="fa-item-text">
+        <span className="fa-item-label">
+          {label}
+          {latest ? <span className="fa-latest-tag">Latest</span> : null}
+        </span>
+        {activity.mediaTitle ? (
+          <Link href={`/anime/${activity.mediaId}`} className="fa-item-media">
+            {activity.mediaTitle}
+          </Link>
+        ) : null}
+      </span>
+      {hasThumb ? (
+        <Link
+          href={`/anime/${activity.mediaId}`}
+          className="fa-item-thumb"
+          aria-label={activity.mediaTitle ? `View ${activity.mediaTitle}` : "View anime"}
+        >
+          <Image src={activity.mediaImage!} alt="" fill className="fa-item-img" sizes="28px" />
         </Link>
-      )}
+      ) : null}
+      <span className={`fa-item-variant fa-item-variant--${variant}`} aria-hidden="true" />
     </div>
   );
 }
 
 function UserCard({ group, index }: { group: UserGroup; index: number }) {
-  const color = CARD_COLORS[index % CARD_COLORS.length];
-  const shown = group.activities.slice(0, 3);
-  const more = group.activities.length - 3;
+  const variantIndex = index % VARIANTS.length;
+  const variant = VARIANTS[variantIndex];
+  // Stable per user: the same colour follows this person into future activities.
+  const color = userColor(group.user.id || group.user.username);
+  const shown = group.activities.slice(-3);
+  const latestActivity = group.activities[group.activities.length - 1];
+  const more = group.activities.length - shown.length;
+  // Latest anime artwork becomes the card backdrop for every variant.
+  const backdrop =
+    (latestActivity?.mediaImage ? latestActivity : group.activities.find((a) => a.mediaImage)) ?? null;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.06, type: "spring", stiffness: 260, damping: 24 }}
-      className="flex-shrink-0 w-[calc(25%-9px)] min-w-[200px] max-w-[260px] overflow-hidden rounded-xl neon-feature-card"
+    <article
+      className={`fa-card fa-card--${variant}${backdrop?.mediaImage ? " fa-card--has-backdrop" : ""}`}
+      style={
+        {
+          "--fa-accent": color,
+          "--fa-i": index,
+        } as CSSProperties
+      }
     >
-      <div className="neon-border rounded-xl" style={{ background: `conic-gradient(from var(--border-angle), ${color}, transparent 40%, ${color}80, transparent 70%, ${color})` }} />
-      <div className="neon-glow rounded-xl" style={{ background: color }} />
-      <div className="neon-inner rounded-xl p-0 overflow-hidden" style={{ background: "var(--color-panel)" }}>
-        <div className="h-[2px] w-full" style={{ background: color }} />
-        <div className="p-3">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-9 h-9 rounded-full overflow-hidden shrink-0" style={{ border: `2px solid ${color}40` }}>
-              {group.user.avatar ? (
-                <Image src={group.user.avatar} alt="" width={36} height={36} className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-xs font-bold" style={{ color, background: `${color}15` }}>
-                  {group.user.username[0].toUpperCase()}
-                </div>
-              )}
-            </div>
-            <div className="min-w-0 flex-1">
-              <Link href={`/profile?user=${group.user.id}`} className="text-[12px] font-bold text-white truncate block hover:opacity-80">{group.user.username}</Link>
-              <span className="text-[9px] text-white/25">{timeAgo(group.latestTime)}</span>
-            </div>
-            {group.activities.length > 1 && (
-              <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-full shrink-0" style={{ color, background: `${color}15`, border: `1px solid ${color}25` }}>
-                {group.activities.length}x
-              </span>
-            )}
-          </div>
-          <div className="space-y-1">
-            {shown.map((a) => <ActivityPill key={a.id} activity={a} />)}
-            {more > 0 && (
-              <Link href="/activity" className="block text-center text-[9px] text-white/20 hover:text-white/40 py-0.5">+{more} more</Link>
-            )}
-          </div>
-        </div>
+      {backdrop?.mediaImage ? (
+        <span className="fa-backdrop" aria-hidden="true">
+          <Image src={backdrop.mediaImage} alt="" fill className="fa-backdrop-img" sizes="300px" />
+        </span>
+      ) : null}
+      <span className="fa-accent-line" aria-hidden="true" />
+
+      <div className="fa-user">
+        <span className="fa-avatar">
+          {group.user.avatar ? (
+            <Image src={group.user.avatar} alt="" width={40} height={40} className="fa-avatar-img" />
+          ) : (
+            <span className="fa-avatar-fallback">
+              {group.user.username?.[0]?.toUpperCase() ?? "?"}
+            </span>
+          )}
+        </span>
+        <span className="fa-user-meta">
+          <Link href={`/profile?user=${group.user.id}`} className="fa-username">
+            {group.user.username}
+          </Link>
+          <span className="fa-time">{timeAgo(group.latestTime)}</span>
+        </span>
+        {group.activities.length > 1 ? (
+          <span className="fa-count">{group.activities.length}x</span>
+        ) : null}
       </div>
-    </motion.div>
+
+      <div className="fa-items">
+        {shown.map((a, i) => (
+          <ActivityItem key={a.id} activity={a} variant={variant} latest={i === shown.length - 1} />
+        ))}
+      </div>
+
+      {more > 0 ? (
+        <Link href="/activity" className="fa-more">
+          +{more} more <span aria-hidden="true">→</span>
+        </Link>
+      ) : null}
+    </article>
   );
 }
 
@@ -148,38 +227,84 @@ export default function FriendActivityFeed() {
   const { data: session } = useSession();
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [scope, setScope] = useState<"following" | "global">("global");
+  const [reason, setReason] = useState<ActivityResponse["reason"] | null>(null);
 
   const load = useCallback(() => {
-    const url = session?.user?.id ? "/api/activity?type=following&limit=50" : "/api/activity?limit=50";
-    fetch(url).then((r) => r.json()).then((d) => { setActivities(d.activities || []); setLoading(false); }).catch(() => setLoading(false));
+    const following = !!session?.user?.id;
+    const url = following ? "/api/activity?type=following&limit=50" : "/api/activity?limit=50";
+
+    fetchJson<ActivityResponse>(url)
+      .then((data) => {
+        setActivities(Array.isArray(data.activities) ? data.activities : []);
+        setScope(data.scope ?? (following ? "following" : "global"));
+        setReason(data.reason ?? null);
+        setError(null);
+      })
+      .catch((e: unknown) => {
+        setError(e instanceof Error ? e.message : "Could not load activity.");
+      })
+      .finally(() => setLoading(false));
   }, [session]);
 
   useEffect(() => { load(); }, [load]);
 
+  const retry = () => {
+    setLoading(true);
+    setError(null);
+    load();
+  };
+
   if (loading) {
     return (
-      <div className="rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5">
-        <div className="animate-pulse space-y-3">
-          <div className="h-4 w-32 rounded bg-white/5" />
-          <div className="flex gap-3 overflow-x-auto scrollbar-none">{[1, 2, 3, 4].map((i) => <div key={i} className="flex-shrink-0 w-[calc(25%-9px)] min-w-[200px] h-40 rounded-xl bg-white/5" />)}</div>
+      <div className="fa-panel fa-panel--loading">
+        <div className="fa-head">
+          <div>
+            <span className="fa-live fa-live--muted"><span className="fa-live-dot" />Live</span>
+            <h3 className="fa-title">Friend Activity</h3>
+          </div>
+        </div>
+        <div className="fa-rail" aria-hidden="true">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className={`fa-skeleton fa-skeleton--${i + 1}`} />
+          ))}
         </div>
       </div>
     );
   }
 
-  if (activities.length === 0) {
+  if (error) {
     return (
-      <div className="rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5">
-        <div className="flex items-center gap-2 mb-4">
-          <span className="relative flex h-2 w-2">
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-[#29f2e0]/40" />
-          </span>
-          <p className="font-mono text-xs uppercase tracking-[0.2em] text-[#29f2e0]/70">Live</p>
-          <h3 className="font-display text-xl font-bold ml-2">Friend Activity</h3>
+      <div className="fa-panel fa-panel--error">
+        <span className="fa-state-icon" aria-hidden="true">!</span>
+        <h3 className="fa-title">Friend Activity</h3>
+        <p className="fa-state-text">Couldn&apos;t load activity: {error}</p>
+        <button onClick={retry} className="fa-retry">Try again</button>
+      </div>
+    );
+  }
+
+  if (activities.length === 0) {
+    const emptyMessage =
+      reason === "no_follows"
+        ? "Follow people to see their activity here."
+        : reason === "not_signed_in"
+          ? "Sign in to see activity from people you follow."
+          : scope === "following"
+            ? "No recent activity from people you follow."
+            : "No public activity yet — watching or reviewing anime will show up here.";
+
+    return (
+      <div className="fa-panel fa-panel--empty">
+        <span className="fa-state-icon fa-state-icon--empty" aria-hidden="true">◎</span>
+        <div className="fa-head fa-head--empty">
+          <div>
+            <span className="fa-live fa-live--muted"><span className="fa-live-dot" />Live</span>
+            <h3 className="fa-title">Friend Activity</h3>
+          </div>
         </div>
-        <p className="text-sm text-[var(--color-mute)]/60 py-6 text-center">
-          No activity yet — start watching or update your list to show up here.
-        </p>
+        <p className="fa-state-text">{emptyMessage}</p>
       </div>
     );
   }
@@ -187,32 +312,29 @@ export default function FriendActivityFeed() {
   const groups = groupByUser(activities);
 
   return (
-    <div className="overflow-hidden rounded-2xl neon-feature-card">
-      <div className="neon-border rounded-2xl" style={{ background: "conic-gradient(from var(--border-angle), #29f2e0, #ff2d78, #8a5cff, #22c55e, #f59e0b, #29f2e0)" }} />
-      <div className="neon-glow rounded-2xl" style={{ background: "linear-gradient(90deg, #29f2e0, #ff2d78, #8a5cff)" }} />
-      <div className="neon-inner rounded-2xl p-0 overflow-hidden" style={{ background: "var(--color-panel)" }}>
-        <div className="p-5">
-          <div className="flex items-end justify-between mb-4">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#29f2e0] opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-[#29f2e0]" />
-                </span>
-                <p className="font-mono text-xs uppercase tracking-[0.2em] text-[#29f2e0]">Live</p>
-              </div>
-              <h3 className="font-display text-xl font-bold">Friend Activity</h3>
-            </div>
-            <Link href="/activity" className="text-xs text-white/30 hover:text-[#29f2e0] transition-colors">View all →</Link>
+    <div className="fa-panel">
+      <span className="fa-orb fa-orb--a" aria-hidden="true" />
+      <span className="fa-orb fa-orb--b" aria-hidden="true" />
+      <div className="fa-panel-inner">
+        <div className="fa-head">
+          <div>
+            <span className="fa-live">
+              <span className="fa-live-ring" aria-hidden="true" />
+              <span className="fa-live-dot" aria-hidden="true" />
+              Live
+            </span>
+            <h3 className="fa-title">Friend Activity</h3>
+            <span className="fa-scope">
+              {scope === "following" ? "From people you follow" : "Community activity"}
+            </span>
           </div>
+          <Link href="/activity" className="fa-viewall">
+            View all <span aria-hidden="true">→</span>
+          </Link>
+        </div>
 
-          <div className="relative">
-            <div className="absolute left-0 top-0 bottom-0 w-6 z-10 pointer-events-none bg-gradient-to-r from-[var(--color-panel)] to-transparent" />
-            <div className="absolute right-0 top-0 bottom-0 w-6 z-10 pointer-events-none bg-gradient-to-l from-[var(--color-panel)] to-transparent" />
-            <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-none">
-              {groups.map((group, i) => <UserCard key={group.user.id} group={group} index={i} />)}
-            </div>
-          </div>
+        <div className="fa-rail">
+          {groups.map((group, i) => <UserCard key={group.user.id} group={group} index={i} />)}
         </div>
       </div>
     </div>

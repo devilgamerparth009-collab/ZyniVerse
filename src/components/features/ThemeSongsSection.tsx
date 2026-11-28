@@ -6,9 +6,11 @@ import type { ThemeSong as ThemeSongType } from "@prisma/client";
 
 interface Props {
   mediaId: number;
+  /** Anime detail pages show titles only — no YouTube exit links or embeds. */
+  internalOnly?: boolean;
 }
 
-export default function ThemeSongsSection({ mediaId }: Props) {
+export default function ThemeSongsSection({ mediaId, internalOnly = false }: Props) {
   const [themes, setThemes] = useState<ThemeSongType[]>([]);
   const [loading, setLoading] = useState(true);
   const [playing, setPlaying] = useState<string | null>(null);
@@ -26,7 +28,9 @@ export default function ThemeSongsSection({ mediaId }: Props) {
   const ops = themes.filter((t) => t.type === "OP");
   const eds = themes.filter((t) => t.type === "ED");
 
-  const handlePlay = (key: string) => setPlaying(playing === key ? null : key);
+  const handlePlay = (key: string) => {
+    if (!internalOnly) setPlaying(playing === key ? null : key);
+  };
 
   const renderList = (items: ThemeSongType[], type: "OP" | "ED", color: string) => (
     <div className="space-y-1.5">
@@ -36,11 +40,21 @@ export default function ThemeSongsSection({ mediaId }: Props) {
         return (
           <div key={key}>
             <div className="flex items-center gap-2 text-xs">
-              <button onClick={() => t.youtubeId && handlePlay(key)}
-                className="w-6 h-6 rounded flex items-center justify-center shrink-0 transition-all"
-                style={{ background: isPlaying ? `${color}25` : `${color}10`, color }}>
-                {isPlaying ? "⏸" : "▶"}
-              </button>
+              {internalOnly ? (
+                <span
+                  className="w-6 h-6 rounded flex items-center justify-center shrink-0"
+                  style={{ background: `${color}12`, color }}
+                  aria-hidden="true"
+                >
+                  ♪
+                </span>
+              ) : (
+                <button onClick={() => t.youtubeId && handlePlay(key)}
+                  className="w-6 h-6 rounded flex items-center justify-center shrink-0 transition-all"
+                  style={{ background: isPlaying ? `${color}25` : `${color}10`, color }}>
+                  {isPlaying ? "⏸" : "▶"}
+                </button>
+              )}
               <div className="min-w-0 flex-1">
                 <p className="font-medium truncate">{t.title}</p>
                 <p className="text-[10px] text-[var(--color-mute)]">{t.artist}</p>
@@ -50,36 +64,38 @@ export default function ThemeSongsSection({ mediaId }: Props) {
                   Ep {t.episodeStart}{t.episodeEnd && t.episodeEnd !== t.episodeStart ? `-${t.episodeEnd}` : ""}
                 </span>
               )}
-              {t.youtubeId && (
+              {!internalOnly && t.youtubeId && (
                 <a href={`https://www.youtube.com/watch?v=${t.youtubeId}`} target="_blank" rel="noopener noreferrer"
                   onClick={(e) => { e.preventDefault(); handlePlay(key); }}
                   className="text-[var(--color-mute)] hover:text-[var(--color-magenta)] transition-colors"
                 >▶</a>
               )}
             </div>
-            <AnimatePresence>
-              {isPlaying && t.youtubeId && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.3 }}
-                  className="overflow-hidden"
-                >
-                  <div className="pt-2 pl-8">
-                    <div className="relative w-full aspect-video rounded-lg overflow-hidden border border-white/10 bg-black">
-                      <iframe
-                        src={`https://www.youtube.com/embed/${t.youtubeId}?autoplay=1&rel=0`}
-                        title={`${t.title} - ${t.artist}`}
-                        className="absolute inset-0 w-full h-full"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowFullScreen
-                      />
+            {!internalOnly && (
+              <AnimatePresence>
+                {isPlaying && t.youtubeId && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="pt-2 pl-8">
+                      <div className="relative w-full aspect-video rounded-lg overflow-hidden border border-white/10 bg-black">
+                        <iframe
+                          src={`https://www.youtube.com/embed/${t.youtubeId}?autoplay=1&rel=0`}
+                          title={`${t.title} - ${t.artist}`}
+                          className="absolute inset-0 w-full h-full"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                        />
+                      </div>
                     </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            )}
           </div>
         );
       })}

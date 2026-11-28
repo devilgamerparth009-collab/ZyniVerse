@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
+import boxStyles from "./detailBoxes.module.css";
 
 interface EpisodeData {
   episode: number;
@@ -21,9 +22,12 @@ interface RatingsResponse {
 
 interface Props {
   malId: number;
+  /** Anime detail pages show the source as plain text, never as an exit link. */
+  internalOnly?: boolean;
+  className?: string;
 }
 
-export default function EpisodeRatingsCard({ malId }: Props) {
+export default function EpisodeRatingsCard({ malId, internalOnly = false, className = "" }: Props) {
   const [data, setData] = useState<RatingsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -59,7 +63,7 @@ export default function EpisodeRatingsCard({ malId }: Props) {
 
   if (loading) {
     return (
-      <div className="rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5">
+      <div className={`${boxStyles.box} ${className}`}>
         <div className="animate-pulse space-y-3">
           <div className="h-4 bg-[var(--color-line)] rounded w-1/2" />
           <div className="space-y-2">
@@ -100,40 +104,36 @@ export default function EpisodeRatingsCard({ malId }: Props) {
   };
 
   return (
-    <div className="rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5">
-      <div className="flex items-end justify-between mb-3">
-        <h3 className="font-display text-base font-bold flex items-center gap-2">
-          <span className="h-3 w-1 rounded-full bg-[var(--color-magenta)]" />
+    <div className={`${boxStyles.box} ${className}`}>
+      <div className={`${boxStyles.sectionHead} items-end`}>
+        <h3 className={`font-display text-base font-bold flex items-center gap-2 ${boxStyles.boxTitle}`}>
+          <span className={boxStyles.headingMark} />
           Episode Ratings
         </h3>
         <div className="text-right">
           <span className="font-mono text-sm font-bold text-[var(--color-magenta)]">
             {averageScore.toFixed(2)}
           </span>
-          <span className="text-[10px] text-[var(--color-mute)] ml-1">/ 5</span>
+          <span className={`${boxStyles.tinyMuted} ml-1`}>/ 5</span>
         </div>
       </div>
 
       {/* Stats */}
-      <div className="flex gap-3 mb-4 text-[10px] text-[var(--color-mute)]">
+      <div className={`mb-4 flex flex-wrap items-center gap-3 text-[10px] text-[var(--color-mute)] ${boxStyles.statRow}`}>
         <span>{ratedCount}/{episodes.length} rated</span>
-        <span>·</span>
+        <span className={boxStyles.tinyMuted}>·</span>
         <span className="text-[var(--color-magenta)]">
           Best: #{ratedEps.sort((a, b) => (b.rating || 0) - (a.rating || 0))[0]?.episode || "—"}
         </span>
       </div>
 
       {/* Filter tabs */}
-      <div className="flex gap-1.5 mb-3 flex-wrap">
+      <div className={`mb-3 flex flex-wrap gap-1.5 ${boxStyles.pillRow}`}>
         {(["all", "best", "worst"] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setShowTop(tab)}
-            className={`rounded-full px-4 py-1.5 text-[10px] font-semibold transition-all ${
-              showTop === tab
-                ? "bg-[var(--color-magenta)] text-black"
-                : "bg-[var(--color-line)]/50 text-[var(--color-mute)] hover:bg-[var(--color-line)]"
-            }`}
+            className={`${boxStyles.tab} ${showTop === tab ? boxStyles.tabActive : ""}`}
           >
             {tab === "all" ? "All" : tab === "best" ? "Best 10" : "Worst 10"}
           </button>
@@ -144,11 +144,7 @@ export default function EpisodeRatingsCard({ malId }: Props) {
               <button
                 key={s}
                 onClick={() => setSortBy(s)}
-                className={`rounded-full px-3 py-1.5 text-[9px] font-medium transition-all ${
-                  sortBy === s
-                    ? "bg-[var(--color-cyan)]/20 text-[var(--color-cyan)]"
-                    : "text-[var(--color-mute)] hover:text-white"
-                }`}
+                className={`${boxStyles.tab} ${sortBy === s ? boxStyles.tabActive : ""}`}
               >
                 {s === "episode" ? "Ep#" : s === "rating-desc" ? "Top" : "Popular"}
               </button>
@@ -173,7 +169,7 @@ export default function EpisodeRatingsCard({ malId }: Props) {
                 <span className="w-7 text-right text-[10px] font-mono text-[var(--color-mute)] shrink-0">
                   {ep.episode}
                 </span>
-                <div className="flex-1 h-5 rounded bg-[var(--color-line)]/30 overflow-hidden relative">
+                <div className={`relative h-5 flex-1 overflow-hidden rounded ${boxStyles.track}`}>
                   {ep.rating !== null && (
                     <div
                       className="h-full rounded transition-all duration-500"
@@ -208,7 +204,7 @@ export default function EpisodeRatingsCard({ malId }: Props) {
             return (
               <div
                 key={ep.episode}
-                className="flex items-center gap-3 rounded-lg border border-[var(--color-line)]/50 bg-[var(--color-surface)]/50 p-2.5 hover:border-[var(--color-magenta)]/30 transition-all"
+                className={`flex items-center gap-3 rounded-lg border border-[var(--color-line)]/50 bg-[var(--color-surface)]/50 p-2.5 transition-all ${boxStyles.subCard}`}
               >
                 <span className="flex h-7 w-7 items-center justify-center rounded-lg text-[10px] font-bold font-mono shrink-0"
                   style={{ backgroundColor: `${color}20`, color }}
@@ -240,16 +236,16 @@ export default function EpisodeRatingsCard({ malId }: Props) {
       </div>
 
       {/* Legend */}
-      <div className="mt-3 pt-3 border-t border-[var(--color-line)]/50 flex flex-wrap gap-3 text-[9px] text-[var(--color-mute)]">
-        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500" /> 4.5+ Masterpiece</span>
-        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[var(--color-cyan)]" /> 4.0+ Great</span>
-        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500" /> 3.5+ Good</span>
-        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[var(--color-magenta)]" /> Below 3.5</span>
-        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-400" /> F</span>
+      <div className={`mt-3 flex flex-wrap gap-3 pt-3 ${boxStyles.rowDivider} ${boxStyles.legend}`}>
+        <span className={boxStyles.legendItem}><span className={`${boxStyles.legendDot} bg-emerald-500`} /> 4.5+ Masterpiece</span>
+        <span className={boxStyles.legendItem}><span className={`${boxStyles.legendDot} bg-[var(--color-cyan)]`} /> 4.0+ Great</span>
+        <span className={boxStyles.legendItem}><span className={`${boxStyles.legendDot} bg-amber-500`} /> 3.5+ Good</span>
+        <span className={boxStyles.legendItem}><span className={`${boxStyles.legendDot} bg-[var(--color-magenta)]`} /> Below 3.5</span>
+        <span className={boxStyles.legendItem}><span className={`${boxStyles.legendDot} bg-amber-400`} /> F</span>
       </div>
 
-      <p className="mt-2 text-[9px] text-[var(--color-mute)] text-center">
-        Ratings from <a href="https://myanimelist.net" target="_blank" rel="noopener noreferrer" className="underline hover:text-[var(--color-cyan)]">MyAnimeList</a> (1-5 scale)
+      <p className={`mt-2 ${boxStyles.sourceNote}`}>
+        Ratings source: {internalOnly ? "MyAnimeList" : <a href="https://myanimelist.net" target="_blank" rel="noopener noreferrer" className="underline hover:text-[var(--color-cyan)]">MyAnimeList</a>} (1-5 scale)
       </p>
     </div>
   );

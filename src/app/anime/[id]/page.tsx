@@ -11,13 +11,12 @@ import AnimeDetailClient from "./detail-client";
 import AnimeUnavailableCard from "@/components/AnimeUnavailableCard";
 import { getAnimeEditorial, type AnimeEditorial } from "@/lib/anime-editorials";
 import { prisma } from "@/lib/prisma";
+import styles from "./anime-info.module.css";
 
-// 7 days. Anime metadata (episode count, cover, cast) changes slowly, and the
-// previous 48h window meant every crawler pass over the catalog re-rendered
-// the same pages. AniList detail fetches revalidate on their own cache window,
-// and `revalidatePath("/anime/<id>")` on reel upload still refreshes the page
-// on demand, so community clips stay prompt.
-// Cache indefinitely to minimize ISR writes; AniList fetches have own cache windows.
+// Anime metadata changes slowly, so the layout's 7-day window and the AniList
+// fetch caches control freshness. Per-anime `revalidatePath` calls were removed
+// from reel uploads: invalidating one catalog page per clip was a needless ISR
+// write. CDN cache headers now serve crawled detail pages at the edge.
 export const revalidate = false;
 
 // Empty array => no build-time prerender, but on-demand ISR at runtime
@@ -259,31 +258,31 @@ export default async function AnimeDetailsPage({
         reels={animeReels}
         dubGuideHref={dubPageSlug ? `/indian-dubs/${dubPageSlug}` : null}
       />
-      <section className="mx-auto max-w-7xl px-4 pb-12 sm:px-6">
-        <div className="rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)]/60 p-6 sm:p-8">
-          <h2 className="font-display text-xl font-bold text-white">About this anime page</h2>
-          <p className="mt-3 text-sm leading-relaxed text-[var(--color-mute)]">
+      <section className={styles.infoSection}>
+        <div className={styles.infoPanel}>
+          <h2 className={styles.infoHeading}>About this anime page</h2>
+          <p className={styles.infoIntro}>
             This page combines anime metadata, episode details, character information, and ZyniVerse tools like watch order, filler guides, and Hindi dub availability where relevant.
             Information is sourced from public metadata providers and curated references, and it may change as new episodes or official updates are released.
           </p>
-          <div className="mt-5 grid gap-4 sm:grid-cols-3 text-sm">
-            <div className="rounded-xl border border-[var(--color-line)] bg-black/20 p-4">
-              <p className="font-semibold text-white">Check watch order</p>
-              <p className="mt-1 text-xs text-[var(--color-mute)]">Use watch order guides for franchises with multiple seasons, movies, or timelines.</p>
+          <div className={styles.tipGrid}>
+            <div className={styles.tipCard}>
+              <p className={styles.tipTitle}>Check watch order</p>
+              <p className={styles.tipText}>Use watch order guides for franchises with multiple seasons, movies, or timelines.</p>
             </div>
-            <div className="rounded-xl border border-[var(--color-line)] bg-black/20 p-4">
-              <p className="font-semibold text-white">Skip filler wisely</p>
-              <p className="mt-1 text-xs text-[var(--color-mute)]">Filler guides help you save time while keeping important canon episodes.</p>
+            <div className={styles.tipCard}>
+              <p className={styles.tipTitle}>Skip filler wisely</p>
+              <p className={styles.tipText}>Filler guides help you save time while keeping important canon episodes.</p>
             </div>
-            <div className="rounded-xl border border-[var(--color-line)] bg-black/20 p-4">
-              <p className="font-semibold text-white">Verify availability</p>
-              <p className="mt-1 text-xs text-[var(--color-mute)]">Streaming and dub availability can change by region and platform. Confirm on official services.</p>
+            <div className={styles.tipCard}>
+              <p className={styles.tipTitle}>Verify availability</p>
+              <p className={styles.tipText}>Streaming and dub availability can change by region and platform. Confirm on official services.</p>
             </div>
           </div>
-          <div className="mt-6 space-y-3 text-sm text-[var(--color-mute)]">
-            <h3 className="font-semibold text-white">FAQ</h3>
-            <p><span className="text-white">Is this anime canon/filler information accurate?</span> We use available episode data and guide references. If you notice an issue, use the feedback/contact page so we can review it.</p>
-            <p><span className="text-white">Can I watch anime here?</span> No. ZyniVerse does not host or stream anime episodes. We provide information, guides, and links to official platforms where available.</p>
+          <div className={styles.faqBlock}>
+            <h3 className={styles.faqHeading}>FAQ</h3>
+            <p className={styles.faqItem}><span className={styles.strongText}>Is this anime canon/filler information accurate?</span> We use available episode data and guide references. If you notice an issue, use the feedback/contact page so we can review it.</p>
+            <p className={styles.faqItem}><span className={styles.strongText}>Can I watch anime here?</span> No. ZyniVerse does not host or stream anime episodes. We provide information, guides, and links to official platforms where available.</p>
           </div>
         </div>
       </section>

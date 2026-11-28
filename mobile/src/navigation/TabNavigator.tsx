@@ -1,6 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import { Text, StyleSheet, Animated, View } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TabParamList } from './types';
 import HomeScreen from '../screens/HomeScreen';
 import TournamentsScreen from '../screens/TournamentsScreen';
@@ -81,7 +82,10 @@ function AnimatedTabIcon({
 
 export default function TabNavigator() {
   const { colors, isLaunch, isChristmas } = useTheme();
+  const insets = useSafeAreaInsets();
   const primaryAccent = isLaunch ? '#22d3ee' : isChristmas ? '#7dd3fc' : colors.primary;
+  const bottomInset = Math.max(insets.bottom, 8);
+  const tabBarHeight = 58 + bottomInset;
 
   return (
     <Tab.Navigator
@@ -96,6 +100,9 @@ export default function TabNavigator() {
         ),
         tabBarLabel: ({ focused }) => (
           <Text
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.85}
             style={[
               styles.tabLabel,
               { color: focused ? primaryAccent : colors.textDim },
@@ -105,15 +112,18 @@ export default function TabNavigator() {
             {TAB_ICONS[route.name]?.label || route.name}
           </Text>
         ),
+        tabBarHideOnKeyboard: true,
         headerShown: false,
         tabBarStyle: [
           styles.tabBar,
           {
             backgroundColor: colors.surface,
             borderTopColor: colors.border,
+            height: tabBarHeight,
+            paddingBottom: bottomInset,
           },
         ],
-        tabBarItemStyle: { paddingVertical: 4 },
+        tabBarItemStyle: styles.tabBarItem,
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
@@ -130,27 +140,29 @@ export default function TabNavigator() {
 const styles = StyleSheet.create({
   tabBar: {
     borderTopWidth: 1,
-    height: 68,
-    paddingBottom: 8,
-    paddingTop: 4,
+    paddingTop: 6,
     elevation: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.35,
     shadowRadius: 12,
   },
+  tabBarItem: {
+    paddingVertical: 2,
+    minWidth: 0,
+  },
   tabIconWrap: {
     alignItems: 'center',
     justifyContent: 'center',
-    width: 36,
-    height: 34,
+    width: 32,
+    height: 30,
   },
   tabIcon: {
-    fontSize: 20,
+    fontSize: 19,
   },
   activeDot: {
     position: 'absolute',
-    bottom: -3,
+    bottom: -2,
     width: 4,
     height: 4,
     borderRadius: 2,
@@ -158,7 +170,8 @@ const styles = StyleSheet.create({
   tabLabel: {
     fontSize: 9,
     fontWeight: '500',
-    marginTop: 2,
+    marginTop: 1,
+    textAlign: 'center',
   },
   tabLabelActive: {
     fontWeight: '800',

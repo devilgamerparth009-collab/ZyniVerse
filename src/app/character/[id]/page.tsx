@@ -4,26 +4,19 @@ import { getCharacter, AniListUnavailableError } from "@/lib/anilist";
 import CharacterDetailClient from "./character-client";
 import AnimeUnavailableCard from "@/components/AnimeUnavailableCard";
 
-// Crawlers hammered this route hardest: 49k bot hits in three weeks, and every
-// revalidation is a full Node render + ISR write. Character pages are an
-// AniList mirror whose facts (name, image, appearances, voice actors) do not
-// change, so cache them until the next deploy instead of rewriting them every
-// 48 hours. This was the single largest contributor to the ISR-write overage.
-export const revalidate = false;
+// This is a noindex/disallowed AniList mirror crawled at very high cardinality.
+// An empty `generateStaticParams()` used to make every new id an on-demand ISR
+// entry, and the 7-day `force-cache` query added a second entry per id. Render
+// dynamically, skip the Next data cache, and let the CDN cache the response.
+export const dynamic = "force-dynamic";
 
-// Return an EMPTY array: no paths are prerendered at build time (so no
-// build-time AniList queries), but Next.js only enables on-demand ISR for a
-// dynamic segment when `generateStaticParams` exists. Without it the route is
-// rendered dynamically on every request and every hit is a billed Node render
-// (the real cause of the Function Duration overage).
-export function generateStaticParams() {
-  return [];
-}
-
-const getCharacterCached = cache(getCharacter);
+const getCharacterCached = cache((id: string) => getCharacter(id, { noStore: true }));
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  if (!/^\d+$/.test(id)) {
+    return { title: "Character", robots: { index: false, follow: false } };
+  }
   try {
     const char = await getCharacterCached(id);
     const name = char.name?.full || "Character";
@@ -31,6 +24,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     return {
       title: `${name} — Character`,
       description: description || `Anime appearances, voice actors and details for ${name}.`,
+      robots: { index: false, follow: false },
       openGraph: {
         title: `${name} — Character`,
         description,
@@ -38,7 +32,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
       },
     };
   } catch {
-    return { title: "Character" };
+    return { title: "Character", robots: { index: false, follow: false } };
   }
 }
 
@@ -48,6 +42,7 @@ export default async function CharacterDetailsPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  if (!/^\d+$/.test(id)) notFound();
   let char;
   try {
     char = await getCharacterCached(id);

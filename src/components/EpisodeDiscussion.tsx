@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { logError } from "@/lib/logger";
+import boxStyles from "./detailBoxes.module.css";
 
 interface CommentUser {
   id: string;
@@ -30,7 +31,7 @@ function timeAgo(iso: string): string {
   return new Date(iso).toLocaleDateString();
 }
 
-export default function EpisodeDiscussion({ mediaId }: { mediaId: number }) {
+export default function EpisodeDiscussion({ mediaId, className = "" }: { mediaId: number; className?: string }) {
   const { data: session } = useSession();
   const [episode, setEpisode] = useState(1);
   const [comments, setComments] = useState<EpisodeComment[]>([]);
@@ -90,33 +91,33 @@ export default function EpisodeDiscussion({ mediaId }: { mediaId: number }) {
   }
 
   return (
-    <div className="rounded-xl neon-rgb-border bg-[var(--color-panel)] p-5">
-      <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-        <h3 className="font-display text-sm font-bold flex items-center gap-2">
-          <span className="h-3 w-1 rounded-full bg-[var(--color-magenta)]" />
+    <div className={className}>
+      <div className={`${boxStyles.sectionHead} flex-wrap`}>
+        <h3 className={`font-display text-sm font-bold flex items-center gap-2 ${boxStyles.boxTitle}`}>
+          <span className={boxStyles.headingMark} />
           Episode Discussion
         </h3>
-        <div className="flex items-center gap-1.5">
+        <div className={boxStyles.epNav}>
           <button
             onClick={() => setEpisode((e) => Math.max(1, e - 1))}
             disabled={episode <= 1}
-            className="rounded-lg border border-[var(--color-line)] px-2.5 py-1.5 text-xs text-[var(--color-mute)] hover:border-[var(--color-magenta)] hover:text-[var(--color-magenta)] disabled:opacity-40 transition-colors"
+            className={boxStyles.iconButton}
           >
             ←
           </button>
-          <div className="flex items-center gap-1 rounded-lg border border-[var(--color-line)] px-2 py-1">
-            <span className="text-[10px] uppercase tracking-wider text-[var(--color-mute)]">Ep</span>
+          <div className="flex items-center gap-1">
+            <span className={boxStyles.eyebrow}>Ep</span>
             <input
               type="number"
               min={1}
               value={episode}
               onChange={(e) => setEpisode(Math.max(1, Number(e.target.value) || 1))}
-              className="w-12 bg-transparent text-center font-mono text-sm font-bold text-white outline-none"
+              className={boxStyles.epInput}
             />
           </div>
           <button
             onClick={() => setEpisode((e) => e + 1)}
-            className="rounded-lg border border-[var(--color-line)] px-2.5 py-1.5 text-xs text-[var(--color-mute)] hover:border-[var(--color-magenta)] hover:text-[var(--color-magenta)] transition-colors"
+            className={boxStyles.iconButton}
           >
             →
           </button>
@@ -131,51 +132,51 @@ export default function EpisodeDiscussion({ mediaId }: { mediaId: number }) {
             placeholder={`Share your thoughts on episode ${episode}...`}
             rows={3}
             maxLength={2000}
-            className="w-full resize-none rounded-lg border border-[var(--color-line)] bg-[var(--color-void)] px-3 py-2.5 text-sm outline-none focus:border-[var(--color-magenta)]"
+            className={`${boxStyles.field} min-h-[4.5rem] resize-none`}
           />
           <div className="mt-2 flex items-center justify-between">
-            <span className="text-[10px] text-[var(--color-mute)]">{draft.length}/2000</span>
+            <span className={boxStyles.tinyMuted}>{draft.length}/2000</span>
             <button
               onClick={submit}
               disabled={posting || !draft.trim()}
-              className="rounded-full bg-[var(--color-magenta)] px-4 py-1.5 text-xs font-semibold text-black hover:opacity-90 transition-opacity disabled:opacity-40"
+              className={boxStyles.primaryButton}
             >
               {posting ? "Posting..." : "Post Comment"}
             </button>
           </div>
         </div>
       ) : (
-        <div className="mb-4 rounded-lg border border-[var(--color-line)] bg-[var(--color-void)] px-4 py-3 text-xs text-[var(--color-mute)]">
-          <Link href="/login" className="text-[var(--color-magenta)] hover:underline">Sign in</Link> to join the
+        <div className={`${boxStyles.noteCard} ${boxStyles.mutedText} mb-4`}>
+          <Link href="/login" className={boxStyles.textLink}>Sign in</Link> to join the
           discussion.
         </div>
       )}
 
-      {error && <div className="mb-3 text-xs text-red-400">{error}</div>}
+      {error && <div className={`${boxStyles.errorText} mb-3`}>{error}</div>}
 
       {loading ? (
-        <div className="py-6 text-center text-xs text-[var(--color-mute)]">Loading comments...</div>
+        <div className={`${boxStyles.emptyState} text-center`}>Loading comments...</div>
       ) : comments.length === 0 ? (
-        <div className="py-6 text-center text-xs text-[var(--color-mute)]">
+        <div className={`${boxStyles.emptyState} text-center`}>
           No one has discussed episode {episode} yet. Be the first!
         </div>
       ) : (
         <div className="space-y-3">
           {comments.map((c) => (
-            <div key={c.id} className="rounded-lg bg-[var(--color-void)] p-3">
+            <div key={c.id} className={boxStyles.commentCard}>
               <div className="flex items-center gap-2">
                 {c.user.avatar ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={c.user.avatar} alt={c.user.username} className="h-6 w-6 rounded-full object-cover" />
+                  <img src={c.user.avatar} alt={c.user.username} className={boxStyles.commentAvatar} />
                 ) : (
-                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--color-magenta)] text-[10px] font-bold text-black">
+                  <div className={boxStyles.commentFallback}>
                     {c.user.username.slice(0, 1).toUpperCase()}
                   </div>
                 )}
                 <Link href={`/profile?u=${c.user.username}`} className="text-xs font-semibold text-white hover:text-[var(--color-magenta)] transition-colors">
                   {c.user.username}
                 </Link>
-                <span className="text-[10px] text-[var(--color-mute)]">{timeAgo(c.createdAt)}</span>
+                <span className={boxStyles.tinyMuted}>{timeAgo(c.createdAt)}</span>
               </div>
               <p className="mt-1.5 whitespace-pre-line text-xs leading-relaxed text-[var(--color-mute)]">
                 {c.content}

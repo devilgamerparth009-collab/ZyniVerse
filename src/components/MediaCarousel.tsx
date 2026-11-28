@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, type CSSProperties } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { bestTitle } from "@/lib/anilist";
@@ -27,38 +27,59 @@ export default function MediaCarousel({
   );
 
   return (
-    <section>
-      <div className="mb-5 flex items-end justify-between">
-        <div>
-          {eyebrow && (
-            <p className="font-mono text-xs uppercase tracking-[0.2em] text-[var(--color-magenta)]">
-              {eyebrow}
-            </p>
-          )}
-          <h2 className="font-display text-2xl font-bold sm:text-3xl">{title}</h2>
-        </div>
-        {viewAllTo && (
-          <Link
-            href={viewAllTo}
-            className="shrink-0 text-sm text-[var(--color-mute)] hover:text-[var(--color-cyan)]"
-          >
-            View all →
-          </Link>
-        )}
-      </div>
+    <section className="mpop-section" aria-labelledby="mpop-title">
+      <span className="mpop-halo" aria-hidden="true" />
+      <span className="mpop-beam" aria-hidden="true" />
 
-      <div className="space-y-3 sm:space-y-4">
-        {rowItems.map((row, ri) => (
-          <div key={ri} className={ri > 0 ? "hidden sm:block" : ""}>
-            <CarouselRow items={row} />
+      <div className="mpop-shell">
+        <div className="mpop-head">
+          <div>
+            {eyebrow && (
+              <p className="mpop-eyebrow">
+                <span className="mpop-eyebrow-dot" aria-hidden="true" />
+                {eyebrow}
+              </p>
+            )}
+            <h2 id="mpop-title" className="mpop-title">{title}</h2>
+            <span className="mpop-title-line" aria-hidden="true" />
           </div>
-        ))}
+
+          <div className="mpop-head-side">
+            <span className="mpop-count">
+              <strong>{String(items.length).padStart(2, "0")}</strong>
+              <span>{items.length === 1 ? "title" : "titles"}</span>
+            </span>
+            {viewAllTo && (
+              <Link href={viewAllTo} className="mpop-viewall">
+                View all <span aria-hidden="true">→</span>
+              </Link>
+            )}
+          </div>
+        </div>
+
+        <div className="mpop-rows">
+          {rowItems.map((row, ri) => (
+            <div
+              key={ri}
+              className="mpop-row-wrap"
+              style={{ "--mpop-row": ri } as CSSProperties}
+            >
+              <CarouselRow items={row} startIndex={ri * itemsPerRow} />
+            </div>
+          ))}
+        </div>
       </div>
     </section>
   );
 }
 
-function CarouselRow({ items }: { items: Media[] }) {
+function CarouselRow({
+  items,
+  startIndex,
+}: {
+  items: Media[];
+  startIndex: number;
+}) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
@@ -86,71 +107,101 @@ function CarouselRow({ items }: { items: Media[] }) {
   };
 
   return (
-    <div className="relative group/row">
-      <div
-        ref={scrollRef}
-        className="flex gap-2 sm:gap-3 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-1"
-        style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
-      >
-        {items.map((item) => (
-          <CarouselCard key={item.id} item={item} />
+    <div className="mpop-row group/mpop">
+      <div ref={scrollRef} className="mpop-track">
+        {items.map((item, i) => (
+          <CarouselCard
+            key={item.id}
+            item={item}
+            rank={startIndex + i + 1}
+            index={i}
+          />
         ))}
       </div>
 
       {canScrollLeft && (
         <button
+          type="button"
           onClick={() => scroll("left")}
-          className="absolute left-0 top-1/2 -translate-y-1/2 z-10 hidden sm:flex h-10 w-10 items-center justify-center rounded-full bg-black/80 text-white border border-[var(--color-line)] hover:border-[var(--color-magenta)] transition-all opacity-0 group-hover/row:opacity-100"
+          className="mpop-nav mpop-nav--left"
+          aria-label="Scroll left"
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M15 18l-6-6 6-6"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 18l-6-6 6-6" />
+          </svg>
         </button>
       )}
       {canScrollRight && (
         <button
+          type="button"
           onClick={() => scroll("right")}
-          className="absolute right-0 top-1/2 -translate-y-1/2 z-10 hidden sm:flex h-10 w-10 items-center justify-center rounded-full bg-black/80 text-white border border-[var(--color-line)] hover:border-[var(--color-magenta)] transition-all opacity-0 group-hover/row:opacity-100"
+          className="mpop-nav mpop-nav--right"
+          aria-label="Scroll right"
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 18l6-6-6-6"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 18l6-6-6-6" />
+          </svg>
         </button>
       )}
     </div>
   );
 }
 
-function CarouselCard({ item }: { item: Media }) {
+function CarouselCard({
+  item,
+  rank,
+  index,
+}: {
+  item: Media;
+  rank: number;
+  index: number;
+}) {
   const title = bestTitle(item.title);
   const href = item.type === "MANGA" ? `/manga/${item.id}` : `/anime/${item.id}`;
+  const score = item.averageScore ? (item.averageScore / 10).toFixed(1) : null;
+  const format = item.format ? item.format.replace(/_/g, " ") : null;
+  const tierClass = rank <= 3 ? ` mpop-card--tier-${rank}` : "";
 
   return (
     <Link
       href={href}
-      className="snap-start shrink-0 group/card w-[140px] sm:w-[160px] md:w-[180px]"
+      aria-label={title}
+      className={`mpop-card${tierClass}`}
+      style={
+        {
+          "--mpop-i": Math.min(index, 8),
+          "--mpop-fill": item.averageScore ? item.averageScore / 100 : 0,
+        } as CSSProperties
+      }
     >
-      <div className="relative aspect-[2/3] overflow-hidden rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] transition-all duration-300 group-hover/card:border-[var(--color-magenta)] group-hover/card:shadow-[0_0_35px_-10px_var(--color-magenta)]">
+      <div className="mpop-poster">
         <Image
-          src={item.coverImage?.large || item.coverImage?.extraLarge || item.coverImage?.medium || ""}
-          alt={title}
+          src={item.coverImage?.extraLarge || item.coverImage?.large || item.coverImage?.medium || ""}
+          alt=""
           fill
-          className="object-cover transition-transform duration-500 group-hover/card:scale-110"
-          sizes="(max-width: 768px) 50vw, 25vw"
+          className="mpop-img"
+          sizes="(max-width: 640px) 45vw, (max-width: 1024px) 25vw, 180px"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-300" />
-        <div className="absolute inset-x-0 bottom-0 p-2.5 sm:p-3 translate-y-2 group-hover/card:translate-y-0 opacity-0 group-hover/card:opacity-100 transition-all duration-300">
-          <p className="font-display text-xs sm:text-sm font-bold leading-tight line-clamp-2 drop-shadow-lg">
-            {title}
-          </p>
-          <div className="mt-1 flex items-center gap-2 text-[10px] text-[var(--color-mute)]">
-            {item.averageScore ? (
-              <span className="text-[var(--color-cyan)]">★ {(item.averageScore / 10).toFixed(1)}</span>
-            ) : null}
-            {item.episodes ? <span>{item.episodes} ep</span> : null}
-          </div>
-        </div>
-        {item.averageScore ? (
-          <span className="absolute right-1.5 top-1.5 rounded-full bg-black/70 px-1.5 py-0.5 text-[9px] font-mono font-semibold text-[var(--color-cyan)] backdrop-blur">
-            {(item.averageScore / 10).toFixed(1)}
+        <span className="mpop-sheen" aria-hidden="true" />
+        <span className="mpop-stripe" aria-hidden="true" />
+        <span className={`mpop-rank ${rank <= 3 ? "mpop-rank--top" : ""}`}>
+          #{String(rank).padStart(2, "0")}
+        </span>
+        {score && (
+          <span className="mpop-score">
+            <span aria-hidden="true">★</span> {score}
           </span>
-        ) : null}
+        )}
+        <span className="mpop-edge" aria-hidden="true" />
+        <span className="mpop-corner" aria-hidden="true" />
+      </div>
+      <div className="mpop-meta">
+        <p className="mpop-name">{title}</p>
+        <div className="mpop-sub">
+          {item.episodes ? <span>{item.episodes} ep</span> : null}
+          {item.episodes && format ? <span className="mpop-dot" aria-hidden="true" /> : null}
+          {format ? <span>{format}</span> : null}
+        </div>
       </div>
     </Link>
   );

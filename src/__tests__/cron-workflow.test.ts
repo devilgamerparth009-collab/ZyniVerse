@@ -30,8 +30,8 @@ const mapping = new Map(
 );
 
 describe("cron workflow routing", () => {
-  it("declares the nine expected schedules", () => {
-    expect(schedules).toHaveLength(9);
+  it("declares the thirteen expected schedules", () => {
+    expect(schedules).toHaveLength(13);
     expect(schedules).toEqual([
       "0 9 * * *",
       "0 3 * * 0",
@@ -42,6 +42,10 @@ describe("cron workflow routing", () => {
       "0 4 1 * *",
       "0 6 1 * *",
       "30 20 * * *",
+      "0 */2 * * *",
+      "0 10 * * *",
+      "0 11 * * *",
+      "0 12 * * *",
     ]);
   });
 
@@ -61,6 +65,19 @@ describe("cron workflow routing", () => {
     expect(mapping.get("0 4 1 * *")).toBe("refresh-posters");
     expect(mapping.get("0 6 1 * *")).toBe("analytics");
     expect(mapping.get("30 20 * * *")).toBe("dub-sync");
+    expect(mapping.get("0 */2 * * *")).toBe("dub-schedule");
+    expect(mapping.get("0 10 * * *")).toBe("theatrical-refresh");
+    expect(mapping.get("0 11 * * *")).toBe("events-refresh");
+    expect(mapping.get("0 12 * * *")).toBe("conventions-refresh");
+  });
+
+  it("keeps the 2-hourly dub poll schedule-only", () => {
+    const route = fs.readFileSync(
+      path.join(process.cwd(), "src", "app", "api", "cron", "dub-schedule", "route.ts"),
+      "utf8"
+    );
+    expect(route).toContain('stage: "schedule"');
+    expect(route).not.toContain('stage: "catalogue"');
   });
 
   it("routes on github.event.schedule, not on the wall-clock hour", () => {

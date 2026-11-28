@@ -39,12 +39,13 @@ function formatCount(n: number): string {
   return String(n);
 }
 
-function videoHtml(url: string, muted: boolean) {
+function videoHtml(url: string, muted: boolean, poster?: string | null) {
+  const safePoster = poster ? poster.replace(/"/g, '&quot;') : '';
   return `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"><style>
   html,body{margin:0;padding:0;width:100%;height:100%;background:#000;overflow:hidden}
-  video{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;display:block}
+  video{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;display:block;background:#000}
   </style></head><body>
-  <video id="v" src="${url}" autoplay ${muted ? 'muted' : ''} loop playsinline webkit-playsinline preload="metadata"></video>
+  <video id="v" src="${url}" ${safePoster ? `poster="${safePoster}"` : ''} autoplay ${muted ? 'muted' : ''} loop playsinline webkit-playsinline preload="auto"></video>
   <script>
     var v=document.getElementById('v');
     var last=-1;
@@ -58,9 +59,13 @@ function videoHtml(url: string, muted: boolean) {
         }
       }catch(e){}
     }
+    function err(){ try{ window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({type:'error'})); }catch(e){} }
     v.addEventListener('timeupdate',post);
     v.addEventListener('loadedmetadata',post);
-    v.addEventListener('click',function(){ if(v.paused){v.play();} else {v.pause();} });
+    v.addEventListener('error',err);
+    v.addEventListener('stalled',function(){ setTimeout(function(){ try{ if(v.readyState<2) err(); }catch(e){} }, 4000); });
+    v.addEventListener('click',function(){ if(v.paused){v.play().catch(function(){});} else {v.pause();} });
+    setTimeout(function(){ try{ v.play().catch(function(){}); }catch(e){} }, 250);
   </script>
   </body></html>`;
 }
@@ -137,6 +142,7 @@ export default function ReelsScreen() {
   const [followBusy, setFollowBusy] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [captionOpen, setCaptionOpen] = useState<Record<string, boolean>>({});
+  const [videoErrors, setVideoErrors] = useState<Record<string, boolean>>({});
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const showToast = useCallback((message: string) => {
@@ -262,6 +268,8 @@ export default function ReelsScreen() {
       const data = JSON.parse(event?.nativeEvent?.data || '{}');
       if (data?.type === 'progress' && typeof data.pct === 'number') {
         setProgress((prev) => ({ ...prev, [reelId]: data.pct }));
+      } else if (data?.type === 'error') {
+        setVideoErrors((prev) => ({ ...prev, [reelId]: true }));
       }
     } catch {
       /* ignore malformed messages */
@@ -433,20 +441,32 @@ export default function ReelsScreen() {
           <Image source={{ uri: item.thumbnailUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
         ) : null}
 
-        {isActive && item.videoUrl ? (
+        {isActive && item.videoUrl && !videoErrors[item.id] ? (
           <WebView
             key={`${item.id}-${muted ? 'm' : 's'}`}
-            source={{ html: videoHtml(item.videoUrl, muted) }}
-            style={StyleSheet.absoluteFill}
+            source={{ html: videoHtml(item.videoUrl, muted, item.thumbnailUrl) }}
+            style={[StyleSheet.absoluteFill, { backgroundColor: '#000' }]}
             pointerEvents="none"
             scrollEnabled={false}
+            bounces={false}
+            overScrollMode="never"
             javaScriptEnabled
             allowsInlineMediaPlayback
             mediaPlaybackRequiresUserAction={false}
             androidLayerType="hardware"
             onMessage={(event) => onVideoMessage(item.id, event)}
-            renderLoading={() => <View style={StyleSheet.absoluteFill} />}
+            onError={() => setVideoErrors((prev) => ({ ...prev, [item.id]: true }))}
+            onHttpError={() => setVideoErrors((prev) => ({ ...prev, [item.id]: true }))}
+            renderLoading={() => <View style={[StyleSheet.absoluteFill, { backgroundColor: '#000' }]} />}
           />
+        ) : null}
+
+        {isActive && item.videoUrl && videoErrors[item.id] ? (
+          <View style={[StyleSheet.absoluteFill, styles.videoFallback]}>
+            <Text style={styles.videoFallbackIcon}>🎬</Text>
+            <Text style={styles.videoFallbackTitle}>Video could not play</Text>
+            <Text style={styles.videoFallbackText}>Pull to refresh or try again later.</Text>
+          </View>
         ) : null}
 
         {/* Playback progress (same affordance as the website player) */}
@@ -701,9 +721,9 @@ export default function ReelsScreen() {
           viewabilityConfig={{ itemVisiblePercentThreshold: 70 }}
           getItemLayout={(_, index) => ({ length: containerHeight, offset: containerHeight * index, index })}
           windowSize={3}
-          initialNumToRender={2}
+          initialNumToRender={1}
           maxToRenderPerBatch={2}
-          removeClippedSubviews
+          removeClippedSubviews={false}
           onEndReached={() => {
             if (hasMore) load(page + 1);
           }}
@@ -1225,4 +1245,14 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     textAlign: 'center',
   },
+  videoFallback: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    gap: 8,
+    paddingHorizontal: 24,
+  },
+  videoFallbackIcon: { fontSize: 34 },
+  videoFallbackTitle: { color: '#fff', fontSize: 16, fontWeight: '800' },
+  videoFallbackText: { color: 'rgba(255,255,255,0.72)', fontSize: 12, textAlign: 'center' },
 });

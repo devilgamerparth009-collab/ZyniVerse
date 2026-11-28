@@ -7,6 +7,8 @@ import { HUMAN_COOKIE, verifyHumanToken } from "@/lib/human-verification";
 
 const APP_CLIENT_HEADER = "x-zyniverse-client";
 const APP_CLIENT_VALUE = "zyniverse-mobile-v1";
+const APP_SECRET_HEADER = "x-zyniverse-app-secret";
+const APP_SECRET_VALUE = process.env.MOBILE_APP_SECRET || "";
 const ALLOWED_API_HOSTS = new Set([
   "zyverse.in",
   "www.zyverse.in",
@@ -25,7 +27,12 @@ function hostFromUrl(value: string | null): string | null {
 
 const CORS_METHODS = "GET, POST, PUT, PATCH, DELETE, OPTIONS";
 const CORS_HEADERS =
-  "authorization, content-type, x-zyniverse-client, x-api-key, x-internal-secret";
+  "authorization, content-type, x-zyniverse-client, x-zyniverse-app-secret, x-api-key, x-internal-secret";
+
+const NOINDEX_MIRROR_BLOCK_HEADERS = {
+  "Cache-Control": "no-store, max-age=0",
+  "X-Robots-Tag": "noindex, nofollow, noarchive",
+};
 
 function allowedCorsOrigin(request: NextRequest): string | null {
   const origin = request.headers.get("origin");
@@ -57,6 +64,7 @@ const SCRIPT_UA_RE =
   /(python-requests|python-urllib|aiohttp|httpx\/|scrapy|go-http-client|curl\/|wget\/|libwww-perl|node-fetch|axios\/|postmanruntime|insomnia)/i;
 
 function hasAllowedApiClient(request: NextRequest): boolean {
+  if (APP_SECRET_VALUE && request.headers.get(APP_SECRET_HEADER) === APP_SECRET_VALUE) return true;
   if (request.headers.get(APP_CLIENT_HEADER) === APP_CLIENT_VALUE) return true;
   const originHost = hostFromUrl(request.headers.get("origin"));
   if (originHost && ALLOWED_API_HOSTS.has(originHost)) return true;
@@ -180,25 +188,80 @@ function isFillerPath(pathname: string): boolean {
   return pathname === "/filler" || pathname.startsWith("/filler/");
 }
 
+// Public dynamic routes that can create an ISR entry per crawled ID. These are
+// rate-limited instead of human-verification-redirected so people and search
+// crawlers keep working while scraper bursts stay bounded.
+const PARAMETERIZED_CATALOG_PREFIXES = [
+  "/anime/",
+  "/manga/",
+  "/character/",
+  "/staff/",
+  "/alternatives/",
+  "/watch-order/",
+  "/wiki/",
+  "/blog/",
+  "/news/",
+  "/news/desk/",
+  "/studio/",
+  "/voice-actors/",
+  "/themes/",
+  "/ost/",
+  "/filler/",
+  "/awards/",
+  "/compare/",
+  "/list-share/",
+  "/conventions/",
+  "/list/",
+  "/dna/",
+  "/doujinshi/",
+  "/clubs/",
+  "/creators/",
+  "/cosplay/",
+  "/fanart/",
+  "/events/",
+  "/forum/",
+  "/guides/",
+  "/genre/",
+  "/moments/",
+  "/commissions/",
+  "/polls/",
+  "/reels/",
+  "/voice-lines/",
+  "/reviews/",
+  "/tierlist/",
+  "/posts/",
+  "/light-novels/",
+  "/indian-dubs/",
+  "/hindi-dub/",
+  "/manga-releases/",
+  "/live-action/",
+  "/toons/",
+];
+
 function isParameterizedCatalogPath(pathname: string): boolean {
-  // Dynamic/content-heavy routes that are common scrape targets. This is
-  // intentionally conservative and only used to throttle automated bursts.
-  return (
-    /^\/anime\/.+/.test(pathname) ||
-    /^\/manga\/.+/.test(pathname) ||
-    /^\/character\/.+/.test(pathname) ||
-    /^\/staff\/.+/.test(pathname) ||
-    /^\/alternatives\/.+/.test(pathname) ||
-    /^\/watch-order\/.+/.test(pathname) ||
-    /^\/wiki\/.+/.test(pathname) ||
-    /^\/blog\/.+/.test(pathname) ||
-    /^\/news\/.+/.test(pathname) ||
-    /^\/studio\/.+/.test(pathname) ||
-    /^\/voice-actors\/.+/.test(pathname) ||
-    /^\/themes\/.+/.test(pathname) ||
-    /^\/ost\/.+/.test(pathname) ||
-    /^\/filler\/.+/.test(pathname)
-  );
+  return PARAMETERIZED_CATALOG_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+}
+
+// Low-value / noindex surfaces disallowed in robots.ts. Training, SEO and
+// unknown bots are answered before any render; discovery bots stay allowed.
+const NOINDEX_PATH_PREFIXES = [
+  "/character/",
+  "/manga/",
+  "/staff/",
+  "/list-share/",
+  "/creators/",
+  "/posts/",
+  "/reels/",
+  "/moments/",
+  "/polls/",
+  "/forum/",
+  "/search",
+  "/doujinshi",
+  "/mature",
+];
+
+function isNoindexMirrorPath(pathname: string): boolean {
+  return NOINDEX_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
 
 function rateLimitResponse(retryAfter: number, asJson: boolean) {
@@ -264,10 +327,36 @@ export async function proxy(request: NextRequest, event: NextFetchEvent) {
   const isBot = botInfo !== null;
   const isDiscoveryBot = botInfo?.kind === "search" || botInfo?.kind === "ai-search";
   const isApi = pathname.startsWith("/api/");
+  const isRead = method === "GET" || method === "HEAD";
+
+  // Hard-404 abusive crawlers on noindex/private surfaces before any render,
+  // rate-limit bookkeeping or bot-hit reporting. Search/AI-search crawlers,
+  // AdSense (monitor) and social unfurlers remain allowed; training/SEO/unknown
+  // bots are the ones enumerating these high-cardinality routes.
+  if (isRead && isNoindexMirrorPath(pathname)) {
+    const blockedBot =
+      !userAgent.trim() ||
+      (botInfo !== null &&
+        (botInfo.kind === "ai-training" || botInfo.kind === "seo" || botInfo.kind === "other"));
+    if (blockedBot) {
+      return new NextResponse(null, { status: 404, headers: NOINDEX_MIRROR_BLOCK_HEADERS });
+    }
+  }
 
   // Human verification gate: first visit requires verification, then cookie allows browsing.
   // Discovery crawlers are exempt to avoid breaking SEO/AdSense indexing.
-  if (!isApi && !isDiscoveryBot && !isHumanVerificationExempt(pathname) && isProtectedPageRequest(request)) {
+  // Public catalog/content pages are handled by the client-side gate in the app layout
+  // to avoid proxy redirects hurting UX/caching on crawl-heavy routes we rate-limit here.
+  const hasQuery = request.nextUrl.search.length > 0;
+  const isPublicCatalogPage =
+    !isApi && (isParameterizedCatalogPath(pathname) || isFillerPath(pathname) || isSearchQueryPath(pathname, hasQuery));
+  if (
+    !isApi &&
+    !isDiscoveryBot &&
+    !isPublicCatalogPage &&
+    !isHumanVerificationExempt(pathname) &&
+    isProtectedPageRequest(request)
+  ) {
     const humanOk = await verifyHumanToken(request.cookies.get(HUMAN_COOKIE)?.value);
     if (!humanOk) {
       const verifyUrl = request.nextUrl.clone();
@@ -303,8 +392,6 @@ export async function proxy(request: NextRequest, event: NextFetchEvent) {
   // - Normal page browsing by real users is not throttled on catalog routes.
   // -------------------------------------------------------------------------
   const ip = getClientIp(request);
-  const hasQuery = request.nextUrl.search.length > 0;
-  const isRead = method === "GET" || method === "HEAD";
   const isMutating = !isRead;
 
   if (isApi && method === "OPTIONS") {
@@ -335,7 +422,8 @@ export async function proxy(request: NextRequest, event: NextFetchEvent) {
     pathname !== "/api/verify-human" &&
     !isPublicApiException(pathname) &&
     !pathname.startsWith("/api/analytics/") &&
-    request.headers.get(APP_CLIENT_HEADER) !== APP_CLIENT_VALUE
+    request.headers.get(APP_CLIENT_HEADER) !== APP_CLIENT_VALUE &&
+    !(APP_SECRET_VALUE && request.headers.get(APP_SECRET_HEADER) === APP_SECRET_VALUE)
   ) {
     const hasBrowserSignals = !!(request.headers.get("origin") || request.headers.get("referer") || request.headers.get("sec-fetch-site") || request.headers.get("sec-fetch-mode"));
     if (hasBrowserSignals) {
@@ -415,7 +503,13 @@ export async function proxy(request: NextRequest, event: NextFetchEvent) {
 
   // Report crawler hits by default; set DISABLE_BOT_HIT_REPORTING=1 to opt out
   // on deployments where the extra internal function invocation is unwanted.
-  if (process.env.DISABLE_BOT_HIT_REPORTING !== "1" && isRead && userAgent && isBot) {
+  // Sample bot-hit reporting to reduce internal function invocations during bot floods.
+  // Set BOT_HIT_REPORT_SAMPLE_RATE=1 to report every hit, or 0 to disable sampling logic.
+  const botHitSampleRateRaw = Number(process.env.BOT_HIT_REPORT_SAMPLE_RATE ?? "0.1");
+  const botHitSampleRate = Number.isFinite(botHitSampleRateRaw)
+    ? Math.min(1, Math.max(0, botHitSampleRateRaw))
+    : 0.1;
+  if (process.env.DISABLE_BOT_HIT_REPORTING !== "1" && isRead && userAgent && isBot && Math.random() < botHitSampleRate) {
     const report = new URL("/api/internal/bot-hit", request.url);
     const internalSecret = process.env.INTERNAL_API_SECRET || process.env.CRON_SECRET;
     event.waitUntil(
@@ -481,5 +575,56 @@ export const config = {
   // Keep matcher narrow to control function invocations.
   // Human verification is enforced for browser-originated API requests here,
   // and by a client-side gate in the app layout for page UX.
-  matcher: ["/api/:path*", "/verify-human"],
+  // Crawl-heavy catalog routes are included so proxy rate limiting can damp bot
+  // enumeration before expensive ISR/function renders. Keep this list targeted.
+  matcher: [
+    "/api/:path*",
+    "/verify-human",
+    "/anime/:path*",
+    "/manga/:path*",
+    "/character/:path*",
+    "/staff/:path*",
+    "/voice-actors/:path*",
+    "/studio/:path*",
+    "/themes/:path*",
+    "/ost/:path*",
+    "/watch-order/:path*",
+    "/filler/:path*",
+    "/search",
+    "/search/:path*",
+    "/alternatives/:path*",
+    "/wiki/:path*",
+    "/blog/:path*",
+    "/news/:path*",
+    "/awards/:path*",
+    "/compare/:path*",
+    "/list-share/:path*",
+    "/conventions/:path*",
+    "/list/:path*",
+    "/dna/:path*",
+    "/doujinshi/:path*",
+    "/mature/:path*",
+    "/clubs/:path*",
+    "/creators/:path*",
+    "/cosplay/:path*",
+    "/fanart/:path*",
+    "/events/:path*",
+    "/forum/:path*",
+    "/guides/:path*",
+    "/genre/:path*",
+    "/moments/:path*",
+    "/commissions/:path*",
+    "/polls/:path*",
+    "/reels/:path*",
+    "/voice-lines/:path*",
+    "/reviews/:path*",
+    "/tierlist/:path*",
+    "/posts/:path*",
+    "/light-novels/:path*",
+    "/indian-dubs/:path*",
+    "/hindi-dub/:path*",
+    "/manga-releases/:path*",
+    "/live-action/:path*",
+    "/toons/:path*",
+  ],
 };

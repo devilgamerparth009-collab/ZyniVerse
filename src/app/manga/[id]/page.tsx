@@ -5,20 +5,13 @@ import { getMangaDetailFull, AniListUnavailableError } from "@/lib/anilist";
 import MangaDetailClient from "./manga-client";
 import AnimeUnavailableCard from "@/components/AnimeUnavailableCard";
 
-// Same reasoning as /character/[id]: a manga page is catalog metadata that is
-// stable for months. It was the second-largest crawl target (47k bot hits in
-// three weeks) and re-rendering it every 3 days was pure ISR-write burn.
-export const revalidate = false;
+// Same reasoning as /character/[id]: a manga page is a high-cardinality
+// AniList mirror. An empty `generateStaticParams()` made every crawled id an
+// on-demand ISR entry, and the 7-day `force-cache` query added a second one.
+// Render dynamically with no-store data fetches and let the CDN cache output.
+export const dynamic = "force-dynamic";
 
-// Return an EMPTY array: no paths are prerendered at build time (so no
-// build-time AniList queries), but Next.js only enables on-demand ISR for a
-// dynamic segment when `generateStaticParams` exists. Without it the route is
-// rendered dynamically on every request (billed Node render per hit).
-export function generateStaticParams() {
-  return [];
-}
-
-const getMangaCached = cache(getMangaDetailFull);
+const getMangaCached = cache((id: string) => getMangaDetailFull(id, { noStore: true }));
 
 export async function generateMetadata({
   params,
@@ -26,6 +19,9 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id } = await params;
+  if (!/^\d+$/.test(id)) {
+    return { title: "Manga", robots: { index: false, follow: false } };
+  }
   try {
     const manga = await getMangaCached(id);
     const title = manga.title?.english || manga.title?.romaji || "Manga";
@@ -35,6 +31,7 @@ export async function generateMetadata({
     return {
       title: `${title} — Manga`,
       description,
+      robots: { index: false, follow: false },
       openGraph: {
         title: `${title} — Manga`,
         description,
@@ -44,7 +41,7 @@ export async function generateMetadata({
       },
     };
   } catch {
-    return { title: "Manga" };
+    return { title: "Manga", robots: { index: false, follow: false } };
   }
 }
 
@@ -54,6 +51,7 @@ export default async function MangaDetailsPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  if (!/^\d+$/.test(id)) notFound();
   let manga;
   try {
     manga = await getMangaCached(id);

@@ -308,7 +308,6 @@ function fallbackDaysFor(channelId: string): Record<string, ScheduleSlot[]> {
         start: minutesToHhmm(minute),
         end: minutesToHhmm(minute + FALLBACK_SLOT_MIN),
         duration: FALLBACK_SLOT_MIN,
-        description: "Offline guide · live EPG unavailable",
       });
     }
     days[day] = slots;

@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { fetchJson, fetchList, ApiError } from "@/lib/safe-json";
+import {
+  fetchJson,
+  fetchList,
+  ApiError,
+  HUMAN_VERIFICATION_KEY,
+  HUMAN_VERIFICATION_EVENT,
+} from "@/lib/safe-json";
 
 /**
  * Regression tests for the blank-page bug.
@@ -24,6 +30,7 @@ describe("safe-json", () => {
 
   afterEach(() => {
     globalThis.fetch = realFetch;
+    delete (globalThis as { window?: unknown }).window;
   });
 
   describe("fetchJson", () => {
@@ -60,6 +67,28 @@ describe("safe-json", () => {
         json: () => Promise.reject(new SyntaxError("not json")),
       } as unknown as Response);
       await expect(fetchJson("/api/x")).rejects.toThrow(/Too many requests/);
+    });
+
+    it("clears the stale human flag when the proxy requires verification", async () => {
+      const store = new Map<string, string>([
+        [HUMAN_VERIFICATION_KEY, String(Date.now())],
+      ]);
+      const dispatchEvent = vi.fn();
+      (globalThis as { window?: unknown }).window = {
+        localStorage: {
+          removeItem: (key: string) => store.delete(key),
+        },
+        dispatchEvent,
+      };
+      fetchMock.mockResolvedValue(
+        jsonResponse({ error: "Human verification required" }, 403),
+      );
+
+      await expect(fetchJson("/api/x")).rejects.toThrow("Human verification required");
+      expect(store.has(HUMAN_VERIFICATION_KEY)).toBe(false);
+      expect(dispatchEvent).toHaveBeenCalledWith(
+        expect.objectContaining({ type: HUMAN_VERIFICATION_EVENT }),
+      );
     });
   });
 

@@ -5,7 +5,7 @@ const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "https://zyverse.in";
 export const metadata: Metadata = {
   title: "Anime Watch Order — Complete Guide for Every Franchise (2026)",
   description:
-    "Confused about anime watch order? Complete guides for Re:Zero, Sword Art Online, Fate, Monogatari, Naruto, Dragon Ball, JoJo, Attack on Titan, and 35+ more franchises. Release order, chronological order, and spoiler-free tips.",
+    "Confused about anime watch order? Explore 1,200+ anime across 168 franchises with 225 verified watch orders. Guides for Re:Zero, Fate, Naruto, Dragon Ball, JoJo, Attack on Titan, and more. Release order, chronological order, and spoiler-free tips.",
   keywords: [
     "anime watch order", "re zero watch order", "sao watch order", "sword art online watch order",
     "fate watch order", "monogatari watch order", "naruto watch order", "dragon ball watch order",
@@ -15,14 +15,14 @@ export const metadata: Metadata = {
   openGraph: {
     images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "ZyniVerse — anime filler guides, watch orders and dub tracking" }],
     title: "Anime Watch Order Guides — Every Franchise Explained",
-    description: "Complete watch order guides for Re:Zero, SAO, Fate, Monogatari, Naruto, Dragon Ball, JoJo, and 35+ more anime franchises.",
+    description: "Complete watch order guides for 1,200+ anime across 168 franchises, including Re:Zero, SAO, Fate, Naruto, Dragon Ball, and JoJo.",
     url: `${BASE_URL}/watch-order`,
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
     title: "Anime Watch Order Guides",
-    description: "Never be confused about anime watch order. Release order, chronological order, and tips for 35+ franchises.",
+    description: "Never be confused about anime watch order. Explore 1,200+ anime, release order, chronological order, and tips for 168 franchises.",
   },
   alternates: {
     canonical: `${BASE_URL}/watch-order`,

@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import ScreenHeader from '../components/ScreenHeader';
@@ -29,6 +30,7 @@ import { ChannelPostView, ChannelSummary } from '../types/social';
 import { spacing, fontSize, borderRadius } from '../theme';
 import { formatCount, timeAgo } from '../utils/helpers';
 import { openSafeWebUrl } from '../utils/safeLinks';
+import { SocialAvatar, UserName } from '../components/social/SocialBits';
 
 type DetailRoute = RouteProp<RootStackParamList, 'ChannelDetail'>;
 const REACTIONS = ['👍', '❤️', '🔥', '😂'];
@@ -58,6 +60,7 @@ export default function ChannelDetailScreen() {
   const [pinned, setPinned] = useState(false);
   const [posting, setPosting] = useState(false);
   const [composerError, setComposerError] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -112,6 +115,37 @@ export default function ChannelDetailScreen() {
       setError(e instanceof Error ? e.message : 'Could not update subscription');
     } finally {
       setSubscribing(false);
+    }
+  };
+
+  const pickPostImage = async () => {
+    if (uploadingImage) return;
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert('Photo permission needed', 'Allow photo access to choose an image.');
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.85,
+      });
+      if (result.canceled || !result.assets?.length) return;
+      const asset = result.assets[0];
+      setUploadingImage(true);
+      const uploaded = await api.profile.uploadImage({
+        uri: asset.uri,
+        name: asset.fileName || `channel-post-${Date.now()}.jpg`,
+        type: asset.mimeType || 'image/jpeg',
+      });
+      const absolute = uploaded.startsWith('http') ? uploaded : `https://zyverse.in${uploaded}`;
+      setImageUrl(absolute);
+      setComposerError(null);
+    } catch (e: unknown) {
+      setComposerError(e instanceof Error ? e.message : 'Could not upload image');
+    } finally {
+      setUploadingImage(false);
     }
   };
 
@@ -190,6 +224,14 @@ export default function ChannelDetailScreen() {
 
   const renderPost = ({ item }: { item: ChannelPostView }) => {
     const canDelete = item.canManage || (!!meId && item.author.id === meId);
+    const officialPost = !!(
+      channel?.isOfficial ||
+      channel?.slug === 'zyniverse' ||
+      channel?.name === 'ZyniVerse' ||
+      item.author?.username === 'system-bot'
+    );
+    const postName = officialPost ? channel?.name || 'ZyniVerse' : item.author?.username || 'unknown';
+    const postAvatar = officialPost ? '/logo.png' : item.author?.avatar;
     return (
       <View style={[styles.post, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <View style={styles.postHead}>
@@ -198,8 +240,11 @@ export default function ChannelDetailScreen() {
             onPress={() => navigation.navigate('UserProfile', { username: item.author.username })}
             activeOpacity={0.8}
           >
-            <Text style={[styles.authorName, { color: colors.text }]}>{item.author.username}</Text>
-            <Text style={[styles.postTime, { color: colors.textDim }]}>{timeAgo(item.createdAt)}</Text>
+            <SocialAvatar uri={postAvatar} name={postName} size={32} verified={officialPost} />
+            <View style={{ flexShrink: 1 }}>
+              <UserName name={postName} verified={officialPost} style={[styles.authorName, { color: colors.text }]} />
+              <Text style={[styles.postTime, { color: colors.textDim }]}>{timeAgo(item.createdAt)}</Text>
+            </View>
           </TouchableOpacity>
           {item.pinned && (
             <View style={[styles.badge, { backgroundColor: `${colors.primary}22` }]}>
@@ -272,6 +317,11 @@ export default function ChannelDetailScreen() {
   const renderHeader = () => {
     if (!channel) return null;
     const isOwner = !!meId && channel.owner.id === meId;
+    const official = !!(
+      channel.isOfficial ||
+      channel.slug === 'zyniverse' ||
+      channel.name === 'ZyniVerse'
+    );
     return (
       <View>
         {!!channel.coverUrl && (
@@ -283,19 +333,22 @@ export default function ChannelDetailScreen() {
         )}
         <View style={[styles.channelCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <View style={styles.channelHead}>
-            <SafeImage
-              uri={channel.iconUrl}
-              fallbackLabel={channel.name}
-              style={[styles.channelIcon, { borderColor: colors.border }]}
-            />
+            <View style={[styles.channelIcon, { borderColor: colors.border }]}>
+              <SocialAvatar
+                name={channel.name}
+                uri={official ? '/logo.png' : channel.iconUrl}
+                size={48}
+                verified={official}
+              />
+            </View>
             <View style={{ flex: 1 }}>
               <View style={styles.titleRow}>
                 <Text style={[styles.channelName, { color: colors.text }]} numberOfLines={1}>
                   {channel.name}
                 </Text>
-                {channel.isOfficial && (
+                {official && (
                   <View style={[styles.badge, { backgroundColor: `${colors.primary}22` }]}>
-                    <Text style={[styles.badgeText, { color: colors.primary }]}>Official</Text>
+                    <Text style={[styles.badgeText, { color: colors.primary }]}>✓ Official</Text>
                   </View>
                 )}
               </View>
@@ -323,7 +376,7 @@ export default function ChannelDetailScreen() {
               activeOpacity={0.8}
             >
               <Text style={[styles.owner, { color: colors.textMuted }]}>
-                By {channel.owner.username}
+                By {channel.owner.username}{channel.owner.username === 'ZyniVerse' ? ' ✓' : ''}
               </Text>
             </TouchableOpacity>
           </View>
@@ -345,12 +398,21 @@ export default function ChannelDetailScreen() {
               <TextInput
                 value={imageUrl}
                 onChangeText={setImageUrl}
-                placeholder="Image URL (optional)"
+                placeholder="Image URL (optional) or pick from gallery"
                 placeholderTextColor={colors.textDim}
                 style={[styles.input, { color: colors.text, backgroundColor: colors.background, borderColor: colors.border }]}
                 autoCapitalize="none"
                 autoCorrect={false}
               />
+              <TouchableOpacity
+                onPress={() => void pickPostImage()}
+                disabled={uploadingImage}
+                style={{ borderWidth: 1, borderColor: colors.primary, alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, marginBottom: 8 }}
+              >
+                <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 12 }}>
+                  {uploadingImage ? 'Uploading…' : 'Pick image from gallery'}
+                </Text>
+              </TouchableOpacity>
               <TextInput
                 value={linkUrl}
                 onChangeText={setLinkUrl}

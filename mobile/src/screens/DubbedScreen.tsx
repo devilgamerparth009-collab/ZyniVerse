@@ -4,7 +4,6 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  Image,
   StyleSheet,
   RefreshControl,
   ActivityIndicator,
@@ -19,6 +18,8 @@ import { getPreferredDubLanguage } from '../services/prefs';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorView from '../components/ErrorView';
 import FadeInView from '../components/FadeInView';
+import SafeImage from '../components/SafeImage';
+import { getScreenCache, setScreenCache } from '../utils/screenCache';
 
 const LANGUAGES: { key: DubScheduleLanguage; label: string; color: string }[] = [
   { key: 'hindi', label: 'Hindi', color: '#ff9933' },
@@ -49,13 +50,11 @@ function DubCard({
   return (
     <TouchableOpacity style={styles.card} activeOpacity={0.8} onPress={onPress} disabled={busy}>
       <View style={styles.posterWrap}>
-        {entry.image ? (
-          <Image source={{ uri: entry.image }} style={styles.poster} resizeMode="cover" />
-        ) : (
-          <View style={[styles.poster, styles.posterPlaceholder]}>
-            <Text style={styles.posterPlaceholderText}>?</Text>
-          </View>
-        )}
+        <SafeImage
+          uri={entry.image}
+          style={styles.poster}
+          fallbackLabel={entry.displayTitle || entry.title}
+        />
         {entry.score && entry.score !== '0' ? (
           <View style={styles.scoreBadge}>
             <Text style={styles.scoreText}>★ {entry.score}</Text>
@@ -141,13 +140,20 @@ export default function DubbedScreen() {
   const [resolving, setResolving] = useState<number | null>(null);
 
   const load = useCallback(
-    async (lang: DubScheduleLanguage) => {
+    async (lang: DubScheduleLanguage, silent = false) => {
+      const cacheKey = `dub-schedule:${lang}`;
+      if (!silent) {
+        const cached = getScreenCache<DubScheduleResponse>(cacheKey);
+        if (cached) { setResponse(cached); setLoading(false); }
+      }
       try {
+        if (!silent && !getScreenCache<DubScheduleResponse>(cacheKey)) setLoading(true);
         setError(null);
         const data = await api.dubSchedule.get(lang);
         setResponse(data);
+        setScreenCache(cacheKey, data);
       } catch (e: any) {
-        setError(e?.message || 'Could not load dubbed anime');
+        if (!getScreenCache<DubScheduleResponse>(cacheKey)) setError(e?.message || 'Could not load dubbed anime');
       } finally {
         setLoading(false);
         setRefreshing(false);
@@ -176,13 +182,12 @@ export default function DubbedScreen() {
   const selectLanguage = (lang: DubScheduleLanguage) => {
     if (lang === language) return;
     setLanguage(lang);
-    setLoading(true);
     load(lang);
   };
 
   const onRefresh = () => {
     setRefreshing(true);
-    load(language);
+    load(language, true);
   };
 
   // Dub entries are keyed by MAL id, so resolve the AniList id by title

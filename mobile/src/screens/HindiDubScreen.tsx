@@ -85,49 +85,88 @@ function languageTint(language: string): string {
 
 const dubResolveCache = new Map<string, number | null>();
 
+function dubTitleKey(value: string): string {
+  return (value || '')
+    .replace(
+      /\s*\((?:Hindi|Tamil|Telugu|Kannada|Malayalam|Bengali|Marathi|English|Dub(?:bed)?|Movie|Film|TV|Series|Season\s*\d+|S\d+)[^)]*\)/gi,
+      ' '
+    )
+    .replace(/\b(?:hindi|tamil|telugu|kannada|malayalam|bengali|marathi|dubbed|dub|movie|film|tv series|season\s*\d+|s\d+)\b/gi, ' ')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+/**
+ * Dub rows are scraped, so a loose first-result match frequently opened the
+ * wrong series (and then showed "Anime not found" during filler lookup). Only
+ * exact or unique, confident matches are accepted; everything else falls back
+ * to Browse search instead of guessing an identity.
+ */
 async function resolveDubAnilistId(title: string): Promise<number | null> {
-  const key = title.trim().toLowerCase();
-  if (!key) return null;
-  if (dubResolveCache.has(key)) return dubResolveCache.get(key) ?? null;
+  const key = dubTitleKey(title);
+  if (!key || key.length < 3) return null;
+  const cacheKey = key;
+  if (dubResolveCache.has(cacheKey)) return dubResolveCache.get(cacheKey) ?? null;
 
   const clean = title
-    .replace(/\s*\((?:Hindi|Tamil|Telugu|Kannada|Malayalam|Bengali|Marathi|English|Dub(?:bed)?|Movie|Film|TV|Series|Season\s*\d+|S\d+)\)/gi, ' ')
+    .replace(/\s*\((?:Hindi|Tamil|Telugu|Kannada|Malayalam|Bengali|Marathi|English|Dub(?:bed)?|Movie|Film|TV|Series|Season\s*\d+|S\d+)[^)]*\)/gi, ' ')
     .replace(/\s+/g, ' ')
     .trim();
-
   const queries = [clean, title.trim()].filter((q, i, arr) => q && arr.indexOf(q) === i);
+
+  const pickId = (entries: Array<{ id?: number; titles: string[] }>): number | null => {
+    const valid = entries.filter((entry) => Number.isFinite(entry.id) && Number(entry.id) > 0);
+    const exact = valid.filter((entry) => entry.titles.includes(key));
+    if (exact.length === 1) return Number(exact[0].id);
+    if (exact.length > 1) return null;
+
+    const partial = valid.filter((entry) =>
+      entry.titles.some(
+        (candidate) => candidate.length >= 5 && key.length >= 5 && (candidate.includes(key) || key.includes(candidate))
+      )
+    );
+    const unique = Array.from(new Map(partial.map((entry) => [entry.id, entry])).values());
+    return unique.length === 1 ? Number(unique[0].id) : null;
+  };
+
   for (const query of queries) {
     try {
       const suggestions = await api.suggestions(query);
-      const exact = suggestions.find((s) => s.title?.trim().toLowerCase() === key);
-      const match = exact ?? suggestions[0];
-      if (match?.id) {
-        dubResolveCache.set(key, match.id);
-        return match.id;
+      const id = pickId(
+        suggestions.map((s) => ({
+          id: s.id,
+          titles: [s.title, s.titleRomaji].filter(Boolean).map((value) => dubTitleKey(String(value))).filter(Boolean),
+        }))
+      );
+      if (id) {
+        dubResolveCache.set(cacheKey, id);
+        return id;
       }
     } catch {
-      // try next strategy
+      // try the next strategy
     }
 
     try {
       const results = await api.search(query, 'anime');
-      const exact = results.find((a) => {
-        const titles = [a.title?.english, a.title?.romaji, a.title?.native, a.title?.userPreferred]
-          .filter(Boolean)
-          .map((t) => String(t).trim().toLowerCase());
-        return titles.includes(key) || titles.includes(clean.toLowerCase());
-      });
-      const match = exact ?? results[0];
-      if (match?.id) {
-        dubResolveCache.set(key, match.id);
-        return match.id;
+      const id = pickId(
+        results.map((a) => ({
+          id: a.id,
+          titles: [a.title?.english, a.title?.romaji, a.title?.native, a.title?.userPreferred]
+            .filter(Boolean)
+            .map((t) => dubTitleKey(String(t))),
+        }))
+      );
+      if (id) {
+        dubResolveCache.set(cacheKey, id);
+        return id;
       }
     } catch {
-      // try next query
+      // try the next query
     }
   }
 
-  dubResolveCache.set(key, null);
+  dubResolveCache.set(cacheKey, null);
   return null;
 }
 

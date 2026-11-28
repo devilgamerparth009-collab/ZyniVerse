@@ -2,11 +2,12 @@
 
 import { useState, useRef, useCallback } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { motion } from "framer-motion";
 import { PageTransition } from "@/components/PageTransition";
-import { TOON_STATS } from "@/lib/toons-data";
+import { TOON_STATS, formatToonYears } from "@/lib/toons-data";
 import type { CartoonEntry } from "@/lib/toons-data";
+import ToonArtwork from "./ToonArtwork";
+import styles from "./toons.module.css";
 
 const NETWORK_FILTERS = ["All", "Indian", "International"] as const;
 const GENRE_FILTERS = ["All", "Comedy", "Action", "Adventure", "Sci-Fi", "Fantasy", "Slice of Life"] as const;
@@ -14,10 +15,115 @@ const STATUS_FILTERS = ["All", "Airing", "Completed"] as const;
 
 const PAGE_SIZE = 16;
 
+const STATS = [
+  { label: "Total Toons", value: TOON_STATS.totalCartoons, color: "var(--color-cyan)", icon: "grid" },
+  { label: "Indian Originals", value: TOON_STATS.indianOriginals, color: "#ff9933", icon: "flag" },
+  { label: "International", value: TOON_STATS.internationalPopular, color: "#3b82f6", icon: "globe" },
+  { label: "Currently Airing", value: TOON_STATS.airingShows, color: "#22c55e", icon: "bolt" },
+] as const;
+
+const TONE_CLASS = {
+  magenta: styles.filterChipMagenta,
+  cyan: styles.filterChipCyan,
+  gold: styles.filterChipGold,
+} as const;
+
+function prefersReducedMotion() {
+  return typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function StatIcon({ kind }: { kind: (typeof STATS)[number]["icon"] }) {
+  const common = {
+    width: 18,
+    height: 18,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.8,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+  };
+
+  if (kind === "grid") {
+    return <svg {...common} aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></svg>;
+  }
+  if (kind === "flag") {
+    return <svg {...common} aria-hidden="true"><path d="M5 21V4" /><path d="M5 5h11l-2 3.5L16 12H5" /></svg>;
+  }
+  if (kind === "globe") {
+    return <svg {...common} aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18" /></svg>;
+  }
+  return <svg {...common} aria-hidden="true"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z" /></svg>;
+}
+
+function CardIcon({ kind }: { kind: "episodes" | "seasons" | "calendar" | "play" | "arrow" }) {
+  const common = {
+    width: 14,
+    height: 14,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 2,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    "aria-hidden": true,
+  };
+
+  if (kind === "episodes") {
+    return <svg {...common}><path d="M8 6h12M8 12h12M8 18h12" /><circle cx="4" cy="6" r="1" fill="currentColor" stroke="none" /><circle cx="4" cy="12" r="1" fill="currentColor" stroke="none" /><circle cx="4" cy="18" r="1" fill="currentColor" stroke="none" /></svg>;
+  }
+  if (kind === "seasons") {
+    return <svg {...common}><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M3 9h18" /></svg>;
+  }
+  if (kind === "calendar") {
+    return <svg {...common}><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M8 3v4M16 3v4M3 10h18" /></svg>;
+  }
+  if (kind === "play") {
+    return <svg {...common}><path d="m8 5 11 7-11 7V5Z" /></svg>;
+  }
+  return <svg {...common}><path d="M5 12h14M13 6l6 6-6 6" /></svg>;
+}
+
+function FilterRow<T extends string>({
+  label,
+  options,
+  value,
+  onChange,
+  tone,
+}: {
+  label: string;
+  options: readonly T[];
+  value: string;
+  onChange: (next: T) => void;
+  tone: keyof typeof TONE_CLASS;
+}) {
+  return (
+    <div className={styles.filterRow}>
+      <span className={styles.filterLabel}>{`${label}:`}</span>
+      <div className={styles.chipScroll} role="group" aria-label={label}>
+        {options.map((option) => {
+          const active = value === option;
+          return (
+            <button
+              key={option}
+              onClick={() => onChange(option)}
+              className={`${styles.filterChip} ${TONE_CLASS[tone]} ${active ? styles.filterChipActive : ""}`}
+              aria-pressed={active}
+            >
+              {option}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function Card3D({ children, index = 0 }: { children: React.ReactNode; index?: number }) {
   const ref = useRef<HTMLDivElement>(null);
 
   const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (prefersReducedMotion()) return;
     const el = ref.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
@@ -29,6 +135,7 @@ function Card3D({ children, index = 0 }: { children: React.ReactNode; index?: nu
   }, []);
 
   const handlePointerLeave = useCallback(() => {
+    if (prefersReducedMotion()) return;
     const el = ref.current;
     if (!el) return;
     el.style.transform = "perspective(800px) rotateY(0deg) rotateX(0deg) scale(1)";
@@ -71,7 +178,10 @@ export default function ToonsBrowseClient({ toons }: { toons: CartoonEntry[] }) 
 
   return (
     <PageTransition>
-      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 animate-page-in">
+      <div className={`${styles.page} mx-auto max-w-7xl px-4 py-10 sm:px-6 animate-page-in`}>
+        <span className={`${styles.aurora} ${styles.auroraOne}`} aria-hidden="true" />
+        <span className={`${styles.aurora} ${styles.auroraTwo}`} aria-hidden="true" />
+
         {/* Breadcrumb */}
         <nav className="mb-6 flex items-center gap-2 text-xs text-[var(--color-mute)]">
           <Link href="/" className="hover:text-[var(--color-cyan)] transition-colors">Home</Link>
@@ -80,39 +190,46 @@ export default function ToonsBrowseClient({ toons }: { toons: CartoonEntry[] }) 
         </nav>
 
         {/* Header */}
-        <div className="mb-8">
-          <p className="font-mono text-xs uppercase tracking-[0.2em] text-[var(--color-magenta)]">Cartoons & Toons</p>
-          <div className="neon-rgb-border rounded-xl px-4 py-2 inline-block">
-            <h1 className="font-display text-3xl font-black sm:text-4xl md:text-5xl tracking-tight mt-1">
+        <header className={`${styles.header} mb-6`}>
+          <div className={styles.heroPanel}>
+            <p className={`${styles.eyebrow} font-mono`}>Cartoons & Toons</p>
+            <h1 className={`${styles.heroTitle} font-display mt-2 font-black tracking-tight`}>
               Indian & International Toons
             </h1>
+            <p className={styles.heroCopy}>
+              From Chhota Bheem to Doraemon — every cartoon popular in India with Hindi dub info, episode counts & where to watch.
+            </p>
           </div>
-          <p className="mt-2 text-sm text-[var(--color-mute)] max-w-2xl">
-            From Chhota Bheem to Doraemon — every cartoon popular in India with Hindi dub info, episode counts & where to watch.
-          </p>
-        </div>
+        </header>
 
         {/* Stats Bar */}
-        <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {[
-            { label: "Total Toons", value: TOON_STATS.totalCartoons, color: "var(--color-cyan)" },
-            { label: "Indian Originals", value: TOON_STATS.indianOriginals, color: "#ff9933" },
-            { label: "International", value: TOON_STATS.internationalPopular, color: "#3b82f6" },
-            { label: "Currently Airing", value: TOON_STATS.airingShows, color: "#22c55e" },
-          ].map((stat) => (
-            <div key={stat.label} className="relative overflow-hidden rounded-xl neon-rgb-border bg-[var(--color-panel)]/60 backdrop-blur-sm p-4 transition-transform duration-200 hover:-translate-y-0.5">
-              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-[var(--color-cyan)]/50 via-[var(--color-magenta)]/50 to-transparent" />
-              <p className="font-display text-2xl font-bold" style={{ color: stat.color }}>{stat.value}</p>
-              <p className="text-[10px] text-[var(--color-mute)] uppercase tracking-wider">{stat.label}</p>
+        <div className={`${styles.statsGrid} mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4`}>
+          {STATS.map((stat) => (
+            <div key={stat.label} className={`${styles.statCard} relative overflow-hidden rounded-2xl p-4`}>
+              <span aria-hidden="true" className={styles.statGlow} style={{ background: stat.color }} />
+              <div className={styles.statTop}>
+                <span className={styles.statIcon} style={{ color: stat.color }}>
+                  <StatIcon kind={stat.icon} />
+                </span>
+                <p className={`${styles.statValue} font-display`} style={{ color: stat.color }}>{stat.value}</p>
+              </div>
+              <p className={styles.statLabel}>{stat.label}</p>
             </div>
           ))}
         </div>
 
-        {/* Search */}
-        <div className="mb-6 max-w-xl">
-          <div className="relative">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-              className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-mute)]">
+        {/* Search + Filters */}
+        <section className={`${styles.controls} mb-7 rounded-2xl p-4 sm:p-5`} aria-label="Toon filters">
+          <div className={`${styles.searchWrap} relative`}>
+            <svg
+              width="17"
+              height="17"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              className={`${styles.searchIcon} absolute left-4 top-1/2 -translate-y-1/2`}
+            >
               <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
             </svg>
             <input
@@ -120,195 +237,117 @@ export default function ToonsBrowseClient({ toons }: { toons: CartoonEntry[] }) 
               placeholder="Search toons..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full rounded-xl neon-rgb-border bg-[var(--color-panel)] py-3 pl-11 pr-4 text-sm text-[var(--color-ink)] placeholder:text-[var(--color-mute)] outline-none"
+              className={`${styles.searchInput} w-full rounded-xl py-3 pl-11 pr-4 text-sm outline-none`}
             />
           </div>
-        </div>
 
-        {/* Filters */}
-        <div className="mb-8 space-y-3">
-          {/* Network Filter */}
-          <div className="flex flex-wrap gap-2">
-            <span className="text-[10px] uppercase tracking-wider text-[var(--color-mute)] self-center mr-1">Region:</span>
-            {NETWORK_FILTERS.map((f) => (
-              <button
-                key={f}
-                onClick={() => setNetworkFilter(f)}
-                className={`rounded-full neon-rgb-border px-3.5 py-1.5 text-xs font-semibold transition-all duration-200 ${
-                  networkFilter === f
-                    ? "bg-[var(--color-magenta)]/15 text-[var(--color-magenta)] shadow-[0_0_16px_-6px_var(--color-magenta)] scale-105"
-                    : "bg-[var(--color-panel)]/60 text-[var(--color-mute)] hover:text-[var(--color-cyan)] hover:bg-[var(--color-cyan)]/5"
-                }`}
-              >
-                {f}
-              </button>
-            ))}
+          <div className={styles.filterRows}>
+            <FilterRow label="Region" options={NETWORK_FILTERS} value={networkFilter} onChange={setNetworkFilter} tone="magenta" />
+            <FilterRow label="Genre" options={GENRE_FILTERS} value={genreFilter} onChange={setGenreFilter} tone="cyan" />
+            <FilterRow label="Status" options={STATUS_FILTERS} value={statusFilter} onChange={setStatusFilter} tone="gold" />
           </div>
-
-          {/* Genre Filter */}
-          <div className="flex flex-wrap gap-2">
-            <span className="text-[10px] uppercase tracking-wider text-[var(--color-mute)] self-center mr-1">Genre:</span>
-            {GENRE_FILTERS.map((f) => (
-              <button
-                key={f}
-                onClick={() => setGenreFilter(f)}
-                className={`rounded-full neon-rgb-border px-3.5 py-1.5 text-xs font-semibold transition-all duration-200 ${
-                  genreFilter === f
-                    ? "bg-[var(--color-cyan)]/15 text-[var(--color-cyan)] shadow-[0_0_16px_-6px_var(--color-cyan)] scale-105"
-                    : "bg-[var(--color-panel)]/60 text-[var(--color-mute)] hover:text-[var(--color-cyan)] hover:bg-[var(--color-cyan)]/5"
-                }`}
-              >
-                {f}
-              </button>
-            ))}
-          </div>
-
-          {/* Status Filter */}
-          <div className="flex flex-wrap gap-2">
-            <span className="text-[10px] uppercase tracking-wider text-[var(--color-mute)] self-center mr-1">Status:</span>
-            {STATUS_FILTERS.map((f) => (
-              <button
-                key={f}
-                onClick={() => setStatusFilter(f)}
-                className={`rounded-full neon-rgb-border px-3.5 py-1.5 text-xs font-semibold transition-all duration-200 ${
-                  statusFilter === f
-                    ? "bg-[var(--color-gold)]/15 text-[var(--color-gold)] shadow-[0_0_16px_-6px_var(--color-gold)] scale-105"
-                    : "bg-[var(--color-panel)]/60 text-[var(--color-mute)] hover:text-[var(--color-cyan)] hover:bg-[var(--color-cyan)]/5"
-                }`}
-              >
-                {f}
-              </button>
-            ))}
-          </div>
-        </div>
+        </section>
 
         {/* Results Count */}
-        <p className="mb-5 font-mono text-[11px] text-[var(--color-mute)] tracking-wider uppercase">
+        <p className="mb-5 flex items-center gap-2 font-mono text-[11px] text-[var(--color-mute)] tracking-wider uppercase">
+          <span className={`${styles.resultDot} h-1.5 w-1.5 rounded-full bg-[var(--color-cyan)]`} aria-hidden="true" />
           {filtered.length} {filtered.length === 1 ? "toon" : "toons"} found
         </p>
 
         {/* Toon Grid — Premium Neon Cards */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {shown.map((toon, idx) => (
-            <Card3D key={toon.id} index={idx}>
-              <Link href={`/toons/${toon.id}`} className="block h-full toon-card rounded-xl group no-underline">
-                <div className="relative z-10 rounded-[10.5px] overflow-hidden bg-[var(--color-panel)]">
-                  {/* Image */}
-                  <div className="relative aspect-[16/9] overflow-hidden">
-                    {toon.image ? (
-                      <Image
-                        src={toon.image}
-                        alt={toon.displayTitle}
-                        fill
-                        loading="lazy"
-                        referrerPolicy="no-referrer"
-                        className="object-cover transition-transform duration-500 group-hover:scale-105"
-                        sizes="(max-width: 768px) 100vw, 33vw"
-                        onError={(e) => {
-                          e.currentTarget.style.display = "none";
-                          const parent = e.currentTarget.parentElement;
-                          if (parent) {
-                            const fallback = parent.querySelector(".toon-fallback");
-                            if (fallback) (fallback as HTMLElement).style.display = "flex";
-                          }
-                        }}
-                      />
-                    ) : null}
-                    <div className={`toon-fallback ${toon.image ? "hidden" : "flex"} absolute inset-0 items-center justify-center`}
-                      style={{
-                        background: `linear-gradient(135deg, ${toon.country === "India" ? "#ff6b35, #1a1a2e" : toon.country === "Japan" ? "#e50914, #1a1a2e" : "#00b4d8, #1a1a2e"})`,
-                      }}
-                    >
-                      <div className="text-center">
-                        <span className="text-3xl font-black text-white/90 drop-shadow-lg">
-                          {toon.displayTitle.split(" ").map((w) => w[0]).join("").slice(0, 3).toUpperCase()}
-                        </span>
-                        <p className="mt-1 text-[10px] font-semibold text-white/60">{toon.network}</p>
-                      </div>
-                    </div>
-                    <div className="absolute inset-0 bg-gradient-to-t from-[var(--color-panel)] via-transparent to-transparent" />
+        <div className={`${styles.grid} grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`}>
+          {shown.map((toon, idx) => {
+            const years = formatToonYears(toon);
+            const meta = [
+              toon.totalEpisodes ? { icon: "episodes" as const, text: `${toon.totalEpisodes} eps` } : null,
+              toon.seasons ? { icon: "seasons" as const, text: `${toon.seasons} seasons` } : null,
+              years ? { icon: "calendar" as const, text: years } : null,
+            ].filter(Boolean) as { icon: "episodes" | "seasons" | "calendar"; text: string }[];
 
-                    {/* Badges */}
-                    <div className="absolute top-2 left-2 flex items-center gap-1.5">
-                      {toon.status === "airing" && (
-                        <span className="flex items-center gap-1 rounded-full bg-green-500/90 px-2 py-0.5 text-[9px] font-bold text-black backdrop-blur-sm">
-                          <span className="h-1.5 w-1.5 rounded-full bg-black animate-pulse" />
-                          AIRING
-                        </span>
-                      )}
-                      {toon.popularity === "high" && (
-                        <span className="rounded-full bg-yellow-500/90 px-2 py-0.5 text-[9px] font-bold text-black backdrop-blur-sm">
-                          POPULAR
-                        </span>
-                      )}
-                    </div>
+            return (
+              <Card3D key={toon.id} index={idx}>
+                <Link href={`/toons/${toon.id}`} className={`${styles.card} toon-card group block h-full rounded-2xl no-underline`}>
+                  <article className={styles.cardShell}>
+                    {/* Artwork */}
+                    <div className="relative aspect-[16/9] overflow-hidden">
+                      <ToonArtwork toon={toon} sizes="(max-width: 768px) 100vw, 33vw" />
+                      <div className={styles.imageOverlay} aria-hidden="true" />
 
-                    {/* Country Flag */}
-                    <span className="absolute top-2 right-2 text-lg drop-shadow-lg">
-                      {toon.country === "India" ? "🇮🇳" : toon.country === "Japan" ? "🇯🇵" : toon.country === "France" ? "🇫🇷" : "🇺🇸"}
-                    </span>
-
-                    {/* Title overlay */}
-                    <div className="absolute bottom-0 left-0 right-0 p-3">
-                      <h3 className="font-display text-sm font-bold text-white line-clamp-1 drop-shadow-lg">{toon.displayTitle}</h3>
-                      <p className="text-[10px] text-white/70">{toon.network} · {toon.releaseYear}</p>
-                    </div>
-                  </div>
-
-                  {/* Content */}
-                  <div className="p-3">
-                    {/* Genres */}
-                    <div className="mb-2 flex flex-wrap gap-1">
-                      {toon.genres.slice(0, 3).map((g) => (
-                        <span key={g} className="rounded-full bg-[var(--color-line)]/50 px-2 py-0.5 text-[9px] text-[var(--color-mute)]">
-                          {g}
-                        </span>
-                      ))}
-                    </div>
-
-                    {/* Synopsis */}
-                    <p className="text-[11px] text-[var(--color-mute)] line-clamp-2 leading-relaxed mb-3">{toon.synopsis}</p>
-
-                    {/* Stats Row */}
-                    <div className="flex items-center justify-between text-[9px] text-[var(--color-mute)] font-mono mb-2">
-                      <span>{toon.totalEpisodes} eps</span>
-                      <span>{toon.seasons} seasons</span>
-                      <span>{toon.releaseYear}</span>
-                    </div>
-
-                    {/* Languages */}
-                    {toon.language.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mb-3">
-                        {toon.language.slice(0, 4).map((l) => (
-                          <span key={l} className="rounded bg-[var(--color-cyan)]/10 px-1.5 py-0.5 text-[8px] text-[var(--color-cyan)] font-medium">
-                            {l}
-                          </span>
-                        ))}
-                        {toon.language.length > 4 && (
-                          <span className="rounded bg-[var(--color-line)]/50 px-1.5 py-0.5 text-[8px] text-[var(--color-mute)]">
-                            +{toon.language.length - 4}
+                      <div className={styles.badgeRow}>
+                        {toon.status === "airing" && (
+                          <span className={styles.statusBadge}>
+                            <span className={`${styles.liveBadge} h-1.5 w-1.5 rounded-full`} aria-hidden="true" />
+                            AIRING
                           </span>
                         )}
+                        {toon.popularity === "high" && (
+                          <span className={styles.popularBadge}>POPULAR</span>
+                        )}
                       </div>
-                    )}
 
-                    {/* Watch Platform */}
-                    {toon.dubPlatform && (
-                      <div className="rounded-lg bg-[var(--color-cyan)]/5 border border-[var(--color-cyan)]/15 px-3 py-2 text-center">
-                        <p className="text-[9px] text-[var(--color-mute)]">Watch on</p>
-                        <p className="text-[10px] font-bold text-[var(--color-cyan)]">{toon.dubPlatform}</p>
+                      <span className={styles.flagTile} aria-label={toon.country}>
+                        {toon.country === "India" ? "🇮🇳" : toon.country === "Japan" ? "🇯🇵" : toon.country === "France" ? "🇫🇷" : "🇺🇸"}
+                      </span>
+
+                      <div className={styles.titlePlate}>
+                        <h3 className={`${styles.cardTitle} font-display`}>{toon.displayTitle}</h3>
+                        <p className={styles.cardSubtitle}>
+                          {[toon.network, years].filter(Boolean).join(" · ")}
+                        </p>
                       </div>
-                    )}
-
-                    {/* View details */}
-                    <div className="mt-3 flex items-center justify-center gap-1 rounded-lg bg-[var(--color-magenta)]/10 py-1.5 text-[10px] font-bold text-[var(--color-magenta)] opacity-70 transition-all duration-200 group-hover:opacity-100 group-hover:bg-[var(--color-magenta)] group-hover:text-black">
-                      View Details
                     </div>
-                  </div>
-                </div>
-              </Link>
-            </Card3D>
-          ))}
+
+                    {/* Details */}
+                    <div className={styles.cardBody}>
+                      <div className={styles.genreRow}>
+                        {toon.genres.slice(0, 3).map((g) => (
+                          <span key={g} className={styles.genreChip}>{g}</span>
+                        ))}
+                      </div>
+
+                      <p className={styles.synopsis}>{toon.synopsis}</p>
+
+                      <div className={styles.metaRow}>
+                        {meta.map((item) => (
+                          <span key={item.text} className={styles.metaItem}>
+                            <CardIcon kind={item.icon} />
+                            {item.text}
+                          </span>
+                        ))}
+                      </div>
+
+                      {toon.language.length > 0 && (
+                        <div className={styles.languageRow}>
+                          {toon.language.slice(0, 4).map((l) => (
+                            <span key={l} className={styles.langChip}>{l}</span>
+                          ))}
+                          {toon.language.length > 4 && (
+                            <span className={styles.langMore}>+{toon.language.length - 4}</span>
+                          )}
+                        </div>
+                      )}
+
+                      {toon.dubPlatform && (
+                        <div className={styles.platformRow}>
+                          <span className={styles.platformIcon}><CardIcon kind="play" /></span>
+                          <span className="min-w-0">
+                            <span className={styles.platformLabel}>Watch on</span>
+                            <span className={styles.platformName}>{toon.dubPlatform}</span>
+                          </span>
+                        </div>
+                      )}
+
+                      <div className={styles.cardSpacer} aria-hidden="true" />
+                      <div className={styles.detailsCta}>
+                        <span>View Details</span>
+                        <CardIcon kind="arrow" />
+                      </div>
+                    </div>
+                  </article>
+                </Link>
+              </Card3D>
+            );
+          })}
         </div>
 
         {/* Load More */}
@@ -316,7 +355,7 @@ export default function ToonsBrowseClient({ toons }: { toons: CartoonEntry[] }) 
           <div className="mt-8 flex justify-center">
             <button
               onClick={() => setVisible((v) => v + PAGE_SIZE)}
-              className="rounded-xl neon-rgb-border bg-[var(--color-panel)] px-6 py-3 text-sm font-semibold text-[var(--color-cyan)] hover:bg-[var(--color-cyan)]/5 transition-all"
+              className={`${styles.loadMore} rounded-xl neon-rgb-border bg-[var(--color-panel)] px-6 py-3 text-sm font-semibold text-[var(--color-cyan)]`}
             >
               Load More ({filtered.length - visible} more)
             </button>
@@ -324,8 +363,8 @@ export default function ToonsBrowseClient({ toons }: { toons: CartoonEntry[] }) 
         )}
 
         {filtered.length === 0 && (
-          <div className="py-20 text-center">
-            <div className="mb-4 h-16 w-16 mx-auto rounded-full bg-[var(--color-panel)] border border-[var(--color-line)] flex items-center justify-center">
+          <div className={`${styles.emptyState} py-20 text-center`}>
+            <div className={`${styles.emptyIcon} mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[var(--color-panel)] ring-1 ring-inset ring-[var(--color-line)]`}>
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-[var(--color-mute)]">
                 <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /><path d="M8 11h6" />
               </svg>
@@ -334,7 +373,7 @@ export default function ToonsBrowseClient({ toons }: { toons: CartoonEntry[] }) 
             <p className="mt-1 text-sm text-[var(--color-mute)] opacity-60">Try adjusting your filters or search terms.</p>
             <button
               onClick={() => { setNetworkFilter("All"); setGenreFilter("All"); setStatusFilter("All"); setSearch(""); }}
-              className="mt-4 rounded-full neon-rgb-border px-4 py-2 text-xs text-[var(--color-mute)] hover:text-[var(--color-cyan)] hover:border-[var(--color-cyan)]/40 transition-all"
+              className="mt-4 rounded-full neon-rgb-border px-4 py-2 text-xs text-[var(--color-mute)] transition-all hover:text-[var(--color-cyan)]"
             >
               Clear all filters
             </button>

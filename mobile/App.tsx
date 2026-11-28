@@ -37,9 +37,9 @@ function RootNavigator() {
   }, [mode, flash]);
 
   // In-app APK updater. Launch never blocks on the network: the check runs a
-  // few seconds after the UI is interactive, downloads quietly, and then a
-  // small floating card offers a one-tap install. Content-only changes ship
-  // through /api/mobile/feed and never need this at all.
+  // few seconds after the UI is interactive, downloads quietly from GitHub
+  // Releases, and then a small floating card offers a one-tap install.
+  // Announcement content is bundled, so no website call is needed for it.
   const [release, setRelease] = useState<UpdateRelease | null>(null);
   const [bannerVisible, setBannerVisible] = useState(false);
   const bannerAnim = useRef(new Animated.Value(0)).current;

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { bestTitle, getAiringSchedule, type AiringScheduleEntry } from "@/lib/anilist";
 import { DAY_MS, startOfWeekIST } from "@/lib/ist";
 import ScheduleBoard from "./ScheduleBoard";
@@ -103,31 +104,69 @@ export default async function SchedulePage() {
         initialWeekStartMs={weekStartMs}
         initialError={error}
       />
-      <section className="mx-auto max-w-7xl px-4 pb-10 sm:px-6">
-        <div className="rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)]/60 p-6 sm:p-8">
-          <h2 className="font-display text-xl font-bold text-white">How to use the anime schedule</h2>
-          <p className="mt-3 text-sm leading-relaxed text-[var(--color-mute)]">
+      <section className="sbd-help mx-auto max-w-7xl px-4 pb-10 sm:px-6">
+        <div className="sbd-help-panel relative overflow-hidden rounded-3xl p-6 sm:p-8">
+          <span className="sbd-help-glow" aria-hidden="true" />
+          <span className="sbd-help-scan" aria-hidden="true" />
+
+          <div className="sbd-help-head relative">
+            <span className="sbd-help-badge" aria-hidden="true">
+              <span className="sbd-help-badge-core">?</span>
+            </span>
+            <div>
+              <p className="sbd-help-kicker">Quick guide</p>
+              <h2 className="sbd-help-title font-display text-xl font-bold text-white sm:text-2xl">
+                How to use the anime schedule
+              </h2>
+            </div>
+          </div>
+
+          <p className="sbd-help-lead relative mt-4 text-sm leading-relaxed text-[var(--color-mute)]">
             This schedule shows anime episode air times converted to IST. Use it to track what is airing today, what is coming next, and which episodes are already on air.
             Times come from public schedule metadata and can change if broadcasters or platforms update their release plans.
           </p>
-          <div className="mt-5 grid gap-4 sm:grid-cols-3 text-sm">
-            <div className="rounded-xl border border-[var(--color-line)] bg-black/20 p-4">
-              <p className="font-semibold text-white">IST times</p>
-              <p className="mt-1 text-xs text-[var(--color-mute)]">All times are shown in Indian Standard Time for easier tracking in India.</p>
-            </div>
-            <div className="rounded-xl border border-[var(--color-line)] bg-black/20 p-4">
-              <p className="font-semibold text-white">Live updates</p>
-              <p className="mt-1 text-xs text-[var(--color-mute)]">The board refreshes regularly so new episodes and timing changes appear without manual reloads.</p>
-            </div>
-            <div className="rounded-xl border border-[var(--color-line)] bg-black/20 p-4">
-              <p className="font-semibold text-white">Verify official release</p>
-              <p className="mt-1 text-xs text-[var(--color-mute)]">For streaming availability, always confirm on the official platform or broadcaster.</p>
-            </div>
+
+          <div className="sbd-help-grid relative mt-6 grid gap-4 text-sm sm:grid-cols-3">
+            <article className="sbd-help-card rounded-2xl border border-[var(--color-line)] p-4">
+              <span className="sbd-help-icon sbd-help-icon-ist" aria-hidden="true">◷</span>
+              <p className="sbd-help-card-title font-semibold text-white">IST times</p>
+              <p className="sbd-help-card-text mt-1 text-xs text-[var(--color-mute)]">All times are shown in Indian Standard Time for easier tracking in India.</p>
+            </article>
+            <article className="sbd-help-card rounded-2xl border border-[var(--color-line)] p-4">
+              <span className="sbd-help-icon sbd-help-icon-live" aria-hidden="true">⟳</span>
+              <p className="sbd-help-card-title font-semibold text-white">Live updates</p>
+              <p className="sbd-help-card-text mt-1 text-xs text-[var(--color-mute)]">The board refreshes regularly so new episodes and timing changes appear without manual reloads.</p>
+            </article>
+            <article className="sbd-help-card rounded-2xl border border-[var(--color-line)] p-4">
+              <span className="sbd-help-icon sbd-help-icon-verify" aria-hidden="true">✓</span>
+              <p className="sbd-help-card-title font-semibold text-white">Verify official release</p>
+              <p className="sbd-help-card-text mt-1 text-xs text-[var(--color-mute)]">For streaming availability, always confirm on the official platform or broadcaster.</p>
+            </article>
           </div>
-          <div className="mt-6 space-y-3 text-sm text-[var(--color-mute)]">
-            <h3 className="font-semibold text-white">Schedule FAQ</h3>
-            <p><span className="text-white">Why did an episode time change?</span> Studios, platforms, or broadcasters can delay or reschedule releases. We update the board when source data changes.</p>
-            <p><span className="text-white">Does this include Hindi dub schedules?</span> This page focuses on anime broadcast times. For Hindi/regional dub schedules, visit <a href="/hindi-dub/schedule" className="text-[var(--color-cyan)] hover:underline">Hindi Dub Schedule</a>.</p>
+
+          <div className="sbd-help-divider relative" aria-hidden="true" />
+
+          <div className="sbd-help-faq relative">
+            <div className="sbd-help-faq-head">
+              <span className="sbd-help-faq-mark" aria-hidden="true" />
+              <h3 className="font-semibold text-white">Schedule FAQ</h3>
+            </div>
+            <div className="sbd-help-faq-grid mt-4 grid gap-3 lg:grid-cols-2">
+              <div className="sbd-help-qa">
+                <span className="sbd-help-qnum" aria-hidden="true">01</span>
+                <div>
+                  <p className="sbd-help-qtext"><span className="text-white">Why did an episode time change?</span></p>
+                  <p className="sbd-help-answer">Studios, platforms, or broadcasters can delay or reschedule releases. We update the board when source data changes.</p>
+                </div>
+              </div>
+              <div className="sbd-help-qa">
+                <span className="sbd-help-qnum" aria-hidden="true">02</span>
+                <div>
+                  <p className="sbd-help-qtext"><span className="text-white">Does this include Hindi dub schedules?</span></p>
+                  <p className="sbd-help-answer">This page focuses on anime broadcast times. For Hindi/regional dub schedules, visit <Link href="/hindi-dub/schedule" className="sbd-help-link">Hindi Dub Schedule</Link>.</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>

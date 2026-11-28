@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { fetchJson } from "@/lib/safe-json";
+import styles from "./Recommendations.module.css";
 
 export interface Recommendation {
   id: number;
@@ -24,18 +26,11 @@ interface Props {
   exclude?: number[];
 }
 
-function scoreColor(score: number): string {
-  if (score >= 80) return "text-green-400";
-  if (score >= 60) return "text-yellow-400";
-  if (score >= 40) return "text-orange-400";
-  return "text-red-400";
-}
-
-function scoreBg(score: number): string {
-  if (score >= 80) return "bg-green-500/20 border-green-500/40";
-  if (score >= 60) return "bg-yellow-500/20 border-yellow-500/40";
-  if (score >= 40) return "bg-orange-500/20 border-orange-500/40";
-  return "bg-red-500/20 border-red-500/40";
+function scoreTone(score: number): "high" | "mid" | "low" | "weak" {
+  if (score >= 80) return "high";
+  if (score >= 60) return "mid";
+  if (score >= 40) return "low";
+  return "weak";
 }
 
 export default function Recommendations({
@@ -48,6 +43,7 @@ export default function Recommendations({
   const [recs, setRecs] = useState<Recommendation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
 
   const genresKey = genres?.join(",") ?? "";
   const excludeKey = exclude?.join(",") ?? "";
@@ -63,23 +59,25 @@ export default function Recommendations({
     if (genresKey) params.set("genre", genresKey);
     if (excludeKey) params.set("exclude", excludeKey);
 
-    fetch(`/api/recommendations?${params.toString()}`)
-      .then((res) => {
-        if (!res.ok) throw new Error("Failed to fetch recommendations");
-        return res.json();
-      })
+    fetchJson<{ recommendations?: Recommendation[] }>(`/api/recommendations?${params.toString()}`)
       .then((data) => {
-        if (!cancelled) setRecs(data.recommendations || []);
+        if (!cancelled) {
+          setRecs(Array.isArray(data?.recommendations) ? data.recommendations : []);
+        }
       })
-      .catch((e) => {
-        if (!cancelled) setError(e.message);
+      .catch((e: unknown) => {
+        if (!cancelled) {
+          setError(e instanceof Error && e.message ? e.message : "Failed to fetch recommendations");
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
 
     return () => { cancelled = true; };
-  }, [type, anilistId, genresKey, excludeKey]);
+  }, [type, anilistId, genresKey, excludeKey, retryKey]);
+
+  const retry = () => setRetryKey((k) => k + 1);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -97,31 +95,43 @@ export default function Recommendations({
     const el = scrollRef.current;
     if (!el) return;
     el.addEventListener("scroll", checkScroll);
-    return () => el.removeEventListener("scroll", checkScroll);
+    window.addEventListener("resize", checkScroll);
+    return () => {
+      el.removeEventListener("scroll", checkScroll);
+      window.removeEventListener("resize", checkScroll);
+    };
   }, [recs]);
 
   const scroll = (dir: "left" | "right") => {
     const el = scrollRef.current;
     if (!el) return;
-    el.scrollBy({ left: dir === "left" ? -el.clientWidth * 0.6 : el.clientWidth * 0.6, behavior: "smooth" });
+    const behavior: ScrollBehavior = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      ? "auto"
+      : "smooth";
+    el.scrollBy({ left: dir === "left" ? -el.clientWidth * 0.65 : el.clientWidth * 0.65, behavior });
   };
 
   if (loading) {
     return (
-      <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
-        <div className="mb-5 flex items-end justify-between">
-          <div>
-            <h2 className="font-display text-2xl font-bold sm:text-3xl">{title}</h2>
-          </div>
-        </div>
-        <div className="flex gap-3 overflow-hidden">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="shrink-0 w-[160px] animate-pulse">
-              <div className="aspect-[2/3] rounded-xl bg-white/5 border border-white/10" />
-              <div className="mt-2 h-3 w-3/4 rounded bg-white/5" />
-              <div className="mt-1 h-3 w-1/2 rounded bg-white/5" />
+      <section className={styles.section} aria-busy="true">
+        <div className={styles.hpkPanel}>
+          <span className={styles.aurora} aria-hidden />
+          <div className={styles.inner}>
+            <header className={styles.head}>
+              <div className={styles.headCopy}>
+                <h2 className={styles.headTitle}>{title}</h2>
+              </div>
+            </header>
+            <div className={styles.skeletonRail} aria-hidden>
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className={styles.skeletonCard}>
+                  <div className={styles.skeletonPoster} />
+                  <div className={styles.skeletonLine} />
+                  <div className={`${styles.skeletonLine} ${styles.skeletonLineShort}`} />
+                </div>
+              ))}
             </div>
-          ))}
+          </div>
         </div>
       </section>
     );
@@ -129,10 +139,18 @@ export default function Recommendations({
 
   if (error) {
     return (
-      <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
-        <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4 text-center">
-          <p className="text-sm text-red-400">Failed to load recommendations</p>
-          <p className="text-xs text-red-400/60 mt-1">{error}</p>
+      <section className={styles.section}>
+        <div className={styles.hpkPanel}>
+          <span className={styles.aurora} aria-hidden />
+          <div className={styles.inner}>
+            <div className={styles.errorPanel}>
+              <p className={styles.errorTitle}>Failed to load recommendations</p>
+              <p className={styles.errorDetail}>{error}</p>
+              <button type="button" onClick={retry} className={styles.retry}>
+                Try again
+              </button>
+            </div>
+          </div>
         </div>
       </section>
     );
@@ -141,83 +159,96 @@ export default function Recommendations({
   if (recs.length === 0) return null;
 
   return (
-    <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
-      <div className="mb-5 flex items-end justify-between">
-        <div>
-          <h2 className="font-display text-2xl font-bold sm:text-3xl">{title}</h2>
-        </div>
-      </div>
+    <section className={styles.section}>
+      <div className={styles.hpkPanel}>
+        <span className={styles.aurora} aria-hidden />
+        <span className={styles.spark} aria-hidden />
+        <span className={`${styles.spark} ${styles.sparkAlt}`} aria-hidden />
+        <div className={styles.inner}>
+          <header className={styles.head}>
+            <div className={styles.headCopy}>
+              <h2 className={styles.headTitle}>{title}</h2>
+            </div>
+            <div className={styles.controls}>
+              <button
+                type="button"
+                onClick={() => scroll("left")}
+                disabled={!canScrollLeft}
+                aria-label="Scroll recommendations left"
+                className={styles.control}
+              >
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M15 18l-6-6 6-6" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                onClick={() => scroll("right")}
+                disabled={!canScrollRight}
+                aria-label="Scroll recommendations right"
+                className={styles.control}
+              >
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M9 18l6-6-6-6" />
+                </svg>
+              </button>
+            </div>
+          </header>
 
-      <div className="relative group/row">
-        <div
-          ref={scrollRef}
-          className="flex gap-3 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-2"
-          style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
-        >
-          {recs.map((rec) => (
-            <Link
-              key={rec.id}
-              href={`/anime/${rec.id}`}
-              className="snap-start shrink-0 w-[160px] sm:w-[180px] group/card"
-            >
-              <div className="relative aspect-[2/3] overflow-hidden rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] transition-all duration-300 group-hover/card:border-[var(--color-magenta)] group-hover/card:shadow-[0_0_35px_-10px_var(--color-magenta)]">
-                <Image
-                  src={rec.image}
-                  alt={rec.title}
-                  fill
-                  className="object-cover transition-transform duration-500 group-hover/card:scale-110"
-                  sizes="(max-width: 768px) 50vw, 25vw"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-300" />
-
-                {/* Score badge */}
-                <span className={`absolute right-1.5 top-1.5 rounded-full border px-1.5 py-0.5 text-[9px] font-mono font-semibold backdrop-blur ${scoreBg(rec.score)} ${scoreColor(rec.score)}`}>
-                  {rec.score}
-                </span>
-
-                <div className="absolute inset-x-0 bottom-0 p-2.5 sm:p-3 translate-y-2 group-hover/card:translate-y-0 opacity-0 group-hover/card:opacity-100 transition-all duration-300">
-                  <p className="font-display text-xs sm:text-sm font-bold leading-tight line-clamp-2 drop-shadow-lg">
-                    {rec.title}
-                  </p>
-                  <div className="mt-1 flex items-center gap-2 text-[10px] text-[var(--color-mute)]">
-                    {rec.episodes ? <span>{rec.episodes} ep</span> : null}
-                    {rec.format ? <span>{rec.format}</span> : null}
-                  </div>
-                </div>
-              </div>
-
-              {/* Info below card */}
-              <div className="mt-2 space-y-1">
-                <p className="text-sm font-semibold truncate leading-tight">{rec.title}</p>
-                <p className="text-[10px] text-[var(--color-mute)] leading-tight line-clamp-2">{rec.reason}</p>
-                <div className="flex flex-wrap gap-1">
-                  {rec.genres.slice(0, 2).map((g) => (
-                    <span key={g} className="text-[8px] font-medium text-[var(--color-mute)] uppercase tracking-wider bg-[var(--color-void)]/50 px-1.5 py-0.5 rounded-full">
-                      {g}
+          <div className={styles.viewport}>
+            <div ref={scrollRef} className={styles.rail}>
+              {recs.map((rec, idx) => (
+                <Link
+                  key={rec.id}
+                  href={`/anime/${rec.id}`}
+                  className={styles.card}
+                  style={{ "--card-index": idx } as CSSProperties}
+                >
+                  <div className={styles.poster}>
+                    <span className={styles.pick} aria-hidden>
+                      PICK {String(idx + 1).padStart(2, "0")}
                     </span>
-                  ))}
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
+                    <Image
+                      src={rec.image}
+                      alt={rec.title}
+                      fill
+                      className={styles.image}
+                      sizes="(max-width: 640px) 45vw, (max-width: 1024px) 25vw, 190px"
+                    />
+                    <span className={styles.score} data-tone={scoreTone(rec.score)} aria-label={`Match score ${rec.score}`}>
+                      {rec.score}
+                    </span>
+                    <div className={styles.overlay}>
+                      <div className={styles.overlayMeta}>
+                        {rec.format ? <span className={styles.metaChip}>{rec.format}</span> : null}
+                        {rec.episodes ? <span className={styles.metaChip}>{rec.episodes} ep</span> : null}
+                      </div>
+                      <span className={styles.cta}>
+                        View
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                          <path d="M5 12h14M13 6l6 6-6 6" />
+                        </svg>
+                      </span>
+                    </div>
+                    <span className={styles.sheen} aria-hidden />
+                  </div>
 
-        {canScrollLeft && (
-          <button
-            onClick={() => scroll("left")}
-            className="absolute left-0 top-1/3 -translate-y-1/2 z-10 hidden sm:flex h-10 w-10 items-center justify-center rounded-full bg-black/80 text-white border border-[var(--color-line)] hover:border-[var(--color-magenta)] transition-all opacity-0 group-hover/row:opacity-100"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M15 18l-6-6 6-6"/></svg>
-          </button>
-        )}
-        {canScrollRight && (
-          <button
-            onClick={() => scroll("right")}
-            className="absolute right-0 top-1/3 -translate-y-1/2 z-10 hidden sm:flex h-10 w-10 items-center justify-center rounded-full bg-black/80 text-white border border-[var(--color-line)] hover:border-[var(--color-magenta)] transition-all opacity-0 group-hover/row:opacity-100"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 18l6-6-6-6"/></svg>
-          </button>
-        )}
+                  <div className={styles.info}>
+                    <h3 className={styles.title}>{rec.title}</h3>
+                    <p className={styles.reason}>{rec.reason}</p>
+                    <div className={styles.tags}>
+                      {rec.genres.slice(0, 2).map((g) => (
+                        <span key={g} className={styles.tag}>
+                          {g}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     </section>
   );

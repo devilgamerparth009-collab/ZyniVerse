@@ -10,7 +10,6 @@ import dynamic from "next/dynamic";
 const SocialBarAd = dynamic(() => import("./SocialBarAd"), { ssr: false });
 const ChatWidget = dynamic(() => import("./ChatWidget"), { ssr: false });
 const ToastFeed = dynamic(() => import("./ToastFeed"), { ssr: false });
-const SplashScreen = dynamic(() => import("./SplashScreen"), { ssr: false });
 const CommandPalette = dynamic(() => import("./CommandPalette"), { ssr: false });
 
 export default function DeferredWidgets() {
@@ -19,7 +18,6 @@ export default function DeferredWidgets() {
       <SocialBarAd />
       <ChatWidget />
       <ToastFeed />
-      <SplashScreen />
       <CommandPalette />
     </>
   );

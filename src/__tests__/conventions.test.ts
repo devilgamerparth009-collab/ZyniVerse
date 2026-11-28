@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import {
+  computeConventionStatus,
   getConventions,
   getConventionById,
   getCities,
@@ -62,6 +63,8 @@ const conventionMock = vi.hoisted(() => {
     mk("comic-con-mumbai", "Comic Con Mumbai", "Mumbai", "Maharashtra", "2026-08-28", "2026-08-30"),
     mk("bengaluru-anime-con", "Bengaluru Anime Con", "Bengaluru", "Karnataka", "2026-07-18", "2026-07-19"),
     mk("comic-con-pune", "Comic Con Pune", "Pune", "Maharashtra", "2026-11-20", "2026-11-22"),
+    mk("comic-con-december", "Comic Con December", "Delhi", "Delhi", "2026-12-05", "2026-12-06"),
+    { ...mk("legacy-hidden", "Legacy Hidden Con", "Pune", "Maharashtra", "2027-01-01", "2027-01-02"), isPublic: false },
     // Keep one event in the future regardless of when the suite is run.
     mk(
       "future-anime-con",
@@ -122,16 +125,18 @@ const conventionMock = vi.hoisted(() => {
       return rows;
     }
   );
-  const findUnique = vi.fn(async ({ where }: { where: { id: string } }) => data.find((r) => r.id === where.id) ?? null);
+  const findFirst = vi.fn(async ({ where }: { where: { id: string; isPublic?: boolean } }) =>
+    data.find((r) => r.id === where.id && (where.isPublic === undefined || r.isPublic === where.isPublic)) ?? null
+  );
   const count = vi.fn(async () => data.length);
-  return { findMany, findUnique, count };
+  return { findMany, findFirst, count };
 });
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     convention: {
       findMany: conventionMock.findMany,
-      findUnique: conventionMock.findUnique,
+      findFirst: conventionMock.findFirst,
       count: conventionMock.count,
     },
     $disconnect: vi.fn(),
@@ -196,6 +201,20 @@ describe("getConventions", () => {
     }
   });
 
+  it("filters December without wrapping to January of the same year", async () => {
+    const december = await getConventions({ month: 12, year: 2026 });
+    expect(december.length).toBeGreaterThan(0);
+    for (const c of december) {
+      expect(Number(c.startDate.slice(5, 7))).toBe(12);
+      expect(c.startDate.slice(0, 4)).toBe("2026");
+    }
+  });
+
+  it("combines month and year filters", async () => {
+    const result = await getConventions({ month: 12, year: 2026 });
+    expect(result.every((c) => c.startDate.startsWith("2026-12"))).toBe(true);
+  });
+
   it("returns empty array for non-matching filters", async () => {
     const result = await getConventions({ city: "NonExistentCity" });
     expect(result).toEqual([]);
@@ -212,6 +231,27 @@ describe("getConventionById", () => {
   it("returns null for non-existent id", async () => {
     const c = await getConventionById("non-existent");
     expect(c).toBeNull();
+  });
+
+  it("does not expose a legacy row hidden with isPublic=false", async () => {
+    const c = await getConventionById("legacy-hidden");
+    expect(c).toBeNull();
+  });
+});
+
+describe("computeConventionStatus", () => {
+  const row = {
+    startDate: new Date("2026-11-28"),
+    endDate: new Date("2026-11-29"),
+    status: "upcoming",
+  };
+
+  it("marks an event as ongoing on its last calendar day in India", () => {
+    expect(computeConventionStatus(row, new Date("2026-11-29T12:00:00Z"))).toBe("ongoing");
+  });
+
+  it("marks an event as past only after the last India day", () => {
+    expect(computeConventionStatus(row, new Date("2026-11-29T19:00:00Z"))).toBe("past");
   });
 });
 

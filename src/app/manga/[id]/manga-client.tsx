@@ -6,8 +6,15 @@ import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import { bestTitle } from "@/lib/anilist";
 import { inferMangaType } from "@/lib/manga";
-import { ErrorState } from "@/components/Loader";
 import RevealTitle from "@/components/RevealTitle";
+import StoryReveal from "@/components/StoryReveal";
+import RankingsReveal from "@/components/RankingsReveal";
+import CharactersReveal from "@/components/CharactersReveal";
+import StaffReveal from "@/components/StaffReveal";
+import RelatedReveal from "@/components/RelatedReveal";
+import RecommendationsReveal from "@/components/RecommendationsReveal";
+import WhyRecsReveal from "@/components/WhyRecsReveal";
+import SidebarReveal from "@/components/SidebarReveal";
 import { DynamicCarousel3D as Carousel3D } from "@/components/lazy";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { PageTransition } from "@/components/PageTransition";
@@ -23,12 +30,34 @@ import ShareButton from "@/components/ShareButton";
 import AdBanner from "@/components/AdBanner";
 import NativeBannerAd from "@/components/NativeBannerAd";
 import AffiliateLink from "@/components/AffiliateLink";
+import PlayAsiaPill from "@/components/PlayAsiaPill";
 import { STATUS_LABELS, STATUS_COLORS } from "@/lib/manga";
 import type { MediaMangaFull } from "@/lib/anilist";
 import { logError } from "@/lib/logger";
 
 function stripHtml(str: string | null | undefined = "") { return str ? str.replace(/<[^>]*>/g, "") : ""; }
-function formatScore(score?: number) { return score ? (score / 10).toFixed(1) : "—"; }
+function splitStorySource(text: string) {
+  const match = text.match(/(\(Source:[^)\n]*\))(?:\s*)$/);
+  if (!match || match.index == null) return { body: text, separator: "", source: "" };
+  const source = match[1] ?? "";
+  const body = text.slice(0, match.index).replace(/\s+$/, "");
+  const separator = text.slice(body.length, match.index);
+  return { body, separator, source };
+}
+function formatScore(score?: number | null) { return score ? (score / 10).toFixed(1) : "—"; }
+function formatCount(value?: number | null) { return value && value > 0 ? value.toLocaleString("en-US") : "—"; }
+function formatMangaDate(d?: { year?: number | null; month?: number | null; day?: number | null } | null) {
+  if (!d?.year) return "Unknown";
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const month = d.month && d.month >= 1 && d.month <= 12 ? months[d.month - 1] : "";
+  return [month, d.day || "", d.year].filter(Boolean).join(" ");
+}
+function linkHost(url: string) {
+  try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return ""; }
+}
+function siteInitial(site: string) {
+  return site.trim().charAt(0).toUpperCase() || "↗";
+}
 
 interface MangaEntryDB {
   id: string;
@@ -53,11 +82,18 @@ interface MangaChapterDB {
 }
 
 const STATUS_OPTIONS = ["READING", "COMPLETED", "PLANNING", "DROPPED", "PAUSED", "REREADING"];
+const STATUS_DIST_LABELS: Record<string, string> = {
+  FINISHED: "Finished",
+  RELEASING: "Releasing",
+  NOT_YET_RELEASED: "Not yet released",
+  CANCELLED: "Cancelled",
+  HIATUS: "On hiatus",
+};
 
 export default function MangaDetailsPage({ initialManga }: { initialManga: MediaMangaFull }) {
   const { id } = useParams<{ id: string }>();
   const manga = initialManga;
-  const [error, setError] = useState<string | null>(null);
+  const [actionMsg, setActionMsg] = useState("");
   const [showAllStaff, setShowAllStaff] = useState(false);
   const [entry, setEntry] = useState<MangaEntryDB | null>(null);
   const [chapters, setChapters] = useState<MangaChapterDB[]>([]);
@@ -66,6 +102,11 @@ export default function MangaDetailsPage({ initialManga }: { initialManga: Media
   const [showAllChapters, setShowAllChapters] = useState(false);
   const [readingDex, setReadingDex] = useState(false);
   const router = useRouter();
+
+  function notify(message: string) {
+    setActionMsg(message);
+    setTimeout(() => setActionMsg(""), 2800);
+  }
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -84,7 +125,7 @@ export default function MangaDetailsPage({ initialManga }: { initialManga: Media
         });
         const data = await res.json();
         if (!res.ok || !data.mangaDexId) {
-          setError(data.error || "Could not find this manga on MangaDex.");
+          notify(data.error || "Could not find this manga on MangaDex.");
           return;
         }
         dexId = data.mangaDexId;
@@ -92,7 +133,7 @@ export default function MangaDetailsPage({ initialManga }: { initialManga: Media
       router.push(`/manga/read/${dexId}?mediaId=${id}&title=${encodeURIComponent(title)}`);
     } catch (e) {
       logError(e);
-      setError("Failed to open reader.");
+      notify("Failed to open reader. Try again.");
     } finally {
       setReadingDex(false);
     }
@@ -154,9 +195,15 @@ export default function MangaDetailsPage({ initialManga }: { initialManga: Media
         const data = await res.json();
         setEntry(data.entry);
         fetchChapters();
+        notify(`Added to ${STATUS_LABELS[status] || status}.`);
+      } else if (res.status === 401) {
+        notify("Sign in to add this manga to your list.");
+      } else {
+        notify("Couldn't add this manga — try again.");
       }
     } catch (e) {
-      console.error("Failed to add manga", e);
+      logError(e);
+      notify("Couldn't add this manga — try again.");
     }
   }
 
@@ -171,9 +218,13 @@ export default function MangaDetailsPage({ initialManga }: { initialManga: Media
         setEntry(null);
         setChapters([]);
         setShowChapters(false);
+        notify("Removed from your list.");
+      } else {
+        notify("Couldn't remove — try again.");
       }
     } catch (e) {
-      console.error("Failed to remove manga", e);
+      logError(e);
+      notify("Couldn't remove — try again.");
     }
   }
 
@@ -187,9 +238,13 @@ export default function MangaDetailsPage({ initialManga }: { initialManga: Media
       if (res.ok) {
         const data = await res.json();
         setEntry(data.entry);
+        notify(`Moved to ${STATUS_LABELS[status] || status}.`);
+      } else {
+        notify("Couldn't update status — try again.");
       }
     } catch (e) {
-      console.error("Failed to update status", e);
+      logError(e);
+      notify("Couldn't update status — try again.");
     }
   }
 
@@ -205,7 +260,8 @@ export default function MangaDetailsPage({ initialManga }: { initialManga: Media
         fetchEntry();
       }
     } catch (e) {
-      console.error("Failed to mark chapter", e);
+      logError(e);
+      notify("Couldn't update that chapter — try again.");
     }
   }
 
@@ -217,206 +273,231 @@ export default function MangaDetailsPage({ initialManga }: { initialManga: Media
     setEntry((prev) => prev ? { ...prev, score } : prev);
   }
 
-  if (error) return <div className="mx-auto max-w-3xl px-4 py-16"><ErrorState message={error} /></div>;
-
   const title = bestTitle(manga.title);
+  const story = splitStorySource(stripHtml(manga.description) || "No description available.");
   const chars = manga.characters?.edges || [];
   const staffEdges = manga.staff?.edges || [];
-  const links = (manga.externalLinks || []).filter((l) => !l.isDisabled);
-  const relations = (manga.relations?.edges || []).filter(
-    (e) => ["SEQUEL", "PREQUEL", "SIDE_STORY", "ALTERNATIVE", "SUMMARY", "ADAPTATION", "SOURCE"].includes(e.relationType)
-  );
+  const allLinks = (manga.externalLinks || []).filter((l) => !l.isDisabled && l.url);
+  const links = Array.from(new Map(allLinks.map((l) => [l.url, l])).values());
+  const allRelations = manga.relations?.edges || [];
+  const relations = allRelations.filter((e) => Boolean(e.node?.id && e.node?.title));
+  const relationCounts = relations.reduce<Record<string, number>>((acc, e) => {
+    acc[e.relationType] = (acc[e.relationType] || 0) + 1;
+    return acc;
+  }, {});
   const recs = manga.recommendations?.edges || [];
   const rankings = manga.rankings || [];
   const scoreDist = manga.stats?.scoreDistribution || [];
+  const statusDist = manga.stats?.statusDistribution || [];
+  const published = formatMangaDate(manga.startDate);
+  const ended = manga.endDate?.year ? formatMangaDate(manga.endDate) : manga.status === "RELEASING" ? "Present" : "—";
 
   const readChapters = chapters.filter((c) => c.read);
   const readCount = readChapters.length;
-  const totalChapterCount = manga.chapters || 0;
+  const totalChapterCount = manga.chapters || entry?.totalChapters || chapters.length;
   const readProgress = totalChapterCount > 0 ? Math.round((readCount / totalChapterCount) * 100) : 0;
 
   return (
     <PageTransition><ErrorBoundary label="MangaDetails"><div>
       {/* Hero */}
-      <div className="relative border-b border-[var(--color-line)]">
+      <div className="mdt-hero relative overflow-hidden border-b border-[var(--color-line)]">
         {manga.bannerImage && (
-          <div className="absolute inset-0">
+          <div className="mdt-banner absolute inset-0" aria-hidden>
             <div className="relative h-full w-full">
-              <Image src={manga.bannerImage} alt="" fill className="object-cover opacity-20" sizes="100vw" />
+              <Image src={manga.bannerImage} alt="" fill className="mdt-banner-img object-cover opacity-20" sizes="100vw" />
             </div>
             <div className="absolute inset-0 bg-gradient-to-t from-[var(--color-void)] via-[var(--color-void)]/80 to-[var(--color-void)]/30" />
           </div>
         )}
+        <span className="mdt-hero-scan" aria-hidden />
 
-        <div className="relative mx-auto flex max-w-6xl flex-col gap-6 px-4 py-10 sm:flex-row sm:px-6 sm:py-14">
-          <div className="relative shrink-0 h-64 w-44 sm:h-80 sm:w-56 rounded-xl border border-[var(--color-line)] shadow-2xl overflow-hidden">
+        <div className="relative mx-auto flex max-w-6xl flex-col gap-7 px-4 py-10 sm:flex-row sm:px-6 sm:py-14">
+          <div className="mdt-cover relative h-64 w-44 shrink-0 overflow-hidden rounded-xl border border-[var(--color-line)] shadow-2xl sm:h-80 sm:w-56">
             <Image
               src={manga.coverImage?.extraLarge || manga.coverImage?.large || ""}
               alt={title}
               fill
-              className="object-cover"
+              className="mdt-cover-img object-cover"
               sizes="(max-width: 768px) 50vw, 25vw"
             />
+            <span className="mdt-cover-frame" aria-hidden />
             {manga.averageScore ? (
-              <div className="absolute -top-2 -right-2 flex h-11 w-11 items-center justify-center rounded-full bg-[var(--color-violet)] text-sm font-bold text-black shadow-lg">
+              <div className="mdt-score-badge absolute -right-2 -top-2 flex flex-col items-center justify-center rounded-full bg-[var(--color-violet)] text-sm font-bold text-black shadow-lg">
                 {formatScore(manga.averageScore)}
+                <span className="mdt-score-label">SCORE</span>
               </div>
             ) : null}
           </div>
 
-          <div className="min-w-0 flex-1">
-            {manga.status === "RELEASING" && (
-              <span className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-black/50 px-2.5 py-1 text-xs font-semibold text-[var(--color-violet)]">
-                <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-violet)] pulse-dot" /> Publishing
-              </span>
-            )}
-            <div className="neon-rgb-border rounded-xl px-4 py-2">
-              <h1 className="font-display text-3xl font-bold leading-tight sm:text-5xl">{title}</h1>
-            </div>
-            {manga.title.native && <p className="mt-1 text-[var(--color-mute)]">{manga.title.native}</p>}
-
-            <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-[var(--color-mute)]">
-              {manga.format ? <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded">{manga.format}</span> : null}
-              {manga.source ? <span className="text-[10px] uppercase">{manga.source.replace(/_/g, " ")}</span> : null}
-              {manga.countryOfOrigin ? <span>{manga.countryOfOrigin}</span> : null}
-              {manga.startDate?.year ? (
-                <span>
-                  {manga.startDate.year}
-                  {manga.endDate?.year ? ` — ${manga.endDate.year}` : manga.status === "RELEASING" ? " — Present" : ""}
+          <div className="mdt-hero-copy min-w-0 flex-1">
+            <div className="mdt-badge-row mb-3 flex flex-wrap gap-2">
+              {manga.status === "RELEASING" && (
+                <span className="mdt-live-badge inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold">
+                  <span className="mdt-pulse-dot h-1.5 w-1.5 rounded-full" /> Publishing
                 </span>
-              ) : null}
-              {manga.chapters ? <span>{manga.chapters} Chapters</span> : null}
-              {manga.volumes ? <span>{manga.volumes} Volumes</span> : null}
+              )}
+              {manga.isLicensed && <span className="mdt-licensed rounded-full px-2.5 py-1 text-[11px] font-semibold">✓ Licensed</span>}
+              <span className="mdt-format-badge rounded-full px-2.5 py-1 text-[11px] font-semibold">{manga.format || "Manga"}</span>
+              <span className="mdt-origin-badge rounded-full px-2.5 py-1 text-[11px]">
+                {manga.source?.replace(/_/g, " ") || "Original"} · {manga.countryOfOrigin || "JP"}
+              </span>
+            </div>
+
+            <div className="mdt-title-frame neon-rgb-border relative overflow-hidden rounded-xl px-4 py-2">
+              <h1 className="mdt-title font-display text-3xl font-bold leading-tight sm:text-5xl">
+                {title}
+                <span className="mdt-title-sheen" aria-hidden />
+              </h1>
+            </div>
+            {manga.title.native && <p className="mdt-native mt-1 text-[var(--color-mute)]">{manga.title.native}</p>}
+
+            <div className="mdt-facts mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <div className="mdt-fact"><span>Published</span><strong>{published}</strong></div>
+              <div className="mdt-fact"><span>Series end</span><strong>{ended}</strong></div>
+              <div className="mdt-fact"><span>Chapters</span><strong>{manga.chapters ? formatCount(manga.chapters) : "Ongoing"}</strong></div>
+              <div className="mdt-fact"><span>Volumes</span><strong>{manga.volumes ? formatCount(manga.volumes) : "Ongoing"}</strong></div>
             </div>
 
             {/* Genres */}
-            <div className="mt-3 flex flex-wrap gap-2">
+            <div className="mdt-genres mt-4 flex flex-wrap gap-2">
               {manga.genres?.map((g) => (
                 <Link key={g} href={`/search?genre=${g}&type=MANGA`}
-                  className="rounded-full px-3 py-1 text-xs text-[var(--color-mute)] hover:border-[var(--color-violet)] hover:text-[var(--color-violet)] transition-colors"
+                  className="mdt-genre rounded-full px-3 py-1 text-xs transition-colors"
                 >{g}</Link>
               ))}
             </div>
 
-            {/* Quick Stats */}
-            <div className="mt-4 flex flex-wrap items-center gap-4 text-sm">
+            {/* Real quick stats — en-US number grouping, no locale surprises */}
+            <div className="mdt-stats mt-4 flex flex-wrap gap-2">
               {rankings.slice(0, 2).map((r) => (
-                <span key={r.id} className="font-mono text-xs text-[var(--color-mute)]">
-                  <span className="text-[var(--color-magenta)]">#{r.rank}</span> {r.context}{r.year ? ` (${r.year})` : ""}
+                <span key={r.id} className="mdt-stat font-mono text-xs">
+                  <b>#{r.rank}</b> {r.context}{r.year ? ` (${r.year})` : ""}
                 </span>
               ))}
-              {manga.favourites ? (
-                <span className="font-mono text-xs text-[var(--color-mute)]">
-                  ♥ {manga.favourites.toLocaleString()} favorites
-                </span>
-              ) : null}
-              {manga.popularity ? (
-                <span className="font-mono text-xs text-[var(--color-mute)]">
-                  ◎ {manga.popularity.toLocaleString()} popularity
-                </span>
-              ) : null}
-              {manga.meanScore ? (
-                <span className="font-mono text-xs text-[var(--color-cyan)]">
-                  ◎ Mean: {formatScore(manga.meanScore)}
-                </span>
-              ) : null}
+              <span className="mdt-stat font-mono text-xs"><b>♥ {formatCount(manga.favourites)}</b> favorites</span>
+              <span className="mdt-stat font-mono text-xs"><b>◎ {formatCount(manga.popularity)}</b> popularity</span>
+              <span className="mdt-stat mdt-stat-mean font-mono text-xs"><b>★ {formatScore(manga.meanScore)}</b> mean score</span>
             </div>
 
             {/* CTA */}
-            <div className="mt-5 flex flex-wrap items-center gap-3">
+            <div className="mdt-actions mt-5 flex flex-wrap items-center gap-2.5">
               {entry ? (
                 <>
-                  <span className="rounded-full px-3 py-1 text-xs font-semibold text-black"
+                  <span className="mdt-status-pill rounded-full px-3 py-1 text-xs font-semibold text-black"
                     style={{ backgroundColor: STATUS_COLORS[entry.status] || "var(--color-mute)" }}
                   >{STATUS_LABELS[entry.status] || entry.status}</span>
                   <select value={entry.status} onChange={(e) => handleStatusChange(e.target.value)}
-                    className="rounded-lg bg-[var(--color-panel)] px-3 py-1.5 text-xs outline-none focus:border-[var(--color-violet)]"
+                    className="mdt-select rounded-lg px-3 py-1.5 text-xs outline-none"
                   >
                     {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{STATUS_LABELS[s] || s}</option>)}
                   </select>
                   <button onClick={removeFromList}
-                    className="rounded-lg px-5 py-2.5 text-xs text-red-400 hover:bg-red-500/10 transition-colors"
+                    className="mdt-btn mdt-btn-danger rounded-lg px-4 py-2 text-xs"
                   >Remove</button>
                 </>
               ) : (
                 <>
                   <select value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)}
-                    className="rounded-lg bg-[var(--color-panel)] px-3 py-1.5 text-xs outline-none focus:border-[var(--color-violet)]"
+                    className="mdt-select rounded-lg px-3 py-1.5 text-xs outline-none"
                   >
                     {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{STATUS_LABELS[s] || s}</option>)}
                   </select>
                   <button onClick={() => addToList(selectedStatus)}
-                    className="rounded-full bg-[var(--color-violet)] px-5 py-2 text-sm font-semibold text-black hover:opacity-90 transition-opacity"
+                    className="mdt-btn mdt-btn-primary rounded-full px-5 py-2 text-sm font-semibold text-black"
                   >Add to My List</button>
                 </>
               )}
               <button
                 onClick={openReader}
                 disabled={readingDex}
-                className="rounded-full bg-[var(--color-cyan)] px-5 py-2 text-sm font-semibold text-black hover:opacity-90 transition-opacity disabled:opacity-60"
+                className="mdt-btn mdt-btn-read rounded-full px-5 py-2 text-sm font-semibold text-black"
               >
                 {readingDex ? "Finding source…" : "📖 Read Online"}
               </button>
-              <ShareButton mediaId={manga.id} title={title} />
+              <div className="mdt-share"><ShareButton mediaId={manga.id} title={title} /></div>
+            </div>
+            {actionMsg && (
+              <p className="mdt-action-msg mt-2 text-xs" role="status" aria-live="polite">{actionMsg}</p>
+            )}
+            <div className="mdt-source-pills mt-3 flex flex-wrap gap-2">
+              <a href={manga.siteUrl} target="_blank" rel="noopener noreferrer" className="mdt-source-pill">AniList ↗</a>
+              {manga.idMal && (
+                <a href={`https://myanimelist.net/manga/${manga.idMal}`} target="_blank" rel="noopener noreferrer" className="mdt-source-pill">MyAnimeList ↗</a>
+              )}
+              {entry?.mangaDexId && (
+                <a href={`https://mangadex.org/title/${entry.mangaDexId}`} target="_blank" rel="noopener noreferrer" className="mdt-source-pill">MangaDex ↗</a>
+              )}
+              <span className="mdt-source-hint">Live metadata · AniList</span>
             </div>
           </div>
         </div>
       </div>
 
       {/* Main */}
-      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-10 sm:px-6 lg:grid-cols-[1fr_320px]">
-        <div className="space-y-12 min-w-0">
+      <div className="mdt-main mx-auto grid max-w-6xl gap-10 px-4 py-10 sm:px-6 lg:grid-cols-[1fr_320px]">
+        <div className="mdt-content space-y-12 min-w-0">
           {/* Story */}
-          <section>
-            <SectionTitle>Story</SectionTitle>
-            <p className="leading-relaxed text-[var(--color-mute)] whitespace-pre-line">
-              {stripHtml(manga.description) || "No description available."}
-            </p>
-            {manga.tags && manga.tags.length > 0 && (
-              <div className="mt-4 flex flex-wrap gap-1.5">
-                {manga.tags.filter((t) => t.rank >= 60 && !t.isMediaSpoiler).slice(0, 10).map((t) => (
-                  <span key={t.id} className="rounded-full bg-[var(--color-void)] px-2.5 py-1 text-[10px] text-[var(--color-mute)] border border-[var(--color-line)]">
-                    {t.name}
-                    {t.isAdult && <span className="ml-1 text-[var(--color-magenta)]">●</span>}
-                  </span>
-                ))}
+          <StoryReveal>
+            <section className="mdt-section mdt-story-section">
+              <SectionTitle>Story</SectionTitle>
+              <div className="mdt-story-panel">
+                <div className="mdt-story-grid">
+                  <div className="mdt-story-main">
+                    <p className="mdt-story mdt-story-copy">
+                      {story.body}{story.separator}
+                      {story.source && <span className="mdt-story-source">{story.source}</span>}
+                    </p>
+                  </div>
+                  {manga.tags && manga.tags.length > 0 && (
+                    <div className="mdt-story-tags-wrap">
+                      <div className="mdt-tag-list mdt-story-tags">
+                        {manga.tags.filter((t) => t.rank >= 60 && !t.isMediaSpoiler).slice(0, 10).map((t) => (
+                          <span key={t.id} className="mdt-tag rounded-full px-2.5 py-1 text-[10px]">
+                            {t.name}
+                            {t.isAdult && <span className="ml-1 text-[var(--color-magenta)]">●</span>}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
-            )}
-          </section>
+            </section>
+          </StoryReveal>
 
           {/* In-content ad — 2.9K visitors/month on this template */}
-          <div className="flex justify-center">
+          <div className="mdt-ad-slot flex justify-center">
             <AdBanner placement="manga-detail-inline" type="sidebar" />
           </div>
 
           {/* Chapter list */}
           {entry && showChapters && chapters.length > 0 && (
-            <section>
+            <section className="mdt-section mdt-panel">
               <SectionTitle>
                 Chapter List
-                <span className="ml-2 text-xs font-mono text-[var(--color-mute)]">
+                <span className="mdt-section-count ml-2 text-xs font-mono">
                   {readCount}/{chapters.length} read
                 </span>
               </SectionTitle>
               {readProgress > 0 && (
-                <div className="mb-3">
+                <div className="mdt-progress-wrap mb-3">
                   <div className="flex items-center justify-between text-[10px] text-[var(--color-mute)] mb-1">
                     <span>Reading Progress</span>
                     <span>{readProgress}%</span>
                   </div>
-                  <div className="h-1.5 w-full rounded-full bg-[var(--color-line)] overflow-hidden">
-                    <div className="h-full rounded-full bg-[var(--color-violet)] transition-all duration-300" style={{ width: `${readProgress}%` }} />
+                  <div className="mdt-progress-track h-1.5 w-full overflow-hidden rounded-full">
+                    <div className="mdt-progress-fill h-full rounded-full" style={{ width: `${readProgress}%` }} />
                   </div>
                 </div>
               )}
-              <div className="rounded-xl divide-y divide-[var(--color-line)] max-h-96 overflow-y-auto">
+              <div className="mdt-chapter-list max-h-96 overflow-y-auto">
                 {(showAllChapters ? chapters : chapters.slice(0, 30)).map((ch) => (
                   <button key={ch.id} onClick={() => markChapter(ch.chapter, !ch.read)}
-                    className={`flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors hover:bg-white/5 ${
-                      ch.read ? "opacity-50" : ""
+                    className={`mdt-chapter-row flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors ${
+                      ch.read ? "is-read" : ""
                     }`}
                   >
-                    <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border ${
+                    <span className={`mdt-check flex h-5 w-5 shrink-0 items-center justify-center rounded border ${
                       ch.read ? "bg-green-500 border-green-500" : "border-[var(--color-line)]"
                     }`}>
                       {ch.read && (
@@ -424,16 +505,16 @@ export default function MangaDetailsPage({ initialManga }: { initialManga: Media
                           <path d="M20 6L9 17l-5-5" />
                         </svg>
                       )}
-                    </div>
-                    <span className="font-mono text-xs text-[var(--color-mute)] w-12">Ch. {ch.chapter}</span>
+                    </span>
+                    <span className="mdt-chapter-no font-mono text-xs w-12">Ch. {ch.chapter}</span>
                     <span className="flex-1 truncate">{ch.title || `Chapter ${ch.chapter}`}</span>
-                    {ch.readAt && <span className="text-[10px] text-[var(--color-mute)]">{new Date(ch.readAt).toLocaleDateString()}</span>}
+                    {ch.readAt && <span className="mdt-chapter-date text-[10px]">{new Date(ch.readAt).toLocaleDateString()}</span>}
                   </button>
                 ))}
               </div>
               {chapters.length > 30 && (
                 <button onClick={() => setShowAllChapters(!showAllChapters)}
-                  className="mt-2 text-xs text-[var(--color-violet)] hover:text-[var(--color-magenta)] transition-colors"
+                  className="mdt-link-btn mt-2 text-xs"
                 >
                   {showAllChapters ? "Show less" : `Show all ${chapters.length} chapters`}
                 </button>
@@ -443,207 +524,337 @@ export default function MangaDetailsPage({ initialManga }: { initialManga: Media
 
           {/* Rankings */}
           {rankings.length > 0 && (
-            <section>
-              <SectionTitle>Rankings</SectionTitle>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {rankings.slice(0, 6).map((r) => (
-                   <div key={r.id} className="rounded-lg bg-[var(--color-panel)] p-3 text-center">
-                    <div className="text-xl font-bold font-mono text-[var(--color-magenta)]">#{r.rank}</div>
-                    <div className="text-[10px] text-[var(--color-mute)] mt-0.5 uppercase tracking-wider">
-                      {r.context}{r.year ? ` (${r.year})` : ""}
-                    </div>
+            <RankingsReveal>
+              <section className="mdt-section mdt-rank-section">
+                <SectionTitle>Rankings</SectionTitle>
+                <div className="mdt-rank-panel">
+                  <div className="mdt-rank-grid">
+                    {rankings.slice(0, 6).map((r) => (
+                      <div key={r.id} className="mdt-rank-card">
+                        <div className="mdt-rank-copy">
+                          <div className="mdt-rank-num">#{r.rank}</div>
+                          <div className="mdt-rank-label">
+                            {r.context}{r.year ? ` (${r.year})` : ""}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </section>
+                </div>
+              </section>
+            </RankingsReveal>
           )}
 
           {/* Characters */}
           {chars.length > 0 && (
-            <section>
-              <SectionTitle>Characters</SectionTitle>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {chars.slice(0, 20).map((edge) => (
-                  <Link key={edge.node.id} href={`/character/${edge.node.id}`}
-                    className="flex items-center gap-2 rounded-lg bg-[var(--color-panel)] p-2 hover:border-[var(--color-violet)]/30 transition-colors"
-                  >
-                    <div className="relative h-8 w-8 rounded-full overflow-hidden border border-[var(--color-line)] shrink-0">
-                      <Image src={edge.node.image?.medium || ""} alt={edge.node.name?.full || ""} fill className="object-cover" sizes="32px" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-medium truncate">{edge.node.name?.full}</p>
-                      <p className="text-[10px] sm:text-[9px] text-[var(--color-mute)] truncate uppercase tracking-wider">{edge.role}</p>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </section>
+            <CharactersReveal>
+              <section className="mdt-section mdt-char-section">
+                <SectionTitle>
+                  Characters
+                  <span className="mdt-section-count ml-2 text-xs font-mono">{chars.length}</span>
+                </SectionTitle>
+                <div className="mdt-char-panel">
+                  <div className="mdt-people-grid mdt-char-grid grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {chars.map((edge, i) => (
+                      <Link key={edge.node.id} href={`/character/${edge.node.id}`}
+                        className={`mdt-person mdt-char-card flex items-center gap-2 rounded-lg transition-colors ${
+                          edge.role === "MAIN" ? "is-main" : ""
+                        }`}
+                        style={{ animationDelay: `${Math.min(i, 12) * 0.035}s` }}
+                      >
+                        <span className="mdt-avatar mdt-char-avatar relative h-8 w-8 shrink-0 overflow-hidden rounded-full">
+                          <Image src={edge.node.image?.medium || ""} alt={edge.node.name?.full || ""} fill className="object-cover" sizes="32px" />
+                        </span>
+                        <span className="mdt-char-body min-w-0">
+                          <span className="mdt-person-name block truncate">{edge.node.name?.full}</span>
+                          <span className="mdt-role mdt-char-role block truncate uppercase tracking-wider">{edge.role}</span>
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              </section>
+            </CharactersReveal>
           )}
 
           {/* Staff */}
           {staffEdges.length > 0 && (
-            <section>
-              <SectionTitle>
-                Staff
-                {staffEdges.length > 15 && (
-                  <button onClick={() => setShowAllStaff((o) => !o)}
-                    className="ml-auto text-[10px] font-mono text-[var(--color-mute)] hover:text-[var(--color-violet)] transition-colors"
-                  >{showAllStaff ? "Show less" : `View all (${staffEdges.length})`}</button>
-                )}
-              </SectionTitle>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {(showAllStaff ? staffEdges : staffEdges.slice(0, 15)).map((s, i) => (
-                  <Link key={`${s.node.id}-${i}`} href={`/staff/${s.node.id}`}
-                    className="flex items-center gap-2 rounded-lg bg-[var(--color-panel)] p-2 hover:border-[var(--color-violet)]/30 transition-colors"
-                  >
-                    <div className="relative h-8 w-8 rounded-full overflow-hidden shrink-0">
-                      <Image src={s.node.image?.medium || ""} alt={s.node.name?.full || ""} fill className="object-cover" sizes="32px" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-medium truncate">{s.node.name?.full}</p>
-                      <p className="text-[10px] sm:text-[9px] text-[var(--color-mute)] truncate">{s.role}</p>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </section>
+            <StaffReveal>
+              <section className="mdt-section mdt-staff-section">
+                <SectionTitle>
+                  Staff
+                  {staffEdges.length > 15 && (
+                    <button onClick={() => setShowAllStaff((o) => !o)}
+                      className="mdt-link-btn mdt-staff-toggle ml-auto text-[10px] font-mono"
+                    >{showAllStaff ? "Show less" : `View all (${staffEdges.length})`}</button>
+                  )}
+                </SectionTitle>
+                <div className="mdt-staff-panel">
+                  <div className="mdt-people-grid mdt-staff-grid grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {(showAllStaff ? staffEdges : staffEdges.slice(0, 15)).map((s, i) => (
+                      <Link key={`${s.node.id}-${i}`} href={`/staff/${s.node.id}`}
+                        className={`mdt-person mdt-staff-card flex items-center gap-2 rounded-lg transition-colors ${
+                          /story|art/i.test(s.role || "") ? "is-lead" : ""
+                        }`}
+                        style={{ animationDelay: `${Math.min(i, 12) * 0.035}s` }}
+                      >
+                        <span className="mdt-avatar mdt-staff-avatar relative h-8 w-8 shrink-0 overflow-hidden rounded-full">
+                          <Image src={s.node.image?.medium || ""} alt={s.node.name?.full || ""} fill className="object-cover" sizes="32px" />
+                        </span>
+                        <span className="mdt-staff-body min-w-0">
+                          <span className="mdt-person-name block truncate">{s.node.name?.full}</span>
+                          <span className="mdt-role mdt-staff-role block truncate">{s.role}</span>
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              </section>
+            </StaffReveal>
           )}
 
           {/* Relations */}
           {relations.length > 0 && (
-            <section>
-              <SectionTitle>Related</SectionTitle>
-              <Carousel3D
-                items={relations.map((r) => ({
-                  id: r.node.id, coverImage: r.node.coverImage, title: r.node.title,
-                  averageScore: r.node.averageScore,
-                  format: r.node.type === "ANIME" ? `${r.node.episodes || ""} ep` : `${r.node.chapters || ""} ch`,
-                  type: r.node.type,
-                }))}
-                accent="violet"
-                hrefFn={(item: {id: number; type?: string}) => item.type === "ANIME" ? `/anime/${item.id}` : `/manga/${item.id}`}
-              />
-            </section>
+            <RelatedReveal>
+              <section className="mdt-section mdt-rel-section">
+                <SectionTitle>
+                  Related
+                  <span className="mdt-section-count ml-2 text-xs font-mono">{relations.length}</span>
+                </SectionTitle>
+                <div className="mdt-rel-summary mdt-rel-panel mb-3 flex flex-wrap gap-1.5">
+                  {Object.entries(relationCounts)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 6)
+                    .map(([kind, count]) => (
+                      <span key={kind} className="mdt-rel-chip">
+                        {kind.replace(/_/g, " ").toLowerCase()} <b>{count}</b>
+                      </span>
+                    ))}
+                </div>
+                <div className="mdt-carousel-frame mdt-rel-carousel is-trending">
+                  <Carousel3D
+                    items={relations.map((r) => ({
+                      id: r.node.id, coverImage: r.node.coverImage, title: r.node.title,
+                      averageScore: r.node.averageScore,
+                      format: r.node.type === "ANIME" ? `${r.node.episodes || ""} ep` : `${r.node.chapters || ""} ch`,
+                      type: r.node.type,
+                    }))}
+                    accent="violet"
+                    size="wide"
+                    variant="trending"
+                    hrefFn={(item: {id: number; type?: string}) => item.type === "ANIME" ? `/anime/${item.id}` : `/manga/${item.id}`}
+                  />
+                </div>
+              </section>
+            </RelatedReveal>
           )}
 
           {/* Recommendations */}
           {recs.length > 0 && (
-            <section>
-              <SectionTitle>You May Also Like</SectionTitle>
-              <Carousel3D
-                items={recs.map((e) => e.node.mediaRecommendation)}
-                accent="violet"
-                hrefFn={(m: {id: number; type?: string}) => m.type === "ANIME" ? `/anime/${m.id}` : `/manga/${m.id}`}
-              />
-            </section>
+            <RecommendationsReveal>
+              <section className="mdt-section mdt-rec-section">
+                <SectionTitle>
+                  You May Also Like
+                  <span className="mdt-section-count ml-2 text-xs font-mono">{recs.length}</span>
+                </SectionTitle>
+                <div className="mdt-carousel-frame mdt-rec-carousel is-trending">
+                  <Carousel3D
+                    items={recs.map((e) => e.node.mediaRecommendation)}
+                    accent="violet"
+                    size="wide"
+                    variant="trending"
+                    hrefFn={(m: {id: number; type?: string}) => m.type === "ANIME" ? `/anime/${m.id}` : `/manga/${m.id}`}
+                  />
+                </div>
+              </section>
+            </RecommendationsReveal>
           )}
 
-          {/* Recommendation Relationships */}
-          <RecRelationships mediaId={manga.id} />
-
-          {/* Users Also Liked */}
-          <UsersAlsoLiked mediaId={manga.id} />
-
-          {/* Reddit Discussions */}
-          <DiscussionLinks mediaId={manga.id} />
+          {/* Community data — same number of fetches, now manga-correct */}
+          <WhyRecsReveal>
+            <div className="mdt-subpanel">
+              <RecRelationships
+                className="mdt-rec-xl"
+                mediaId={manga.id}
+                type="MANGA"
+                malId={manga.idMal ?? undefined}
+                fallback={recs.slice(0, 6).map((e) => {
+                  const m = e.node?.mediaRecommendation;
+                  if (!m?.id || !m.title) return null;
+                  return {
+                    id: m.id,
+                    title: bestTitle(m.title),
+                    image: m.coverImage?.medium || m.coverImage?.large || "",
+                    reason: "AniList community pick",
+                    allReasons: ["AniList community pick"],
+                    href: `/manga/${m.id}`,
+                  };
+                }).filter((r): r is NonNullable<typeof r> => Boolean(r))}
+              />
+            </div>
+          </WhyRecsReveal>
+          <div className="mdt-subpanel">
+            <UsersAlsoLiked mediaId={manga.id} type="MANGA" />
+          </div>
+          <div className="mdt-subpanel">
+            <DiscussionLinks mediaId={manga.id} title={title} type="MANGA" />
+          </div>
         </div>
 
         {/* Sidebar */}
-        <aside className="space-y-6">
+        <aside className="mdt-sidebar space-y-5">
           {/* Ad — kept at the top of the sidebar so the highest-traffic
               template actually gets the impressions */}
-          <AdBanner placement="manga-detail" type="sidebar" />
+          <div className="mdt-ad-slot">
+            <AdBanner placement="manga-detail" type="sidebar" />
+          </div>
 
-          {/* Progress (when added to list) */}
           {entry && (
-            <MangaProgress
-              mediaId={Number(id)}
-              chapters={entry.chapters}
-              volumes={entry.volumes}
-              totalChapters={entry.totalChapters}
-              totalVolumes={entry.totalVolumes}
-              onUpdate={handleProgressUpdate}
-            />
-          )}
-
-          {/* Rating Input (when added to list) */}
-          {entry && (
-            <MangaRatingInput
-              mediaId={Number(id)}
-              currentScore={entry.score}
-              onScoreUpdate={handleScoreUpdate}
-            />
-          )}
-
-          {/* Reading History */}
-          <MangaReadingHistory mediaId={Number(id)} />
-
-          {/* Manga Stats (MangaDex + MAL) */}
-          <MangaStatsCard mediaId={manga.id} />
-
-          {/* Score Distribution */}
-          <ScoreDistributionChart scoreDistribution={scoreDist} />
-
-          {/* External Links */}
-          {links.length > 0 && (
-            <div className="rounded-xl neon-rgb-border bg-[var(--color-panel)] p-5">
-              <h3 className="font-display text-sm font-bold mb-3">Official Sites</h3>
-              <ul className="space-y-1">
-                {links.map((l) => (
-                  <li key={l.id}>
-                    <a href={l.url} target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-2 rounded px-2 py-1 text-xs text-[var(--color-mute)] hover:text-[var(--color-violet)]"
-                    >
-                      <span>{l.site}</span>
-                      {l.notes && <span className="text-[10px] sm:text-[9px] opacity-60">— {l.notes}</span>}
-                      <span className="ml-auto">↗</span>
-                    </a>
-                  </li>
-                ))}
-              </ul>
+            <div className="mdt-side-wrap">
+              <MangaProgress
+                mediaId={Number(id)}
+                chapters={entry.chapters}
+                volumes={entry.volumes}
+                totalChapters={entry.totalChapters}
+                totalVolumes={entry.totalVolumes}
+                onUpdate={handleProgressUpdate}
+              />
             </div>
+          )}
+
+          {entry && (
+            <div className="mdt-side-wrap">
+              <MangaRatingInput
+                mediaId={Number(id)}
+                currentScore={entry.score}
+                onScoreUpdate={handleScoreUpdate}
+              />
+            </div>
+          )}
+
+          <SidebarReveal index={0}>
+            <div className="mdt-side-wrap"><MangaReadingHistory mediaId={Number(id)} /></div>
+          </SidebarReveal>
+          <SidebarReveal index={1}>
+            <div className="mdt-side-wrap">
+              <MangaStatsCard
+                mediaId={manga.id}
+                malId={manga.idMal ?? undefined}
+                dexId={entry?.mangaDexId ?? undefined}
+                title={title}
+              />
+            </div>
+          </SidebarReveal>
+          <SidebarReveal index={2}>
+            <div className="mdt-side-wrap"><StatusDistribution distribution={statusDist} /></div>
+          </SidebarReveal>
+          <SidebarReveal index={3}>
+            <div className="mdt-side-wrap"><ScoreDistributionChart scoreDistribution={scoreDist} className="mdt-card mdt-score" /></div>
+          </SidebarReveal>
+
+          {links.length > 0 && (
+            <SidebarReveal index={4}>
+              <div className="mdt-card mdt-official">
+                <div className="mdt-card-head">
+                  <h3 className="font-display text-sm font-bold">Official Sites</h3>
+                  <span className="mdt-card-badge">{links.length} links</span>
+                </div>
+                <ul className="mdt-official-list">
+                  {links.map((l, i) => {
+                    const host = linkHost(l.url);
+                    return (
+                      <li key={l.id}>
+                        <a
+                          href={l.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mdt-official-link"
+                          style={{ animationDelay: `${Math.min(i, 12) * 35}ms` }}
+                        >
+                          <span className="mdt-official-mark" aria-hidden>{siteInitial(l.site)}</span>
+                          <span className="mdt-official-body">
+                            <span className="mdt-official-site">
+                              {l.site}
+                              {l.notes && <span className="mdt-link-note"> — {l.notes}</span>}
+                            </span>
+                            {host && <span className="mdt-official-host">{host}</span>}
+                          </span>
+                          <span className="mdt-link-arrow" aria-hidden>↗</span>
+                        </a>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            </SidebarReveal>
           )}
 
           {manga.favourites ? (
-            <div className="rounded-xl neon-rgb-border bg-[var(--color-panel)] p-5 text-center">
-              <div className="text-2xl font-bold font-mono text-[var(--color-magenta)]">{manga.favourites.toLocaleString()}</div>
-              <div className="text-xs text-[var(--color-mute)] mt-0.5">Favorites</div>
-            </div>
+            <SidebarReveal index={5}>
+              <div className="mdt-card mdt-fav-card">
+                <span className="mdt-fav-halo" aria-hidden />
+                <div className="mdt-fav-num">{formatCount(manga.favourites)}</div>
+                <div className="mdt-fav-label">Favorites</div>
+                <span className="mdt-fav-spark" aria-hidden>♥</span>
+                <span className="mdt-fav-source">AniList community</span>
+              </div>
+            </SidebarReveal>
           ) : null}
 
-          {/* Affiliate CTA */}
-          <div className="rounded-xl neon-rgb-border bg-[var(--color-panel)] p-4">
-            <h3 className="font-display text-xs font-bold mb-2">Support Us</h3>
-            <div className="space-y-2">
-              <AffiliateLink partner="amazon" path={`https://www.amazon.in/s?k=${encodeURIComponent(bestTitle(manga.title) + " manga")}`}
-                className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs text-[var(--color-mute)] hover:border-[var(--color-cyan)]/40 hover:text-[var(--color-cyan)] transition-all"
-              >
-                <span className="text-[10px] font-bold">📦</span>
-                Buy on Amazon
-              </AffiliateLink>
-              <AffiliateLink partner="bookwalker" path="https://global.bookwalker.jp"
-                className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs text-[var(--color-mute)] hover:border-[var(--color-cyan)]/40 hover:text-[var(--color-cyan)] transition-all"
-              >
-                <span className="text-[10px] font-bold">📚</span>
-                BookWalker
-              </AffiliateLink>
+          <SidebarReveal index={6}>
+            <div className="mdt-card mdt-affiliate-card">
+              <div className="mdt-card-head">
+                <h3 className="font-display text-xs font-bold">Where to buy</h3>
+                <span className="mdt-card-badge">Support us</span>
+              </div>
+              <div className="mdt-affiliate-list">
+                <AffiliateLink partner="amazon" path={`https://www.amazon.in/s?k=${encodeURIComponent(bestTitle(manga.title) + " manga")}`}
+                  className="mdt-affiliate-link"
+                >
+                  <span className="mdt-affiliate-icon">📦</span>
+                  <span className="mdt-affiliate-body">
+                    <strong>Buy on Amazon</strong>
+                    <small>manga search</small>
+                  </span>
+                  <span className="mdt-affiliate-arrow" aria-hidden>↗</span>
+                </AffiliateLink>
+                <AffiliateLink partner="bookwalker" path="https://global.bookwalker.jp"
+                  className="mdt-affiliate-link"
+                >
+                  <span className="mdt-affiliate-icon">📚</span>
+                  <span className="mdt-affiliate-body">
+                    <strong>BookWalker</strong>
+                    <small>global store</small>
+                  </span>
+                  <span className="mdt-affiliate-arrow" aria-hidden>↗</span>
+                </AffiliateLink>
+                <PlayAsiaPill query={`${bestTitle(manga.title)} manga merch`} label="Play-Asia merch" className="mdt-affiliate-link" />
+              </div>
             </div>
-          </div>
+          </SidebarReveal>
 
-          <div className="rounded-xl bg-[var(--color-panel)] p-5 text-xs text-[var(--color-mute)]">
-            Data from <a href={manga.siteUrl} target="_blank" rel="noopener noreferrer" className="underline hover:text-[var(--color-violet)]">AniList</a>.
-            {manga.idMal && <> Also on <a href={`https://myanimelist.net/manga/${manga.idMal}`} target="_blank" rel="noopener noreferrer" className="underline hover:text-[var(--color-violet)]">MyAnimeList</a>.</>}
-          </div>
+          <SidebarReveal index={7}>
+            <div className="mdt-card mdt-source-note">
+              <span className="mdt-source-note-mark" aria-hidden>◎</span>
+              <div className="mdt-source-note-body">
+                <p>
+                  Data from <a href={manga.siteUrl} target="_blank" rel="noopener noreferrer">AniList</a>.
+                  {manga.idMal && <> Also on <a href={`https://myanimelist.net/manga/${manga.idMal}`} target="_blank" rel="noopener noreferrer">MyAnimeList</a>.</>}
+                </p>
+                <span className="mdt-source-note-foot">Live public metadata · no invented numbers</span>
+              </div>
+            </div>
+          </SidebarReveal>
         </aside>
       </div>
 
       {/* Native Ad Grid */}
-      <div className="my-8 max-w-7xl mx-auto px-4 sm:px-6">
+      <div className="mdt-ad-block my-8 max-w-7xl mx-auto px-4 sm:px-6">
         <NativeBannerAd />
       </div>
 
       {/* Bottom Leaderboard Banner */}
-      <div className="my-6 flex justify-center max-w-7xl mx-auto px-4 sm:px-6">
+      <div className="mdt-ad-block my-6 flex justify-center max-w-7xl mx-auto px-4 sm:px-6">
         <AdBanner placement="manga-bottom" type="banner" />
       </div>
     </div></ErrorBoundary></PageTransition>
@@ -651,8 +862,50 @@ export default function MangaDetailsPage({ initialManga }: { initialManga: Media
 }
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <h2 className="font-display text-xl font-bold mb-4 flex items-center gap-2">
-    <span className="h-4 w-1 rounded-full bg-[var(--color-violet)]" />
+  return <h2 className="mdt-section-title font-display text-xl font-bold mb-4 flex items-center gap-2">
+    <span className="mdt-section-bar h-4 w-1 rounded-full" />
     <RevealTitle as="span">{children}</RevealTitle>
   </h2>;
+}
+
+function StatusDistribution({
+  distribution,
+}: {
+  distribution: { status: string; amount: number }[];
+}) {
+  if (!distribution || distribution.length === 0) return null;
+  const max = Math.max(...distribution.map((d) => d.amount), 1);
+  const total = distribution.reduce((sum, d) => sum + d.amount, 0);
+  return (
+    <div className="mdt-card mdt-status-dist">
+      <div className="mdt-card-head">
+        <h3 className="font-display text-sm font-bold">Reader Status</h3>
+        <span className="mdt-card-badge">{formatCount(total)} votes</span>
+      </div>
+      <div className="mdt-dist-meter" aria-hidden>
+        {distribution.map((d) => (
+          <span
+            key={d.status}
+            className="mdt-dist-meter-seg"
+            style={{ width: total > 0 ? `${(d.amount / total) * 100}%` : "0%" }}
+          />
+        ))}
+      </div>
+      <div className="mdt-dist-list">
+        {distribution.map((d) => (
+          <div key={d.status} className="mdt-dist-row">
+            <span className="mdt-dist-label">{STATUS_DIST_LABELS[d.status] || d.status.replace(/_/g, " ")}</span>
+            <span className="mdt-dist-track">
+              <span className="mdt-dist-fill" style={{ width: `${Math.max(2, (d.amount / max) * 100)}%` }} />
+            </span>
+            <span className="mdt-dist-amount font-mono">{formatCount(d.amount)}</span>
+            <span className="mdt-dist-share font-mono">
+              {total > 0 ? `${((d.amount / total) * 100).toFixed(1)}%` : "—"}
+            </span>
+          </div>
+        ))}
+      </div>
+      <p className="mdt-dist-note">AniList community status · real votes</p>
+    </div>
+  );
 }

@@ -40,33 +40,25 @@ export default function EventCountdown({ target }: { target: string }) {
 
   if (parts.done) {
     return (
-      <div className="inline-flex items-center gap-2 rounded-full border border-green-500/40 bg-green-500/10 px-4 py-2 text-xs font-bold text-green-400">
-        <span className="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse" />
+      <div className="evp-count-done">
+        <span className="evp-count-done-dot" />
         Event has started
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-4 gap-2">
+    <div className="evp-count-grid">
       {CELLS.map(({ key, label }) => {
         const value = parts[key];
         const isSeconds = key === "seconds";
         return (
           <div
             key={key}
-            className="rounded-xl border border-white/10 bg-white/[0.04] px-2 py-2 text-center backdrop-blur-sm"
+            className={`evp-count-cell ${isSeconds ? "evp-count-cell-seconds" : ""}`}
           >
-            <div
-              className={`font-display text-xl sm:text-2xl font-black tabular-nums ${
-                isSeconds ? "text-[var(--color-cyan)]" : "text-white"
-              }`}
-            >
-              {String(value).padStart(2, "0")}
-            </div>
-            <div className="text-[9px] font-mono uppercase tracking-wider text-[var(--color-mute)]/60">
-              {label}
-            </div>
+            <span className="evp-count-value">{String(value).padStart(2, "0")}</span>
+            <span className="evp-count-label">{label}</span>
           </div>
         );
       })}

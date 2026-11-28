@@ -1,13 +1,15 @@
 "use client";
 
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import Image from "next/image";
 import {
   TV_CHANNELS,
   getScheduleForChannel,
   getDayName,
+  getIstMinutes,
   getNext7Days,
+  formatIstTime,
   type TimeSlot,
   type TvChannel,
 } from "@/lib/tv-channels";
@@ -64,23 +66,35 @@ interface LiveScheduleData {
 import { PageTransition } from "@/components/PageTransition";
 import { logError } from "@/lib/logger";
 
-const FADE_UP = {
-  initial: { opacity: 0, y: 20 },
-  whileInView: { opacity: 1, y: 0 },
-  viewport: { once: true },
-  transition: { duration: 0.5 },
-};
+function useReveal(delay = 0) {
+  const reduce = useReducedMotion() ?? false;
+  return {
+    initial: reduce ? false : { opacity: 0, y: 16 },
+    whileInView: reduce ? undefined : { opacity: 1, y: 0 },
+    viewport: { once: true, amount: 0.12 },
+    transition: { duration: reduce ? 0 : 0.45, delay: reduce ? 0 : delay },
+  };
+}
+
+function scrollBehavior(): ScrollBehavior {
+  return typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ? "auto"
+    : "smooth";
+}
 
 function NeonBorder({ children, glowColor }: { children: React.ReactNode; glowColor?: string }) {
   return (
-    <div className="relative rounded-[24px]">
-      <div className="absolute inset-0 rounded-[24px] overflow-hidden pointer-events-none">
-        <div className="absolute inset-0"
-          style={{ background: `conic-gradient(from 0deg, transparent, ${glowColor || "#00ffe0"}, transparent, #ff00e6, transparent, #7000ff, transparent, ${glowColor || "#00ffe0"})`, animation: "spin 6s linear infinite", willChange: "transform" }}
-        />
-        <div className="neon-premium-overlay rounded-[22.5px]" />
+    <div
+      className="tvsch-neon"
+      style={{ "--tvsch-neon": glowColor || "#29f2e0" } as React.CSSProperties}
+    >
+      <div className="tvsch-neon-ring" aria-hidden="true" />
+      <div className="tvsch-neon-shards" aria-hidden="true">
+        <i />
+        <i />
+        <i />
       </div>
-      <div className="relative z-10">{children}</div>
+      <div className="tvsch-neon-face">{children}</div>
     </div>
   );
 }
@@ -100,7 +114,7 @@ function ChannelLogo({
   if (!showImg) {
     return (
       <div
-        className="flex items-center justify-center rounded-xl text-xs font-bold text-white shrink-0 shadow-lg"
+        className="tvsch-logo-fallback flex items-center justify-center rounded-xl text-xs font-bold text-white shrink-0 shadow-lg"
         style={{
           width: size,
           height: size,
@@ -120,7 +134,7 @@ function ChannelLogo({
       alt={channel.name}
       width={size}
       height={size}
-      className="rounded-xl shrink-0 shadow-lg"
+      className="tvsch-logo rounded-xl shrink-0 shadow-lg"
       style={{ border: `1.5px solid ${channel.color}44`, objectFit: "contain", background: channel.logoPlate === "dark" ? "#0d0d16" : "#f6f7fb", width: size, height: size, padding: 2 }}
       onError={() => setImgError(true)}
     />
@@ -150,8 +164,7 @@ function parseMinutes(time: string): number {
 }
 
 function isCurrentlyAiring(slot: TimeSlot): boolean {
-  const now = new Date();
-  const cur = now.getHours() * 60 + now.getMinutes();
+  const cur = getIstMinutes();
   const start = parseMinutes(slot.start);
   const end = parseMinutes(slot.end);
   if (start > end) {
@@ -161,8 +174,7 @@ function isCurrentlyAiring(slot: TimeSlot): boolean {
 }
 
 function isPast(slot: TimeSlot): boolean {
-  const now = new Date();
-  const cur = now.getHours() * 60 + now.getMinutes();
+  const cur = getIstMinutes();
   const start = parseMinutes(slot.start);
   const end = parseMinutes(slot.end);
   if (start > end) {
@@ -174,6 +186,7 @@ function isPast(slot: TimeSlot): boolean {
 function LiveAiringSection({ selectedDay }: { selectedDay: string }) {
   const [data, setData] = useState<LiveAiringData | null>(null);
   const [loading, setLoading] = useState(true);
+  const reveal = useReveal(0.08);
 
   useEffect(() => {
     let cancelled = false;
@@ -193,15 +206,19 @@ function LiveAiringSection({ selectedDay }: { selectedDay: string }) {
 
   if (loading || !data) {
     return (
-      <motion.div {...FADE_UP} transition={{ duration: 0.5, delay: 0.08 }} className="mb-6">
-        <NeonBorder glowColor="#ff00e6">
-          <div className="rounded-[24px] p-4">
+      <motion.div {...reveal} className="tvsch-airing mb-6">
+        <NeonBorder glowColor="#e879f9">
+          <div className="tvsch-airing-body">
             <div className="flex items-center gap-3">
-              <div className="h-4 w-1 rounded-full bg-fuchsia-500 animate-pulse" />
+              <span className="tvsch-airing-dot" aria-hidden="true" />
+              <span className="tvsch-eq" aria-hidden="true">
+                <i />
+                <i />
+                <i />
+                <i />
+              </span>
               <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-fuchsia-400">
-                  Live Airing Schedule
-                </p>
+                <p className="tvsch-airing-title">Live airing wave</p>
                 <p className="text-[10px] text-[var(--color-mute)]">
                   Fetching this week&apos;s Japanese broadcast data...
                 </p>
@@ -217,50 +234,46 @@ function LiveAiringSection({ selectedDay }: { selectedDay: string }) {
   if (daySchedule.length === 0) return null;
 
   return (
-    <motion.div {...FADE_UP} transition={{ duration: 0.5, delay: 0.08 }} className="mb-6">
-      <NeonBorder glowColor="#ff00e6">
-        <div className="rounded-[24px] overflow-hidden">
-          <div className="h-[2px] bg-gradient-to-r from-transparent via-fuchsia-500 to-transparent" />
-          <div className="px-5 pt-4 pb-3">
-            <div className="flex items-center justify-between mb-2">
+    <motion.div {...reveal} className="tvsch-airing mb-6">
+      <NeonBorder glowColor="#e879f9">
+        <div className="tvsch-airing-body">
+          <div className="tvsch-airing-scan" aria-hidden="true" />
+          <div className="relative">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="relative">
-                  <span className="absolute inset-0 rounded-full bg-fuchsia-500 animate-ping opacity-30" />
-                  <span className="relative flex h-2.5 w-2.5 items-center justify-center">
-                    <span className="h-2.5 w-2.5 rounded-full bg-fuchsia-500 shadow-[0_0_10px_rgba(217,70,239,0.8)]" />
-                  </span>
-                </div>
+                <span className="tvsch-airing-dot" aria-hidden="true" />
+                <span className="tvsch-eq" aria-hidden="true">
+                  <i />
+                  <i />
+                  <i />
+                  <i />
+                </span>
                 <div>
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-fuchsia-400">
-                    Live Airing Schedule
-                  </h3>
+                  <h3 className="tvsch-airing-title">Live airing wave</h3>
                   <p className="text-[10px] text-[var(--color-mute)]">
-                    {daySchedule.length} anime currently airing this week
-                  </p>
-                  <p className="text-[9px] text-[var(--color-mute)]/50">
-                    * Times are Japanese broadcast. Indian streaming platforms may delay 2-3 hours
+                    {daySchedule.length} anime airing this week · {selectedDay} line-up
                   </p>
                 </div>
               </div>
-              <span className="text-[9px] text-[var(--color-mute)]">
-                Updated {new Date(data.updatedAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
+              <span className="tvsch-airing-updated">
+                Updated {formatIstTime(data.updatedAt)} IST
               </span>
             </div>
 
-            <div className="mb-3 rounded-lg border border-fuchsia-500/20 bg-fuchsia-500/5 px-3 py-2">
-              <p className="text-[10px] text-fuchsia-300/80 leading-relaxed">
-                <span className="font-bold text-fuchsia-400">What is this?</span> These are anime currently airing in Japan this week with real-time broadcast data. Times shown are <span className="font-bold">Indian Standard Time (IST)</span>. This is separate from Indian TV channel schedules below — those show when shows broadcast on Indian TV channels.
-              </p>
+            <div className="tvsch-airing-note">
+              <span className="font-bold text-[var(--color-magenta)]">Japan broadcast times in IST.</span>{" "}
+              Streaming platforms may air episodes a few hours later. The channel grid below is separate.
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-[400px] overflow-y-auto scrollbar-thin scrollbar-thumb-[var(--color-line)]">
-              {daySchedule.map((entry) => {
+            <div className="tvsch-airing-grid">
+              {daySchedule.map((entry, i) => {
                 const poster = entry.coverImage;
                 const title = entry.englishTitle || entry.title;
                 return (
                   <div
                     key={`${entry.id}-${entry.episode}`}
-                    className="flex items-center gap-3 rounded-lg neon-rgb-border bg-[var(--color-panel)]/50 px-3 py-2.5 hover:border-fuchsia-500/30 transition-colors"
+                    className="tvsch-airing-card"
+                    style={{ "--tvsch-i": Math.min(i, 10) } as React.CSSProperties}
                   >
                     {poster ? (
                       <Image
@@ -268,20 +281,20 @@ function LiveAiringSection({ selectedDay }: { selectedDay: string }) {
                         alt={title}
                         width={40}
                         height={40}
-                        className="rounded-lg object-cover shrink-0 border border-[var(--color-line)]"
+                        className="tvsch-airing-poster"
                         style={{ width: 40, height: 40 }}
                       />
                     ) : (
-                      <div className="w-10 h-10 rounded-lg bg-fuchsia-500/10 flex items-center justify-center shrink-0 border border-fuchsia-500/20">
-                        <span className="text-[10px] font-bold text-fuchsia-400">EP</span>
+                      <div className="tvsch-airing-poster tvsch-airing-poster--empty">
+                        <span>EP</span>
                       </div>
                     )}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[11px] font-semibold text-[var(--color-ink)] truncate">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[11px] font-semibold text-[var(--color-ink)]">
                         {title}
                       </p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-[9px] font-mono font-bold text-fuchsia-400">
+                      <div className="mt-0.5 flex items-center gap-2">
+                        <span className="font-mono text-[9px] font-bold text-[var(--color-magenta)]">
                           {entry.airTime} IST
                         </span>
                         <span className="text-[9px] text-[var(--color-mute)]">
@@ -324,28 +337,22 @@ function TimeSlotRow({
   return (
     <div
       id={`slot-${slot.start.replace(":", "-")}`}
-      className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 transition-all ${
-        airing
-          ? "border-[var(--color-cyan)]/50 bg-[var(--color-cyan)]/5"
-          : isAlwaysAvailable
-          ? "border-[var(--color-line)] hover:border-[var(--color-line)] hover:bg-[var(--color-panel)]"
-          : past
-          ? "border-[var(--color-line)] opacity-50"
-          : "border-[var(--color-line)] hover:border-[var(--color-line)] hover:bg-[var(--color-panel)]"
-      }`}
+      data-live={airing ? "true" : undefined}
+      data-past={past ? "true" : undefined}
+      className="tvsch-slot"
     >
-      <div className="w-20 shrink-0 text-right">
+      <div className="tvsch-slot-time">
         {isAlwaysAvailable ? (
           <>
             <p className="text-[10px] font-bold text-emerald-400">24/7</p>
-            <p className="text-[9px] font-mono text-[var(--color-mute)]">Always</p>
+            <p className="font-mono text-[9px] text-[var(--color-mute)]">Always</p>
           </>
         ) : (
           <>
-            <p className={`text-xs font-mono font-bold ${past ? "text-[var(--color-mute)] line-through" : "text-[var(--color-ink)]"}`}>
+            <p className={`font-mono text-xs font-bold ${past ? "text-[var(--color-mute)] line-through" : "text-[var(--color-ink)]"}`}>
               {slot.start}
             </p>
-            <p className="text-[9px] font-mono text-[var(--color-mute)]">
+            <p className="font-mono text-[9px] text-[var(--color-mute)]">
               {slot.end}
             </p>
           </>
@@ -353,7 +360,7 @@ function TimeSlotRow({
       </div>
 
       <div
-        className="w-[3px] self-stretch rounded-full shrink-0 transition-all duration-300"
+        className="tvsch-slot-accent"
         style={{
           background: airing
             ? `linear-gradient(to bottom, ${channelColor}, ${channelColor}66)`
@@ -362,65 +369,54 @@ function TimeSlotRow({
             : past
             ? "var(--color-line)"
             : `${channelColor}33`,
-          boxShadow: airing ? `0 0 8px ${channelColor}44` : "none",
+          boxShadow: airing ? `0 0 10px ${channelColor}66` : "none",
         }}
       />
 
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
+      <div className="tvsch-slot-main">
+        <div className="tvsch-slot-head">
           {showLogo ? (
             <Image
               src={channelLogoUrl || ""}
               alt={slot.show}
               width={32}
               height={32}
-              className="rounded-md shrink-0 border border-[var(--color-line)]"
+              className="tvsch-slot-logo"
               style={{ objectFit: "contain", background: "rgba(0,0,0,0.3)", width: 32, height: 32 }}
               onError={() => setLogoFailed(true)}
             />
           ) : channelShortName ? (
             <div
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-[var(--color-line)] text-[9px] font-bold text-white"
+              className="tvsch-slot-logo tvsch-slot-logo--text"
               style={{ background: `${channelColor}cc` }}
             >
               {channelShortName}
             </div>
           ) : null}
-          <p
-            className={`text-sm font-semibold truncate ${
-              airing
-                ? "text-cyan-400"
-                : past
-                ? "text-[var(--color-mute)] line-through decoration-1"
-                : "text-[var(--color-ink)]"
-            }`}
-          >
+          <p className={`tvsch-slot-title ${airing ? "tvsch-slot-title--live" : past ? "tvsch-slot-title--past" : ""}`}>
             {slot.show}
           </p>
           {airing && (
-            <span className="flex items-center gap-1.5 rounded-full border border-cyan-400/30 bg-cyan-400/10 px-2 py-0.5 text-[9px] font-bold text-cyan-400 shadow-[0_0_12px_rgba(0,188,212,0.15)]">
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-400 opacity-75" />
-                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-cyan-400" />
-              </span>
-              LIVE
+            <span className="tvsch-live-badge">
+              <span className="tvsch-live-dot" aria-hidden="true" />
+              Live
             </span>
           )}
           {isAlwaysAvailable && (
-            <span className="flex items-center gap-1 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 text-[9px] font-bold text-emerald-400">
+            <span className="tvsch-free-badge">
               <span className="h-1 w-1 rounded-full bg-emerald-400" />
-              FREE
+              Free · 24/7
             </span>
           )}
         </div>
         {showDescription && slot.description && (
-          <p className="text-[10px] text-[var(--color-mute)] truncate mt-0.5">
+          <p className="mt-0.5 truncate text-[10px] text-[var(--color-mute)]">
             {slot.description}
           </p>
         )}
       </div>
 
-      <span className="text-[9px] text-[var(--color-mute)] shrink-0">
+      <span className="tvsch-slot-duration">
         {isAlwaysAvailable ? "∞" : slot.duration > 0 ? `${slot.duration}m` : "—"}
       </span>
     </div>
@@ -432,13 +428,16 @@ function ChannelScheduleCard({
   day,
   searchQuery,
   liveSchedule,
+  index = 0,
 }: {
   channel: TvChannel;
   day: string;
   searchQuery: string;
   liveSchedule?: ChannelLiveSchedule;
+  index?: number;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const reveal = useReveal(0.04 + Math.min(index, 6) * 0.03);
   const schedule = getScheduleForChannel(channel.id, day);
   const liveDaySlots = liveSchedule?.days[day];
 
@@ -480,8 +479,7 @@ function ChannelScheduleCard({
     const container = scrollRef.current;
     if (!container || filteredSlots.length === 0) return;
     const timer = setTimeout(() => {
-      const now = new Date();
-      const curMin = now.getHours() * 60 + now.getMinutes();
+      const curMin = getIstMinutes();
       let targetIdx = filteredSlots.findIndex((s) => {
         const [sh, sm] = s.start.split(":").map(Number);
         const [eh, em] = s.end.split(":").map(Number);
@@ -496,7 +494,7 @@ function ChannelScheduleCard({
       }
       const el = container.querySelector(`#slot-${filteredSlots[targetIdx].start.replace(":", "-")}`) as HTMLElement;
       if (el && el.offsetTop !== undefined) {
-        container.scrollTo({ top: el.offsetTop - container.offsetTop - 40, behavior: "smooth" });
+        container.scrollTo({ top: el.offsetTop - container.offsetTop - 40, behavior: scrollBehavior() });
       }
     }, 300);
     return () => clearTimeout(timer);
@@ -504,93 +502,99 @@ function ChannelScheduleCard({
 
   const showDesc = channel.type === "tv";
   const uniqueShows = [...new Set(filteredSlots.map((s) => s.show))];
+  const sourceLabel =
+    liveSchedule?.source === "epg"
+      ? "LIVE EPG"
+      : liveSchedule?.source === "live"
+      ? "ONLINE"
+      : liveSchedule?.source === "empty"
+      ? "WAITING"
+      : "GUIDE";
+  const liveCount = filteredSlots.filter((s) => {
+    const alwaysAvailable = channel.type !== "tv" && s.start === "00:00" && s.end === "00:00";
+    return !alwaysAvailable && isCurrentlyAiring(s);
+  }).length;
+  const cardStyle = {
+    "--tvsch-accent": channel.color,
+    "--tvsch-i": Math.min(index, 10),
+  } as React.CSSProperties;
 
   return (
-    <motion.div
-      id={`channel-${channel.id}`}
-      initial={{ opacity: 0, y: 16 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      transition={{ duration: 0.4 }}
-    >
+    <motion.div id={`channel-${channel.id}`} {...reveal}>
       <NeonBorder glowColor={channel.color}>
-        <div
-          className="rounded-[24px] overflow-hidden transition-all duration-500 hover:shadow-[0_0_30px_rgba(var(--channel-glow,0,188,212),0.1)]"
-          style={{ "--channel-glow": channel.color.replace("#", "").match(/.{2}/g)?.map(h => parseInt(h, 16)).join(",") || "0,188,212" } as React.CSSProperties}
-        >
-          <div
-            className="h-[2px]"
-            style={{ background: `linear-gradient(to right, transparent, ${channel.color}, transparent)` }}
-          />
-
-          <div className="p-4">
-            <div className="flex items-center gap-3 mb-1">
-              <ChannelLogo channel={channel} size={48} />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-[var(--color-ink)]">
-                  {channel.name}
+        <div className="tvsch-card" style={cardStyle}>
+          <div className="tvsch-card-head">
+            <ChannelLogo channel={channel} size={48} />
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="tvsch-card-title">{channel.name}</p>
+                <span className="tvsch-source-pill">{sourceLabel}</span>
+                {liveCount > 0 && (
+                  <span className="tvsch-live-count">
+                    <span className="tvsch-live-dot" aria-hidden="true" />
+                    {liveCount} LIVE
+                  </span>
+                )}
+              </div>
+              {channel.dthNumbers && (
+                <p className="mt-0.5 text-[9px] text-[var(--color-mute)]">
+                  {channel.dthNumbers}
                 </p>
-                {channel.dthNumbers && (
-                  <p className="text-[9px] text-[var(--color-mute)] mt-0.5">
-                    {channel.dthNumbers}
-                  </p>
-                )}
-                {channel.type === "youtube" && channel.subscriberCount && (
-                  <p className="text-[9px] text-[var(--color-mute)] mt-0.5">
-                    {channel.subscriberCount} subscribers
-                  </p>
-                )}
-              </div>
-              <div className="flex items-center gap-1.5 shrink-0">
-                <button
-                  onClick={() => {
-                    const container = scrollRef.current;
-                    if (!container) return;
-                    const airing = container.querySelector('[class*="border-cyan"]') as HTMLElement;
-                    if (airing) container.scrollTo({ top: airing.offsetTop - container.offsetTop - 40, behavior: "smooth" });
-                  }}
-                  className="rounded-full border border-cyan-400/30 bg-cyan-400/10 px-2 py-0.5 text-[9px] font-bold text-cyan-400 hover:bg-cyan-400/20 transition-colors cursor-pointer"
-                >
-                  Now
-                </button>
-                <span
-                  className="rounded-full px-2 py-0.5 text-[9px] font-bold"
-                  style={{ background: `${channel.color}18`, color: channel.color }}
-                >
-                  {uniqueShows.length} shows
-                </span>
-                <span className="rounded-full neon-rgb-border bg-[var(--color-panel)] px-2 py-0.5 text-[9px] font-mono font-bold text-[var(--color-mute)]">
-                  {filteredSlots.length} slots
-                </span>
-              </div>
-            </div>
-
-            <div ref={scrollRef} className="space-y-1 mt-3 max-h-[500px] overflow-y-auto scrollbar-thin scrollbar-thumb-[var(--color-line)]">
-              {filteredSlots.length === 0 ? (
-                <div className="flex items-center justify-center py-6 text-center">
-                  <div>
-                    <p className="text-xs text-[var(--color-mute)] font-medium">No schedule data available</p>
-                    {nextDayWithSlots ? (
-                      <p className="text-[10px] text-cyan-400/80 mt-1 font-semibold">Next new episodes: {nextDayWithSlots}</p>
-                    ) : (
-                      <p className="text-[10px] text-[var(--color-mute)]/60 mt-1">Live guide pending — check back later</p>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                filteredSlots.map((slot, i) => (
-                  <TimeSlotRow
-                    key={`${slot.start}-${slot.show}-${i}`}
-                    slot={slot}
-                    channelColor={channel.color}
-                    showDescription={showDesc}
-                    isStreaming={channel.type !== "tv"}
-                    channelLogoUrl={channel.logoProxyUrl || channel.logoUrl}
-                    channelShortName={channel.shortName}
-                  />
-                ))
+              )}
+              {channel.type === "youtube" && channel.subscriberCount && (
+                <p className="mt-0.5 text-[9px] text-[var(--color-mute)]">
+                  {channel.subscriberCount} subscribers
+                </p>
               )}
             </div>
+            <div className="tvsch-card-actions">
+              <button
+                type="button"
+                onClick={() => {
+                  const container = scrollRef.current;
+                  if (!container) return;
+                  const airing = container.querySelector('[data-live="true"]') as HTMLElement;
+                  if (airing) container.scrollTo({ top: airing.offsetTop - container.offsetTop - 40, behavior: scrollBehavior() });
+                }}
+                className="tvsch-now-btn"
+              >
+                Now
+              </button>
+              <span className="tvsch-count-pill">{uniqueShows.length} shows</span>
+              <span className="tvsch-count-pill tvsch-count-pill--mono">{filteredSlots.length} slots</span>
+            </div>
+          </div>
+
+          <div ref={scrollRef} className="tvsch-slot-scroll">
+            {filteredSlots.length === 0 ? (
+              <div className="tvsch-empty">
+                <span className="tvsch-empty-icon" aria-hidden="true">◷</span>
+                <div>
+                  <p className="text-xs font-medium text-[var(--color-mute)]">No schedule data available</p>
+                  {nextDayWithSlots ? (
+                    <p className="mt-1 text-[10px] font-semibold text-[var(--color-cyan)]">
+                      Next new episodes: {nextDayWithSlots}
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-[10px] text-[var(--color-mute)]/60">
+                      Live guide pending — check back later
+                    </p>
+                  )}
+                </div>
+              </div>
+            ) : (
+              filteredSlots.map((slot, i) => (
+                <TimeSlotRow
+                  key={`${slot.start}-${slot.show}-${i}`}
+                  slot={slot}
+                  channelColor={channel.color}
+                  showDescription={showDesc}
+                  isStreaming={channel.type !== "tv"}
+                  channelLogoUrl={channel.logoProxyUrl || channel.logoUrl}
+                  channelShortName={channel.shortName}
+                />
+              ))
+            )}
           </div>
         </div>
       </NeonBorder>
@@ -601,93 +605,80 @@ function ChannelScheduleCard({
 function ChannelFilterTabs({
   selectedChannel,
   onSelect,
+  counts,
+  totalCount,
 }: {
   selectedChannel: string | null;
   onSelect: (id: string | null) => void;
+  counts: Record<string, number>;
+  totalCount: number;
 }) {
-  return (
-    <motion.div
-      {...FADE_UP}
-      transition={{ duration: 0.5, delay: 0.15 }}
-      className="mb-6 space-y-3"
-    >
-      <div className="flex items-center gap-2">
-        <div className="h-4 w-1 rounded-full bg-[var(--color-cyan)]" />
-        <p className="text-xs font-bold uppercase tracking-wider text-[var(--color-mute)]">
-          TV Channels
-        </p>
-      </div>
-      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-[var(--color-line)]">
-        <button
-          onClick={() => onSelect(null)}
-          className="rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all shrink-0"
-          style={{
-            borderColor: !selectedChannel ? "var(--color-cyan)" : "var(--color-line)",
-            background: !selectedChannel ? "rgba(0,188,212,0.13)" : "transparent",
-            color: !selectedChannel ? "var(--color-cyan)" : "var(--color-mute)",
-          }}
+  const reveal = useReveal(0.12);
+  const renderChip = (id: string | null, ch?: TvChannel, index = 0) => {
+    const active = selectedChannel === id;
+    const color = ch?.color || "var(--color-cyan)";
+    const label = id === null ? "All channels" : ch?.name || id;
+    const count = id === null ? totalCount : counts[id] || 0;
+
+    return (
+      <button
+        key={id ?? "all"}
+        type="button"
+        data-active={active}
+        onClick={() => onSelect(active && id !== null ? null : id)}
+        className="tvsch-chip"
+        style={{ "--tvsch-accent": color, "--tvsch-i": Math.min(index, 12) } as React.CSSProperties}
+      >
+        <span
+          className={`tvsch-chip-mark ${id === null ? "tvsch-chip-mark--all" : ""}`}
+          style={id === null ? undefined : { background: ch?.color }}
         >
-          All
-        </button>
-        {TV_CHANNEL_IDS.map((id) => {
-          const ch = TV_CHANNELS[id];
-          if (!ch) return null;
-          const active = selectedChannel === id;
-          return (
-            <button
-              key={id}
-              onClick={() => onSelect(active ? null : id)}
-              className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all shrink-0"
-              style={{
-                borderColor: active ? ch.color : "var(--color-line)",
-                background: active ? `${ch.color}22` : "transparent",
-                color: active ? ch.color : "var(--color-mute)",
-              }}
-            >
-              <div
-                className="h-4 w-4 rounded flex items-center justify-center text-[7px] font-bold text-white"
-                style={{ background: ch.color }}
-              >
-                {ch.shortName}
-              </div>
-              {ch.name}
-            </button>
-          );
-        })}
+          {id === null ? "ALL" : ch?.shortName}
+        </span>
+        <span className="truncate">{label}</span>
+        <span className="tvsch-chip-count">{count}</span>
+      </button>
+    );
+  };
+
+  return (
+    <motion.div {...reveal} className="tvsch-controls mb-6">
+      <div className="tvsch-control-head">
+        <span className="tvsch-control-index">01</span>
+        <div>
+          <p className="tvsch-stat-label">Channel filters</p>
+          <p className="text-[10px] text-[var(--color-mute)]">
+            Pick one source or browse the full grid
+          </p>
+        </div>
       </div>
 
-      <div className="flex items-center gap-2 pt-1">
-        <div className="h-4 w-1 rounded-full bg-[var(--color-amber)]" />
-        <p className="text-xs font-bold uppercase tracking-wider text-[var(--color-mute)]">
-          Streaming Platforms
-        </p>
-      </div>
-      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-[var(--color-line)]">
-        {YT_CHANNEL_IDS.map((id) => {
-          const ch = TV_CHANNELS[id];
-          if (!ch) return null;
-          const active = selectedChannel === id;
-          return (
-            <button
-              key={id}
-              onClick={() => onSelect(active ? null : id)}
-              className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all shrink-0"
-              style={{
-                borderColor: active ? ch.color : "var(--color-line)",
-                background: active ? `${ch.color}22` : "transparent",
-                color: active ? ch.color : "var(--color-mute)",
-              }}
-            >
-              <div
-                className="h-4 w-4 rounded flex items-center justify-center text-[7px] font-bold text-white"
-                style={{ background: ch.color }}
-              >
-                {ch.shortName}
-              </div>
-              {ch.name}
-            </button>
-          );
-        })}
+      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        <div>
+          <div className="tvsch-group-label">
+            <span>TV CHANNELS</span>
+            <span>{TV_CHANNEL_IDS.length} sources</span>
+          </div>
+          <div className="tvsch-chip-row">
+            {renderChip(null, undefined, 0)}
+            {TV_CHANNEL_IDS.map((id, i) => {
+              const ch = TV_CHANNELS[id];
+              return ch ? renderChip(id, ch, i + 1) : null;
+            })}
+          </div>
+        </div>
+        <div>
+          <div className="tvsch-group-label">
+            <span>STREAMING PLATFORMS</span>
+            <span>{YT_CHANNEL_IDS.length} sources</span>
+          </div>
+          <div className="tvsch-chip-row">
+            {YT_CHANNEL_IDS.map((id, i) => {
+              const ch = TV_CHANNELS[id];
+              return ch ? renderChip(id, ch, i + 1) : null;
+            })}
+          </div>
+        </div>
       </div>
     </motion.div>
   );
@@ -700,6 +691,10 @@ function TvSchedulePage() {
   const [liveData, setLiveData] = useState<LiveScheduleData | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string>("");
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const heroReveal = useReveal(0);
+  const dayReveal = useReveal(0.08);
+  const searchReveal = useReveal(0.1);
+  const gridReveal = useReveal(0.16);
 
   const days = useMemo(() => getNext7Days(), []);
   const channels = useMemo(() => Object.values(TV_CHANNELS), []);
@@ -711,11 +706,7 @@ function TvSchedulePage() {
       if (!res.ok) return;
       const data: LiveScheduleData = await res.json();
       setLiveData(data);
-      setLastUpdated(new Date(data.updatedAt).toLocaleTimeString("en-US", {
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: true,
-      }));
+      setLastUpdated(`${formatIstTime(data.updatedAt)} IST`);
     } catch (e) { logError(e); }
   }, []);
 
@@ -742,152 +733,268 @@ function TvSchedulePage() {
     return [...tv, ...yt];
   }, [filteredChannels]);
 
+  const dayCounts = useMemo(() => {
+    const counts: Record<string, number> = Object.fromEntries(days.map((day) => [day, 0]));
+    liveData?.channels.forEach((lc) => {
+      days.forEach((day) => {
+        counts[day] += lc.days[day]?.length || 0;
+      });
+    });
+    return counts;
+  }, [days, liveData]);
+
+  const selectedDayStats = useMemo(() => {
+    const shows = new Set<string>();
+    let slots = 0;
+    let activeChannels = 0;
+    liveData?.channels.forEach((lc) => {
+      const entries = lc.days[selectedDay] || [];
+      if (entries.length) activeChannels += 1;
+      slots += entries.length;
+      entries.forEach((entry) => shows.add(entry.show));
+    });
+    return { slots, shows: shows.size, channels: activeChannels };
+  }, [liveData, selectedDay]);
+
+  const channelCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    liveData?.channels.forEach((lc) => {
+      counts[lc.channelId] = lc.days[selectedDay]?.length || 0;
+    });
+    return counts;
+  }, [liveData, selectedDay]);
+
+  const feedSummary = useMemo(() => {
+    let epg = 0;
+    let online = 0;
+    let guide = 0;
+    liveData?.channels.forEach((channel) => {
+      if (channel.source === "epg") epg += 1;
+      else if (channel.source === "live") online += 1;
+      else if (channel.source === "fallback") guide += 1;
+    });
+    return { epg, online, guide };
+  }, [liveData]);
+
+  const fallbackActive = !!liveData && (feedSummary.guide > 0 || !!liveData.offlineLinear);
+
   return (
     <PageTransition>
-      <div className="relative min-h-screen overflow-hidden bg-[var(--color-void)]">
-        <div className="absolute inset-0 bg-gradient-to-br from-[var(--color-void)] via-[var(--color-panel)] to-[var(--color-void)]" />
-        <div className="absolute inset-0 opacity-[0.35] pointer-events-none" style={{
-          backgroundImage: "radial-gradient(color-mix(in srgb, var(--color-ink) 6%, transparent) 1px, transparent 1px)",
-          backgroundSize: "24px 24px",
-        }} />
-        <div className="absolute inset-0 pointer-events-none" style={{ boxShadow: "inset 0 0 120px 40px color-mix(in srgb, var(--color-void) 60%, transparent)" }} />
-        <motion.div className="absolute top-[15%] left-[5%] w-[350px] h-[350px] rounded-full pointer-events-none"
-          style={{ background: "radial-gradient(circle, rgba(0,255,224,0.06) 0%, transparent 70%)", filter: "blur(60px)" }}
-          animate={{ x: [0, 40, 0], y: [0, -30, 0] }}
-          transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
-        />
-        <motion.div className="absolute top-[40%] right-[10%] w-[280px] h-[280px] rounded-full pointer-events-none"
-          style={{ background: "radial-gradient(circle, rgba(255,0,230,0.05) 0%, transparent 70%)", filter: "blur(60px)" }}
-          animate={{ x: [0, -30, 0], y: [0, 40, 0] }}
-          transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
-        />
-        <motion.div className="absolute bottom-[15%] left-[35%] w-[250px] h-[250px] rounded-full pointer-events-none"
-          style={{ background: "radial-gradient(circle, rgba(112,0,255,0.05) 0%, transparent 70%)", filter: "blur(60px)" }}
-          animate={{ x: [0, 25, 0], y: [0, -25, 0] }}
-          transition={{ duration: 14, repeat: Infinity, ease: "easeInOut" }}
-        />
+      <div className="tvsch-page relative min-h-screen overflow-hidden">
+        <div className="tvsch-bg-orbs" aria-hidden="true">
+          <span className="tvsch-bg-orb tvsch-bg-orb--cyan" />
+          <span className="tvsch-bg-orb tvsch-bg-orb--magenta" />
+          <span className="tvsch-bg-orb tvsch-bg-orb--violet" />
+        </div>
 
-      <div className="relative z-10 mx-auto max-w-7xl px-4 py-8 sm:px-6">
-        <motion.div {...FADE_UP} className="mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="h-8 w-1 rounded-full bg-[var(--color-amber)]" />
-                <div className="neon-rgb-border rounded-xl px-4 py-2">
-                  <h1 className="font-display text-3xl font-bold tracking-tight">
-                    TV Channel Schedule
-                  </h1>
+        <div className="relative z-10 mx-auto max-w-7xl px-4 py-8 sm:px-6">
+        <motion.section {...heroReveal} className="tvsch-hero mb-6">
+          <span className="tvsch-hero-scan" aria-hidden="true" />
+          <span className="tvsch-hero-aurora tvsch-hero-aurora--cyan" aria-hidden="true" />
+          <span className="tvsch-hero-aurora tvsch-hero-aurora--magenta" aria-hidden="true" />
+          <span className="tvsch-hero-aurora tvsch-hero-aurora--amber" aria-hidden="true" />
+          <div className="tvsch-hero-inner relative grid gap-6 p-5 sm:p-7 lg:grid-cols-[1.25fr_.75fr]">
+            <div className="relative z-10">
+              <div className="tvsch-eyebrow">
+                <span className="tvsch-live-dot" aria-hidden="true" />
+                <span className="tvsch-eq" aria-hidden="true">
+                  <i />
+                  <i />
+                  <i />
+                  <i />
+                </span>
+                Anime TV · India
+              </div>
+              <h1 className="tvsch-hero-title mt-4">
+                WHAT&apos;S ON <span>TV</span>
+              </h1>
+              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[var(--color-mute)]">
+                Indian TV &amp; streaming anime guide with exact IST slots, DTH numbers, and live now/next updates.
+              </p>
+              <div className="mt-5 flex flex-wrap gap-2">
+                <span className="tvsch-hero-chip">IST SLOTS</span>
+                <span className="tvsch-hero-chip">TV + OTT</span>
+                <span className="tvsch-hero-chip">{channels.length} SOURCES</span>
+              </div>
+              {liveData && (
+                <div className="tvsch-feed-strip" aria-label="Schedule data sources">
+                  <span className="tvsch-feed-chip">
+                    <span className="tvsch-feed-dot tvsch-feed-dot--epg" aria-hidden="true" />
+                    EPG.PW · {feedSummary.epg} TV feeds
+                  </span>
+                  <span className="tvsch-feed-chip">
+                    <span className="tvsch-feed-dot tvsch-feed-dot--online" aria-hidden="true" />
+                    ANILIST · {feedSummary.online} OTT feeds
+                  </span>
+                  <span className="tvsch-feed-chip tvsch-feed-chip--status" data-active={fallbackActive}>
+                    <span className="tvsch-feed-dot" aria-hidden="true" />
+                    {fallbackActive ? "Offline guide active" : "No fallback in use"}
+                  </span>
+                </div>
+              )}
+              <div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <div className="tvsch-stat">
+                  <p className="tvsch-stat-label">
+                    <span className="tvsch-stat-dot" aria-hidden="true" />
+                    Slots today
+                  </p>
+                  <p className="tvsch-stat-value">{selectedDayStats.slots}</p>
+                </div>
+                <div className="tvsch-stat">
+                  <p className="tvsch-stat-label">
+                    <span className="tvsch-stat-dot" aria-hidden="true" />
+                    Shows today
+                  </p>
+                  <p className="tvsch-stat-value">{selectedDayStats.shows}</p>
+                </div>
+                <div className="tvsch-stat">
+                  <p className="tvsch-stat-label">
+                    <span className="tvsch-stat-dot" aria-hidden="true" />
+                    Channels
+                  </p>
+                  <p className="tvsch-stat-value">{channels.length}</p>
+                </div>
+                <div className="tvsch-stat">
+                  <p className="tvsch-stat-label">
+                    <span className="tvsch-stat-dot" aria-hidden="true" />
+                    Week airings
+                  </p>
+                  <p className="tvsch-stat-value">{liveData?.liveAiringTotal ?? 0}</p>
                 </div>
               </div>
-              <p className="text-sm text-[var(--color-mute)] ml-4">
-                Daily broadcast schedule for Indian TV &amp; YouTube anime channels with exact show timings
-              </p>
-              <p className="text-[10px] text-[var(--color-mute)]/60 ml-4 mt-1">
-                * Streaming platforms (JioHotstar, Sony LIV, Crunchyroll) may air episodes 2-3 hours after Japanese broadcast time
-              </p>
             </div>
-            {lastUpdated && (
-              <div className="flex items-center gap-2 rounded-lg neon-rgb-border bg-[var(--color-panel)]/50 px-3 py-1.5">
-                <span className="relative flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
-                </span>
-                <span className="text-[10px] text-[var(--color-mute)]">
-                  Live • Updated {lastUpdated}
-                </span>
-                <span className="text-[9px] text-[var(--color-mute)] opacity-50">
-                  (refreshes every 30m)
-                </span>
-              </div>
-            )}
-          </div>
-        </motion.div>
 
-        {liveData?.offlineLinear && (
-          <motion.div
-            {...FADE_UP}
-            className="mb-4 flex items-start gap-2 rounded-xl border border-amber-400/40 bg-amber-400/10 px-3 py-2"
-          >
-            <span className="text-sm leading-5">📡</span>
-            <p className="text-[11px] leading-5 text-amber-200/80">
-              Live TV data is unavailable right now, so Indian TV channels show the offline guide.
-              Streaming listings below are still live.
-            </p>
-          </motion.div>
-        )}
+            <div className="tvsch-signal relative z-10">
+              <div className="tvsch-signal-screen">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="tvsch-stat-label">Today&apos;s grid</p>
+                    <p className="font-display text-2xl font-bold text-[var(--color-ink)]">
+                      {selectedDay}
+                    </p>
+                  </div>
+                  <div className="tvsch-signal-ring" aria-hidden="true">
+                    <span />
+                  </div>
+                </div>
+                <div className="mt-4 space-y-2">
+                  <div className="tvsch-signal-row">
+                    <span>Shows lined up</span>
+                    <strong>{selectedDayStats.shows}</strong>
+                  </div>
+                  <div className="tvsch-signal-row">
+                    <span>Channels with slots</span>
+                    <strong>
+                      {selectedDayStats.channels}/{liveData?.channels.length ?? channels.length}
+                    </strong>
+                  </div>
+                  <div className="tvsch-signal-row">
+                    <span>Week entries</span>
+                    <strong>{liveData?.liveAiringTotal ?? 0}</strong>
+                  </div>
+                </div>
+                <div className="tvsch-sync-row">
+                  <span
+                    className={`tvsch-sync-dot ${lastUpdated ? "" : "tvsch-sync-dot--idle"}`}
+                    aria-hidden="true"
+                  />
+                  <span>
+                    {lastUpdated ? `Feed synced ${lastUpdated}` : "Syncing live guide..."}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </motion.section>
 
         <NowNextRail data={liveData} />
 
         <LiveAiringSection selectedDay={selectedDay} />
 
-        <motion.div {...FADE_UP} transition={{ duration: 0.5, delay: 0.1 }} className="mb-4">
-          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-[var(--color-line)]">
-            {days.map((day) => {
-              const isToday = day === getDayName();
-              const active = selectedDay === day;
-              return (
-                <button
-                  key={day}
-                  onClick={() => setSelectedDay(day)}
-                  className="rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all shrink-0"
-                  style={{
-                    borderColor: active ? "var(--color-amber)" : "var(--color-line)",
-                    background: active ? "rgba(245,158,11,0.1)" : "transparent",
-                    color: active ? "#f59e0b" : "var(--color-mute)",
-                  }}
-                >
-                  {isToday ? "Today" : day.slice(0, 3)}
-                </button>
-              );
-            })}
-          </div>
+        <motion.div {...dayReveal} className="tvsch-day-strip mb-4">
+          {days.map((day, i) => {
+            const isToday = day === getDayName();
+            const active = selectedDay === day;
+            return (
+              <button
+                key={day}
+                type="button"
+                data-active={active}
+                onClick={() => setSelectedDay(day)}
+                className="tvsch-day-pill"
+                style={{ "--tvsch-i": i } as React.CSSProperties}
+              >
+                {isToday && (
+                  <span className="tvsch-eq tvsch-day-eq" aria-hidden="true">
+                    <i />
+                    <i />
+                    <i />
+                  </span>
+                )}
+                <span className="block text-xs font-bold">
+                  {isToday ? "TODAY" : day.slice(0, 3)}
+                </span>
+                <span className="mt-0.5 block font-mono text-[9px] text-[var(--color-mute)]">
+                  {dayCounts[day] || 0} slots
+                </span>
+              </button>
+            );
+          })}
         </motion.div>
 
-        <motion.div
-          {...FADE_UP}
-          transition={{ duration: 0.5, delay: 0.12 }}
-          className="mb-4"
-        >
-          <div className="relative">
-            <svg
-              className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--color-mute)]"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              />
-            </svg>
-            <input
-              type="text"
-              placeholder="Search shows across all channels..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-lg neon-rgb-border bg-[var(--color-panel)] py-2 pl-9 pr-3 text-sm text-[var(--color-ink)] placeholder:text-[var(--color-mute)] focus:border-[var(--color-cyan)] focus:outline-none transition-colors"
+        <motion.div {...searchReveal} className="tvsch-search mb-4">
+          <svg
+            className="tvsch-search-icon"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+            aria-hidden="true"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
             />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-mute)] hover:text-[var(--color-ink)] text-xs"
-              >
-                Clear
-              </button>
-            )}
-          </div>
+          </svg>
+          <input
+            type="text"
+            aria-label="Search shows across all channels"
+            placeholder="Search shows across all channels..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="tvsch-search-input"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery("")}
+              className="tvsch-search-clear"
+            >
+              Clear
+            </button>
+          )}
         </motion.div>
 
         <ChannelFilterTabs
           selectedChannel={selectedChannel}
           onSelect={setSelectedChannel}
+          counts={channelCounts}
+          totalCount={dayCounts[selectedDay] || 0}
         />
 
-        <motion.div {...FADE_UP} transition={{ duration: 0.5, delay: 0.2 }}>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {orderedChannels.map((ch) => {
+        <motion.section {...gridReveal}>
+          <div className="tvsch-grid-head">
+            <div>
+              <p className="tvsch-stat-label">Full channel grid</p>
+              <h2 className="font-display text-lg font-bold text-[var(--color-ink)]">
+                {selectedDay} line-up
+              </h2>
+            </div>
+            <span className="tvsch-count-pill">{orderedChannels.length} sources</span>
+          </div>
+          <div className="tvsch-grid">
+            {orderedChannels.map((ch, i) => {
               const liveSchedule = liveData?.channels.find(
                 (lc) => lc.channelId === ch.id
               );
@@ -898,12 +1005,13 @@ function TvSchedulePage() {
                   day={selectedDay}
                   searchQuery={searchQuery}
                   liveSchedule={liveSchedule}
+                  index={i}
                 />
               );
             })}
           </div>
-        </motion.div>
-      </div>
+        </motion.section>
+        </div>
       </div>
     </PageTransition>
   );

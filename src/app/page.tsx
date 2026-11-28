@@ -6,6 +6,7 @@ import {
 } from "@/lib/anilist";
 import { withHomepageFallback } from "@/lib/homepage-fallback";
 import { logError } from "@/lib/logger";
+import { getDubOverview } from "@/lib/dub-import/queries";
 
 // ISR, not per-request rendering. This was `force-dynamic` because a build-time
 // prerender can be rate-limited by AniList (~30 req/min per IP) and the
@@ -77,13 +78,14 @@ import PersonalizedHero from "@/components/PersonalizedHero";
 import AdBanner from "@/components/AdBanner";
 import NativeBannerAd from "@/components/NativeBannerAd";
 import QuoteOfTheDay from "@/components/QuoteOfTheDay";
-import HomeMomentButton from "@/components/HomeMomentButton";
 import AnimeOfTheDay from "@/components/AnimeOfTheDay";
 import FeaturedFeedbackCarousel from "@/components/FeaturedFeedbackCarousel";
 import IndiaHub from "@/components/IndiaHub";
 import WhyZyniVerse from "@/components/WhyZyniVerse";
 import NeonBanner from "@/components/NeonBanner";
 import BrandPartners from "@/components/BrandPartners";
+import CommunityHub from "@/components/CommunityHub";
+import DiscoverMore from "@/components/DiscoverMore";
 import PoweredBy from "@/components/PoweredBy";
 import {
   getHomeUserCount,
@@ -135,14 +137,15 @@ function featuredEndsInOf(featuredTournament: FeaturedTournament): string | null
 }
 
 export default async function Home() {
-  // The three community reads are cached in-process (`home-stats.ts`) — each is
-  // a round-trip to the remote pooler and this route renders per request.
-  const [homepage, tickerRes, userCountRes, latestPostersRes, featuredTournamentRes] = await Promise.allSettled([
+  // Every homepage read is wrapped so one failing source cannot break the
+  // prerender. Community reads are cached in-process (`home-stats.ts`).
+  const [homepage, tickerRes, userCountRes, latestPostersRes, featuredTournamentRes, dubOverviewRes] = await Promise.allSettled([
     getHomepageData(),
     loadAiringSchedule(),
     getHomeUserCount(),
     getHomeLatestPosters(),
     getHomeFeaturedTournament(),
+    getDubOverview(),
   ] as const);
 
   // The homepage is statically prerendered, so whatever AniList returns during
@@ -225,79 +228,102 @@ export default async function Home() {
     indianDubs: indianDubCount,
   };
 
+  // Same overview helper the APK uses. Failure is non-fatal: IndiaHub falls
+  // back to the committed static catalogue snapshot instead of showing zeros.
+  const dubOverview = dubOverviewRes.status === "fulfilled" ? dubOverviewRes.value : null;
+  const dubHasData = Boolean(
+    dubOverview &&
+      (dubOverview.total > 0 ||
+        dubOverview.languages.length > 0 ||
+        dubOverview.genres.length > 0),
+  );
+  const dubHub = dubOverview && dubHasData
+    ? {
+        stats: {
+          total: dubOverview.total,
+          languages: dubOverview.languageCount,
+          genres: dubOverview.genres.length,
+          scheduleCount: dubOverview.scheduleCount,
+          updatedAt: dubOverview.updatedAt,
+        },
+        languages: dubOverview.languages,
+        genres: dubOverview.genres,
+      }
+    : undefined;
+
   return (
     <PageTransition>
       <div className="animate-page-in zy-home">
       <ChristmasCountdown />
       <FadeIn>
-            <div className="mx-auto max-w-7xl px-4 pt-5 sm:px-6">
-              <Link
-                href={featuredHref}
-                className="group relative block overflow-hidden rounded-[24px] border border-[var(--color-line)] bg-[var(--color-panel)] shadow-[0_10px_50px_-15px_rgba(217,70,239,0.4)] transition-all duration-300 hover:border-cyan-400/50 hover:shadow-[0_12px_60px_-12px_var(--color-cyan)]"
-              >
-                <div
-                  aria-hidden
-                  className="pointer-events-none absolute inset-0"
-                  style={{
-                    background:
-                      "radial-gradient(80% 160% at 8% 15%, var(--color-violet), transparent 60%), radial-gradient(80% 160% at 92% 15%, var(--color-cyan), transparent 55%), linear-gradient(125deg, #160a24 0%, #0b0614 70%)",
-                  }}
-                />
-                <div className="relative flex flex-col items-center gap-6 p-6 sm:flex-row sm:items-center sm:p-8">
-                  <div className="min-w-0 flex-1 text-center sm:text-left">
-                    <div className="flex flex-wrap items-center justify-center gap-2 text-xs font-bold uppercase tracking-wider sm:justify-start">
-                      <span className="rounded-full border border-cyan-400/40 bg-cyan-400/10 px-2.5 py-0.5 text-cyan-300">
-                        {featuredChip}
-                      </span>
+            <div className="lb-wrap mx-auto max-w-7xl px-4 pt-5 sm:px-6">
+              <Link href={featuredHref} className="lb-card">
+                <span className="lb-aura lb-aura--left" aria-hidden="true" />
+                <span className="lb-aura lb-aura--right" aria-hidden="true" />
+                <span className="lb-grid" aria-hidden="true" />
+                <span className="lb-bracket" aria-hidden="true" />
+
+                <div className="lb-body">
+                  <div className="lb-main">
+                    <div className="lb-kicker">
+                      <span className="lb-chip lb-chip--live">{featuredChip}</span>
                       {featuredTournament && (
                         <>
-                          <span className="rounded-full border border-[var(--color-line)] bg-black/40 px-2.5 py-0.5 text-[var(--color-mute)]">
+                          <span className="lb-chip lb-chip--stat">
                             {featuredTournament.size} candidates
                           </span>
-                          <span className="text-[var(--color-mute)]">
+                          <span className="lb-byline">
                             by @{featuredTournament.creator.username}
                           </span>
                         </>
                       )}
                     </div>
-                    <h2 className="mt-3 font-display text-2xl font-bold text-white sm:text-4xl">
+
+                    <h2 className="lb-title">
                       {featuredTournament
                         ? featuredTournament.title
                         : "The Dream 16 — Biggest Anime Character Tournament"}
                     </h2>
-                    <p className="mx-auto mt-2 max-w-xl line-clamp-2 text-sm text-white/70 sm:mx-0">
+                    <p className="lb-desc">
                       {featuredTournament
                         ? featuredTournament.description ||
                           "Anime characters going head-to-head — your vote decides."
                         : "64 anime characters, one favorite vote each. The Dream 16 advance to a 1v1 bracket — your vote picks the legends."}
                     </p>
-                    <div className="mt-5 flex flex-wrap items-center justify-center gap-4 font-mono text-xs text-white/60 sm:justify-start">
+
+                    <div className="lb-meta">
                       {featuredTournament ? (
                         <>
-                          {featuredEndsIn && <span>⏳ {featuredEndsIn}</span>}
-                          <span>{featuredTournament._count.participants} fighters</span>
+                          {featuredEndsIn && (
+                            <span className="lb-meta-item lb-meta-item--time">
+                              {featuredEndsIn}
+                            </span>
+                          )}
+                          <span className="lb-meta-item">
+                            {featuredTournament._count.participants} fighters
+                          </span>
                         </>
                       ) : (
-                        <span>Voting opens soon</span>
+                        <span className="lb-meta-item">Voting opens soon</span>
                       )}
-                      <span className="rounded-md bg-white/10 px-3 py-1.5 font-bold text-white transition-colors group-hover:bg-white/20">
+                      <span className="lb-cta">
                         {featuredTournament ? "Vote your fav →" : "Be first in line →"}
                       </span>
                     </div>
                   </div>
-                  <div className="relative shrink-0">
-                    <div className="h-40 w-32 rotate-2 overflow-hidden rounded-t-2xl rounded-b-lg border-2 border-[var(--color-cyan)]/60 shadow-[0_0_35px_-5px_var(--color-cyan)] transition duration-300 group-hover:rotate-0 group-hover:scale-105 sm:h-48 sm:w-40">
+
+                  <div className="lb-poster">
+                    <span className="lb-seed" aria-hidden="true">16</span>
+                    <div className="lb-poster-frame">
                       <Image
                         src="/dream16.jpg"
                         alt="Dream 16 poster"
                         width={320}
                         height={384}
-                        className="h-full w-full object-cover"
+                        className="lb-poster-img"
                       />
                     </div>
-                    <span className="absolute -bottom-2 -left-3 -rotate-3 rounded-md bg-gradient-to-r from-[var(--color-magenta)] to-[var(--color-violet)] px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-white shadow-lg">
-                      Dream 16
-                    </span>
+                    <span className="lb-poster-tag">Dream 16</span>
                   </div>
                 </div>
               </Link>
@@ -311,11 +337,11 @@ export default async function Home() {
             </div>
           </div>
       <div className="mx-auto max-w-7xl px-4 pt-8 sm:px-6">
-        <AnimeOfTheDay />
+        <AnimeOfTheDay companions={trendingData.slice(0, 6)} />
       </div>
       {/* India moat leads high on the page — it's the one thing no competitor has. */}
       <FadeIn delay={0.015}>
-        <IndiaHub />
+        <IndiaHub dub={dubHub} />
       </FadeIn>
       {latestPosters.length > 0 && (
         <FadeIn delay={0.01}>
@@ -401,16 +427,34 @@ export default async function Home() {
 
       <FadeIn>
         <AnimatedSection>
-          <div className="mb-6 flex items-end justify-between">
-            <div className="rounded-xl px-4 py-2">
-              <p className="font-mono text-xs uppercase tracking-[0.2em] text-[var(--color-magenta)]">Right now</p>
-              <h2 className="font-display text-3xl font-bold sm:text-4xl">Trending Anime</h2>
+          <section className="trd-section">
+            <span className="trd-halo" aria-hidden="true" />
+            <span className="trd-beam" aria-hidden="true" />
+
+            <div className="trd-shell">
+              <div className="trd-head">
+                <div>
+                  <p className="trd-eyebrow">
+                    <span className="trd-eyebrow-dot" aria-hidden="true" />
+                    Right now
+                  </p>
+                  <h2 className="trd-title">Trending Anime</h2>
+                  <span className="trd-title-line" aria-hidden="true" />
+                </div>
+                <div className="trd-head-side">
+                  <span className="trd-count">
+                    <strong>{String(Math.min(trendingData.length, 8)).padStart(2, "0")}</strong>
+                    <span>{Math.min(trendingData.length, 8) === 1 ? "title" : "titles"}</span>
+                  </span>
+                  <Link href="/search?sort=TRENDING_DESC" className="trd-viewall">
+                    View all →
+                  </Link>
+                </div>
+              </div>
+
+              <ExpandingFlexCard items={trendingData} />
             </div>
-            <Link href="/search?sort=TRENDING_DESC" className="shrink-0 text-sm text-[var(--color-mute)] hover:text-[var(--color-cyan)]">
-              View all →
-            </Link>
-          </div>
-          <ExpandingFlexCard items={trendingData} />
+          </section>
         </AnimatedSection>
       </FadeIn>
 
@@ -427,68 +471,20 @@ export default async function Home() {
 
       <FadeIn delay={0.2}>
         <AnimatedSection>
-          <Section eyebrow="Coming soon" title="Upcoming Releases" viewAllTo="/search?status=NOT_YET_RELEASED" items={upcomingData} />
+          <Section framed eyebrow="Coming soon" title="Upcoming Releases" viewAllTo="/search?status=NOT_YET_RELEASED" items={upcomingData} />
         </AnimatedSection>
       </FadeIn>
 
       <FadeIn delay={0.3}>
         <AnimatedSection>
-          <Section eyebrow="Critics' pick" title="Top Rated" viewAllTo="/top-anime" items={topRatedData} />
+          <Section framed frameTone="critics" eyebrow="Critics' pick" title="Top Rated" viewAllTo="/top-anime" items={topRatedData} />
         </AnimatedSection>
       </FadeIn>
 
       {/* Community Engagement */}
       <FadeIn delay={0.4}>
         <AnimatedSection className="!py-8">
-          <div className="mb-6 flex items-end justify-between">
-            <div className="rounded-xl px-4 py-2">
-              <p className="font-mono text-xs uppercase tracking-[0.2em] text-[var(--color-magenta)]">Community</p>
-              <h2 className="font-display text-2xl font-bold">Challenges, Forums &amp; More</h2>
-            </div>
-            <Link href="/community" className="shrink-0 text-sm text-[var(--color-mute)] hover:text-[var(--color-cyan)]">
-              Explore →
-            </Link>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-5">
-            {[
-              { href: "/challenges", emoji: "🏆", title: "Challenges", desc: "Seasonal & yearly", color: "#ff2d78" },
-              { href: "/forum", emoji: "💬", title: "Forums", desc: "Discuss anime", color: "#29f2e0" },
-              { href: "/quiz", emoji: "🧠", title: "Quiz", desc: "100+ questions", color: "#8a5cff" },
-              { href: "/characters/battle", emoji: "⚔️", title: "Character Battle", desc: "Daily matchup", color: "#ff6b35" },
-              { href: "/critiques", emoji: "📝", title: "Critiques", desc: "Deep reviews", color: "#f59e0b" },
-            ].map((card) => (
-              <Link key={card.title} href={card.href} className="overflow-hidden rounded-xl neon-feature-card group text-center">
-                <div className="neon-border rounded-xl" style={{ background: `conic-gradient(from var(--border-angle), ${card.color}, transparent 40%, ${card.color}80, transparent 70%, ${card.color})` }} />
-                <div className="neon-glow rounded-xl" style={{ background: card.color }} />
-                <div className="neon-inner rounded-xl p-0 overflow-hidden" style={{ background: "var(--color-panel)" }}>
-                  <div className="h-[2px] w-full" style={{ background: card.color }} />
-                  <div className="p-4 relative">
-                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" style={{ background: `radial-gradient(circle at 50% 0%, ${card.color}08, transparent 70%)` }} />
-                    <span className="text-2xl relative z-10 block mb-2">{card.emoji}</span>
-                    <p className="text-sm font-bold relative z-10">{card.title}</p>
-                    <p className="text-[10px] text-[var(--color-mute)] mt-0.5 relative z-10">{card.desc}</p>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-          <div className="mt-5 flex flex-wrap gap-2 justify-center">
-            {[
-              { href: "/blog", emoji: "✍️", label: "Blogs" },
-              { href: "/clubs", emoji: "👥", label: "Clubs" },
-              { href: "/conventions", emoji: "📅", label: "Conventions" },
-              { href: "/cosplay", emoji: "📸", label: "Cosplay" },
-              { href: "/fanart", emoji: "🎨", label: "Fan Art" },
-              { href: "/watch-party", emoji: "🎬", label: "Watch Parties" },
-              { href: "/messages", emoji: "💬", label: "Chat" },
-            ].map((link) => (
-              <Link key={link.href} href={link.href}
-                className="rounded-full px-3 py-1.5 text-xs font-semibold text-[var(--color-mute)] hover:text-[var(--color-cyan)] transition-colors flex items-center gap-1.5"
-              >
-                <span>{link.emoji}</span>{link.label}
-              </Link>
-            ))}
-          </div>
+          <CommunityHub />
         </AnimatedSection>
       </FadeIn>
 
@@ -508,28 +504,14 @@ export default async function Home() {
 
       {/* Powered By */}
       <FadeIn delay={0.46}>
-        <PoweredBy />
+        <AnimatedSection className="!py-6">
+          <PoweredBy />
+        </AnimatedSection>
       </FadeIn>
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 pb-16">
         <FadeIn>
-          <div className="rounded-2xl border border-[var(--color-line)] bg-gradient-to-br from-[var(--color-panel)] to-[var(--color-void)] p-8 sm:p-12 text-center">
-            <p className="font-display text-2xl sm:text-3xl font-bold">Discover more on ZyniVerse</p>
-            <p className="mt-2 text-[var(--color-mute)] max-w-lg mx-auto">
-              Browse manga, explore character details, check weekly schedules, and build your personal watchlist.
-            </p>
-            <div className="mt-6 flex flex-wrap justify-center gap-3">
-              <Link href="/manga-million" className="rounded-full bg-[var(--color-magenta)] px-5 py-2.5 text-sm font-bold text-black hover:opacity-90 transition-opacity">📰 Manga Million News →</Link>
-              <Link href="/filler" className="rounded-full neon-rgb-border px-5 py-2.5 text-sm font-semibold transition-colors">Skip Filler →</Link>
-              <Link href="/tools" className="rounded-full bg-[var(--color-cyan)] px-5 py-2.5 text-sm font-bold text-black hover:opacity-90 transition-opacity">Anime Tools →</Link>
-              <Link href="/manga" className="rounded-full neon-rgb-border px-5 py-2.5 text-sm font-semibold transition-colors">Browse Manga</Link>
-              <Link href="/schedule" className="rounded-full neon-rgb-border px-5 py-2.5 text-sm font-semibold transition-colors">View Schedule</Link>
-              <Link href="/top-anime" className="rounded-full neon-rgb-border px-5 py-2.5 text-sm font-semibold transition-colors">Top Anime</Link>
-              <Link href="/watchlist" className="rounded-full neon-rgb-border px-5 py-2.5 text-sm font-semibold transition-colors">My Watchlist</Link>
-              <HomeMomentButton />
-              <Link href="/stats/wrapped" className="rounded-full bg-[var(--color-magenta)] px-5 py-2.5 text-sm font-bold text-black hover:opacity-90 transition-opacity">🎌 My Year in Anime →</Link>
-            </div>
-          </div>
+          <DiscoverMore />
         </FadeIn>
       </div>
       </div>

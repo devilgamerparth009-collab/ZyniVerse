@@ -1,5 +1,5 @@
 import { logError } from "@/lib/logger";
-import { AMAZON_TAG } from "@/lib/affiliate-config";
+import { AMAZON_TAG, PLAYASIA_AFFILIATE_ID } from "@/lib/affiliate-config";
 
 export interface AffiliatePartner {
   id: string;
@@ -73,7 +73,11 @@ export function getAffiliateLink(partner: string, path: string, params?: Record<
   const base = `${partnerConfig.baseUrl}${path}`;
   const url = new URL(base);
 
-  url.searchParams.set("ref", "zyniverse");
+  if (partnerConfig.id === "playasia") {
+    url.searchParams.set("affiliate_id", PLAYASIA_AFFILIATE_ID);
+  } else {
+    url.searchParams.set("ref", "zyniverse");
+  }
 
   if (params) {
     for (const [key, value] of Object.entries(params)) {

@@ -9,14 +9,16 @@ import {
 } from "@/lib/dub-page-index";
 import DubEntryGuide from "./entry-guide";
 import { getMediaBatch, type MediaBasic } from "@/lib/anilist";
+import { withFreshDubCovers } from "@/lib/dub-posters";
 import NativeBannerAd from "@/components/NativeBannerAd";
 import IndianDubCountdown from "@/components/indian-dubs/IndianDubCountdown";
 import { nextAiringAt, formatIST } from "@/lib/indian-dub-schedule";
 import "../indian-dubs.css";
 
-// Dub guides are built from committed data + AniList ids; nothing changes
-// between deploys. Cache indefinitely so crawler passes cost zero writes.
-export const revalidate = false;
+// Dub guides are built from committed data + AniList ids, but a failed cover
+// lookup used to be pinned forever. Refresh daily so a repaired poster can
+// replace a broken cached render without a redeploy.
+export const revalidate = 86400;
 export const dynamicParams = false;
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "https://zyverse.in";
@@ -147,7 +149,16 @@ export default async function IndianDubGuidePage({ params }: GuideParams) {
   const page = getDubPage(slug);
   if (!page) notFound();
 
-  if (page.kind === "entry") return <DubEntryGuide page={page} />;
+  if (page.kind === "entry") {
+    const [repaired] = await withFreshDubCovers([
+      { title: page.name, posterUrl: page.entry.image },
+    ]);
+    return (
+      <DubEntryGuide
+        page={{ ...page, entry: { ...page.entry, image: repaired.posterUrl } }}
+      />
+    );
+  }
 
   const guide = page.guide;
 
@@ -163,6 +174,9 @@ export default async function IndianDubGuidePage({ params }: GuideParams) {
       // Decorative art only — the guide still renders without it.
     }
   }
+
+  const [repaired] = await withFreshDubCovers([{ title: guide.name, posterUrl: poster }]);
+  poster = repaired.posterUrl;
 
   const nextTarget = guide.status === "Airing" ? nextAiringAt(guide.schedule) : null;
 

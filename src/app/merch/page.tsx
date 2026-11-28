@@ -4,6 +4,7 @@ import MerchStore from "@/components/MerchStore";
 import NativeBannerAd from "@/components/NativeBannerAd";
 import { CartProvider } from "@/components/merch/useCart";
 import { ProductStore } from "@/components/merch/ProductStore";
+import PlayAsiaPill from "@/components/PlayAsiaPill";
 
 export const metadata: Metadata = {
   title: "Anime Merch Store — Figures, Clothing & More",
@@ -30,6 +31,9 @@ export default function MerchPage() {
           <p className="mt-2 text-sm text-[var(--color-mute)]">
             Buy anime figures, manga, clothing, and accessories. Best prices in India.
           </p>
+          <div className="mt-3 flex">
+            <PlayAsiaPill query="anime merch" label="More on Play-Asia" />
+          </div>
         </div>
 
         <CartProvider>

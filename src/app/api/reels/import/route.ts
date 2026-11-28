@@ -290,7 +290,6 @@ export async function POST(req: NextRequest) {
 
     invalidateReelsFeed();
     revalidatePath("/reels");
-    if (reel.animeId) revalidatePath(`/anime/${reel.animeId}`);
 
     return NextResponse.json(
       {

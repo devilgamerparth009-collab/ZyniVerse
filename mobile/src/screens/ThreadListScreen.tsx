@@ -18,6 +18,7 @@ import { formatCount, stripMarkdown, timeAgo } from '../utils/helpers';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorView from '../components/ErrorView';
 import FadeInView from '../components/FadeInView';
+import { SocialAvatar, UserName } from '../components/social/SocialBits';
 
 type SortKey = 'recent' | 'popular' | 'top';
 const SORTS: { key: SortKey; label: string }[] = [
@@ -163,9 +164,16 @@ export default function ThreadListScreen() {
                 {stripMarkdown(item.title)}
               </Text>
               <View style={styles.threadMeta}>
-                <Text style={styles.threadAuthor}>
-                  @{item.user?.username || 'unknown'} · {timeAgo(item.createdAt)}
-                </Text>
+                <View style={styles.threadAuthorRow}>
+                  <SocialAvatar uri={item.user?.avatar} name={item.user?.username || 'unknown'} size={20} />
+                  <UserName
+                    name={item.user?.username || 'unknown'}
+                    prefix="@"
+                    style={styles.threadAuthor}
+                    numberOfLines={1}
+                  />
+                  <Text style={styles.threadAuthor}> · {timeAgo(item.createdAt)}</Text>
+                </View>
                 <Text style={styles.threadCount}>
                   💬 {postCount} · 👁 {formatCount(item.viewCount)}
                 </Text>
@@ -289,11 +297,18 @@ const styles = themed(() => ({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginTop: spacing.sm,
+    gap: spacing.sm,
+  },
+  threadAuthorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 6,
   },
   threadAuthor: {
     color: colors.textDim,
     fontSize: fontSize.xs,
-    flex: 1,
+    flexShrink: 1,
   },
   threadCount: {
     color: colors.textMuted,

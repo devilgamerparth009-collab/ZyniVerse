@@ -19,9 +19,21 @@ const STATUS_OPTIONS = [
   { value: "favorite", label: "Favorite", color: "var(--color-amber)" },
 ];
 
+// MangaDex sometimes returns creator names only in Japanese script. Show the
+// standard English romanization while keeping the source value as a tooltip.
+const NAME_ROMANIZATIONS: Record<string, string> = {
+  "三澄ツバキ": "Mitsumi Tsubaki",
+};
+
+function displayName(value: string) {
+  return NAME_ROMANIZATIONS[value] ?? value;
+}
+
 export default function DoujinshiDetail({ entry }: Props) {
   const { data: session } = useSession();
   const [trackStatus, setTrackStatus] = useState<string | null>(null);
+  const [imageFailed, setImageFailed] = useState(false);
+  const currentStatus = STATUS_OPTIONS.find((s) => s.value === trackStatus);
 
   useEffect(() => {
     if (!session?.user?.id) return;
@@ -59,108 +71,122 @@ export default function DoujinshiDetail({ entry }: Props) {
   }
 
   return (
-    <div className="min-h-screen animate-page-in">
+    <div className="djdet-page">
       {/* ═══════════════ HERO ═══════════════ */}
-      <div className="relative overflow-hidden border-b border-[var(--color-line)]">
-        <div className="absolute inset-0 bg-[#0a0a0f]" />
-        <div className="absolute top-0 left-0 w-full h-full">
-          <div className="absolute top-10 left-20 w-72 h-72 bg-[#ff00ff]/15 rounded-full blur-[120px] animate-pulse" />
-          <div className="absolute bottom-10 right-20 w-96 h-96 bg-[#8a2be2]/20 rounded-full blur-[150px] animate-pulse" style={{ animationDelay: "1s" }} />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-[#00ffff]/10 rounded-full blur-[100px] animate-pulse" style={{ animationDelay: "0.5s" }} />
-        </div>
-        <div className="absolute inset-0 opacity-10" style={{
-          backgroundImage: "linear-gradient(rgba(255,0,255,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(138,43,226,0.3) 1px, transparent 1px)",
-          backgroundSize: "50px 50px"
-        }} />
+      <div className="djdet-hero">
+        <span className="djdet-hero-grid" aria-hidden="true" />
+        <span className="djdet-orb djdet-orb-a" aria-hidden="true" />
+        <span className="djdet-orb djdet-orb-b" aria-hidden="true" />
+        <span className="djdet-orb djdet-orb-c" aria-hidden="true" />
+        <span className="djdet-hero-scan" aria-hidden="true" />
 
-        <div className="relative mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16">
-          <Link
-            href="/doujinshi"
-            className="inline-flex items-center gap-1 text-xs text-[var(--color-mute)] hover:text-[var(--color-magenta)] transition-colors"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M19 12H5m7-7l-7 7 7 7" />
-            </svg>
-            Back to Doujinshi
+        <div className="djdet-hero-inner">
+          <Link href="/doujinshi" className="djdet-back">
+            <span className="djdet-back-chip" aria-hidden="true">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="djdet-back-arrow">
+                <path d="M19 12H5m7-7l-7 7 7 7" />
+              </svg>
+            </span>
+            <span>Back to Doujinshi</span>
           </Link>
 
-          <div className="mt-6 flex flex-col gap-8 sm:flex-row">
+          <div className="djdet-hero-layout">
             {/* Cover */}
-            <div className="relative shrink-0 h-72 w-48 sm:h-80 sm:w-56 rounded-xl neon-rgb-border bg-[var(--color-panel)]/60 shadow-2xl overflow-hidden">
-              {entry.image ? (
-                <Image src={entry.image} alt={entry.title} fill className="object-cover" sizes="(max-width: 768px) 50vw, 25vw" />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[var(--color-magenta)]/10 to-[var(--color-violet)]/10">
-                  <div className="flex flex-col items-center gap-2 text-[var(--color-mute)]">
+            <div className="djdet-cover-wrap">
+              <span className="djdet-cover-glow" aria-hidden="true" />
+              <div className="djdet-cover-frame">
+                {entry.image && !imageFailed ? (
+                  <Image
+                    src={entry.image}
+                    alt={entry.title}
+                    fill
+                    className="djdet-cover-img"
+                    sizes="(max-width: 768px) 50vw, 25vw"
+                    onError={() => setImageFailed(true)}
+                  />
+                ) : (
+                  <div className="djdet-cover-fallback">
                     <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                      <path d="M4 19.5A2.5 2.5 0 016.5 17H20M4 19.5A2.5 2.5 0 016.5 17H20M4 19.5V4.5A2.5 2.5 0 016.5 2H20v15H6.5A2.5 2.5 0 004 19.5z" />
+                      <path d="M4 19.5A2.5 2.5 0 016.5 17H20M4 19.5V4.5A2.5 2.5 0 016.5 2H20v15H6.5A2.5 2.5 0 004 19.5z" />
                     </svg>
-                    <span className="text-xs font-mono opacity-60">Doujinshi</span>
+                    <span>Doujinshi</span>
                   </div>
-                </div>
-              )}
+                )}
+                <span className="djdet-cover-shade" aria-hidden="true" />
+                <span className="djdet-cover-line" aria-hidden="true" />
+              </div>
             </div>
 
             {/* Info */}
-            <div className="min-w-0 flex-1">
-              <span className="font-mono text-xs uppercase tracking-[0.2em] text-[#ff00ff]" style={{ textShadow: "0 0 10px rgba(255,0,255,0.5)" }}>
+            <div className="djdet-hero-copy">
+              <div className="djdet-kicker">
+                <span className="djdet-kicker-dot" aria-hidden="true" />
                 Doujinshi
-              </span>
-
-              <div className="neon-rgb-border rounded-xl px-4 py-2 mt-2">
-                <h1 className="font-display text-3xl font-bold leading-tight sm:text-4xl">{entry.title}</h1>
+                <span className="djdet-kicker-rule" aria-hidden="true" />
               </div>
 
-              <div className="mt-3 flex flex-wrap gap-4 text-sm text-[var(--color-mute)]">
+              <div className="djdet-title-frame">
+                <RevealTitle as="h1" text={entry.title} className="djdet-title" />
+                <span className="djdet-title-rule" aria-hidden="true" />
+              </div>
+
+              <div className="djdet-facts">
                 {entry.circle && (
-                  <div>
-                    <span className="text-[10px] uppercase tracking-wider opacity-60 block">Circle</span>
-                    <span className="font-medium text-[var(--color-ink)]">{entry.circle}</span>
+                  <div className="djdet-fact">
+                    <span className="djdet-fact-label">Circle</span>
+                    <span
+                      className="djdet-fact-value"
+                      title={entry.circle !== displayName(entry.circle) ? entry.circle : undefined}
+                    >
+                      {displayName(entry.circle)}
+                    </span>
                   </div>
                 )}
                 {entry.artist && (
-                  <div>
-                    <span className="text-[10px] uppercase tracking-wider opacity-60 block">Artist</span>
-                    <span className="font-medium text-[var(--color-ink)]">{entry.artist}</span>
+                  <div className="djdet-fact">
+                    <span className="djdet-fact-label">Artist</span>
+                    <span
+                      className="djdet-fact-value"
+                      title={entry.artist !== displayName(entry.artist) ? entry.artist : undefined}
+                    >
+                      {displayName(entry.artist)}
+                    </span>
                   </div>
                 )}
                 {entry.parody && entry.parody !== "Original" && entry.parody !== "Various" && (
-                  <div>
-                    <span className="text-[10px] uppercase tracking-wider opacity-60 block">Parody</span>
-                    <span className="font-medium text-[var(--color-ink)]">{entry.parody}</span>
+                  <div className="djdet-fact">
+                    <span className="djdet-fact-label">Parody</span>
+                    <span className="djdet-fact-value">{entry.parody}</span>
                   </div>
                 )}
                 {entry.pages > 0 && (
-                  <div>
-                    <span className="text-[10px] uppercase tracking-wider opacity-60 block">Pages</span>
-                    <span className="font-medium text-[var(--color-ink)]">{entry.pages}</span>
+                  <div className="djdet-fact">
+                    <span className="djdet-fact-label">Pages</span>
+                    <span className="djdet-fact-value">{entry.pages}</span>
                   </div>
                 )}
-                <div>
-                  <span className="text-[10px] uppercase tracking-wider opacity-60 block">Language</span>
-                  <span className="font-medium text-[var(--color-ink)] uppercase">{entry.language}</span>
+                <div className="djdet-fact">
+                  <span className="djdet-fact-label">Language</span>
+                  <span className="djdet-fact-value djdet-upper">{entry.language}</span>
                 </div>
               </div>
 
               {/* Badges */}
-              <div className="mt-3 flex flex-wrap gap-2">
-                <span className="rounded-full bg-[var(--color-magenta)]/10 px-3 py-1 text-xs font-mono text-[var(--color-magenta)]">
-                  {entry.language.toUpperCase()}
-                </span>
+              <div className="djdet-badges">
+                <span className="djdet-badge djdet-badge-lang">{entry.language.toUpperCase()}</span>
                 {entry.isTranslated && (
-                  <span className="rounded-full bg-green-500/10 px-3 py-1 text-xs font-mono text-green-400">
-                    Translated
-                  </span>
+                  <span className="djdet-badge djdet-badge-translated">Translated</span>
                 )}
               </div>
 
               {/* Tags */}
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {entry.tags.slice(0, 12).map((tag) => (
+              <div className="djdet-tags">
+                {entry.tags.slice(0, 12).map((tag, index) => (
                   <Link
                     key={tag}
                     href={`/doujinshi?tag=${tag}`}
-                    className="rounded-full border border-[var(--color-line)] px-2.5 py-1 text-[11px] text-[var(--color-mute)] hover:border-[var(--color-magenta)] hover:text-[var(--color-magenta)] transition-colors"
+                    className="djdet-tag djdet-tag-hero"
+                    style={{ animationDelay: `${120 + index * 60}ms` }}
                   >
                     #{tag}
                   </Link>
@@ -168,165 +194,206 @@ export default function DoujinshiDetail({ entry }: Props) {
               </div>
 
               {/* CTA */}
-              <div className="mt-5 flex flex-wrap items-center gap-3">
+              <div className="djdet-actions">
                 <a
                   href={entry.externalUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#ff00ff] to-[#8a2be2] px-5 py-2.5 text-sm font-bold text-black hover:opacity-90 transition-opacity"
+                  className="djdet-read-primary"
                 >
-                  Read Online ↗
+                  <span className="djdet-read-shine" aria-hidden="true" />
+                  <span>Read Online ↗</span>
                 </a>
                 {session && trackStatus && (
-                  <span className="rounded-full px-3 py-1 text-xs font-semibold text-black"
-                    style={{ backgroundColor: STATUS_OPTIONS.find((s) => s.value === trackStatus)?.color || "var(--color-mute)" }}
+                  <span
+                    className="djdet-status-pill"
+                    style={{ backgroundColor: currentStatus?.color || "var(--color-mute)" }}
                   >
-                    {STATUS_OPTIONS.find((s) => s.value === trackStatus)?.label || trackStatus}
+                    {currentStatus?.label || trackStatus}
                   </span>
                 )}
               </div>
+              <span className="djdet-hero-rule" aria-hidden="true" />
             </div>
           </div>
         </div>
-        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#ff00ff] to-transparent shadow-[0_0_10px_rgba(255,0,255,0.5)]" />
+        <span className="djdet-hero-edge" aria-hidden="true" />
       </div>
 
       {/* ═══════════════ MAIN ═══════════════ */}
-      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-10 sm:px-6 lg:grid-cols-[1fr_320px]">
-        <div className="space-y-12 min-w-0">
+      <div className="djdet-main">
+        <div className="djdet-content">
           {/* Story */}
-          <section>
+          <section className="djdet-panel djdet-story">
+            <span className="djdet-story-aura" aria-hidden="true" />
             <SectionTitle>Story</SectionTitle>
-            {entry.description ? (
-              <p className="leading-relaxed text-[var(--color-mute)] whitespace-pre-line">{entry.description}</p>
-            ) : (
-              <p className="text-sm text-[var(--color-mute)]">No description available.</p>
-            )}
+            <div className="djdet-story-body">
+              <span className="djdet-story-quote" aria-hidden="true">
+                “
+              </span>
+              {entry.description ? (
+                <p className="djdet-description">{entry.description}</p>
+              ) : (
+                <p className="djdet-empty">No description available.</p>
+              )}
+            </div>
+            <div className="djdet-story-footer" aria-hidden="true">
+              <span className="djdet-story-line" />
+              <span className="djdet-story-node" />
+            </div>
+            <span className="djdet-panel-accent" aria-hidden="true" />
           </section>
 
           {/* Tags */}
           {entry.tags.length > 0 && (
-            <section>
+            <section className="djdet-panel djdet-tags-panel">
+              <span className="djdet-tagpanel-aura" aria-hidden="true" />
               <SectionTitle>Tags</SectionTitle>
-              <div className="flex flex-wrap gap-1.5">
-                {entry.tags.map((tag) => (
+              <div className="djdet-tag-list">
+                {entry.tags.map((tag, index) => (
                   <Link
                     key={tag}
                     href={`/doujinshi?tag=${tag}`}
-                    className="rounded-full bg-[var(--color-void)] px-2.5 py-1 text-[11px] text-[var(--color-mute)] border border-[var(--color-line)] hover:border-[var(--color-magenta)] hover:text-[var(--color-magenta)] transition-colors"
+                    className="djdet-tag djdet-tag-list-item"
+                    style={{ animationDelay: `${80 + index * 70}ms` }}
                   >
-                    #{tag}
+                    <span className="djdet-tag-hash" aria-hidden="true">
+                      #
+                    </span>
+                    <span className="djdet-tag-label">{tag}</span>
+                    <span className="djdet-tag-dot" aria-hidden="true" />
                   </Link>
                 ))}
               </div>
+              <span className="djdet-panel-accent" aria-hidden="true" />
             </section>
           )}
         </div>
 
         {/* Sidebar */}
-        <aside className="space-y-6">
+        <aside className="djdet-sidebar">
           {/* Tracking */}
           {session && (
-            <div className="rounded-xl neon-rgb-border bg-[var(--color-panel)]/60 backdrop-blur-sm p-5">
-              <h3 className="font-display text-sm font-bold mb-3">Tracking</h3>
+            <section className="djdet-panel djdet-side-panel">
+              <h3 className="djdet-side-title">Tracking</h3>
               {trackStatus ? (
-                <div className="space-y-2">
-                  <span className="inline-block rounded-full px-3 py-1 text-xs font-semibold text-black"
-                    style={{ backgroundColor: STATUS_OPTIONS.find((s) => s.value === trackStatus)?.color || "var(--color-mute)" }}
+                <div className="djdet-track-active">
+                  <span
+                    className="djdet-status-pill"
+                    style={{ backgroundColor: currentStatus?.color || "var(--color-mute)" }}
                   >
-                    {STATUS_OPTIONS.find((s) => s.value === trackStatus)?.label || trackStatus}
+                    {currentStatus?.label || trackStatus}
                   </span>
-                  <div className="flex flex-wrap gap-2 mt-2">
+                  <div className="djdet-track-options">
                     {STATUS_OPTIONS.filter((s) => s.value !== trackStatus).map((opt) => (
                       <button
                         key={opt.value}
                         onClick={() => handleTrack(opt.value)}
-                        className="neon-rgb-border rounded-lg px-3 py-1.5 text-xs text-[var(--color-mute)] hover:text-[var(--color-magenta)] transition-colors"
+                        className="djdet-track-btn"
                       >
                         {opt.label}
                       </button>
                     ))}
                     <button
                       onClick={handleRemoveTracking}
-                      className="rounded-lg border border-red-500/30 px-3 py-1.5 text-xs text-red-400 hover:bg-red-500/10 transition-colors"
+                      className="djdet-track-remove"
                     >
                       Remove
                     </button>
                   </div>
                 </div>
               ) : (
-                <div className="flex flex-wrap gap-2">
+                <div className="djdet-track-options">
                   {STATUS_OPTIONS.map((opt) => (
                     <button
                       key={opt.value}
                       onClick={() => handleTrack(opt.value)}
-                      className="neon-rgb-border rounded-lg px-3 py-1.5 text-xs text-[var(--color-mute)] hover:text-[var(--color-cyan)] transition-colors"
+                      className="djdet-track-btn"
                     >
                       {opt.label}
                     </button>
                   ))}
                 </div>
               )}
-            </div>
+              <span className="djdet-panel-accent" aria-hidden="true" />
+            </section>
           )}
 
           {/* Read */}
-          <div className="rounded-xl neon-rgb-border bg-[var(--color-panel)]/60 backdrop-blur-sm p-5">
-            <h3 className="font-display text-sm font-bold mb-3">Read</h3>
+          <section className="djdet-panel djdet-side-panel djdet-read-panel">
+            <span className="djdet-read-glow" aria-hidden="true" />
+            <h3 className="djdet-side-title">Read</h3>
             <a
               href={entry.externalUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs text-[var(--color-mute)] hover:text-[var(--color-cyan)] transition-colors"
+              className="djdet-read-link"
             >
-              <span className="text-[10px] font-bold">📖</span>
-              Read Online on MangaDex
-              <span className="ml-auto">↗</span>
+              <span className="djdet-read-icon-wrap" aria-hidden="true">
+                <span className="djdet-read-icon">📖</span>
+                <span className="djdet-read-icon-ring" />
+              </span>
+              <span className="djdet-read-label">Read Online on MangaDex</span>
+              <span className="djdet-read-arrow">↗</span>
             </a>
-          </div>
+            <span className="djdet-read-scan" aria-hidden="true" />
+            <span className="djdet-panel-accent" aria-hidden="true" />
+          </section>
 
           {/* Info */}
-          <div className="rounded-xl neon-rgb-border bg-[var(--color-panel)]/60 backdrop-blur-sm p-5 text-xs">
-            <h3 className="font-display text-sm font-bold mb-3">Details</h3>
-            <dl className="space-y-2 text-[var(--color-mute)]">
+          <section className="djdet-panel djdet-side-panel djdet-details-panel">
+            <span className="djdet-details-glow" aria-hidden="true" />
+            <h3 className="djdet-side-title">Details</h3>
+            <dl className="djdet-details">
               {entry.circle && (
-                <div className="flex justify-between gap-4">
-                  <dt className="uppercase tracking-wider opacity-60">Circle</dt>
-                  <dd className="text-right text-[var(--color-ink)]">{entry.circle}</dd>
+                <div className="djdet-detail-row">
+                  <dt>Circle</dt>
+                  <dd
+                    className="djdet-detail-value"
+                    title={entry.circle !== displayName(entry.circle) ? entry.circle : undefined}
+                  >
+                    {displayName(entry.circle)}
+                  </dd>
                 </div>
               )}
               {entry.artist && (
-                <div className="flex justify-between gap-4">
-                  <dt className="uppercase tracking-wider opacity-60">Artist</dt>
-                  <dd className="text-right text-[var(--color-ink)]">{entry.artist}</dd>
+                <div className="djdet-detail-row">
+                  <dt>Artist</dt>
+                  <dd
+                    className="djdet-detail-value"
+                    title={entry.artist !== displayName(entry.artist) ? entry.artist : undefined}
+                  >
+                    {displayName(entry.artist)}
+                  </dd>
                 </div>
               )}
               {entry.parody && entry.parody !== "Original" && entry.parody !== "Various" && (
-                <div className="flex justify-between gap-4">
-                  <dt className="uppercase tracking-wider opacity-60">Parody</dt>
-                  <dd className="text-right text-[var(--color-ink)]">{entry.parody}</dd>
+                <div className="djdet-detail-row">
+                  <dt>Parody</dt>
+                  <dd className="djdet-detail-value">{entry.parody}</dd>
                 </div>
               )}
               {entry.pages > 0 && (
-                <div className="flex justify-between gap-4">
-                  <dt className="uppercase tracking-wider opacity-60">Pages</dt>
-                  <dd className="text-right text-[var(--color-ink)]">{entry.pages}</dd>
+                <div className="djdet-detail-row">
+                  <dt>Pages</dt>
+                  <dd className="djdet-detail-value">{entry.pages}</dd>
                 </div>
               )}
-              <div className="flex justify-between gap-4">
-                <dt className="uppercase tracking-wider opacity-60">Language</dt>
-                <dd className="text-right text-[var(--color-ink)] uppercase">{entry.language}</dd>
+              <div className="djdet-detail-row">
+                <dt>Language</dt>
+                <dd className="djdet-detail-value djdet-upper">{entry.language}</dd>
               </div>
-              <div className="flex justify-between gap-4">
-                <dt className="uppercase tracking-wider opacity-60">Translation</dt>
-                <dd className="text-right text-[var(--color-ink)]">{entry.isTranslated ? "English" : "Not available"}</dd>
+              <div className="djdet-detail-row">
+                <dt>Translation</dt>
+                <dd className="djdet-detail-value">{entry.isTranslated ? "English" : "Not available"}</dd>
               </div>
-              <div className="flex justify-between gap-4">
-                <dt className="uppercase tracking-wider opacity-60">Tags</dt>
-                <dd className="text-right text-[var(--color-ink)]">{entry.tags.length}</dd>
+              <div className="djdet-detail-row">
+                <dt>Tags</dt>
+                <dd className="djdet-detail-value">{entry.tags.length}</dd>
               </div>
             </dl>
-          </div>
+            <span className="djdet-panel-accent" aria-hidden="true" />
+          </section>
         </aside>
       </div>
     </div>
@@ -334,8 +401,11 @@ export default function DoujinshiDetail({ entry }: Props) {
 }
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <h2 className="font-display text-xl font-bold mb-4 flex items-center gap-2">
-    <span className="h-4 w-1 rounded-full bg-[var(--color-violet)]" />
-    <RevealTitle as="span">{children}</RevealTitle>
-  </h2>;
+  return (
+    <h2 className="djdet-section-title">
+      <span className="djdet-section-bar" aria-hidden="true" />
+      <RevealTitle as="span">{children}</RevealTitle>
+      <span className="djdet-section-line" aria-hidden="true" />
+    </h2>
+  );
 }

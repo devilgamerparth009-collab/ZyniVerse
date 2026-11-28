@@ -51,9 +51,9 @@ export default function DisclaimerPage() {
         <section>
           <h2 className="font-display text-lg font-semibold text-white">4. Affiliate disclosure</h2>
           <p className="mt-2">
-            Some outbound links may be affiliate or referral links. If you sign up through them we may
-            earn a small commission at no extra cost to you. This never affects which titles we
-            recommend or how we rank them.
+            Some outbound links may be affiliate or referral links, including Amazon, Play-Asia,
+            CDJapan and BookWalker. If you buy or sign up through them we may earn a small commission
+            at no extra cost to you. This never affects which titles we recommend or how we rank them.
           </p>
         </section>
 

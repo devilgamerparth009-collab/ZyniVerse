@@ -12,13 +12,14 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import ScreenHeader from '../components/ScreenHeader';
-import SafeImage from '../components/SafeImage';
+import AdBanner from '../components/AdBanner';
 import {
   EmptyBlock,
   ErrorBlock,
   LoadingBlock,
   PillButton,
   SignedOutCard,
+  SocialAvatar,
 } from '../components/social/SocialBits';
 import { useSocialAuth } from '../hooks/useSocialAuth';
 import { useTheme } from '../hooks/useTheme';
@@ -115,26 +116,31 @@ export default function ChannelsScreen() {
     }
   };
 
-  const renderChannel = ({ item }: { item: ChannelSummary }) => (
+  const renderChannel = ({ item }: { item: ChannelSummary }) => {
+    const official = !!(item.isOfficial || item.slug === 'zyniverse' || item.name === 'ZyniVerse');
+    return (
     <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       <TouchableOpacity
         style={styles.cardHead}
         onPress={() => navigation.navigate('ChannelDetail', { slug: item.slug })}
         activeOpacity={0.8}
       >
-        <SafeImage
-          uri={item.iconUrl}
-          fallbackLabel={item.name}
-          style={[styles.icon, { borderColor: colors.border }]}
-        />
+        <View style={[styles.icon, { borderColor: colors.border }]}>
+          <SocialAvatar
+            name={item.name}
+            uri={official ? '/logo.png' : item.iconUrl}
+            size={44}
+            verified={official}
+          />
+        </View>
         <View style={{ flex: 1 }}>
           <View style={styles.titleRow}>
             <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
               {item.name}
             </Text>
-            {item.isOfficial && (
+            {official && (
               <View style={[styles.badge, { backgroundColor: `${colors.primary}22` }]}>
-                <Text style={[styles.badgeText, { color: colors.primary }]}>Official</Text>
+                <Text style={[styles.badgeText, { color: colors.primary }]}>✓ Official</Text>
               </View>
             )}
           </View>
@@ -183,7 +189,8 @@ export default function ChannelsScreen() {
         />
       </View>
     </View>
-  );
+    );
+  };
 
   if (checking) {
     return (
@@ -265,6 +272,11 @@ export default function ChannelsScreen() {
             data={channels}
             keyExtractor={(item) => item.id}
             renderItem={renderChannel}
+            ListFooterComponent={
+              <View style={styles.adFooter}>
+                <AdBanner placement="channels-bottom" size="medium" />
+              </View>
+            }
             contentContainerStyle={{ padding: spacing.md, paddingBottom: insets.bottom + spacing.xxl }}
             refreshControl={
               <RefreshControl
@@ -295,6 +307,7 @@ const styles = StyleSheet.create({
   headerBtn: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   headerBtnText: { fontSize: 20, fontWeight: '800', lineHeight: 22 },
   inlineError: { fontSize: fontSize.xs, textAlign: 'center', paddingTop: spacing.sm },
+  adFooter: { paddingBottom: spacing.sm },
   form: { margin: spacing.md, borderWidth: 1, borderRadius: borderRadius.md, maxHeight: 420 },
   formContent: { padding: spacing.md },
   formTitle: { fontSize: fontSize.md, fontWeight: '800', marginBottom: spacing.sm },

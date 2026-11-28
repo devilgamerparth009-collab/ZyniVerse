@@ -88,7 +88,7 @@ const MORE_CATEGORIES: MoreCategory[] = [
     title: "India",
     icon: "🇮🇳",
     items: [
-      { to: "/hindi-dub", label: "Dub Library" },
+      { to: "/hindi-dub", label: "Dub Hub / Hindi Dub" },
       { to: "/hindi-dub/schedule", label: "Dub Schedule" },
       { to: "/indian-dubs", label: "Indian Dubs" },
       { to: "/theatrical-releases", label: "Theatrical Releases" },
@@ -330,6 +330,10 @@ export default function Navbar() {
   const suggestRef = useRef<HTMLDivElement>(null);
   const moreRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
+  // Anime detail pages keep the visitor on-site, including the More menu.
+  const hideExternalExits = pathname?.startsWith("/anime/") ?? false;
+  const visibleMoreItems = (items: MoreLink[]) =>
+    hideExternalExits ? items.filter((item) => !item.external) : items;
   const router = useRouter();
   const { items } = useWatchlist();
   const { data: session } = useSession();
@@ -453,7 +457,7 @@ export default function Navbar() {
                   {MORE_CATEGORIES.filter((cat) => cat.title === moreTab).map((cat) => (
                     <div key={cat.title}>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-1">
-                        {cat.items.map((l) =>
+                        {visibleMoreItems(cat.items).map((l) =>
                           l.external ? (
                             <a key={l.to} href={l.to} target="_blank" rel="noopener noreferrer"
                               onClick={() => setMoreOpen(false)}
@@ -662,7 +666,7 @@ export default function Navbar() {
                   </button>
                   {isOpen && (
                     <div className="grid grid-cols-2 gap-1 px-2 pb-2">
-                      {cat.items.map((l) =>
+                      {visibleMoreItems(cat.items).map((l) =>
                         l.external ? (
                           <a key={l.to} href={l.to} target="_blank" rel="noopener noreferrer" onClick={() => setOpen(false)}
                             className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-[var(--color-mute)] hover:text-[var(--color-cyan)] transition-all"

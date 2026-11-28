@@ -4,16 +4,19 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import WatchOrderDetail from "./WatchOrderDetail";
 import { getDubGuideForWatchOrder, getFillerForWatchOrder } from "@/lib/cross-links";
+import styles from "../watch-order-detail.module.css";
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "https://zyverse.in";
 
 // Watch-order data is committed; cache until the next deploy.
 export const revalidate = false;
 
-// Empty array => no build-time prerender, but on-demand ISR at runtime
-// (Next.js only enables it for a dynamic segment when this function exists).
+// Every valid slug is known at build time. Prerender those and 404 anything
+// else so crawlers cannot create unlimited on-demand ISR entries by guessing IDs.
+export const dynamicParams = false;
+
 export function generateStaticParams() {
-  return [];
+  return Object.keys(WATCH_ORDERS_DATA).map((id) => ({ id }));
 }
 
 interface Props {
@@ -109,9 +112,9 @@ export default async function WatchOrderDetailPage({ params }: Props) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 animate-page-in">
+      <div className={`mx-auto max-w-4xl px-4 py-10 sm:px-6 ${styles.page}`}>
       {/* Breadcrumb */}
-      <nav className="mb-6 flex items-center gap-2 text-xs text-[var(--color-mute)]">
+      <nav className={`mb-6 ${styles.breadcrumb}`}>
         <Link href="/" className="hover:text-[var(--color-cyan)] transition-colors">Home</Link>
         <span>/</span>
         <Link href="/watch-order" className="hover:text-[var(--color-cyan)] transition-colors">Watch Orders</Link>
@@ -120,41 +123,32 @@ export default async function WatchOrderDetailPage({ params }: Props) {
       </nav>
 
       {/* Hero Banner */}
-      <div className="relative rounded-2xl overflow-hidden border border-[var(--glass-border)] mb-8">
-        <div className="absolute inset-0">
-          <Image
-            src={`https://img.anili.st/media/${order.anilistId}`}
-            alt={order.title}
-            fill
-            className="object-cover"
-            sizes="100vw"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-[var(--color-panel)] via-[var(--color-panel)]/70 to-[var(--color-panel)]/30" />
-        </div>
-        <div className="relative p-6 sm:p-8">
-          <div className="flex items-start gap-4">
-            <span className="text-4xl sm:text-5xl drop-shadow-lg shrink-0">{order.emoji}</span>
+      <div className={`mb-8 ${styles.hero}`}>
+        <span className={styles.aurora} aria-hidden="true" />
+        <span className={styles.shimmer} aria-hidden="true" />
+        <div className={styles.heroInner}>
+          <div className={styles.heroRow}>
+            <div className={styles.poster}>
+              <Image
+                src={`https://img.anili.st/media/${order.anilistId}`}
+                alt={order.title}
+                fill
+                className="object-cover"
+                sizes="(max-width: 640px) 104px, 144px"
+              />
+              <span className="absolute bottom-1 right-1 text-lg drop-shadow-lg" aria-hidden="true">
+                {order.emoji}
+              </span>
+            </div>
             <div className="min-w-0">
-              <p className="font-mono text-xs uppercase tracking-[0.2em] text-[var(--color-magenta)]">
-                {/* watch order guide */}
-              </p>
-              <div className="neon-rgb-border rounded-xl px-4 py-2 inline-block">
-                <h1 className="font-display text-2xl sm:text-3xl font-bold text-[var(--color-ink)]">
-                  {order.title}
-                </h1>
-              </div>
-              <p className="mt-2 text-sm text-[var(--color-mute)] max-w-xl leading-relaxed">
-                {order.description}
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
+              <p className={styles.eyebrow}>watch order guide</p>
+              <h1 className={styles.title}>{order.title}</h1>
+              <p className={styles.description}>{order.description}</p>
+              <div className={styles.chips}>
                 {methods.map((m) => (
-                  <span key={m} className="inline-flex items-center gap-1 rounded-full bg-[var(--color-cyan)]/10 px-3 py-1 text-[10px] font-semibold text-[var(--color-cyan)] border border-[var(--color-cyan)]/20">
-                    {m}
-                  </span>
+                  <span key={m} className={styles.chip}>{m}</span>
                 ))}
-                <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-magenta)]/10 px-3 py-1 text-[10px] font-semibold text-[var(--color-magenta)] border border-[var(--color-magenta)]/20">
-                  {order.entries} entries
-                </span>
+                <span className={styles.countChip}>{order.entries} entries</span>
               </div>
             </div>
           </div>
@@ -171,13 +165,13 @@ export default async function WatchOrderDetailPage({ params }: Props) {
 
       {/* Related guides — internal links across the filler + Indian dub surfaces */}
       {(fillerSlug || dubSlug) && (
-        <section className="mt-10 rounded-2xl neon-rgb-border bg-[var(--color-panel)] p-6">
-          <h2 className="font-display text-lg font-bold mb-4">Keep going with {animeName}</h2>
-          <div className="flex flex-wrap gap-3">
+        <section className={styles.related}>
+          <h2 className={styles.relatedTitle}>Keep going with {animeName}</h2>
+          <div className={styles.relatedLinks}>
             {fillerSlug && (
               <Link
                 href={`/filler/${fillerSlug}`}
-                className="rounded-full bg-[var(--color-magenta)] px-5 py-2.5 text-xs font-bold text-black hover:opacity-90 transition-opacity"
+                className={`bg-[var(--color-magenta)] text-black ${styles.relatedLink}`}
               >
                 ⏭️ Skip {animeName} filler →
               </Link>
@@ -185,14 +179,14 @@ export default async function WatchOrderDetailPage({ params }: Props) {
             {dubSlug && (
               <Link
                 href={`/indian-dubs/${dubSlug}`}
-                className="rounded-full border border-[#ff9933]/40 bg-[#ff9933]/10 px-5 py-2.5 text-xs font-semibold text-[#ff9933] hover:border-[#ff9933]/70 transition-colors"
+                className={`border border-[#ff9933]/40 bg-[#ff9933]/10 text-[#ff9933] hover:border-[#ff9933]/70 ${styles.relatedLink}`}
               >
                 🇮🇳 {animeName} in Hindi →
               </Link>
             )}
             <Link
               href="/filler"
-              className="rounded-full neon-rgb-border px-5 py-2.5 text-xs font-semibold transition-colors"
+              className={`neon-rgb-border ${styles.relatedLink}`}
             >
               All filler guides →
             </Link>
@@ -204,7 +198,7 @@ export default async function WatchOrderDetailPage({ params }: Props) {
       <div className="mt-10 text-center">
         <Link
           href="/watch-order"
-          className="inline-flex items-center gap-2 text-sm text-[var(--color-mute)] hover:text-[var(--color-cyan)] transition-colors"
+          className={styles.back}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M19 12H5" /><path d="m12 19-7-7 7-7" />

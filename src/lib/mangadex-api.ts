@@ -1,5 +1,12 @@
 const MANGADEX_API = "https://api.mangadex.org";
 
+// MangaDex's uploads CDN serves a browser-verification challenge to datacenter
+// IPs, so browsers get an HTML file instead of the cover JPEG. This public,
+// cover-only proxy (the one used by the upstream MangaDex image-proxy project)
+// fetches the same real cover path and serves it as image/jpeg. No credentials
+// or user data are sent to it; the catalogue still links to MangaDex itself.
+const MANGADEX_COVER_PROXY = "https://apsiknb-image.hf.space/covers";
+
 const DOUJINSHI_TAG = "b13b2a48-c720-44a9-9c77-39c9979373fb";
 
 const GENRE_TAG_MAP: Record<string, string> = {
@@ -92,7 +99,7 @@ function transform(m: MDManga): DoujinshiEntry {
     language: m.attributes.originalLanguage || "ja",
     isTranslated: (m.attributes.availableTranslatedLanguages || []).includes("en"),
     externalUrl: `https://mangadex.org/title/${m.id}`,
-    image: fileName ? `https://uploads.mangadex.org/covers/${m.id}/${fileName}.256.jpg` : "",
+    image: fileName ? `${MANGADEX_COVER_PROXY}/${m.id}/${fileName}.256.jpg` : "",
   };
 }
 

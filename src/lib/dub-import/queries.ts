@@ -7,6 +7,7 @@
  * to the client and are cached by the CDN.
  */
 import { prisma } from "@/lib/prisma";
+import { withFreshDubCovers } from "@/lib/dub-posters";
 import { sortLanguages } from "./parsers";
 import { DUB_SOURCES, DubSourceId } from "./sources";
 
@@ -159,7 +160,7 @@ export async function getDubCatalog(query: DubCatalogQuery = {}) {
   ]);
 
   return {
-    items: rows.map(toTitleDTO),
+    items: await withFreshDubCovers(rows.map(toTitleDTO)),
     total,
     page,
     limit,
@@ -171,7 +172,9 @@ export async function getDubTitle(source: string, slug: string): Promise<DubTitl
   const row = await prisma.dubCatalogTitle.findFirst({
     where: { source, OR: [{ slug }, { sourceId: slug }] },
   });
-  return row ? toTitleDTO(row) : null;
+  if (!row) return null;
+  const [dto] = await withFreshDubCovers([toTitleDTO(row)]);
+  return dto;
 }
 
 export async function getDubRelated(title: DubTitleDTO, take = 12): Promise<DubTitleDTO[]> {
@@ -183,7 +186,7 @@ export async function getDubRelated(title: DubTitleDTO, take = 12): Promise<DubT
     orderBy: orderFor("recent"),
     take,
   });
-  return rows.map(toTitleDTO);
+  return withFreshDubCovers(rows.map(toTitleDTO));
 }
 
 export async function getDubSchedule({ day, language, limit = 200 }: { day?: string | null; language?: string | null; limit?: number } = {}) {
@@ -197,7 +200,7 @@ export async function getDubSchedule({ day, language, limit = 200 }: { day?: str
     take: Math.max(1, Math.min(limit, 400)),
   });
 
-  return rows.map(
+  const schedule: DubScheduleDTO[] = rows.map(
     (row): DubScheduleDTO => ({
       id: row.id,
       source: asSource(row.source),
@@ -213,6 +216,7 @@ export async function getDubSchedule({ day, language, limit = 200 }: { day?: str
       sourceUrl: row.sourceUrl,
     })
   );
+  return withFreshDubCovers(schedule);
 }
 
 export const WEEKDAY_ORDER = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
